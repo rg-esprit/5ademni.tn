@@ -1,5 +1,6 @@
 package com.khademni;
 
+
 import javafx.application.Application;
 import javafx.fxml.FXMLLoader;
 import javafx.scene.Parent;
@@ -9,7 +10,6 @@ import javafx.stage.Stage;
 
 import java.io.IOException;
 
-import com.khademni.utils.MyDataBase;
 
 /**
  * JavaFX App
@@ -17,16 +17,34 @@ import com.khademni.utils.MyDataBase;
 public class App extends Application {
 
     private static Scene scene;
+    private static Stage primaryStage;
 
     @Override
     public void start(Stage stage) throws IOException {
-        scene = new Scene(loadFXML("primary"), 640, 480);
+        primaryStage = stage;
+        
+
+        
+        scene = new Scene(loadFXML("login"), 540, 700);
+        scene.getStylesheets().add(App.class.getResource("login.css").toExternalForm());
+        stage.setTitle("5ademni.tn — Sign In");
         stage.setScene(scene);
         stage.show();
     }
 
-    static void setRoot(String fxml) throws IOException {
+    public static void setRoot(String fxml) throws IOException {
         scene.setRoot(loadFXML(fxml));
+        
+        // Update title and CSS based on the scene
+        if (fxml.equals("login")) {
+            primaryStage.setTitle("5ademni.tn — Sign In");
+            scene.getStylesheets().clear();
+            scene.getStylesheets().add(App.class.getResource("login.css").toExternalForm());
+        } else if (fxml.equals("signup")) {
+            primaryStage.setTitle("5ademni.tn — Create Account");
+            scene.getStylesheets().clear();
+            scene.getStylesheets().add(App.class.getResource("signup.css").toExternalForm());
+        }
     }
 
     private static Parent loadFXML(String fxml) throws IOException {
@@ -35,8 +53,6 @@ public class App extends Application {
     }
 
     public static void main(String[] args) {
-        // test database connection
-        MyDataBase db = MyDataBase.getInstance();
         launch();
     }
 

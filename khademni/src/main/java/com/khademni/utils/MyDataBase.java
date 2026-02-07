@@ -5,27 +5,33 @@ import java.sql.DriverManager;
 import java.sql.SQLException;
 
 public class MyDataBase {
-    private static MyDataBase instance;
-    private Connection connection;
+
+    // Database credentials
+    private static final String DB_URL = "jdbc:mysql://localhost:3306/appdb";
+    private static final String USER = "root";
+    private static final String PASS = ""; 
+
+
+    private static Connection connection = null;
 
     private MyDataBase() {
-        try {
-            // Establish a connection to the database
-            connection = DriverManager.getConnection("jdbc:mysql://localhost:3306/appdb", "root", "");
-            System.out.println("Database connection established successfully.");
-        } catch (SQLException e) {
-            e.printStackTrace();
-        }
-    }
-    
-    public static MyDataBase getInstance() {
-        if (instance == null) {
-            instance = new MyDataBase();
-        }
-        return instance;
     }
 
-    public Connection getConnection() {
+    public static Connection getConnection() throws SQLException {
+        if (connection == null || connection.isClosed()) {
+            synchronized (MyDataBase.class) {
+                if (connection == null || connection.isClosed()) {
+                    try {
+                        connection = DriverManager.getConnection(DB_URL, USER, PASS);
+                        System.out.println("Database connection established successfully.");
+                    } catch (SQLException e) {
+                        System.out.println("Connection failed: " + e.getMessage());
+                        throw e;
+                    }
+                }
+            }
+        }
         return connection;
     }
+
 }
