@@ -212,15 +212,17 @@ public class UserController {
         if (passwordVisible) {
             plainPasswordField.setVisible(true);
             plainPasswordField.setManaged(true);
+            plainPasswordField.setText(passwordField.getText());
             passwordField.setVisible(false);
             passwordField.setManaged(false);
-            togglePasswordButton.setText("&#xe8f5;"); // visibility_off
+            ((org.kordamp.ikonli.javafx.FontIcon) togglePasswordButton.getGraphic()).setIconLiteral("fas-eye-slash");
         } else {
             passwordField.setVisible(true);
             passwordField.setManaged(true);
+            passwordField.setText(plainPasswordField.getText());
             plainPasswordField.setVisible(false);
             plainPasswordField.setManaged(false);
-            togglePasswordButton.setText("&#xe8f4;"); // visibility
+            ((org.kordamp.ikonli.javafx.FontIcon) togglePasswordButton.getGraphic()).setIconLiteral("fas-eye");
         }
     }
 
@@ -383,15 +385,17 @@ public class UserController {
         if (passwordVisible) {
             signupPlainPasswordField.setVisible(true);
             signupPlainPasswordField.setManaged(true);
+            signupPlainPasswordField.setText(signupPasswordField.getText());
             signupPasswordField.setVisible(false);
             signupPasswordField.setManaged(false);
-            signupTogglePasswordButton.setText("&#xe8f5;"); // visibility_off
+            ((org.kordamp.ikonli.javafx.FontIcon) signupTogglePasswordButton.getGraphic()).setIconLiteral("fas-eye-slash");
         } else {
             signupPasswordField.setVisible(true);
             signupPasswordField.setManaged(true);
+            signupPasswordField.setText(signupPlainPasswordField.getText());
             signupPlainPasswordField.setVisible(false);
             signupPlainPasswordField.setManaged(false);
-            signupTogglePasswordButton.setText("&#xe8f4;"); // visibility
+            ((org.kordamp.ikonli.javafx.FontIcon) signupTogglePasswordButton.getGraphic()).setIconLiteral("fas-eye");
         }
     }
 
@@ -402,15 +406,17 @@ public class UserController {
         if (confirmPasswordVisible) {
             signupPlainConfirmPasswordField.setVisible(true);
             signupPlainConfirmPasswordField.setManaged(true);
+            signupPlainConfirmPasswordField.setText(signupConfirmPasswordField.getText());
             signupConfirmPasswordField.setVisible(false);
             signupConfirmPasswordField.setManaged(false);
-            signupToggleConfirmPasswordButton.setText("&#xe8f5;"); // visibility_off
+            ((org.kordamp.ikonli.javafx.FontIcon) signupToggleConfirmPasswordButton.getGraphic()).setIconLiteral("fas-eye-slash");
         } else {
             signupConfirmPasswordField.setVisible(true);
             signupConfirmPasswordField.setManaged(true);
+            signupConfirmPasswordField.setText(signupPlainConfirmPasswordField.getText());
             signupPlainConfirmPasswordField.setVisible(false);
             signupPlainConfirmPasswordField.setManaged(false);
-            signupToggleConfirmPasswordButton.setText("&#xe8f4;"); // visibility
+            ((org.kordamp.ikonli.javafx.FontIcon) signupToggleConfirmPasswordButton.getGraphic()).setIconLiteral("fas-eye");
         }
     }
 

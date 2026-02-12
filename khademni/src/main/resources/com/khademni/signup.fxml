@@ -5,6 +5,7 @@
 <?import javafx.scene.image.ImageView?>
 <?import javafx.scene.image.Image?>
 <?import javafx.geometry.Insets?>
+<?import org.kordamp.ikonli.javafx.FontIcon?>
 
 <ScrollPane xmlns="http://javafx.com/javafx/17" xmlns:fx="http://javafx.com/fxml/1"
     fx:controller="com.khademni.controller.UserController"
@@ -22,8 +23,7 @@
         <VBox alignment="CENTER" spacing="8" style="-fx-padding: 0 0 40 0;">
             <StackPane styleClass="logo-box" prefWidth="40" prefHeight="40" maxWidth="40"
                 maxHeight="40">
-                <Label styleClass="icon-logo" text="&#xe7b5;"
-                    style="-fx-text-fill: white; -fx-font-size: 24;" />
+                <FontIcon iconLiteral="fas-book-open" iconSize="24" iconColor="white" styleClass="icon-logo"/>
             </StackPane>
             <Label text="5ademni.tn" styleClass="brand-title" />
         </VBox>
@@ -54,7 +54,7 @@
                         <Label text="First Name" styleClass="field-label" />
                         <StackPane styleClass="input-wrapper">
                             <HBox alignment="CENTER_LEFT" styleClass="input-container">
-                                <Label text="&#xe7fd;" styleClass="input-icon" />
+                                <FontIcon iconLiteral="fas-user" styleClass="input-icon" />
                                 <TextField fx:id="signupFirstNameField" promptText="John"
                                     styleClass="input-field" HBox.hgrow="ALWAYS" />
                             </HBox>
@@ -64,7 +64,7 @@
                         <Label text="Last Name" styleClass="field-label" />
                         <StackPane styleClass="input-wrapper">
                             <HBox alignment="CENTER_LEFT" styleClass="input-container">
-                                <Label text="&#xe7fd;" styleClass="input-icon" />
+                                <FontIcon iconLiteral="fas-user" styleClass="input-icon" />
                                 <TextField fx:id="signupLastNameField" promptText="Doe"
                                     styleClass="input-field" HBox.hgrow="ALWAYS" />
                             </HBox>
@@ -77,7 +77,7 @@
                     <Label text="Date of Birth" styleClass="field-label" />
                     <StackPane styleClass="input-wrapper">
                         <HBox alignment="CENTER_LEFT" styleClass="input-container">
-                            <Label text="&#xe916;" styleClass="input-icon" />
+                            <FontIcon iconLiteral="fas-calendar-alt" styleClass="input-icon" />
                             <DatePicker fx:id="signupDobPicker"
                                 promptText="Select your date of birth"
                                 styleClass="date-picker-field" HBox.hgrow="ALWAYS" />
@@ -90,7 +90,7 @@
                     <Label text="Email" styleClass="field-label" />
                     <StackPane styleClass="input-wrapper">
                         <HBox alignment="CENTER_LEFT" styleClass="input-container">
-                            <Label text="&#xe878;" styleClass="input-icon" />
+                            <FontIcon iconLiteral="fas-envelope" styleClass="input-icon" />
                             <TextField fx:id="signupEmailField" promptText="name@company.com"
                                 styleClass="input-field" HBox.hgrow="ALWAYS" />
                         </HBox>
@@ -102,7 +102,7 @@
                     <Label text="Password" styleClass="field-label" />
                     <StackPane styleClass="input-wrapper">
                         <HBox alignment="CENTER_LEFT" styleClass="input-container">
-                            <Label text="&#xe897;" styleClass="input-icon" />
+                            <FontIcon iconLiteral="fas-lock" styleClass="input-icon" />
                             <PasswordField fx:id="signupPasswordField"
                                 promptText="Create a password"
                                 styleClass="input-field" HBox.hgrow="ALWAYS" />
@@ -110,9 +110,13 @@
                                 promptText="Create a password"
                                 styleClass="input-field" visible="false" managed="false"
                                 HBox.hgrow="ALWAYS" />
-                            <Button fx:id="signupTogglePasswordButton" text="&#xe8f4;"
+                            <Button fx:id="signupTogglePasswordButton"
                                 onAction="#toggleSignupPasswordVisibility"
-                                styleClass="toggle-password-btn" />
+                                styleClass="toggle-password-btn">
+                                <graphic>
+                                    <FontIcon iconLiteral="fas-eye" />
+                                </graphic>
+                            </Button>
                         </HBox>
                     </StackPane>
                 </VBox>
@@ -122,16 +126,20 @@
                     <Label text="Confirm Password" styleClass="field-label" />
                     <StackPane styleClass="input-wrapper">
                         <HBox alignment="CENTER_LEFT" styleClass="input-container">
-                            <Label text="&#xe897;" styleClass="input-icon" />
+                            <FontIcon iconLiteral="fas-lock" styleClass="input-icon" />
                             <PasswordField fx:id="signupConfirmPasswordField"
                                 promptText="Confirm your password" styleClass="input-field"
                                 HBox.hgrow="ALWAYS" />
                             <TextField fx:id="signupPlainConfirmPasswordField"
                                 promptText="Confirm your password" styleClass="input-field"
                                 visible="false" managed="false" HBox.hgrow="ALWAYS" />
-                            <Button fx:id="signupToggleConfirmPasswordButton" text="&#xe8f4;"
+                            <Button fx:id="signupToggleConfirmPasswordButton"
                                 onAction="#toggleSignupConfirmPasswordVisibility"
-                                styleClass="toggle-password-btn" />
+                                styleClass="toggle-password-btn">
+                                <graphic>
+                                    <FontIcon iconLiteral="fas-eye" />
+                                </graphic>
+                            </Button>
                         </HBox>
                     </StackPane>
                 </VBox>
@@ -141,7 +149,7 @@
                     <Label text="Profile Image URL (optional)" styleClass="field-label" />
                     <StackPane styleClass="input-wrapper">
                         <HBox alignment="CENTER_LEFT" styleClass="input-container">
-                            <Label text="&#xe3f4;" styleClass="input-icon" />
+                            <FontIcon iconLiteral="fas-image" styleClass="input-icon" />
                             <TextField fx:id="signupProfileImgField"
                                 promptText="https://example.com/avatar.png"
                                 styleClass="input-field" HBox.hgrow="ALWAYS" />
@@ -162,7 +170,7 @@
                 <Button fx:id="signUpButton" text="Create Account" styleClass="button-primary"
                     onAction="#onSignUp" maxWidth="Infinity" graphicTextGap="8">
                     <graphic>
-                        <Label text="&#xe5c8;" styleClass="btn-icon-arrow" />
+                        <FontIcon iconLiteral="fas-arrow-right" styleClass="btn-icon-arrow" />
                     </graphic>
                 </Button>
             </VBox>
@@ -190,7 +198,7 @@
                     onAction="#onSignupAppleSignIn" HBox.hgrow="ALWAYS" maxWidth="Infinity"
                     graphicTextGap="12">
                     <graphic>
-                        <Label text="&#xf04f;" styleClass="apple-icon" />
+                        <FontIcon iconLiteral="fab-apple" styleClass="apple-icon" />
                     </graphic>
                 </Button>
             </HBox>

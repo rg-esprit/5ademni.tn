@@ -9,9 +9,12 @@
 <?import javafx.scene.layout.StackPane?>
 <?import javafx.scene.shape.Circle?>
 <?import javafx.scene.shape.SVGPath?>
+<?import javafx.scene.image.ImageView?>
+<?import javafx.scene.image.Image?>
 
 <HBox xmlns="http://javafx.com/javafx"
     xmlns:fx="http://javafx.com/fxml"
+    fx:controller="com.khademni.controller.HeaderController"
     alignment="CENTER_LEFT"
     spacing="20"
     styleClass="header"
@@ -21,11 +24,9 @@
     <HBox alignment="CENTER_LEFT" spacing="16">
         <!-- Logo -->
         <StackPane prefHeight="32" prefWidth="32">
-            <SVGPath
-                content="M24 45.8096C19.6865 45.8096 15.4698 44.5305 11.8832 42.134C8.29667 39.7376 5.50128 36.3314 3.85056 32.3462C2.19985 28.361 1.76794 23.9758 2.60947 19.7452C3.451 15.5145 5.52816 11.6284 8.57829 8.5783C11.6284 5.52817 15.5145 3.45101 19.7452 2.60948C23.9758 1.76795 28.361 2.19986 32.3462 3.85057C36.3314 5.50129 39.7376 8.29668 42.134 11.8833C44.5305 15.4698 45.8096 19.6865 45.8096 24L24 24L24 45.8096Z"
-                fill="#6c0df2"
-                scaleX="0.67"
-                scaleY="0.67" />
+            <ImageView fitHeight="32" fitWidth="32" preserveRatio="true">
+                <Image url="@logo.png" />
+            </ImageView>
         </StackPane>
 
         <!-- Brand Name -->
@@ -40,13 +41,13 @@
     <HBox alignment="CENTER_RIGHT" spacing="32">
         <!-- Navigation Links -->
         <HBox spacing="32" alignment="CENTER">
-            <Hyperlink text="Jobs &amp; Services"
+            <Hyperlink text="Jobs &amp; Services" onAction="#goToJobs"
                 style="-fx-font-size: 14px; -fx-font-weight: 600; -fx-text-fill: #141118;" />
-            <Hyperlink text="Dashboard"
+            <Hyperlink text="Dashboard" onAction="#goToDashboard"
                 style="-fx-font-size: 14px; -fx-font-weight: 600; -fx-text-fill: #141118;" />
-            <Hyperlink text="Messages"
+            <Hyperlink text="Messages" onAction="#goToMessages"
                 style="-fx-font-size: 14px; -fx-font-weight: 600; -fx-text-fill: #141118;" />
-            <Hyperlink text="Blogs"
+            <Hyperlink text="Blogs" onAction="#goToBlogs"
                 style="-fx-font-size: 14px; -fx-font-weight: 600; -fx-text-fill: #141118;" />
         </HBox>
 
@@ -54,7 +55,7 @@
         <HBox spacing="16" alignment="CENTER"
             style="-fx-border-color: #e5e7eb; -fx-border-width: 0 0 0 1; -fx-padding: 0 0 0 32;">
             <!-- Profile Button -->
-            <Button text="Profile"
+            <Button text="Profile" onAction="#goToProfile"
                 styleClass="profile-button"
                 style="-fx-background-color: #6c0df2; -fx-text-fill: white; -fx-font-weight: bold; -fx-font-size: 14px; -fx-background-radius: 12; -fx-padding: 8 20 8 20; -fx-cursor: hand;" />
 

@@ -5,6 +5,7 @@
 <?import javafx.scene.image.ImageView?>
 <?import javafx.scene.image.Image?>
 <?import javafx.geometry.Insets?>
+<?import org.kordamp.ikonli.javafx.FontIcon?>
 
 <ScrollPane xmlns="http://javafx.com/javafx/17" xmlns:fx="http://javafx.com/fxml/1"
     fx:controller="com.khademni.controller.UserController"
@@ -22,8 +23,7 @@
         <VBox alignment="CENTER" spacing="8" style="-fx-padding: 0 0 40 0;">
             <StackPane styleClass="logo-box" prefWidth="40" prefHeight="40" maxWidth="40"
                 maxHeight="40">
-                <Label styleClass="icon-logo" text="&#xe7b5;"
-                    style="-fx-text-fill: white; -fx-font-size: 24;" />
+                <FontIcon iconLiteral="fas-book-open" iconSize="24" iconColor="white" styleClass="icon-logo"/>
             </StackPane>
             <Label text="5ademni.tn" styleClass="brand-title" />
         </VBox>
@@ -53,7 +53,7 @@
                     <Label text="Email" styleClass="field-label" />
                     <StackPane styleClass="input-wrapper">
                         <HBox alignment="CENTER_LEFT" styleClass="input-container">
-                            <Label text="&#xe878;" styleClass="input-icon" />
+                            <FontIcon iconLiteral="fas-envelope" styleClass="input-icon" />
                             <TextField fx:id="emailField" promptText="name@company.com"
                                 styleClass="input-field" HBox.hgrow="ALWAYS" />
                         </HBox>
@@ -70,15 +70,19 @@
                     </HBox>
                     <StackPane styleClass="input-wrapper">
                         <HBox alignment="CENTER_LEFT" styleClass="input-container">
-                            <Label text="&#xe897;" styleClass="input-icon" />
+                            <FontIcon iconLiteral="fas-lock" styleClass="input-icon" />
                             <PasswordField fx:id="passwordField" promptText="Enter your password"
                                 styleClass="input-field" HBox.hgrow="ALWAYS" />
                             <TextField fx:id="plainPasswordField" promptText="Enter your password"
                                 styleClass="input-field" visible="false" managed="false"
                                 HBox.hgrow="ALWAYS" />
-                            <Button fx:id="togglePasswordButton" text="&#xe8f4;"
+                            <Button fx:id="togglePasswordButton"
                                 onAction="#togglePasswordVisibility"
-                                styleClass="toggle-password-btn" />
+                                styleClass="toggle-password-btn">
+                                <graphic>
+                                    <FontIcon iconLiteral="fas-eye" />
+                                </graphic>
+                            </Button>
                         </HBox>
                     </StackPane>
                 </VBox>
@@ -87,7 +91,7 @@
                 <Button fx:id="signInButton" text="Sign In" styleClass="button-primary"
                     onAction="#onSignIn" maxWidth="Infinity" graphicTextGap="8">
                     <graphic>
-                        <Label text="&#xe5c8;" styleClass="btn-icon-arrow" />
+                        <FontIcon iconLiteral="fas-arrow-right" styleClass="btn-icon-arrow" />
                     </graphic>
                 </Button>
             </VBox>
@@ -115,7 +119,7 @@
                     onAction="#onAppleSignIn" HBox.hgrow="ALWAYS" maxWidth="Infinity"
                     graphicTextGap="12">
                     <graphic>
-                        <Label text="&#xf04f;" styleClass="apple-icon" />
+                        <FontIcon iconLiteral="fab-apple" styleClass="apple-icon" />
                     </graphic>
                 </Button>
             </HBox>
