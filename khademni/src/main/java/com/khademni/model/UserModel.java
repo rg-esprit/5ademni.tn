@@ -10,6 +10,9 @@ public class UserModel {
     private double balance;
     private String email;
     private String password;
+    private boolean isAdmin;
+    private String profileImg;
+    private String bio;
 
     public UserModel() {
     }
@@ -21,9 +24,12 @@ public class UserModel {
         this.email = email;
         this.password = password;
         this.balance = 0.0;
+        this.isAdmin = false;
+        this.profileImg = "";
+        this.bio = "";
     }
 
-    public UserModel(int id, String firstName, String lastName, LocalDate dateOfBirth, double balance, String email, String password) {
+    public UserModel(int id, String firstName, String lastName, LocalDate dateOfBirth, double balance, String email, String password, boolean isAdmin, String profileImg, String bio) {
         this.id = id;
         this.firstName = firstName;
         this.lastName = lastName;
@@ -31,6 +37,9 @@ public class UserModel {
         this.balance = balance;
         this.email = email;
         this.password = password;
+        this.isAdmin = isAdmin;
+        this.profileImg = profileImg;
+        this.bio = bio;
     }
 
     public int getId() {
@@ -89,8 +98,32 @@ public class UserModel {
         this.password = password;
     }
 
+    public boolean isIsAdmin() {
+        return isAdmin;
+    }
+
+    public void setIsAdmin(boolean isAdmin) {
+        this.isAdmin = isAdmin;
+    }
+
+    public String getProfileImg() {
+        return profileImg;
+    }
+
+    public void setProfileImg(String profileImg) {
+        this.profileImg = profileImg;
+    }
+
+    public String getBio() {
+        return bio;
+    }
+
+    public void setBio(String bio) {
+        this.bio = bio;
+    }
+
     @Override
     public String toString() {
-        return "UserModel{id=" + id + ", firstName='" + firstName + "', lastName='" + lastName + "', email='" + email + "', balance=" + balance + "}";
+        return "UserModel{id=" + id + ", firstName='" + firstName + "', lastName='" + lastName + "', email='" + email + "', balance=" + balance + ", isAdmin=" + isAdmin + ", bio='" + bio + "'}";
     }
 }

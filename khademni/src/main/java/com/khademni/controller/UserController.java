@@ -15,6 +15,40 @@ import java.time.LocalDate;
 
 public class UserController {
 
+    // Profile fields
+    @FXML
+    private Label profileAvatarInitials;
+
+    @FXML
+    private Label profileDisplayName;
+
+    @FXML
+    private Label profileDisplayEmail;
+
+    @FXML
+    private Label profileBalanceLabel;
+
+    @FXML
+    private Label profileStatusLabel;
+
+    @FXML
+    private TextField profileFirstNameField;
+
+    @FXML
+    private TextField profileLastNameField;
+
+    @FXML
+    private TextField profileEmailField;
+
+    @FXML
+    private DatePicker profileDobPicker;
+
+    @FXML
+    private TextArea profileBioField;
+
+    @FXML
+    private TextField profileImgField;
+
     // Login fields
     @FXML
     private TextField emailField;
@@ -60,6 +94,12 @@ public class UserController {
     private TextField signupPlainConfirmPasswordField;
 
     @FXML
+    private TextField signupProfileImgField;
+
+    @FXML
+    private TextArea signupBioField;
+
+    @FXML
     private Button signupTogglePasswordButton;
 
     @FXML
@@ -88,6 +128,11 @@ public class UserController {
 
         if (signupPlainConfirmPasswordField != null && signupConfirmPasswordField != null) {
             signupPlainConfirmPasswordField.textProperty().bindBidirectional(signupConfirmPasswordField.textProperty());
+        }
+
+        // Load profile data if on the profile page
+        if (profileFirstNameField != null) {
+            loadProfileData();
         }
     }
 
@@ -118,13 +163,13 @@ public class UserController {
             UserModel user = authenticateUser(email, password);
             if (user != null) {
                 System.out.println("Login successful: " + user);
-                showError("Login successful! Welcome " + user.getFirstName(), errorLabel);
-                // TODO: Navigate to main application
+                App.setCurrentUser(user);
+                App.setRoot("profile");
             } else {
                 showError("Invalid email or password.", errorLabel);
             }
-        } catch (SQLException e) {
-            showError("Database error: " + e.getMessage(), errorLabel);
+        } catch (SQLException | IOException e) {
+            showError("Error: " + e.getMessage(), errorLabel);
             e.printStackTrace();
         }
     }
@@ -150,6 +195,9 @@ public class UserController {
                 user.setBalance(rs.getDouble("balance"));
                 user.setEmail(rs.getString("email"));
                 user.setPassword(rs.getString("password"));
+                user.setIsAdmin(rs.getBoolean("is_admin"));
+                user.setProfileImg(rs.getString("profile_img"));
+                user.setBio(rs.getString("bio"));
                 return user;
             }
         }
@@ -214,6 +262,12 @@ public class UserController {
         String email = signupEmailField.getText().trim();
         String password = signupPasswordField.getText().trim();
         String confirmPassword = signupConfirmPasswordField.getText().trim();
+        String profileImg = signupProfileImgField != null && signupProfileImgField.getText() != null
+            ? signupProfileImgField.getText().trim()
+            : "";
+        String bio = signupBioField != null && signupBioField.getText() != null
+            ? signupBioField.getText().trim()
+            : "";
 
         // Clear previous errors
         signupErrorLabel.setText("");
@@ -254,6 +308,8 @@ public class UserController {
 
             // Create new user
             UserModel user = new UserModel(firstName, lastName, dob, email, password);
+            user.setProfileImg(profileImg);
+            user.setBio(bio);
             if (createUser(user)) {
                 System.out.println("Signup successful: " + user);
                 showError("Account created successfully! Redirecting to login...", signupErrorLabel);
@@ -300,7 +356,7 @@ public class UserController {
     }
 
     private boolean createUser(UserModel user) throws SQLException {
-        String query = "INSERT INTO users (first_name, last_name, date_of_birth, balance, email, password) VALUES (?, ?, ?, ?, ?, ?)";
+        String query = "INSERT INTO users (first_name, last_name, date_of_birth, balance, email, password, is_admin, profile_img, bio) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)";
 
         Connection conn = MyDataBase.getConnection();
         try (PreparedStatement stmt = conn.prepareStatement(query)) {
@@ -311,6 +367,9 @@ public class UserController {
             stmt.setDouble(4, 0.0); // Initial balance
             stmt.setString(5, user.getEmail());
             stmt.setString(6, hashPassword(user.getPassword()));
+            stmt.setBoolean(7, user.isIsAdmin());
+            stmt.setString(8, user.getProfileImg() != null ? user.getProfileImg() : "");
+            stmt.setString(9, user.getBio() != null ? user.getBio() : "");
 
             int rowsAffected = stmt.executeUpdate();
             return rowsAffected > 0;
@@ -375,6 +434,129 @@ public class UserController {
     private void onSignupAppleSignIn(ActionEvent event) {
         System.out.println("Apple Sign Up clicked");
         // TODO: Implement Apple Sign In
+    }
+
+    // ============ PROFILE METHODS ============
+
+    private void loadProfileData() {
+        UserModel user = App.getCurrentUser();
+        if (user == null) return;
+
+        profileFirstNameField.setText(user.getFirstName());
+        profileLastNameField.setText(user.getLastName());
+        profileEmailField.setText(user.getEmail());
+        profileDobPicker.setValue(user.getDateOfBirth());
+        profileBioField.setText(user.getBio() != null ? user.getBio() : "");
+        profileImgField.setText(user.getProfileImg() != null ? user.getProfileImg() : "");
+
+        // Display section
+        String fullName = user.getFirstName() + " " + user.getLastName();
+        profileDisplayName.setText(fullName);
+        profileDisplayEmail.setText(user.getEmail());
+        profileBalanceLabel.setText(String.format("$%.2f", user.getBalance()));
+
+        // Avatar initials
+        String initials = "";
+        if (user.getFirstName() != null && !user.getFirstName().isEmpty()) {
+            initials += user.getFirstName().charAt(0);
+        }
+        if (user.getLastName() != null && !user.getLastName().isEmpty()) {
+            initials += user.getLastName().charAt(0);
+        }
+        profileAvatarInitials.setText(initials.toUpperCase());
+    }
+
+    @FXML
+    private void onProfileSave(ActionEvent event) {
+        UserModel user = App.getCurrentUser();
+        if (user == null) return;
+
+        String firstName = profileFirstNameField.getText().trim();
+        String lastName = profileLastNameField.getText().trim();
+        String email = profileEmailField.getText().trim();
+        LocalDate dob = profileDobPicker.getValue();
+        String bio = profileBioField.getText() != null ? profileBioField.getText().trim() : "";
+        String profileImg = profileImgField.getText() != null ? profileImgField.getText().trim() : "";
+
+        // Validation
+        if (firstName.isEmpty() || lastName.isEmpty() || email.isEmpty()) {
+            showProfileStatus("Please fill in all required fields.", true);
+            return;
+        }
+
+        if (!isValidEmail(email)) {
+            showProfileStatus("Please enter a valid email address.", true);
+            return;
+        }
+
+        if (dob == null) {
+            showProfileStatus("Please select your date of birth.", true);
+            return;
+        }
+
+        // Update in database
+        try {
+            String query = "UPDATE users SET first_name = ?, last_name = ?, email = ?, date_of_birth = ?, bio = ?, profile_img = ? WHERE id = ?";
+            Connection conn = MyDataBase.getConnection();
+            try (PreparedStatement stmt = conn.prepareStatement(query)) {
+                stmt.setString(1, firstName);
+                stmt.setString(2, lastName);
+                stmt.setString(3, email);
+                stmt.setDate(4, Date.valueOf(dob));
+                stmt.setString(5, bio);
+                stmt.setString(6, profileImg);
+                stmt.setInt(7, user.getId());
+
+                int rows = stmt.executeUpdate();
+                if (rows > 0) {
+                    // Update the local user object
+                    user.setFirstName(firstName);
+                    user.setLastName(lastName);
+                    user.setEmail(email);
+                    user.setDateOfBirth(dob);
+                    user.setBio(bio);
+                    user.setProfileImg(profileImg);
+                    App.setCurrentUser(user);
+
+                    // Refresh display
+                    loadProfileData();
+                    showProfileStatus("Profile updated successfully!", false);
+                } else {
+                    showProfileStatus("Failed to update profile.", true);
+                }
+            }
+        } catch (SQLException e) {
+            showProfileStatus("Database error: " + e.getMessage(), true);
+            e.printStackTrace();
+        }
+    }
+
+    @FXML
+    private void onProfileCancel(ActionEvent event) {
+        loadProfileData(); // Reset to current values
+    }
+
+    @FXML
+    private void onSignOut(ActionEvent event) {
+        App.setCurrentUser(null);
+        try {
+            App.setRoot("login");
+        } catch (IOException e) {
+            System.out.println("Error navigating to login: " + e.getMessage());
+            e.printStackTrace();
+        }
+    }
+
+    private void showProfileStatus(String message, boolean isError) {
+        if (profileStatusLabel == null) return;
+        profileStatusLabel.setText(message);
+        profileStatusLabel.setVisible(true);
+        profileStatusLabel.setManaged(true);
+        if (isError) {
+            profileStatusLabel.setStyle("-fx-text-fill: #dc2626; -fx-background-color: #fef2f2; -fx-border-color: #fecaca; -fx-border-radius: 10; -fx-background-radius: 10; -fx-padding: 12 20 12 20; -fx-font-size: 14; -fx-font-weight: 600; -fx-alignment: center;");
+        } else {
+            profileStatusLabel.setStyle("-fx-text-fill: #059669; -fx-background-color: #ecfdf5; -fx-border-color: #a7f3d0; -fx-border-radius: 10; -fx-background-radius: 10; -fx-padding: 12 20 12 20; -fx-font-size: 14; -fx-font-weight: 600; -fx-alignment: center;");
+        }
     }
 
     // ============ UTILITY METHODS ============

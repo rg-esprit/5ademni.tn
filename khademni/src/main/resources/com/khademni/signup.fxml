@@ -136,6 +136,28 @@
                     </StackPane>
                 </VBox>
 
+                <!-- Profile Image URL Field -->
+                <VBox spacing="8">
+                    <Label text="Profile Image URL (optional)" styleClass="field-label" />
+                    <StackPane styleClass="input-wrapper">
+                        <HBox alignment="CENTER_LEFT" styleClass="input-container">
+                            <Label text="&#xe3f4;" styleClass="input-icon" />
+                            <TextField fx:id="signupProfileImgField"
+                                promptText="https://example.com/avatar.png"
+                                styleClass="input-field" HBox.hgrow="ALWAYS" />
+                        </HBox>
+                    </StackPane>
+                </VBox>
+
+                <!-- Bio Field -->
+                <VBox spacing="8">
+                    <Label text="Bio (optional)" styleClass="field-label" />
+                    <StackPane styleClass="input-wrapper">
+                        <TextArea fx:id="signupBioField" promptText="Tell us about yourself"
+                            styleClass="input-field" prefRowCount="3" wrapText="true" />
+                    </StackPane>
+                </VBox>
+
                 <!-- Sign Up Button -->
                 <Button fx:id="signUpButton" text="Create Account" styleClass="button-primary"
                     onAction="#onSignUp" maxWidth="Infinity" graphicTextGap="8">

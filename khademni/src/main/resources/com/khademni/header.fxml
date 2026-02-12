@@ -1,0 +1,73 @@
+<?xml version="1.0" encoding="UTF-8"?>
+
+<?import javafx.geometry.Insets?>
+<?import javafx.scene.control.Button?>
+<?import javafx.scene.control.Hyperlink?>
+<?import javafx.scene.control.Label?>
+<?import javafx.scene.layout.HBox?>
+<?import javafx.scene.layout.Region?>
+<?import javafx.scene.layout.StackPane?>
+<?import javafx.scene.shape.Circle?>
+<?import javafx.scene.shape.SVGPath?>
+
+<HBox xmlns="http://javafx.com/javafx"
+    xmlns:fx="http://javafx.com/fxml"
+    alignment="CENTER_LEFT"
+    spacing="20"
+    styleClass="header"
+    style="-fx-background-color: white; -fx-border-color: #e5e7eb; -fx-border-width: 0 0 1 0; -fx-padding: 16 40 16 40;">
+
+    <!-- Left Section: Logo and Brand Name -->
+    <HBox alignment="CENTER_LEFT" spacing="16">
+        <!-- Logo -->
+        <StackPane prefHeight="32" prefWidth="32">
+            <SVGPath
+                content="M24 45.8096C19.6865 45.8096 15.4698 44.5305 11.8832 42.134C8.29667 39.7376 5.50128 36.3314 3.85056 32.3462C2.19985 28.361 1.76794 23.9758 2.60947 19.7452C3.451 15.5145 5.52816 11.6284 8.57829 8.5783C11.6284 5.52817 15.5145 3.45101 19.7452 2.60948C23.9758 1.76795 28.361 2.19986 32.3462 3.85057C36.3314 5.50129 39.7376 8.29668 42.134 11.8833C44.5305 15.4698 45.8096 19.6865 45.8096 24L24 24L24 45.8096Z"
+                fill="#6c0df2"
+                scaleX="0.67"
+                scaleY="0.67" />
+        </StackPane>
+
+        <!-- Brand Name -->
+        <Label text="5ademni.tn"
+            style="-fx-font-size: 20px; -fx-font-weight: 800; -fx-text-fill: #141118;" />
+    </HBox>
+
+    <!-- Spacer to push right content to the end -->
+    <Region HBox.hgrow="ALWAYS" />
+
+    <!-- Right Section: Navigation and Profile -->
+    <HBox alignment="CENTER_RIGHT" spacing="32">
+        <!-- Navigation Links -->
+        <HBox spacing="32" alignment="CENTER">
+            <Hyperlink text="Jobs &amp; Services"
+                style="-fx-font-size: 14px; -fx-font-weight: 600; -fx-text-fill: #141118;" />
+            <Hyperlink text="Dashboard"
+                style="-fx-font-size: 14px; -fx-font-weight: 600; -fx-text-fill: #141118;" />
+            <Hyperlink text="Messages"
+                style="-fx-font-size: 14px; -fx-font-weight: 600; -fx-text-fill: #141118;" />
+            <Hyperlink text="Blogs"
+                style="-fx-font-size: 14px; -fx-font-weight: 600; -fx-text-fill: #141118;" />
+        </HBox>
+
+        <!-- Profile Section with Separator -->
+        <HBox spacing="16" alignment="CENTER"
+            style="-fx-border-color: #e5e7eb; -fx-border-width: 0 0 0 1; -fx-padding: 0 0 0 32;">
+            <!-- Profile Button -->
+            <Button text="Profile"
+                styleClass="profile-button"
+                style="-fx-background-color: #6c0df2; -fx-text-fill: white; -fx-font-weight: bold; -fx-font-size: 14px; -fx-background-radius: 12; -fx-padding: 8 20 8 20; -fx-cursor: hand;" />
+
+            <!-- Avatar Circle -->
+            <StackPane prefHeight="40" prefWidth="40">
+                <Circle radius="20"
+                    fill="#f3f4f6"
+                    stroke="#6c0df2"
+                    strokeWidth="2"
+                    opacity="0.3" />
+                <Circle radius="20"
+                    style="-fx-fill: linear-gradient(to bottom, #6c0df2 0%, #8b5cf6 100%);" />
+            </StackPane>
+        </HBox>
+    </HBox>
+</HBox>
