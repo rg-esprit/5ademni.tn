@@ -1,6 +1,6 @@
 package com.khademni.controller;
 
-import com.khademni.model.Contrat;   // 🔥 IMPORTANT
+import com.khademni.model.ContratModel;   // 🔥 IMPORTANT
 import javafx.collections.FXCollections;
 import javafx.collections.ObservableList;
 import javafx.fxml.FXML;
@@ -24,24 +24,24 @@ public class ContratController {
     private TextArea txtDescription;
 
     @FXML
-    private TableView<Contrat> tableContrat;
+    private TableView<ContratModel> tableContrat;
 
     @FXML
-    private TableColumn<Contrat, Integer> colId;
+    private TableColumn<ContratModel, Integer> colId;
 
     @FXML
-    private TableColumn<Contrat, Integer> colClient;
+    private TableColumn<ContratModel, Integer> colClient;
 
     @FXML
-    private TableColumn<Contrat, Integer> colFreelancer;
+    private TableColumn<ContratModel, Integer> colFreelancer;
 
     @FXML
-    private TableColumn<Contrat, LocalDate> colDate;
+    private TableColumn<ContratModel, LocalDate> colDate;
 
     @FXML
-    private TableColumn<Contrat, String> colDescription;
+    private TableColumn<ContratModel, String> colDescription;
 
-    private ObservableList<Contrat> contratList = FXCollections.observableArrayList();
+    private ObservableList<ContratModel> contratList = FXCollections.observableArrayList();
     private int idCounter = 1;
 
     @FXML
@@ -64,7 +64,7 @@ public class ContratController {
         LocalDate date = dateContrat.getValue();
         String description = txtDescription.getText();
 
-        Contrat contrat = new Contrat(
+        ContratModel contrat = new ContratModel(
                 idCounter++,
                 clientId,
                 freelancerId,
@@ -78,7 +78,7 @@ public class ContratController {
 
     @FXML
     private void supprimerContrat() {
-        Contrat selected = tableContrat.getSelectionModel().getSelectedItem();
+        ContratModel selected = tableContrat.getSelectionModel().getSelectedItem();
         if (selected != null) {
             contratList.remove(selected);
         }
