@@ -2,6 +2,7 @@ module com.khademni {
     requires javafx.controls;
     requires javafx.fxml;
     requires java.sql;
+    requires mysql.connector.j;
 
     opens com.khademni to javafx.fxml;
     opens com.khademni.controller to javafx.fxml;
