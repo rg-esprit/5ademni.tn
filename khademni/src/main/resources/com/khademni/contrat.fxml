@@ -1,0 +1,115 @@
+<?xml version="1.0" encoding="UTF-8"?>
+
+<?import javafx.scene.control.*?>
+<?import javafx.scene.layout.*?>
+<?import javafx.geometry.Insets?>
+
+<ScrollPane xmlns="http://javafx.com/javafx/17" xmlns:fx="http://javafx.com/fxml/1"
+    fx:controller="com.khademni.controller.ContratController"
+    fitToWidth="true" fitToHeight="true" styleClass="root-scroll"
+    stylesheets="@contrat.css"
+    style="-fx-background-color: #f7f5f8; -fx-background: #f7f5f8;">
+
+    <VBox alignment="TOP_CENTER" spacing="0" styleClass="root"
+        style="-fx-padding: 24;">
+
+        <padding>
+            <Insets top="32" bottom="32" left="24" right="24" />
+        </padding>
+
+        <!-- Brand Logo Top Center -->
+        <VBox alignment="CENTER" spacing="8" style="-fx-padding: 0 0 32 0;">
+            <StackPane styleClass="logo-box" prefWidth="40" prefHeight="40" maxWidth="40"
+                maxHeight="40">
+                <Label styleClass="icon-logo" text="&#xe7b5;"
+                    style="-fx-text-fill: white; -fx-font-size: 24;" />
+            </StackPane>
+            <Label text="5ademni.tn" styleClass="brand-title" />
+        </VBox>
+
+        <!-- Main Card Container -->
+        <VBox styleClass="card" spacing="28" maxWidth="720" prefWidth="720"
+            style="-fx-padding: 36;">
+
+            <!-- Header Section -->
+            <VBox alignment="CENTER" spacing="8">
+                <Label text="Créer un Contrat" styleClass="heading" />
+                <Label text="Remplissez les informations du contrat" styleClass="subtitle-text" />
+            </VBox>
+
+            <!-- Form Section -->
+            <VBox spacing="20">
+
+                <!-- Row: Client ID and Freelancer ID side by side -->
+                <HBox spacing="16">
+                    <!-- Client ID Field -->
+                    <VBox spacing="8" HBox.hgrow="ALWAYS">
+                        <Label text="ID Client" styleClass="field-label" />
+                        <StackPane styleClass="input-wrapper">
+                            <HBox alignment="CENTER_LEFT" styleClass="input-container">
+                                <Label text="&#xe7fd;" styleClass="input-icon" />
+                                <TextField fx:id="idClientField" promptText="Entrez l'ID du client"
+                                    styleClass="input-field" HBox.hgrow="ALWAYS" />
+                            </HBox>
+                        </StackPane>
+                    </VBox>
+
+                    <!-- Freelancer ID Field -->
+                    <VBox spacing="8" HBox.hgrow="ALWAYS">
+                        <Label text="ID Freelancer" styleClass="field-label" />
+                        <StackPane styleClass="input-wrapper">
+                            <HBox alignment="CENTER_LEFT" styleClass="input-container">
+                                <Label text="&#xe7fe;" styleClass="input-icon" />
+                                <TextField fx:id="idFreelancerField" promptText="Entrez l'ID du freelancer"
+                                    styleClass="input-field" HBox.hgrow="ALWAYS" />
+                            </HBox>
+                        </StackPane>
+                    </VBox>
+                </HBox>
+
+                <!-- Description -->
+                <VBox spacing="8">
+                    <Label text="Description" styleClass="field-label" />
+                    <StackPane styleClass="input-wrapper">
+                        <HBox alignment="TOP_LEFT" styleClass="input-container textarea-container">
+                            <Label text="&#xe24d;" styleClass="input-icon"
+                                style="-fx-padding: 16 0 0 16;" />
+                            <TextArea fx:id="descriptionField" promptText="Décrivez le contrat..."
+                                styleClass="textarea-field" HBox.hgrow="ALWAYS"
+                                prefRowCount="3" wrapText="true" />
+                        </HBox>
+                    </StackPane>
+                </VBox>
+
+                <!-- Date Contrat -->
+                <VBox spacing="8">
+                    <Label text="Date du Contrat" styleClass="field-label" />
+                    <StackPane styleClass="input-wrapper">
+                        <HBox alignment="CENTER_LEFT" styleClass="input-container">
+                            <Label text="&#xe935;" styleClass="input-icon" />
+                            <DatePicker fx:id="dateContratPicker" promptText="Sélectionnez une date"
+                                styleClass="date-picker-field" HBox.hgrow="ALWAYS"
+                                maxWidth="1.7976931348623157E308" />
+                        </HBox>
+                    </StackPane>
+                </VBox>
+            </VBox>
+
+            <!-- Action Button -->
+            <HBox alignment="CENTER">
+                <Button text="Ajouter Contrat" styleClass="button-primary"
+                    onAction="#ajouterContrat" prefWidth="280" graphicTextGap="8">
+                    <graphic>
+                        <Label text="&#xe145;" styleClass="btn-icon-arrow" />
+                    </graphic>
+                </Button>
+            </HBox>
+        </VBox>
+
+        <!-- Footer -->
+        <VBox alignment="CENTER" style="-fx-padding: 24 0 0 0;">
+            <Label text="© 2026 5ademni.tn. All rights reserved." styleClass="footer-text" />
+        </VBox>
+
+    </VBox>
+</ScrollPane>

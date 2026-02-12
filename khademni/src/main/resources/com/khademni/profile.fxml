@@ -55,10 +55,6 @@
                         <Label fx:id="profileBalanceLabel" text="0.00" styleClass="balance-amount" />
                     </HBox>
                 </VBox>
-<!-- Action Buttons -->
-<HBox spacing="16" alignment="CENTER_RIGHT" style="-fx-padding: 12 0 0 0;">
-    <Button text="Mes Favoris" onAction="#onShowFavoris" styleClass="profile-save-btn" />
-   </HBox>
 
                 <!-- Separator -->
                 <Separator style="-fx-padding: 0;" />
@@ -117,9 +113,6 @@
                     <HBox spacing="16" alignment="CENTER_RIGHT" style="-fx-padding: 12 0 0 0;">
                         <Button text="Sign Out" onAction="#onSignOut"
                             styleClass="profile-signout-btn" />
-                        <Button text="Delete Account" onAction="#onDeleteAccount"
-                            styleClass="profile-delete-btn"
-                            style="-fx-background-color: #dc2626; -fx-text-fill: white;" />
                         <Region HBox.hgrow="ALWAYS" />
                         <Button text="Cancel" onAction="#onProfileCancel"
                             styleClass="profile-cancel-btn" />

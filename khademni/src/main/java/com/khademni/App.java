@@ -1,6 +1,5 @@
 package com.khademni;
 
-
 import javafx.application.Application;
 import javafx.fxml.FXMLLoader;
 import javafx.scene.Parent;
@@ -9,10 +8,8 @@ import javafx.stage.Stage;
 
 // user model
 import com.khademni.model.UserModel;
-import com.khademni.utils.SessionManager;
 
 import java.io.IOException;
-
 
 /**
  * JavaFX App
@@ -26,10 +23,10 @@ public class App extends Application {
     @Override
     public void start(Stage stage) throws IOException {
         primaryStage = stage;
-                
-        scene = new Scene(loadFXML("login"), 540, 700);
-        scene.getStylesheets().add(App.class.getResource("login.css").toExternalForm());
-        stage.setTitle("5ademni.tn — Sign In");
+
+        scene = new Scene(loadFXML("contrat"), 540, 700);
+        scene.getStylesheets().add(App.class.getResource("contrat.css").toExternalForm());
+        stage.setTitle("5ademni.tn — Gestion Contrats");
         stage.setFullScreen(true);
         stage.setScene(scene);
         stage.show();
@@ -37,7 +34,7 @@ public class App extends Application {
 
     public static void setRoot(String fxml) throws IOException {
         scene.setRoot(loadFXML(fxml));
-        
+
         // Update title and CSS based on the scene
         scene.getStylesheets().clear();
         if (fxml.equals("login")) {
@@ -49,12 +46,9 @@ public class App extends Application {
         } else if (fxml.equals("profile")) {
             primaryStage.setTitle("5ademni.tn — My Profile");
             scene.getStylesheets().add(App.class.getResource("profile.css").toExternalForm());
-        } else if (fxml.equals("jobs")) {
-            primaryStage.setTitle("5ademni.tn — Jobs & Opportunities");
-            scene.getStylesheets().add(App.class.getResource("jobs.css").toExternalForm());
-        } else if (fxml.equals("jobs-management")) {
-            primaryStage.setTitle("5ademni.tn — Jobs Management");
-            scene.getStylesheets().add(App.class.getResource("jobs-management.css").toExternalForm());
+        } else if (fxml.equals("contrat")) {
+            primaryStage.setTitle("5ademni.tn — Gestion Contrats");
+            scene.getStylesheets().add(App.class.getResource("contrat.css").toExternalForm());
         }
         primaryStage.setFullScreen(true);
     }
@@ -70,16 +64,10 @@ public class App extends Application {
 
     public static UserModel getCurrentUser() {
         return currentUser;
-        
     }
 
     public static void setCurrentUser(UserModel user) {
         currentUser = user;
-         SessionManager.setCurrentUser(user); 
-    }
-
-    public static Stage getPrimaryStage() {
-        return primaryStage;
     }
 
 }
