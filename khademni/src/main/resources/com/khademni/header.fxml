@@ -1,0 +1,74 @@
+<?xml version="1.0" encoding="UTF-8"?>
+
+<?import javafx.geometry.Insets?>
+<?import javafx.scene.control.Button?>
+<?import javafx.scene.control.Hyperlink?>
+<?import javafx.scene.control.Label?>
+<?import javafx.scene.layout.HBox?>
+<?import javafx.scene.layout.Region?>
+<?import javafx.scene.layout.StackPane?>
+<?import javafx.scene.shape.Circle?>
+<?import javafx.scene.shape.SVGPath?>
+<?import javafx.scene.image.ImageView?>
+<?import javafx.scene.image.Image?>
+
+<HBox xmlns="http://javafx.com/javafx"
+    xmlns:fx="http://javafx.com/fxml"
+    fx:controller="com.khademni.controller.HeaderController"
+    alignment="CENTER_LEFT"
+    spacing="20"
+    styleClass="header"
+    style="-fx-background-color: white; -fx-border-color: #e5e7eb; -fx-border-width: 0 0 1 0; -fx-padding: 16 40 16 40;">
+
+    <!-- Left Section: Logo and Brand Name -->
+    <HBox alignment="CENTER_LEFT" spacing="16">
+        <!-- Logo -->
+        <StackPane prefHeight="32" prefWidth="32">
+            <ImageView fitHeight="32" fitWidth="32" preserveRatio="true">
+                <Image url="@logo.png" />
+            </ImageView>
+        </StackPane>
+
+        <!-- Brand Name -->
+        <Label text="5ademni.tn"
+            style="-fx-font-size: 20px; -fx-font-weight: 800; -fx-text-fill: #141118;" />
+    </HBox>
+
+    <!-- Spacer to push right content to the end -->
+    <Region HBox.hgrow="ALWAYS" />
+
+    <!-- Right Section: Navigation and Profile -->
+    <HBox alignment="CENTER_RIGHT" spacing="32">
+        <!-- Navigation Links -->
+        <HBox spacing="32" alignment="CENTER">
+            <Hyperlink text="Jobs &amp; Services" onAction="#goToJobs"
+                style="-fx-font-size: 14px; -fx-font-weight: 600; -fx-text-fill: #141118;" />
+            <Hyperlink text="Dashboard" onAction="#goToDashboard"
+                style="-fx-font-size: 14px; -fx-font-weight: 600; -fx-text-fill: #141118;" />
+            <Hyperlink text="Messages" onAction="#goToMessages"
+                style="-fx-font-size: 14px; -fx-font-weight: 600; -fx-text-fill: #141118;" />
+            <Hyperlink text="Blogs" onAction="#goToBlogs"
+                style="-fx-font-size: 14px; -fx-font-weight: 600; -fx-text-fill: #141118;" />
+        </HBox>
+
+        <!-- Profile Section with Separator -->
+        <HBox spacing="16" alignment="CENTER"
+            style="-fx-border-color: #e5e7eb; -fx-border-width: 0 0 0 1; -fx-padding: 0 0 0 32;">
+            <!-- Profile Button -->
+            <Button text="Profile" onAction="#goToProfile"
+                styleClass="profile-button"
+                style="-fx-background-color: #6c0df2; -fx-text-fill: white; -fx-font-weight: bold; -fx-font-size: 14px; -fx-background-radius: 12; -fx-padding: 8 20 8 20; -fx-cursor: hand;" />
+
+            <!-- Avatar Circle -->
+            <StackPane prefHeight="40" prefWidth="40">
+                <Circle radius="20"
+                    fill="#f3f4f6"
+                    stroke="#6c0df2"
+                    strokeWidth="2"
+                    opacity="0.3" />
+                <Circle radius="20"
+                    style="-fx-fill: linear-gradient(to bottom, #6c0df2 0%, #8b5cf6 100%);" />
+            </StackPane>
+        </HBox>
+    </HBox>
+</HBox>

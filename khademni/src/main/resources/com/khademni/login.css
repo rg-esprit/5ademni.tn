@@ -1,0 +1,318 @@
+/* ============================================
+   5ademni.tn — Login Page Styles
+   Matching the HTML/Tailwind design exactly
+   ============================================ */
+
+/* ---- Root & Background ---- */
+
+.root-scroll {
+  -fx-background-color: #f7f5f8;
+  -fx-background: #f7f5f8;
+}
+
+.root-scroll .viewport {
+  -fx-background-color: #f7f5f8;
+}
+
+.root-scroll .scroll-bar:vertical,
+.root-scroll .scroll-bar:horizontal {
+  -fx-opacity: 0;
+}
+
+.root {
+  -fx-font-family: "Inter", "Segoe UI", "Helvetica Neue", Arial, sans-serif;
+  -fx-background-color: #f7f5f8;
+}
+
+/* ---- Brand Logo ---- */
+
+.logo-box {
+  -fx-background-color: #6c0df2;
+  -fx-background-radius: 8;
+  -fx-effect: dropshadow(gaussian, rgba(108, 13, 242, 0.35), 12, 0.3, 0, 4);
+  -fx-alignment: center;
+}
+
+.icon-logo {
+  -fx-font-family: "Material Symbols Outlined";
+  -fx-font-size: 24;
+  -fx-text-fill: white;
+}
+
+.brand-title {
+  -fx-font-size: 20;
+  -fx-font-weight: 700;
+  -fx-text-fill: #333333;
+}
+
+/* ---- Card Container ---- */
+
+.card {
+  -fx-background-color: white;
+  -fx-background-radius: 16;
+  -fx-border-radius: 16;
+  -fx-effect: dropshadow(gaussian, rgba(0, 0, 0, 0.08), 40, 0, 0, 10);
+}
+
+/* ---- Typography ---- */
+
+.heading {
+  -fx-font-size: 30;
+  -fx-font-weight: 700;
+  -fx-text-fill: #333333;
+}
+
+.subtitle-text {
+  -fx-font-size: 14;
+  -fx-text-fill: #6b7280;
+}
+
+.field-label {
+  -fx-font-size: 14;
+  -fx-font-weight: 600;
+  -fx-text-fill: #333333;
+  -fx-padding: 0 0 0 4;
+}
+
+/* ---- Links ---- */
+
+.link-primary {
+  -fx-text-fill: #6c0df2;
+  -fx-font-size: 14;
+  -fx-font-weight: 600;
+  -fx-border-color: transparent;
+  -fx-padding: 0;
+}
+
+.link-primary:hover {
+  -fx-underline: true;
+}
+
+.link-forgot {
+  -fx-text-fill: #6c0df2;
+  -fx-font-size: 12;
+  -fx-font-weight: 600;
+  -fx-border-color: transparent;
+  -fx-padding: 0;
+}
+
+.link-forgot:hover {
+  -fx-text-fill: #5a0bcf;
+}
+
+/* ---- Input Fields ---- */
+
+.input-wrapper {
+  -fx-background-color: transparent;
+}
+
+.input-container {
+  -fx-background-color: #f8f8ff;
+  -fx-border-color: #e5e7eb;
+  -fx-border-width: 1;
+  -fx-border-radius: 8;
+  -fx-background-radius: 8;
+  -fx-alignment: center-left;
+}
+
+.input-container:focused-within {
+  -fx-border-color: #6c0df2;
+}
+
+.input-icon {
+  -fx-font-family: "Material Symbols Outlined";
+  -fx-font-size: 20;
+  -fx-text-fill: #9ca3af;
+  -fx-padding: 0 0 0 16;
+}
+
+.input-field {
+  -fx-background-color: transparent;
+  -fx-border-color: transparent;
+  -fx-border-width: 0;
+  -fx-padding: 16 16 16 12;
+  -fx-pref-height: 56;
+  -fx-min-height: 56;
+  -fx-font-size: 14;
+  -fx-prompt-text-fill: #9ca3af;
+  -fx-text-fill: #333333;
+}
+
+.input-field:focused {
+  -fx-background-color: transparent;
+  -fx-border-color: transparent;
+  -fx-faint-focus-color: transparent;
+  -fx-focus-color: transparent;
+}
+
+/* Remove default JavaFX focus ring from text inputs */
+.input-field:focused,
+.text-field:focused,
+.password-field:focused {
+  -fx-focus-color: transparent;
+  -fx-faint-focus-color: transparent;
+}
+
+/* Highlight the container border when child is focused */
+.input-container:has(.input-field:focused) {
+  -fx-border-color: #6c0df2;
+}
+
+/* ---- Toggle Password Button ---- */
+
+.toggle-password-btn {
+  -fx-background-color: transparent;
+  -fx-font-family: "Material Symbols Outlined";
+  -fx-font-size: 20;
+  -fx-text-fill: #9ca3af;
+  -fx-padding: 0 16 0 0;
+  -fx-cursor: hand;
+}
+
+.toggle-password-btn:hover {
+  -fx-text-fill: #6b7280;
+}
+
+/* ---- Primary Sign In Button ---- */
+
+.button-primary {
+  -fx-pref-height: 56;
+  -fx-min-height: 56;
+  -fx-background-color: #6c0df2;
+  -fx-text-fill: white;
+  -fx-font-size: 15;
+  -fx-font-weight: 700;
+  -fx-background-radius: 8;
+  -fx-border-radius: 8;
+  -fx-cursor: hand;
+  -fx-effect: dropshadow(gaussian, rgba(108, 13, 242, 0.3), 16, 0.2, 0, 6);
+}
+
+.button-primary:hover {
+  -fx-background-color: #5f0ad6;
+}
+
+.button-primary:pressed {
+  -fx-background-color: #5209be;
+  -fx-scale-x: 0.98;
+  -fx-scale-y: 0.98;
+}
+
+.btn-icon-arrow {
+  -fx-font-family: "Material Symbols Outlined";
+  -fx-font-size: 18;
+  -fx-text-fill: white;
+}
+
+/* ---- Divider ---- */
+
+.divider-row {
+  -fx-alignment: center;
+}
+
+.divider-text {
+  -fx-font-size: 11;
+  -fx-font-weight: 600;
+  -fx-text-fill: #9ca3af;
+  -fx-padding: 0 8 0 8;
+}
+
+.separator .line {
+  -fx-border-color: #e5e7eb;
+  -fx-border-width: 0.5 0 0 0;
+}
+
+/* ---- Social Buttons ---- */
+
+.social-button {
+  -fx-pref-height: 48;
+  -fx-min-height: 48;
+  -fx-background-color: white;
+  -fx-border-color: #e5e7eb;
+  -fx-border-width: 1;
+  -fx-border-radius: 8;
+  -fx-background-radius: 8;
+  -fx-font-size: 14;
+  -fx-font-weight: 600;
+  -fx-text-fill: #333333;
+  -fx-cursor: hand;
+}
+
+.social-button:hover {
+  -fx-background-color: #f9fafb;
+}
+
+.social-button:pressed {
+  -fx-background-color: #f3f4f6;
+}
+
+.apple-icon {
+  -fx-font-family: "Material Symbols Outlined";
+  -fx-font-size: 20;
+  -fx-text-fill: #333333;
+}
+
+/* ---- Error Label ---- */
+
+.error-label {
+  -fx-text-fill: #ef4444;
+  -fx-font-size: 13;
+  -fx-font-weight: 500;
+  -fx-padding: 0 0 0 4;
+}
+
+/* ---- Footer ---- */
+
+.footer-text {
+  -fx-font-size: 12;
+  -fx-text-fill: #9ca3af;
+}
+
+/* ---- Hyperlink Reset ---- */
+
+.hyperlink {
+  -fx-border-color: transparent;
+  -fx-padding: 0;
+}
+
+.hyperlink:visited {
+  -fx-text-fill: #6c0df2;
+}
+
+.hyperlink:hover {
+  -fx-underline: true;
+}
+
+/* ---- DatePicker ---- */
+
+.date-picker-field {
+  -fx-background-color: transparent;
+  -fx-border-color: transparent;
+  -fx-border-width: 0;
+  -fx-padding: 16 16 16 12;
+  -fx-pref-height: 56;
+  -fx-min-height: 56;
+  -fx-font-size: 14;
+  -fx-prompt-text-fill: #9ca3af;
+  -fx-text-fill: #333333;
+}
+
+.date-picker-field:focused {
+  -fx-background-color: transparent;
+  -fx-border-color: transparent;
+  -fx-faint-focus-color: transparent;
+  -fx-focus-color: transparent;
+}
+
+.date-picker-field .arrow-button {
+  -fx-background-color: transparent;
+  -fx-padding: 0 16 0 0;
+}
+
+.date-picker-field .arrow-button .arrow {
+  -fx-background-color: #9ca3af;
+}
+
+.date-picker-field:hover .arrow-button .arrow {
+  -fx-background-color: #6b7280;
+}

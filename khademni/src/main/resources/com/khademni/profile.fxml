@@ -1,0 +1,126 @@
+<?xml version="1.0" encoding="UTF-8"?>
+
+<?import javafx.scene.control.*?>
+<?import javafx.scene.layout.*?>
+<?import javafx.scene.shape.*?>
+<?import javafx.geometry.Insets?>
+
+<ScrollPane xmlns="http://javafx.com/javafx/17" xmlns:fx="http://javafx.com/fxml/1"
+    fx:controller="com.khademni.controller.UserController"
+    fitToWidth="true" fitToHeight="true" styleClass="profile-scroll"
+    style="-fx-background-color: #f7f5f8; -fx-background: #f7f5f8;">
+
+    <VBox spacing="0" styleClass="profile-root"
+        style="-fx-background-color: #f7f5f8;">
+
+        <!-- Reusable Header -->
+        <fx:include source="header.fxml" />
+
+        <!-- Main Content -->
+        <VBox alignment="TOP_CENTER" spacing="0" style="-fx-padding: 40 24 60 24;">
+
+            <!-- Page Title -->
+            <VBox alignment="CENTER" spacing="8" style="-fx-padding: 0 0 32 0;">
+                <Label text="My Profile" styleClass="profile-page-title" />
+                <Label text="View and manage your account information"
+                    styleClass="profile-page-subtitle" />
+            </VBox>
+
+            <!-- Profile Card Container -->
+            <VBox styleClass="profile-card" spacing="0" maxWidth="720" prefWidth="720">
+
+                <!-- Profile Header / Avatar Section -->
+                <VBox alignment="CENTER" spacing="16" styleClass="profile-header-section"
+                    style="-fx-padding: 40 40 32 40;">
+
+                    <!-- Avatar -->
+                    <StackPane prefWidth="100" prefHeight="100" maxWidth="100" maxHeight="100"
+                        styleClass="avatar-container">
+                        <Circle radius="50" styleClass="avatar-circle" />
+                        <Label fx:id="profileAvatarInitials" text="JD" styleClass="avatar-initials" />
+                    </StackPane>
+
+                    <!-- Name & Email Display -->
+                    <VBox alignment="CENTER" spacing="4">
+                        <Label fx:id="profileDisplayName" text="John Doe"
+                            styleClass="profile-display-name" />
+                        <Label fx:id="profileDisplayEmail" text="john@example.com"
+                            styleClass="profile-display-email" />
+                    </VBox>
+
+                    <!-- Balance Badge -->
+                    <HBox alignment="CENTER" spacing="8" styleClass="balance-badge"
+                        style="-fx-padding: 8 20 8 20;">
+                        <Label text="&#xe850;" styleClass="balance-icon" />
+                        <Label fx:id="profileBalanceLabel" text="0.00" styleClass="balance-amount" />
+                    </HBox>
+                </VBox>
+
+                <!-- Separator -->
+                <Separator style="-fx-padding: 0;" />
+
+                <!-- Profile Form Section -->
+                <VBox spacing="28" style="-fx-padding: 32 40 40 40;">
+
+                    <!-- Status Label for save/error feedback -->
+                    <Label fx:id="profileStatusLabel" text="" styleClass="profile-status-label"
+                        visible="false" managed="false" />
+
+                    <!-- First Name & Last Name Row -->
+                    <HBox spacing="20">
+                        <VBox spacing="8" HBox.hgrow="ALWAYS">
+                            <Label text="First Name" styleClass="profile-field-label" />
+                            <TextField fx:id="profileFirstNameField" promptText="First name"
+                                styleClass="profile-input" />
+                        </VBox>
+                        <VBox spacing="8" HBox.hgrow="ALWAYS">
+                            <Label text="Last Name" styleClass="profile-field-label" />
+                            <TextField fx:id="profileLastNameField" promptText="Last name"
+                                styleClass="profile-input" />
+                        </VBox>
+                    </HBox>
+
+                    <!-- Email -->
+                    <VBox spacing="8">
+                        <Label text="Email" styleClass="profile-field-label" />
+                        <TextField fx:id="profileEmailField" promptText="name@company.com"
+                            styleClass="profile-input" />
+                    </VBox>
+
+                    <!-- Date of Birth -->
+                    <VBox spacing="8">
+                        <Label text="Date of Birth" styleClass="profile-field-label" />
+                        <DatePicker fx:id="profileDobPicker" styleClass="profile-input"
+                            maxWidth="Infinity" />
+                    </VBox>
+
+                    <!-- Bio -->
+                    <VBox spacing="8">
+                        <Label text="Bio" styleClass="profile-field-label" />
+                        <TextArea fx:id="profileBioField" promptText="Tell us about yourself..."
+                            styleClass="profile-textarea" prefRowCount="4" wrapText="true" />
+                    </VBox>
+
+                    <!-- Profile Image URL -->
+                    <VBox spacing="8">
+                        <Label text="Profile Image URL" styleClass="profile-field-label" />
+                        <TextField fx:id="profileImgField"
+                            promptText="https://example.com/avatar.png"
+                            styleClass="profile-input" />
+                    </VBox>
+
+                    <!-- Action Buttons -->
+                    <HBox spacing="16" alignment="CENTER_RIGHT" style="-fx-padding: 12 0 0 0;">
+                        <Button text="Sign Out" onAction="#onSignOut"
+                            styleClass="profile-signout-btn" />
+                        <Region HBox.hgrow="ALWAYS" />
+                        <Button text="Cancel" onAction="#onProfileCancel"
+                            styleClass="profile-cancel-btn" />
+                        <Button text="Save Changes" onAction="#onProfileSave"
+                            styleClass="profile-save-btn" />
+                    </HBox>
+                </VBox>
+            </VBox>
+        </VBox>
+    </VBox>
+</ScrollPane>
