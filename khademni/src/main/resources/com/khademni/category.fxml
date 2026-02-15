@@ -99,6 +99,33 @@
                                        -fx-text-fill: white;
                                        -fx-background-radius: 8;" />
                     </HBox>
+
+                    <!-- Navigation Buttons -->
+                    <HBox spacing="16"
+                          alignment="CENTER"
+                          style="-fx-padding: 20 0 0 0;">
+
+                        <Button text="🔄 Refresh"
+                                onAction="#onRefresh"
+                                style="-fx-background-color: #3b82f6;
+                                       -fx-text-fill: white;
+                                       -fx-background-radius: 8;
+                                       -fx-padding: 10 30;" />
+
+                        <Button text="⬅ Back to Profile"
+                                onAction="#onGoBack"
+                                style="-fx-background-color: #6b7280;
+                                       -fx-text-fill: white;
+                                       -fx-background-radius: 8;
+                                       -fx-padding: 10 30;" />
+
+                        <Button text="❌ Exit"
+                                onAction="#onExit"
+                                style="-fx-background-color: #ef4444;
+                                       -fx-text-fill: white;
+                                       -fx-background-radius: 8;
+                                       -fx-padding: 10 30;" />
+                    </HBox>
                 </VBox>
 
                 <!-- Separator -->

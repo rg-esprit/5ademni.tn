@@ -1,5 +1,6 @@
 package com.khademni.controller;
 
+import com.khademni.App;
 import com.khademni.model.GigModel;
 import com.khademni.model.CategoryModel;
 import com.khademni.utils.MyDataBase;
@@ -13,6 +14,7 @@ import javafx.stage.FileChooser;
 import javafx.util.StringConverter;
 
 import java.io.File;
+import java.io.IOException;
 import java.sql.*;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
@@ -488,5 +490,46 @@ public class GigController {
         alert.setTitle("Information");
         alert.setContentText(message);
         alert.showAndWait();
+    }
+
+    // ===== NAVIGATION METHODS =====
+    
+    /**
+     * Refresh the gig table by reloading data from the database
+     */
+    @FXML
+    private void onRefresh() {
+        loadGigs();
+        loadCategories();
+        clearForm();
+        showAlert("Données rafraîchies avec succès !");
+    }
+
+    /**
+     * Navigate back to the profile page
+     */
+    @FXML
+    private void onGoBack() {
+        try {
+            App.setRoot("profile");
+        } catch (IOException e) {
+            showAlert("Erreur lors de la navigation vers le profil.");
+            e.printStackTrace();
+        }
+    }
+
+    /**
+     * Exit the application
+     */
+    @FXML
+    private void onExit() {
+        Alert confirmAlert = new Alert(Alert.AlertType.CONFIRMATION);
+        confirmAlert.setTitle("Confirmation");
+        confirmAlert.setHeaderText("Quitter l'application");
+        confirmAlert.setContentText("Êtes-vous sûr de vouloir quitter l'application ?");
+
+        if (confirmAlert.showAndWait().get() == ButtonType.OK) {
+            System.exit(0);
+        }
     }
 }

@@ -108,6 +108,23 @@
 
             </HBox>
 
+            <!-- ===== NAVIGATION BUTTONS ===== -->
+            <HBox spacing="15" alignment="CENTER" style="-fx-padding: 20 0 0 0;">
+
+                <Button text="🔄 Rafraîchir"
+                        onAction="#onRefresh"
+                        style="-fx-background-color: #3b82f6; -fx-text-fill: white; -fx-font-weight: bold; -fx-padding: 10 30;"/>
+
+                <Button text="⬅ Retour Profile"
+                        onAction="#onGoBack"
+                        style="-fx-background-color: #6b7280; -fx-text-fill: white; -fx-font-weight: bold; -fx-padding: 10 30;"/>
+
+                <Button text="❌ Quitter"
+                        onAction="#onExit"
+                        style="-fx-background-color: #ef4444; -fx-text-fill: white; -fx-font-weight: bold; -fx-padding: 10 30;"/>
+
+            </HBox>
+
             <Separator/>
 
             <!-- ===== TABLE SECTION ===== -->

@@ -1,5 +1,6 @@
 package com.khademni.controller;
 
+import com.khademni.App;
 import com.khademni.model.CategoryModel;
 import com.khademni.utils.MyDataBase;
 
@@ -8,6 +9,7 @@ import javafx.collections.ObservableList;
 import javafx.fxml.FXML;
 import javafx.scene.control.*;
 
+import java.io.IOException;
 import java.sql.*;
 
 public class CategoryController {
@@ -301,5 +303,45 @@ public class CategoryController {
                 e.printStackTrace();
             }
         }).start();
+    }
+
+    // ===== NAVIGATION METHODS =====
+    
+    /**
+     * Refresh the category table by reloading data from the database
+     */
+    @FXML
+    private void onRefresh() {
+        loadCategories();
+        clearForm();
+        showSuccess("✓ Données rafraîchies avec succès !");
+    }
+
+    /**
+     * Navigate back to the profile page
+     */
+    @FXML
+    private void onGoBack() {
+        try {
+            App.setRoot("profile");
+        } catch (IOException e) {
+            showError("Erreur lors de la navigation vers le profil:\n" + e.getMessage());
+            e.printStackTrace();
+        }
+    }
+
+    /**
+     * Exit the application
+     */
+    @FXML
+    private void onExit() {
+        Alert confirmAlert = new Alert(Alert.AlertType.CONFIRMATION);
+        confirmAlert.setTitle("Confirmation");
+        confirmAlert.setHeaderText("Quitter l'application");
+        confirmAlert.setContentText("Êtes-vous sûr de vouloir quitter l'application ?");
+
+        if (confirmAlert.showAndWait().get() == ButtonType.OK) {
+            System.exit(0);
+        }
     }
 }
