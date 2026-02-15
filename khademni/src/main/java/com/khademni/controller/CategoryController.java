@@ -340,7 +340,7 @@ public class CategoryController {
         confirmAlert.setHeaderText("Quitter l'application");
         confirmAlert.setContentText("Êtes-vous sûr de vouloir quitter l'application ?");
 
-        if (confirmAlert.showAndWait().get() == ButtonType.OK) {
+        if (confirmAlert.showAndWait().orElse(ButtonType.CANCEL) == ButtonType.OK) {
             System.exit(0);
         }
     }
