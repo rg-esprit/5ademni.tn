@@ -1,99 +1,122 @@
-/* Gig Management Page Styles */
-
+/* ===== ROOT ===== */
 .root {
-    -fx-background-color: #f7f5f8;
-    -fx-font-family: "Segoe UI", Arial, sans-serif;
+    -fx-font-family: "Segoe UI", sans-serif;
+    -fx-background-color: #f4f4f6;
 }
 
-/* Table Styles */
-.table-view {
+/* ===== TITLES ===== */
+.label {
+    -fx-text-fill: #141118;
+}
+
+.label:first-child {
+    -fx-font-size: 26px;
+    -fx-font-weight: bold;
+}
+
+/* ===== FORM FIELDS ===== */
+.text-field,
+.text-area,
+.combo-box {
     -fx-background-color: white;
     -fx-border-color: #e5e7eb;
-    -fx-border-radius: 8px;
-    -fx-background-radius: 8px;
+    -fx-border-radius: 8;
+    -fx-background-radius: 8;
+    -fx-padding: 8;
 }
 
-.table-view .column-header {
-    -fx-background-color: #f9fafb;
-    -fx-text-fill: #374151;
-    -fx-font-weight: bold;
-    -fx-font-size: 14px;
+.text-field:focused,
+.text-area:focused,
+.combo-box:focused {
+    -fx-border-color: #6c0df2;
+    -fx-border-width: 2;
 }
 
-.table-view .table-cell {
-    -fx-text-fill: #1f2937;
-    -fx-padding: 12px;
-}
-
-.table-row-cell:hover {
-    -fx-background-color: #f3f4f6;
-}
-
-/* Button Styles */
+/* ===== BUTTONS ===== */
 .button {
-    -fx-background-color: #6c0df2;
-    -fx-text-fill: white;
+    -fx-background-radius: 10;
+    -fx-padding: 8 20 8 20;
     -fx-font-weight: bold;
-    -fx-font-size: 14px;
-    -fx-background-radius: 8px;
-    -fx-padding: 10px 20px;
     -fx-cursor: hand;
 }
 
-.button:hover {
-    -fx-background-color: #5a0bc7;
-}
-
-.button:pressed {
-    -fx-background-color: #4a099d;
-}
-
-/* Text Field Styles */
-.text-field, .text-area {
-    -fx-background-color: white;
-    -fx-border-color: #d1d5db;
-    -fx-border-radius: 6px;
-    -fx-background-radius: 6px;
-    -fx-padding: 8px 12px;
-    -fx-font-size: 14px;
-}
-
-.text-field:focused, .text-area:focused {
-    -fx-border-color: #6c0df2;
-    -fx-border-width: 2px;
-}
-
-/* CheckBox Styles */
-.check-box {
-    -fx-text-fill: #374151;
-    -fx-font-size: 14px;
-}
-
-.check-box .box {
-    -fx-background-color: white;
-    -fx-border-color: #d1d5db;
-    -fx-border-radius: 4px;
-}
-
-.check-box:selected .box {
+/* Add Button */
+.button:first-of-type {
     -fx-background-color: #6c0df2;
-    -fx-border-color: #6c0df2;
+    -fx-text-fill: white;
 }
 
-/* Label Styles */
-.label {
-    -fx-text-fill: #1f2937;
-    -fx-font-size: 14px;
+.button:first-of-type:hover {
+    -fx-background-color: #5a0bd1;
 }
 
-.error-label {
-    -fx-text-fill: #dc2626;
-    -fx-font-size: 12px;
+/* Update Button */
+.button:nth-of-type(2) {
+    -fx-background-color: #16a34a;
+    -fx-text-fill: white;
 }
 
-.section-title {
-    -fx-font-size: 18px;
+.button:nth-of-type(2):hover {
+    -fx-background-color: #15803d;
+}
+
+/* Delete Button */
+.button:nth-of-type(3) {
+    -fx-background-color: #dc2626;
+    -fx-text-fill: white;
+}
+
+.button:nth-of-type(3):hover {
+    -fx-background-color: #b91c1c;
+}
+
+/* ===== TABLE VIEW ===== */
+.table-view {
+    -fx-background-color: white;
+    -fx-border-color: #e5e7eb;
+    -fx-border-radius: 10;
+    -fx-background-radius: 10;
+}
+
+.table-view .column-header-background {
+    -fx-background-color: #6c0df2;
+}
+
+.table-view .column-header,
+.table-view .filler {
+    -fx-size: 35;
+    -fx-border-color: transparent;
+    -fx-background-color: #6c0df2;
+}
+
+.table-view .column-header .label {
+    -fx-text-fill: white;
     -fx-font-weight: bold;
-    -fx-text-fill: #111827;
 }
 
+.table-row-cell:selected {
+    -fx-background-color: #e9d8fd;
+}
+
+.table-row-cell:hover {
+    -fx-background-color: #f3e8ff;
+}
+
+/* ===== SEPARATOR ===== */
+.separator {
+    -fx-background-color: #e5e7eb;
+}
+
+/* ===== SCROLL BAR ===== */
+.scroll-bar:vertical {
+    -fx-background-color: transparent;
+}
+
+.scroll-bar .thumb {
+    -fx-background-color: #d1d5db;
+    -fx-background-radius: 5;
+}
+
+.scroll-bar .thumb:hover {
+    -fx-background-color: #6c0df2;
+}

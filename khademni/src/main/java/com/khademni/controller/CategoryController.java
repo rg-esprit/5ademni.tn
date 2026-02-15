@@ -33,6 +33,9 @@ public class CategoryController {
         descCol.setCellValueFactory(data -> new javafx.beans.property.SimpleStringProperty(data.getValue().getDescription()));
         activeCol.setCellValueFactory(data -> new javafx.beans.property.SimpleBooleanProperty(data.getValue().isActive()));
 
+        // Contrôles de saisie en temps réel
+        setupInputValidation();
+
         loadCategories();
 
         categoryTable.getSelectionModel().selectedItemProperty().addListener((obs, oldSel, newSel) -> {
@@ -42,6 +45,31 @@ public class CategoryController {
                 activeCheck.setSelected(newSel.isActive());
             }
         });
+    }
+
+    // 🔹 Configuration de la validation en temps réel
+    private void setupInputValidation() {
+        // Limiter la longueur du nom à 100 caractères
+        nameField.textProperty().addListener((observable, oldValue, newValue) -> {
+            if (newValue != null && newValue.length() > 100) {
+                nameField.setText(oldValue);
+            }
+            // Supprimer les caractères non autorisés
+            if (newValue != null && !newValue.matches("^[a-zA-ZÀ-ÿ0-9\\s&-]*$")) {
+                nameField.setText(oldValue);
+            }
+        });
+
+        // Limiter la longueur de la description à 500 caractères
+        descField.textProperty().addListener((observable, oldValue, newValue) -> {
+            if (newValue != null && newValue.length() > 500) {
+                descField.setText(oldValue);
+            }
+        });
+
+        // Afficher le compteur de caractères (optionnel)
+        nameField.setPromptText("Nom de la catégorie (3-100 caractères)");
+        descField.setPromptText("Description (10-500 caractères)");
     }
 
     // 🔹 READ
@@ -130,7 +158,17 @@ public class CategoryController {
 
         CategoryModel selected = categoryTable.getSelectionModel().getSelectedItem();
         if (selected == null) {
-            showError("Sélectionnez une catégorie.");
+            showError("⚠ Sélectionnez une catégorie à supprimer.");
+            return;
+        }
+
+        // Confirmation de suppression
+        Alert confirmation = new Alert(Alert.AlertType.CONFIRMATION);
+        confirmation.setTitle("Confirmation");
+        confirmation.setHeaderText("Supprimer la catégorie");
+        confirmation.setContentText("Voulez-vous vraiment supprimer la catégorie :\n\"" + selected.getName() + "\" ?");
+
+        if (confirmation.showAndWait().get() != ButtonType.OK) {
             return;
         }
 
@@ -143,34 +181,92 @@ public class CategoryController {
 
             loadCategories();
             clearForm();
+            showSuccess("✓ Catégorie supprimée avec succès !");
 
         } catch (SQLException e) {
-            showError("Erreur suppression: " + e.getMessage());
+            showError("Erreur suppression:\n" + e.getMessage());
         }
     }
 
-    // 🔹 Validation
+    // 🔹 Validation améliorée
     private boolean validateInput() {
+        StringBuilder errors = new StringBuilder();
+
+        // 1. Validation du Nom
         String name = nameField.getText().trim();
-        String desc = descField.getText().trim();
-
         if (name.isEmpty()) {
-            showError("Nom obligatoire.");
-            return false;
+            errors.append("• Le nom est obligatoire.\n");
+        } else if (name.length() < 3) {
+            errors.append("• Le nom doit contenir au moins 3 caractères.\n");
+        } else if (name.length() > 100) {
+            errors.append("• Le nom ne doit pas dépasser 100 caractères.\n");
+        } else if (!name.matches("^[a-zA-ZÀ-ÿ0-9\\s&-]+$")) {
+            errors.append("• Le nom contient des caractères non autorisés.\n");
         }
 
-        if (name.length() < 3) {
-            showError("Nom minimum 3 caractères.");
-            return false;
+        // 2. Validation de la Description
+        String desc = descField.getText().trim();
+        if (desc.isEmpty()) {
+            errors.append("• La description est obligatoire.\n");
+        } else if (desc.length() < 10) {
+            errors.append("• La description doit contenir au moins 10 caractères.\n");
+        } else if (desc.length() > 500) {
+            errors.append("• La description ne doit pas dépasser 500 caractères.\n");
         }
 
-        if (desc.length() > 255) {
-            showError("Description trop longue.");
+        // 3. Vérifier si le nom existe déjà (pour l'ajout uniquement)
+        if (errors.length() == 0 && !name.isEmpty()) {
+            CategoryModel selected = categoryTable.getSelectionModel().getSelectedItem();
+            if (selected == null && nameExists(name)) {
+                errors.append("• Une catégorie avec ce nom existe déjà.\n");
+            } else if (selected != null && nameExistsForOther(name, selected.getId())) {
+                errors.append("• Une autre catégorie utilise déjà ce nom.\n");
+            }
+        }
+
+        // Afficher les erreurs s'il y en a
+        if (errors.length() > 0) {
+            showError("Erreurs de validation :\n" + errors.toString());
             return false;
         }
 
         clearError();
         return true;
+    }
+
+    // 🔹 Vérifier si le nom existe déjà
+    private boolean nameExists(String name) {
+        try {
+            String sql = "SELECT COUNT(*) FROM category WHERE LOWER(name) = LOWER(?)";
+            PreparedStatement ps = MyDataBase.getConnection().prepareStatement(sql);
+            ps.setString(1, name.trim());
+            ResultSet rs = ps.executeQuery();
+
+            if (rs.next()) {
+                return rs.getInt(1) > 0;
+            }
+        } catch (SQLException e) {
+            e.printStackTrace();
+        }
+        return false;
+    }
+
+    // 🔹 Vérifier si le nom existe pour une autre catégorie
+    private boolean nameExistsForOther(String name, int currentId) {
+        try {
+            String sql = "SELECT COUNT(*) FROM category WHERE LOWER(name) = LOWER(?) AND id != ?";
+            PreparedStatement ps = MyDataBase.getConnection().prepareStatement(sql);
+            ps.setString(1, name.trim());
+            ps.setInt(2, currentId);
+            ResultSet rs = ps.executeQuery();
+
+            if (rs.next()) {
+                return rs.getInt(1) > 0;
+            }
+        } catch (SQLException e) {
+            e.printStackTrace();
+        }
+        return false;
     }
 
     private void clearForm() {
@@ -181,11 +277,29 @@ public class CategoryController {
 
     private void showError(String message) {
         errorLabel.setText(message);
+        errorLabel.setStyle("-fx-text-fill: red; -fx-font-weight: bold;");
         errorLabel.setVisible(true);
     }
 
     private void clearError() {
         errorLabel.setText("");
         errorLabel.setVisible(false);
+    }
+
+    // 🔹 Afficher un message de succès
+    private void showSuccess(String message) {
+        errorLabel.setText(message);
+        errorLabel.setStyle("-fx-text-fill: green; -fx-font-weight: bold;");
+        errorLabel.setVisible(true);
+
+        // Masquer le message après 3 secondes
+        new Thread(() -> {
+            try {
+                Thread.sleep(3000);
+                javafx.application.Platform.runLater(() -> clearError());
+            } catch (InterruptedException e) {
+                e.printStackTrace();
+            }
+        }).start();
     }
 }

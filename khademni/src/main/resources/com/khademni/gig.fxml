@@ -1,0 +1,148 @@
+<?xml version="1.0" encoding="UTF-8"?>
+
+<?import javafx.scene.layout.*?>
+<?import javafx.scene.control.*?>
+<?import javafx.geometry.*?>
+
+<BorderPane xmlns="http://javafx.com/javafx"
+            xmlns:fx="http://javafx.com/fxml"
+            fx:controller="com.khademni.controller.GigController">
+
+    <!-- ===== TOP TITLE ===== -->
+    <top>
+        <VBox alignment="CENTER" spacing="10" style="-fx-padding: 20;">
+            <Label text="Gig Management"
+                   style="-fx-font-size: 26px; -fx-font-weight: bold;" />
+            <Label text="Create, update and manage gigs"
+                   style="-fx-text-fill: gray;" />
+        </VBox>
+    </top>
+
+    <!-- ===== CENTER CONTENT ===== -->
+    <center>
+        <VBox spacing="20" style="-fx-padding: 20 60 20 60;">
+
+            <!-- ===== FORM SECTION ===== -->
+            <GridPane hgap="15" vgap="15">
+
+                <columnConstraints>
+                    <ColumnConstraints percentWidth="30"/>
+                    <ColumnConstraints percentWidth="70"/>
+                </columnConstraints>
+
+                <!-- Title -->
+                <Label text="Title:" GridPane.rowIndex="0" GridPane.columnIndex="0"/>
+                <TextField fx:id="titleField"
+                           promptText="Enter gig title"
+                           GridPane.rowIndex="0" GridPane.columnIndex="1"/>
+
+                <!-- Description -->
+                <Label text="Description:" GridPane.rowIndex="1" GridPane.columnIndex="0"/>
+                <TextArea fx:id="descriptionArea"
+                          promptText="Enter description"
+                          prefRowCount="3"
+                          GridPane.rowIndex="1" GridPane.columnIndex="1"/>
+
+                <!-- Prix -->
+                <Label text="Prix (TND):" GridPane.rowIndex="2" GridPane.columnIndex="0"/>
+                <TextField fx:id="priceField"
+                           promptText="Ex: 150.00"
+                           GridPane.rowIndex="2" GridPane.columnIndex="1"/>
+
+                <!-- Date et Heure de livraison -->
+                <Label text="Date de livraison:" GridPane.rowIndex="3" GridPane.columnIndex="0"/>
+                <HBox spacing="10" GridPane.rowIndex="3" GridPane.columnIndex="1">
+                    <DatePicker fx:id="deliveryDatePicker"
+                                promptText="Sélectionner la date"
+                                HBox.hgrow="ALWAYS"
+                                prefWidth="200"/>
+                    <Label text="Heure:" style="-fx-padding: 5 0 0 10;"/>
+                    <Spinner fx:id="deliveryHourSpinner" prefWidth="70" editable="true"/>
+                    <Label text=":" style="-fx-padding: 5 0 0 0;"/>
+                    <Spinner fx:id="deliveryMinuteSpinner" prefWidth="70" editable="true"/>
+                </HBox>
+
+                <!-- Image -->
+                <Label text="Image:" GridPane.rowIndex="4" GridPane.columnIndex="0"/>
+                <HBox spacing="10" GridPane.rowIndex="4" GridPane.columnIndex="1">
+                    <TextField fx:id="imageField"
+                               promptText="Sélectionner une image PNG/JPG"
+                               HBox.hgrow="ALWAYS"
+                               editable="false"/>
+                    <Button fx:id="selectImageButton"
+                            text="Parcourir..."
+                            onAction="#selectImage"
+                            style="-fx-background-color: #6b7280; -fx-text-fill: white;"/>
+                </HBox>
+
+                <!-- Catégorie -->
+                <Label text="Catégorie:" GridPane.rowIndex="5" GridPane.columnIndex="0"/>
+                <ComboBox fx:id="categoryComboBox"
+                          promptText="Sélectionner une catégorie"
+                          maxWidth="Infinity"
+                          GridPane.rowIndex="5" GridPane.columnIndex="1"/>
+
+                <!-- Statut -->
+                <Label text="Statut:" GridPane.rowIndex="6" GridPane.columnIndex="0"/>
+                <ComboBox fx:id="statusComboBox"
+                          promptText="Sélectionner le statut"
+                          maxWidth="Infinity"
+                          GridPane.rowIndex="6" GridPane.columnIndex="1"/>
+
+            </GridPane>
+
+            <!-- ===== BUTTONS ===== -->
+            <HBox spacing="20" alignment="CENTER_RIGHT">
+
+                <Button text="Ajouter"
+                        onAction="#addGig"
+                        style="-fx-background-color: #6c0df2; -fx-text-fill: white; -fx-font-weight: bold; -fx-padding: 10 30;"/>
+
+                <Button text="Modifier"
+                        onAction="#updateGig"
+                        style="-fx-background-color: #16a34a; -fx-text-fill: white; -fx-font-weight: bold; -fx-padding: 10 30;"/>
+
+                <Button text="Supprimer"
+                        onAction="#deleteGig"
+                        style="-fx-background-color: #dc2626; -fx-text-fill: white; -fx-font-weight: bold; -fx-padding: 10 30;"/>
+
+            </HBox>
+
+            <Separator/>
+
+            <!-- ===== TABLE SECTION ===== -->
+            <Label text="Existing Gigs"
+                   style="-fx-font-size: 18px; -fx-font-weight: bold;"/>
+
+            <TableView fx:id="gigTable" prefHeight="300">
+
+                <columns>
+
+                    <TableColumn fx:id="colId"
+                                 text="ID"
+                                 prefWidth="60"/>
+
+                    <TableColumn fx:id="colTitle"
+                                 text="Title"
+                                 prefWidth="200"/>
+
+                    <TableColumn fx:id="colPrice"
+                                 text="Price"
+                                 prefWidth="100"/>
+
+                    <TableColumn fx:id="colStatus"
+                                 text="Status"
+                                 prefWidth="120"/>
+
+                    <TableColumn fx:id="colCategory"
+                                 text="Category"
+                                 prefWidth="180"/>
+
+                </columns>
+
+            </TableView>
+
+        </VBox>
+    </center>
+
+</BorderPane>
