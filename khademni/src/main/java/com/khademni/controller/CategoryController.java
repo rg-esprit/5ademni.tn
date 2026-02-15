@@ -8,6 +8,7 @@ import javafx.collections.ObservableList;
 import javafx.fxml.FXML;
 import javafx.scene.control.*;
 
+import java.io.IOException;
 import java.sql.*;
 
 public class CategoryController {
@@ -301,5 +302,38 @@ public class CategoryController {
                 e.printStackTrace();
             }
         }).start();
+    }
+
+    // 🔹 REFRESH - Recharger les données
+    @FXML
+    private void onRefresh() {
+        loadCategories();
+        clearForm();
+        showSuccess("✓ Données rechargées !");
+    }
+
+    // 🔹 GO BACK - Retour à la page profile
+    @FXML
+    private void onGoBack() {
+        try {
+            com.khademni.App.setRoot("profile");
+        } catch (IOException e) {
+            showError("Erreur lors du retour au profile:\n" + e.getMessage());
+            e.printStackTrace();
+        }
+    }
+
+    // 🔹 EXIT - Quitter l'application
+    @FXML
+    private void onExit() {
+        Alert confirmation = new Alert(Alert.AlertType.CONFIRMATION);
+        confirmation.setTitle("Confirmation");
+        confirmation.setHeaderText("Quitter l'application");
+        confirmation.setContentText("Voulez-vous vraiment quitter l'application ?");
+
+        if (confirmation.showAndWait().orElse(ButtonType.CANCEL) == ButtonType.OK) {
+            javafx.application.Platform.exit();
+            System.exit(0);
+        }
     }
 }

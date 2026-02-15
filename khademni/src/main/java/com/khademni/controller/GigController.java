@@ -13,6 +13,7 @@ import javafx.stage.FileChooser;
 import javafx.util.StringConverter;
 
 import java.io.File;
+import java.io.IOException;
 import java.sql.*;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
@@ -488,5 +489,39 @@ public class GigController {
         alert.setTitle("Information");
         alert.setContentText(message);
         alert.showAndWait();
+    }
+
+    // ===== REFRESH - Recharger les données =====
+    @FXML
+    private void onRefresh() {
+        loadCategories();
+        loadGigs();
+        clearForm();
+        showAlert("✓ Données rechargées avec succès !");
+    }
+
+    // ===== GO BACK - Retour à la page profile =====
+    @FXML
+    private void onGoBack() {
+        try {
+            com.khademni.App.setRoot("profile");
+        } catch (IOException e) {
+            showAlert("Erreur lors du retour au profile:\n\n" + e.getMessage());
+            e.printStackTrace();
+        }
+    }
+
+    // ===== EXIT - Quitter l'application =====
+    @FXML
+    private void onExit() {
+        Alert confirmation = new Alert(Alert.AlertType.CONFIRMATION);
+        confirmation.setTitle("Confirmation");
+        confirmation.setHeaderText("Quitter l'application");
+        confirmation.setContentText("Voulez-vous vraiment quitter l'application ?");
+
+        if (confirmation.showAndWait().orElse(ButtonType.CANCEL) == ButtonType.OK) {
+            javafx.application.Platform.exit();
+            System.exit(0);
+        }
     }
 }

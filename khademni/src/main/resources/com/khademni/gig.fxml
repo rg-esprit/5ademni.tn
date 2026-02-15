@@ -43,20 +43,20 @@
                           prefRowCount="3"
                           GridPane.rowIndex="1" GridPane.columnIndex="1"/>
 
-                <!-- Prix -->
-                <Label text="Prix (TND):" GridPane.rowIndex="2" GridPane.columnIndex="0"/>
+                <!-- Price -->
+                <Label text="Price (TND):" GridPane.rowIndex="2" GridPane.columnIndex="0"/>
                 <TextField fx:id="priceField"
                            promptText="Ex: 150.00"
                            GridPane.rowIndex="2" GridPane.columnIndex="1"/>
 
-                <!-- Date et Heure de livraison -->
-                <Label text="Date de livraison:" GridPane.rowIndex="3" GridPane.columnIndex="0"/>
+                <!-- Delivery Date and Time -->
+                <Label text="Delivery Date:" GridPane.rowIndex="3" GridPane.columnIndex="0"/>
                 <HBox spacing="10" GridPane.rowIndex="3" GridPane.columnIndex="1">
                     <DatePicker fx:id="deliveryDatePicker"
-                                promptText="Sélectionner la date"
+                                promptText="Select date"
                                 HBox.hgrow="ALWAYS"
                                 prefWidth="200"/>
-                    <Label text="Heure:" style="-fx-padding: 5 0 0 10;"/>
+                    <Label text="Time:" style="-fx-padding: 5 0 0 10;"/>
                     <Spinner fx:id="deliveryHourSpinner" prefWidth="70" editable="true"/>
                     <Label text=":" style="-fx-padding: 5 0 0 0;"/>
                     <Spinner fx:id="deliveryMinuteSpinner" prefWidth="70" editable="true"/>
@@ -66,45 +66,62 @@
                 <Label text="Image:" GridPane.rowIndex="4" GridPane.columnIndex="0"/>
                 <HBox spacing="10" GridPane.rowIndex="4" GridPane.columnIndex="1">
                     <TextField fx:id="imageField"
-                               promptText="Sélectionner une image PNG/JPG"
+                               promptText="Select PNG/JPG image"
                                HBox.hgrow="ALWAYS"
                                editable="false"/>
                     <Button fx:id="selectImageButton"
-                            text="Parcourir..."
+                            text="Browse..."
                             onAction="#selectImage"
                             style="-fx-background-color: #6b7280; -fx-text-fill: white;"/>
                 </HBox>
 
-                <!-- Catégorie -->
-                <Label text="Catégorie:" GridPane.rowIndex="5" GridPane.columnIndex="0"/>
+                <!-- Category -->
+                <Label text="Category:" GridPane.rowIndex="5" GridPane.columnIndex="0"/>
                 <ComboBox fx:id="categoryComboBox"
-                          promptText="Sélectionner une catégorie"
+                          promptText="Select category"
                           maxWidth="Infinity"
                           GridPane.rowIndex="5" GridPane.columnIndex="1"/>
 
-                <!-- Statut -->
-                <Label text="Statut:" GridPane.rowIndex="6" GridPane.columnIndex="0"/>
+                <!-- Status -->
+                <Label text="Status:" GridPane.rowIndex="6" GridPane.columnIndex="0"/>
                 <ComboBox fx:id="statusComboBox"
-                          promptText="Sélectionner le statut"
+                          promptText="Select status"
                           maxWidth="Infinity"
                           GridPane.rowIndex="6" GridPane.columnIndex="1"/>
 
             </GridPane>
 
             <!-- ===== BUTTONS ===== -->
-            <HBox spacing="20" alignment="CENTER_RIGHT">
+            <HBox spacing="20" alignment="CENTER">
 
-                <Button text="Ajouter"
+                <!-- CRUD Buttons -->
+                <Button text="Add"
                         onAction="#addGig"
                         style="-fx-background-color: #6c0df2; -fx-text-fill: white; -fx-font-weight: bold; -fx-padding: 10 30;"/>
 
-                <Button text="Modifier"
+                <Button text="Update"
                         onAction="#updateGig"
                         style="-fx-background-color: #16a34a; -fx-text-fill: white; -fx-font-weight: bold; -fx-padding: 10 30;"/>
 
-                <Button text="Supprimer"
+                <Button text="Delete"
                         onAction="#deleteGig"
                         style="-fx-background-color: #dc2626; -fx-text-fill: white; -fx-font-weight: bold; -fx-padding: 10 30;"/>
+
+                <!-- Separator -->
+                <Region HBox.hgrow="ALWAYS" />
+
+                <!-- Action Buttons -->
+                <Button text="🔄 Refresh"
+                        onAction="#onRefresh"
+                        style="-fx-background-color: #2196F3; -fx-text-fill: white; -fx-font-weight: bold; -fx-padding: 10 30;"/>
+
+                <Button text="⬅ Back to Profile"
+                        onAction="#onGoBack"
+                        style="-fx-background-color: #FF9800; -fx-text-fill: white; -fx-font-weight: bold; -fx-padding: 10 30;"/>
+
+                <Button text="❌ Exit"
+                        onAction="#onExit"
+                        style="-fx-background-color: #9E9E9E; -fx-text-fill: white; -fx-font-weight: bold; -fx-padding: 10 30;"/>
 
             </HBox>
 

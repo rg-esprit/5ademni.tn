@@ -78,26 +78,55 @@
 
                     <!-- Buttons -->
                     <HBox spacing="16"
-                          alignment="CENTER_RIGHT"
+                          alignment="CENTER"
                           style="-fx-padding: 10 0 0 0;">
 
+                        <!-- CRUD Buttons -->
                         <Button text="Add"
                                 onAction="#onAddCategory"
                                 style="-fx-background-color: #6c63ff;
                                        -fx-text-fill: white;
-                                       -fx-background-radius: 8;" />
+                                       -fx-background-radius: 8;
+                                       -fx-padding: 10 20;" />
 
                         <Button text="Update"
                                 onAction="#onUpdateCategory"
                                 style="-fx-background-color: #4CAF50;
                                        -fx-text-fill: white;
-                                       -fx-background-radius: 8;" />
+                                       -fx-background-radius: 8;
+                                       -fx-padding: 10 20;" />
 
                         <Button text="Delete"
                                 onAction="#onDeleteCategory"
                                 style="-fx-background-color: #e53935;
                                        -fx-text-fill: white;
-                                       -fx-background-radius: 8;" />
+                                       -fx-background-radius: 8;
+                                       -fx-padding: 10 20;" />
+
+                        <!-- Separator -->
+                        <Region HBox.hgrow="ALWAYS" />
+
+                        <!-- Action Buttons -->
+                        <Button text="🔄 Refresh"
+                                onAction="#onRefresh"
+                                style="-fx-background-color: #2196F3;
+                                       -fx-text-fill: white;
+                                       -fx-background-radius: 8;
+                                       -fx-padding: 10 20;" />
+
+                        <Button text="⬅ Back to Profile"
+                                onAction="#onGoBack"
+                                style="-fx-background-color: #FF9800;
+                                       -fx-text-fill: white;
+                                       -fx-background-radius: 8;
+                                       -fx-padding: 10 20;" />
+
+                        <Button text="❌ Exit"
+                                onAction="#onExit"
+                                style="-fx-background-color: #9E9E9E;
+                                       -fx-text-fill: white;
+                                       -fx-background-radius: 8;
+                                       -fx-padding: 10 20;" />
                     </HBox>
                 </VBox>
 
