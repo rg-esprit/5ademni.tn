@@ -1,0 +1,221 @@
+/* ============================================
+   5ademni.tn — Category Page Styles
+   ============================================ */
+
+/* ---- Root & Background ---- */
+
+.category-scroll {
+  -fx-background-color: #f7f5f8;
+  -fx-background: #f7f5f8;
+}
+
+.category-scroll .viewport {
+  -fx-background-color: #f7f5f8;
+}
+
+.category-scroll .scroll-bar:vertical,
+.category-scroll .scroll-bar:horizontal {
+  -fx-opacity: 0;
+}
+
+.category-root {
+  -fx-font-family: "Inter", "Segoe UI", "Helvetica Neue", Arial, sans-serif;
+  -fx-background-color: #f7f5f8;
+}
+
+/* ---- Page Title ---- */
+
+.category-page-title {
+  -fx-font-size: 32;
+  -fx-font-weight: 800;
+  -fx-text-fill: #141118;
+}
+
+.category-page-subtitle {
+  -fx-font-size: 15;
+  -fx-font-weight: 400;
+  -fx-text-fill: #8c8c8c;
+}
+
+/* ---- Category Card ---- */
+
+.category-card {
+  -fx-background-color: white;
+  -fx-background-radius: 16;
+  -fx-border-radius: 16;
+  -fx-border-color: #f0f0f0;
+  -fx-border-width: 1;
+  -fx-effect: dropshadow(gaussian, rgba(0, 0, 0, 0.06), 30, 0, 0, 8);
+}
+
+/* ---- Form Section ---- */
+
+.category-field-label {
+  -fx-font-size: 13;
+  -fx-font-weight: 700;
+  -fx-text-fill: #333333;
+}
+
+.category-input {
+  -fx-background-color: #fafafa;
+  -fx-background-radius: 10;
+  -fx-border-color: #e5e7eb;
+  -fx-border-radius: 10;
+  -fx-border-width: 1.5;
+  -fx-padding: 12 16 12 16;
+  -fx-font-size: 14;
+  -fx-font-weight: 400;
+  -fx-text-fill: #333333;
+  -fx-prompt-text-fill: #b0b0b0;
+}
+
+.category-input:focused {
+  -fx-border-color: #6c0df2;
+  -fx-background-color: white;
+  -fx-effect: dropshadow(gaussian, rgba(108, 13, 242, 0.1), 8, 0, 0, 0);
+}
+
+.category-textarea {
+  -fx-background-color: #fafafa;
+  -fx-background-radius: 10;
+  -fx-border-color: #e5e7eb;
+  -fx-border-radius: 10;
+  -fx-border-width: 1.5;
+  -fx-padding: 12 16 12 16;
+  -fx-font-size: 14;
+  -fx-font-weight: 400;
+  -fx-text-fill: #333333;
+  -fx-prompt-text-fill: #b0b0b0;
+}
+
+.category-textarea:focused {
+  -fx-border-color: #6c0df2;
+  -fx-background-color: white;
+}
+
+.category-textarea .content {
+  -fx-background-color: transparent;
+}
+
+/* ---- Checkbox ---- */
+
+.check-box {
+  -fx-font-size: 14;
+  -fx-text-fill: #333;
+}
+
+.check-box:selected .box {
+  -fx-background-color: #6c0df2;
+  -fx-border-color: #6c0df2;
+}
+
+.check-box .box {
+  -fx-border-radius: 4;
+  -fx-background-radius: 4;
+}
+
+/* ---- Status Label ---- */
+
+.category-status-label {
+  -fx-font-size: 14;
+  -fx-font-weight: 600;
+  -fx-padding: 12 20 12 20;
+  -fx-background-radius: 10;
+  -fx-text-fill: #059669;
+  -fx-background-color: #ecfdf5;
+  -fx-border-color: #a7f3d0;
+  -fx-border-radius: 10;
+  -fx-border-width: 1;
+  -fx-alignment: center;
+}
+
+/* ---- Buttons ---- */
+
+.category-add-btn {
+  -fx-background-color: #6c0df2;
+  -fx-text-fill: white;
+  -fx-font-size: 14;
+  -fx-font-weight: 700;
+  -fx-padding: 12 28 12 28;
+  -fx-background-radius: 10;
+  -fx-cursor: hand;
+}
+
+.category-add-btn:hover {
+  -fx-background-color: #5a0ac9;
+  -fx-effect: dropshadow(gaussian, rgba(108, 13, 242, 0.3), 8, 0, 0, 2);
+}
+
+.category-update-btn {
+  -fx-background-color: #16a34a;
+  -fx-text-fill: white;
+  -fx-font-size: 14;
+  -fx-font-weight: 700;
+  -fx-padding: 12 28 12 28;
+  -fx-background-radius: 10;
+  -fx-cursor: hand;
+}
+
+.category-update-btn:hover {
+  -fx-background-color: #15803d;
+}
+
+.category-delete-btn {
+  -fx-background-color: #dc2626;
+  -fx-text-fill: white;
+  -fx-font-size: 14;
+  -fx-font-weight: 700;
+  -fx-padding: 12 28 12 28;
+  -fx-background-radius: 10;
+  -fx-cursor: hand;
+}
+
+.category-delete-btn:hover {
+  -fx-background-color: #b91c1c;
+}
+
+/* ---- TableView ---- */
+
+.table-view {
+  -fx-background-radius: 12;
+  -fx-border-radius: 12;
+  -fx-border-color: #f0f0f0;
+  -fx-border-width: 1;
+  -fx-padding: 0;
+}
+
+.table-view .column-header-background {
+  -fx-background-color: #fafafa;
+  -fx-background-radius: 12 12 0 0;
+}
+
+.table-view .column-header,
+.table-view .filler {
+  -fx-background-color: transparent;
+  -fx-size: 40px;
+}
+
+.table-view .column-header .label {
+  -fx-font-size: 13;
+  -fx-font-weight: 700;
+  -fx-text-fill: #444;
+}
+
+.table-row-cell {
+  -fx-background-color: white;
+  -fx-border-color: transparent transparent #f3f4f6 transparent;
+}
+
+.table-row-cell:hover {
+  -fx-background-color: #f9f5ff;
+}
+
+.table-row-cell:selected {
+  -fx-background-color: #ede9fe;
+}
+
+.table-cell {
+  -fx-padding: 12 16 12 16;
+  -fx-font-size: 14;
+  -fx-text-fill: #333;
+}

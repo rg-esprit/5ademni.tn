@@ -32,4 +32,15 @@ public class HeaderController {
     private void goToProfile() throws IOException {
         App.setRoot("profile");
     }
+
+    @FXML
+    private void goToCategory() throws IOException {
+        App.setRoot("category");
+    }
+
+    @FXML
+    private void goToGig() throws IOException {
+        App.setRoot("gig");
+    }
+
 }
