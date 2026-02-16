@@ -1,0 +1,66 @@
+<?xml version="1.0" encoding="UTF-8"?>
+
+<?import javafx.scene.control.*?>
+<?import javafx.scene.layout.*?>
+<?import javafx.geometry.Insets?>
+
+<ScrollPane xmlns="http://javafx.com/javafx/17" xmlns:fx="http://javafx.com/fxml/1"
+    fx:controller="com.khademni.controller.OffreFormController"
+    fitToWidth="true" fitToHeight="true" styleClass="root-scroll"
+    stylesheets="@contrat.css"
+    style="-fx-background-color: #f7f5f8; -fx-background: #f7f5f8;">
+
+    <VBox alignment="TOP_CENTER" spacing="0" styleClass="root">
+        
+        <!-- Global Header -->
+        <fx:include source="header.fxml" />
+
+        <!-- Main Content Area -->
+        <VBox alignment="TOP_CENTER" spacing="32" style="-fx-padding: 40 24 60 24;">
+
+            <!-- Form Card -->
+            <VBox styleClass="card" spacing="28" maxWidth="600" prefWidth="600"
+                style="-fx-padding: 36;">
+
+                <Label fx:id="formTitle" text="Créer un Offre / Demande" styleClass="heading" />
+
+                <!-- Error Label -->
+                <Label fx:id="errorLabel" text="" styleClass="error-label"
+                    visible="false" managed="false" />
+
+                <VBox spacing="10">
+                    <Label text="ID Utilisateur (Client/Freelancer)" style="-fx-font-weight: bold;" />
+                    <TextField fx:id="userIdField" promptText="Entrez votre ID" styleClass="search-field" />
+                </VBox>
+
+                <VBox spacing="10">
+                    <Label text="Date de Création" style="-fx-font-weight: bold;" />
+                    <DatePicker fx:id="dateField" promptText="Choisissez la date" style="-fx-pref-width: 600;" />
+                </VBox>
+
+                <VBox spacing="10">
+                    <Label text="Titre" style="-fx-font-weight: bold;" />
+                    <TextField fx:id="titreField" promptText="Entrez le titre (min 5 caractères)" styleClass="search-field" />
+                </VBox>
+
+                <VBox spacing="10">
+                    <Label text="Description" style="-fx-font-weight: bold;" />
+                    <TextArea fx:id="descriptionField" promptText="Décrivez votre offre ou besoin (min 10 caractères)" 
+                              styleClass="text-area-custom" prefHeight="150" wrapText="true" />
+                </VBox>
+
+                <VBox spacing="10">
+                    <Label text="Prix (DT)" style="-fx-font-weight: bold;" />
+                    <TextField fx:id="prixField" promptText="0.00" styleClass="search-field" />
+                </VBox>
+
+                <HBox spacing="16" alignment="CENTER_RIGHT">
+                    <Button text="Annuler" styleClass="button-secondary" onAction="#goToOffres" />
+                    <Button text="Enregistrer" styleClass="button-primary" onAction="#handleSave" />
+                </HBox>
+
+            </VBox>
+
+        </VBox>
+    </VBox>
+</ScrollPane>

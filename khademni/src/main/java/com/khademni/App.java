@@ -18,16 +18,18 @@ public class App extends Application {
 
     private static Scene scene;
     private static Stage primaryStage;
+    private static javafx.application.HostServices hostServices;
     public static UserModel currentUser;
 
     @Override
     public void start(Stage stage) throws IOException {
         primaryStage = stage;
+        hostServices = getHostServices();
 
-        scene = new Scene(loadFXML("contrat"), 540, 700);
-        scene.getStylesheets().add(App.class.getResource("contrat.css").toExternalForm());
-        stage.setTitle("5ademni.tn — Gestion Contrats");
-        stage.setFullScreen(true);
+        scene = new Scene(loadFXML("login"), 540, 700);
+        scene.getStylesheets().add(App.class.getResource("login.css").toExternalForm());
+        stage.setTitle("5ademni.tn — Sign In");
+        stage.setFullScreen(false); // Login page usually shouldn't be fullscreen by default
         stage.setScene(scene);
         stage.show();
     }
@@ -38,19 +40,24 @@ public class App extends Application {
         // Update title and CSS based on the scene
         scene.getStylesheets().clear();
         if (fxml.equals("login")) {
-            primaryStage.setTitle("5ademni.tn — Sign In");
             scene.getStylesheets().add(App.class.getResource("login.css").toExternalForm());
+            primaryStage.setTitle("5ademni.tn — Sign In");
         } else if (fxml.equals("signup")) {
-            primaryStage.setTitle("5ademni.tn — Create Account");
             scene.getStylesheets().add(App.class.getResource("signup.css").toExternalForm());
+            primaryStage.setTitle("5ademni.tn — Create Account");
         } else if (fxml.equals("profile")) {
-            primaryStage.setTitle("5ademni.tn — My Profile");
             scene.getStylesheets().add(App.class.getResource("profile.css").toExternalForm());
+            primaryStage.setTitle("5ademni.tn — My Profile");
         } else if (fxml.equals("contrat")) {
+            scene.getStylesheets().add(App.class.getResource("contrat.css").toExternalForm());
             primaryStage.setTitle("5ademni.tn — Gestion Contrats");
+        } else {
             scene.getStylesheets().add(App.class.getResource("contrat.css").toExternalForm());
         }
-        primaryStage.setFullScreen(true);
+    }
+
+    public static void setRoot(Parent node) {
+        scene.setRoot(node);
     }
 
     private static Parent loadFXML(String fxml) throws IOException {
@@ -68,6 +75,10 @@ public class App extends Application {
 
     public static void setCurrentUser(UserModel user) {
         currentUser = user;
+    }
+
+    public static javafx.application.HostServices getAppHostServices() {
+        return hostServices;
     }
 
 }

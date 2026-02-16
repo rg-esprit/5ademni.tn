@@ -1,0 +1,77 @@
+<?xml version="1.0" encoding="UTF-8"?>
+
+<?import javafx.scene.control.*?>
+<?import javafx.scene.layout.*?>
+<?import javafx.geometry.Insets?>
+
+<ScrollPane xmlns="http://javafx.com/javafx/17" xmlns:fx="http://javafx.com/fxml/1"
+    fx:controller="com.khademni.controller.OffreController"
+    fitToWidth="true" fitToHeight="true" styleClass="root-scroll"
+    stylesheets="@contrat.css"
+    style="-fx-background-color: #f7f5f8; -fx-background: #f7f5f8;">
+
+    <VBox alignment="TOP_CENTER" spacing="0" styleClass="root">
+        
+        <!-- Global Header -->
+        <fx:include source="header.fxml" />
+
+        <!-- Main Content Area -->
+        <VBox alignment="TOP_CENTER" spacing="32" style="-fx-padding: 40 24 60 24;">
+
+            <!-- Main Card Container -->
+            <VBox styleClass="card" spacing="28" maxWidth="900" prefWidth="900"
+                style="-fx-padding: 36;">
+
+                <!-- Header Section with Actions -->
+                <HBox alignment="CENTER_LEFT" spacing="16">
+                    <VBox spacing="4" HBox.hgrow="ALWAYS">
+                        <Label text="Espace Offres &amp; Demandes" styleClass="heading" />
+                        <Label text="Gérez vos offres de service et vos demandes de travail" styleClass="subtitle-text" />
+                    </VBox>
+                    
+                    <!-- Search Bar -->
+                    <HBox alignment="CENTER_LEFT" spacing="8" styleClass="search-container" prefWidth="300">
+                        <Label text="&#xe8b6;" styleClass="search-icon" />
+                        <TextField fx:id="searchField" promptText="Rechercher par Titre ou Type..." 
+                                   styleClass="search-field" HBox.hgrow="ALWAYS" />
+                    </HBox>
+
+                    <Button text="Nouvel Offre" styleClass="button-primary"
+                        onAction="#goToAddOffer">
+                        <graphic>
+                            <Label text="&#xe145;" styleClass="btn-icon-arrow" />
+                        </graphic>
+                    </Button>
+                    <Button text="Nouvelle Demande" styleClass="button-secondary"
+                        onAction="#goToAddDemand">
+                        <graphic>
+                            <Label text="&#xe145;" styleClass="btn-icon-arrow" />
+                        </graphic>
+                    </Button>
+                </HBox>
+
+                <!-- Table View -->
+                <TableView fx:id="offreTable" VBox.vgrow="ALWAYS" minHeight="400">
+                    <columns>
+                        <TableColumn fx:id="colId" text="ID" prefWidth="50" />
+                        <TableColumn fx:id="colTitre" text="Titre" prefWidth="200" />
+                        <TableColumn fx:id="colPrix" text="Prix" prefWidth="100" />
+                        <TableColumn fx:id="colType" text="Type" prefWidth="100" />
+                        <TableColumn fx:id="colStatut" text="Statut" prefWidth="100" />
+                        <TableColumn fx:id="colDate" text="Date Création" prefWidth="150" />
+                    </columns>
+                    <columnResizePolicy>
+                        <TableView fx:constant="CONSTRAINED_RESIZE_POLICY" />
+                    </columnResizePolicy>
+                </TableView>
+
+            </VBox>
+
+            <!-- Footer -->
+            <VBox alignment="CENTER" style="-fx-padding: 24 0 0 0;">
+                <Label text="© 2026 5ademni.tn. All rights reserved." styleClass="footer-text" />
+            </VBox>
+
+        </VBox>
+    </VBox>
+</ScrollPane>

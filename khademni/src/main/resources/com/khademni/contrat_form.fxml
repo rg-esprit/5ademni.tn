@@ -1,0 +1,84 @@
+<?xml version="1.0" encoding="UTF-8"?>
+
+<?import javafx.scene.control.*?>
+<?import javafx.scene.layout.*?>
+<?import javafx.geometry.Insets?>
+
+<StackPane xmlns="http://javafx.com/javafx"
+            xmlns:fx="http://javafx.com/fxml"
+            fx:controller="com.khademni.controller.ContratFormController"
+            stylesheets="@contrat.css"
+            style="-fx-background-color: #f8f9fa;">
+    
+    <VBox spacing="30" maxWidth="800" alignment="TOP_CENTER" 
+          style="-fx-background-color: white; -fx-background-radius: 15; -fx-effect: dropshadow(three-pass-box, rgba(0,0,0,0.1), 10, 0, 0, 5);">
+        
+        <padding>
+            <Insets top="40" right="40" bottom="40" left="40"/>
+        </padding>
+
+        <!-- Header -->
+        <VBox spacing="10" alignment="CENTER">
+            <Label fx:id="formTitle" text="Créer un Contrat" style="-fx-font-size: 28; -fx-font-weight: bold; -fx-text-fill: #2d3436;"/>
+            <Label text="Remplissez les informations du contrat" style="-fx-text-fill: #636e72; -fx-font-size: 14;"/>
+            
+            <!-- Error Label -->
+            <Label fx:id="errorLabel" text="" styleClass="error-label"
+                visible="false" managed="false" />
+        </VBox>
+
+        <!-- Form Section -->
+        <VBox spacing="20">
+            
+            <!-- Row 1: Titre & Freelancer ID -->
+            <HBox spacing="24">
+                <VBox spacing="8" HBox.hgrow="ALWAYS">
+                    <Label text="Titre du Contrat" style="-fx-font-weight: bold;"/>
+                    <TextField fx:id="titreField" promptText="Ex: Développement Web" 
+                               prefHeight="45" style="-fx-background-color: #f1f3f5; -fx-background-radius: 8; -fx-border-color: #dee2e6; -fx-border-radius: 8;"/>
+                </VBox>
+
+                <VBox spacing="8" HBox.hgrow="ALWAYS">
+                    <Label text="ID Freelancer" style="-fx-font-weight: bold;"/>
+                    <TextField fx:id="idFreelancerField" promptText="Entrez l'ID du freelancer" 
+                               prefHeight="45" style="-fx-background-color: #f1f3f5; -fx-background-radius: 8; -fx-border-color: #dee2e6; -fx-border-radius: 8;"/>
+                </VBox>
+            </HBox>
+
+            <!-- Row 2: Prix & Date -->
+            <HBox spacing="24">
+                <VBox spacing="8" HBox.hgrow="ALWAYS">
+                    <Label text="Prix (DT)" style="-fx-font-weight: bold;"/>
+                    <TextField fx:id="prixField" promptText="Ex: 500" 
+                               prefHeight="45" style="-fx-background-color: #f1f3f5; -fx-background-radius: 8; -fx-border-color: #dee2e6; -fx-border-radius: 8;"/>
+                </VBox>
+
+                <VBox spacing="8" HBox.hgrow="ALWAYS">
+                    <Label text="Date du Contrat" style="-fx-font-weight: bold;"/>
+                    <DatePicker fx:id="dateContratPicker" prefHeight="45" maxWidth="Infinity" />
+                </VBox>
+            </HBox>
+
+            <!-- Description -->
+            <VBox spacing="8">
+                <Label text="Description" style="-fx-font-weight: bold;"/>
+                <TextArea fx:id="descriptionField" promptText="Décrivez l'objet du contrat..." 
+                          prefHeight="120" wrapText="true" 
+                          style="-fx-control-inner-background: #f1f3f5; -fx-background-radius: 8; -fx-border-color: #dee2e6; -fx-border-radius: 8;"/>
+            </VBox>
+
+        </VBox>
+
+        <!-- Buttons -->
+        <HBox spacing="15" alignment="CENTER_RIGHT">
+            <Button text="Annuler" onAction="#cancel" 
+                    prefWidth="120" prefHeight="40" 
+                    style="-fx-background-color: white; -fx-border-color: #dee2e6; -fx-border-radius: 5; -fx-cursor: hand;"/>
+            
+            <Button text="Enregistrer" onAction="#saveContrat" 
+                    prefWidth="180" prefHeight="45" 
+                    style="-fx-background-color: #6c5ce7; -fx-text-fill: white; -fx-font-weight: bold; -fx-background-radius: 5; -fx-cursor: hand; -fx-effect: dropshadow(three-pass-box, rgba(108, 92, 231, 0.3), 10, 0, 0, 5);"/>
+        </HBox>
+
+    </VBox>
+</StackPane>

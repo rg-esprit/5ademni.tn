@@ -191,13 +191,15 @@ public class UserController {
                 user.setId(rs.getInt("id"));
                 user.setFirstName(rs.getString("first_name"));
                 user.setLastName(rs.getString("last_name"));
-                user.setDateOfBirth(rs.getDate("date_of_birth").toLocalDate());
+                user.setDateOfBirth(
+                        rs.getDate("date_of_birth") != null ? rs.getDate("date_of_birth").toLocalDate() : null);
                 user.setBalance(rs.getDouble("balance"));
                 user.setEmail(rs.getString("email"));
                 user.setPassword(rs.getString("password"));
                 user.setIsAdmin(rs.getBoolean("is_admin"));
                 user.setProfileImg(rs.getString("profile_img"));
                 user.setBio(rs.getString("bio"));
+                user.setRole(rs.getString("role"));
                 return user;
             }
         }
@@ -265,11 +267,11 @@ public class UserController {
         String password = signupPasswordField.getText().trim();
         String confirmPassword = signupConfirmPasswordField.getText().trim();
         String profileImg = signupProfileImgField != null && signupProfileImgField.getText() != null
-            ? signupProfileImgField.getText().trim()
-            : "";
+                ? signupProfileImgField.getText().trim()
+                : "";
         String bio = signupBioField != null && signupBioField.getText() != null
-            ? signupBioField.getText().trim()
-            : "";
+                ? signupBioField.getText().trim()
+                : "";
 
         // Clear previous errors
         signupErrorLabel.setText("");
@@ -315,7 +317,7 @@ public class UserController {
             if (createUser(user)) {
                 System.out.println("Signup successful: " + user);
                 showError("Account created successfully! Redirecting to login...", signupErrorLabel);
-                
+
                 // Navigate to login after 2 seconds
                 new Thread(() -> {
                     try {
@@ -358,13 +360,14 @@ public class UserController {
     }
 
     private boolean createUser(UserModel user) throws SQLException {
-        String query = "INSERT INTO users (first_name, last_name, date_of_birth, balance, email, password, is_admin, profile_img, bio) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)";
+        String query = "INSERT INTO users (role, first_name, last_name, date_of_birth, balance, email, password, is_admin, profile_img, bio) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)";
 
         Connection conn = MyDataBase.getConnection();
         try (PreparedStatement stmt = conn.prepareStatement(query)) {
 
-            stmt.setString(1, user.getFirstName());
-            stmt.setString(2, user.getLastName());
+            stmt.setString(1, user.getRole() != null ? user.getRole() : "CLIENT");
+            stmt.setString(2, user.getFirstName());
+            stmt.setString(3, user.getLastName());
             stmt.setDate(3, Date.valueOf(user.getDateOfBirth()));
             stmt.setDouble(4, 0.0); // Initial balance
             stmt.setString(5, user.getEmail());
@@ -388,7 +391,8 @@ public class UserController {
             signupPlainPasswordField.setText(signupPasswordField.getText());
             signupPasswordField.setVisible(false);
             signupPasswordField.setManaged(false);
-            ((org.kordamp.ikonli.javafx.FontIcon) signupTogglePasswordButton.getGraphic()).setIconLiteral("fas-eye-slash");
+            ((org.kordamp.ikonli.javafx.FontIcon) signupTogglePasswordButton.getGraphic())
+                    .setIconLiteral("fas-eye-slash");
         } else {
             signupPasswordField.setVisible(true);
             signupPasswordField.setManaged(true);
@@ -409,14 +413,16 @@ public class UserController {
             signupPlainConfirmPasswordField.setText(signupConfirmPasswordField.getText());
             signupConfirmPasswordField.setVisible(false);
             signupConfirmPasswordField.setManaged(false);
-            ((org.kordamp.ikonli.javafx.FontIcon) signupToggleConfirmPasswordButton.getGraphic()).setIconLiteral("fas-eye-slash");
+            ((org.kordamp.ikonli.javafx.FontIcon) signupToggleConfirmPasswordButton.getGraphic())
+                    .setIconLiteral("fas-eye-slash");
         } else {
             signupConfirmPasswordField.setVisible(true);
             signupConfirmPasswordField.setManaged(true);
             signupConfirmPasswordField.setText(signupPlainConfirmPasswordField.getText());
             signupPlainConfirmPasswordField.setVisible(false);
             signupPlainConfirmPasswordField.setManaged(false);
-            ((org.kordamp.ikonli.javafx.FontIcon) signupToggleConfirmPasswordButton.getGraphic()).setIconLiteral("fas-eye");
+            ((org.kordamp.ikonli.javafx.FontIcon) signupToggleConfirmPasswordButton.getGraphic())
+                    .setIconLiteral("fas-eye");
         }
     }
 
@@ -446,7 +452,8 @@ public class UserController {
 
     private void loadProfileData() {
         UserModel user = App.getCurrentUser();
-        if (user == null) return;
+        if (user == null)
+            return;
 
         profileFirstNameField.setText(user.getFirstName());
         profileLastNameField.setText(user.getLastName());
@@ -475,7 +482,8 @@ public class UserController {
     @FXML
     private void onProfileSave(ActionEvent event) {
         UserModel user = App.getCurrentUser();
-        if (user == null) return;
+        if (user == null)
+            return;
 
         String firstName = profileFirstNameField.getText().trim();
         String lastName = profileLastNameField.getText().trim();
@@ -554,14 +562,17 @@ public class UserController {
     }
 
     private void showProfileStatus(String message, boolean isError) {
-        if (profileStatusLabel == null) return;
+        if (profileStatusLabel == null)
+            return;
         profileStatusLabel.setText(message);
         profileStatusLabel.setVisible(true);
         profileStatusLabel.setManaged(true);
         if (isError) {
-            profileStatusLabel.setStyle("-fx-text-fill: #dc2626; -fx-background-color: #fef2f2; -fx-border-color: #fecaca; -fx-border-radius: 10; -fx-background-radius: 10; -fx-padding: 12 20 12 20; -fx-font-size: 14; -fx-font-weight: 600; -fx-alignment: center;");
+            profileStatusLabel.setStyle(
+                    "-fx-text-fill: #dc2626; -fx-background-color: #fef2f2; -fx-border-color: #fecaca; -fx-border-radius: 10; -fx-background-radius: 10; -fx-padding: 12 20 12 20; -fx-font-size: 14; -fx-font-weight: 600; -fx-alignment: center;");
         } else {
-            profileStatusLabel.setStyle("-fx-text-fill: #059669; -fx-background-color: #ecfdf5; -fx-border-color: #a7f3d0; -fx-border-radius: 10; -fx-background-radius: 10; -fx-padding: 12 20 12 20; -fx-font-size: 14; -fx-font-weight: 600; -fx-alignment: center;");
+            profileStatusLabel.setStyle(
+                    "-fx-text-fill: #059669; -fx-background-color: #ecfdf5; -fx-border-color: #a7f3d0; -fx-border-radius: 10; -fx-background-radius: 10; -fx-padding: 12 20 12 20; -fx-font-size: 14; -fx-font-weight: 600; -fx-alignment: center;");
         }
     }
 
@@ -590,7 +601,8 @@ public class UserController {
 
             for (byte b : hash) {
                 String hex = Integer.toHexString(0xff & b);
-                if (hex.length() == 1) hexString.append('0');
+                if (hex.length() == 1)
+                    hexString.append('0');
                 hexString.append(hex);
             }
 

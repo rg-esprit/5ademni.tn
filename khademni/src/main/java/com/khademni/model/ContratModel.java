@@ -7,19 +7,27 @@ public class ContratModel {
     private int idContrat;
     private int idClient;
     private int idFreelancer;
+    private String freelancerName; // Added field
+    private String titre;
     private String description;
+    private double prix;
     private LocalDate dateContrat;
+    private String statut;
 
     public ContratModel() {
     }
 
-    public ContratModel(int idContrat, int idClient, int idFreelancer,
-                        String description, LocalDate dateContrat) {
+    public ContratModel(int idContrat, int idClient, int idFreelancer, String freelancerName,
+            String titre, String description, double prix, LocalDate dateContrat, String statut) {
         this.idContrat = idContrat;
         this.idClient = idClient;
         this.idFreelancer = idFreelancer;
+        this.freelancerName = freelancerName;
+        this.titre = titre;
         this.description = description;
+        this.prix = prix;
         this.dateContrat = dateContrat;
+        this.statut = statut;
     }
 
     public int getIdContrat() {
@@ -46,6 +54,22 @@ public class ContratModel {
         this.idFreelancer = idFreelancer;
     }
 
+    public String getFreelancerName() {
+        return freelancerName;
+    }
+
+    public void setFreelancerName(String freelancerName) {
+        this.freelancerName = freelancerName;
+    }
+
+    public String getTitre() {
+        return titre;
+    }
+
+    public void setTitre(String titre) {
+        this.titre = titre;
+    }
+
     public String getDescription() {
         return description;
     }
@@ -54,11 +78,27 @@ public class ContratModel {
         this.description = description;
     }
 
+    public double getPrix() {
+        return prix;
+    }
+
+    public void setPrix(double prix) {
+        this.prix = prix;
+    }
+
     public LocalDate getDateContrat() {
         return dateContrat;
     }
 
     public void setDateContrat(LocalDate dateContrat) {
         this.dateContrat = dateContrat;
+    }
+
+    public String getStatut() {
+        return statut;
+    }
+
+    public void setStatut(String statut) {
+        this.statut = statut;
     }
 }

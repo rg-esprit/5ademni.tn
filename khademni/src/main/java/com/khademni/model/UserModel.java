@@ -13,6 +13,7 @@ public class UserModel {
     private boolean isAdmin;
     private String profileImg;
     private String bio;
+    private String role; // "CLIENT" or "FREELANCER"
 
     public UserModel() {
     }
@@ -29,7 +30,8 @@ public class UserModel {
         this.bio = "";
     }
 
-    public UserModel(int id, String firstName, String lastName, LocalDate dateOfBirth, double balance, String email, String password, boolean isAdmin, String profileImg, String bio) {
+    public UserModel(int id, String firstName, String lastName, LocalDate dateOfBirth, double balance, String email,
+            String password, boolean isAdmin, String profileImg, String bio) {
         this.id = id;
         this.firstName = firstName;
         this.lastName = lastName;
@@ -122,8 +124,17 @@ public class UserModel {
         this.bio = bio;
     }
 
+    public String getRole() {
+        return role;
+    }
+
+    public void setRole(String role) {
+        this.role = role;
+    }
+
     @Override
     public String toString() {
-        return "UserModel{id=" + id + ", firstName='" + firstName + "', lastName='" + lastName + "', email='" + email + "', balance=" + balance + ", isAdmin=" + isAdmin + ", bio='" + bio + "'}";
+        return "UserModel{id=" + id + ", firstName='" + firstName + "', lastName='" + lastName + "', email='" + email
+                + "', balance=" + balance + ", isAdmin=" + isAdmin + ", bio='" + bio + "'}";
     }
 }
