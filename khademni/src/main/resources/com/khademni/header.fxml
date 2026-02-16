@@ -43,6 +43,14 @@
         <HBox spacing="32" alignment="CENTER">
             <Hyperlink text="Jobs &amp; Services" onAction="#goToJobs"
                 style="-fx-font-size: 14px; -fx-font-weight: 600; -fx-text-fill: #141118;" />
+            <Hyperlink text="Contrat" onAction="#goToContrat"
+                style="-fx-font-size: 14px; -fx-font-weight: 600; -fx-text-fill: #141118;" />
+            <Hyperlink text="Paiement" onAction="#goToPaiement"
+                style="-fx-font-size: 14px; -fx-font-weight: 600; -fx-text-fill: #141118;" />
+            <Hyperlink text="Freelancer" onAction="#goToFreelancerSpace"
+                style="-fx-font-size: 14px; -fx-font-weight: 600; -fx-text-fill: #141118;" />
+            <Hyperlink text="Client" onAction="#goToClientSpace"
+                style="-fx-font-size: 14px; -fx-font-weight: 600; -fx-text-fill: #141118;" />
             <Hyperlink text="Dashboard" onAction="#goToDashboard"
                 style="-fx-font-size: 14px; -fx-font-weight: 600; -fx-text-fill: #141118;" />
             <Hyperlink text="Messages" onAction="#goToMessages"

@@ -20,7 +20,7 @@ public class HeaderController {
 
     @FXML
     private void goToMessages() throws IOException {
-        // App.setRoot("messages"); 
+        // App.setRoot("messages");
     }
 
     @FXML
@@ -31,5 +31,25 @@ public class HeaderController {
     @FXML
     private void goToProfile() throws IOException {
         App.setRoot("profile");
+    }
+
+    @FXML
+    private void goToContrat() throws IOException {
+        App.setRoot("contrat");
+    }
+
+    @FXML
+    private void goToFreelancerSpace() throws IOException {
+        App.setRoot("freelancer_space");
+    }
+
+    @FXML
+    private void goToClientSpace() throws IOException {
+        App.setRoot("client_space");
+    }
+
+    @FXML
+    private void goToPaiement() throws IOException {
+        App.setRoot("paiement");
     }
 }
