@@ -24,6 +24,7 @@ import java.time.temporal.ChronoUnit;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Optional;
+import java.util.AbstractMap;
 
 public class JobsController {
 
@@ -44,6 +45,8 @@ public class JobsController {
 
     private List<JobModel> allJobs = new ArrayList<>();
     private List<JobModel> filteredJobs = new ArrayList<>();
+    private ContextMenu autocompleteMenu;
+    private PauseTransition autocompleteDebounce;
 
     @FXML
     public void initialize() {
@@ -84,50 +87,258 @@ public class JobsController {
      * Sets up smart search with autocomplete and live filtering
      */
     private void setupSmartSearch() {
+        // Initialize autocomplete menu
+        autocompleteMenu = new ContextMenu();
+        autocompleteMenu.setStyle("-fx-padding: 0; -fx-border-radius: 8;");
+        
+        // Initialize debounce timer for autocomplete
+        autocompleteDebounce = new PauseTransition(Duration.millis(300));
+        autocompleteDebounce.setOnFinished(event -> {
+            String currentText = jobSearchField.getText().toLowerCase().trim();
+            if (currentText.length() >= 1) {
+                showSearchSuggestions(currentText);
+            } else {
+                autocompleteMenu.hide();
+            }
+        });
+
         // Live search - update results as user types
         jobSearchField.textProperty().addListener((observable, oldValue, newValue) -> {
+            autocompleteDebounce.playFromStart();
             applyFilters(); // Automatically filter as user types
         });
 
-        // Add autocomplete suggestions (optional enhancement)
-        // This will show suggestions based on existing job titles and companies
-        jobSearchField.setOnKeyReleased(event -> {
-            String currentText = jobSearchField.getText().toLowerCase().trim();
-            if (currentText.length() >= 2) { // Start suggesting after 2 characters
-                showSearchSuggestions(currentText);
+        // Handle keyboard navigation in autocomplete
+        jobSearchField.setOnKeyPressed(event -> {
+            if (!autocompleteMenu.isShowing())
+                return;
+            
+            switch (event.getCode()) {
+                case ESCAPE:
+                    autocompleteMenu.hide();
+                    event.consume();
+                    break;
+                default:
+                    break;
+            }
+        });
+
+        // Hide autocomplete when focus is lost
+        jobSearchField.focusedProperty().addListener((obs, wasFocused, isNowFocused) -> {
+            if (!isNowFocused) {
+                javafx.application.Platform.runLater(() -> autocompleteMenu.hide());
             }
         });
     }
 
     /**
-     * Shows smart search suggestions based on job titles and companies
+     * Shows intelligent search suggestions based on job titles, companies, categories, and locations
      */
-    private void showSearchSuggestions(String query) {
-        // Collect unique suggestions from job titles and companies
-        java.util.Set<String> suggestions = new java.util.LinkedHashSet<>();
+    private class SuggestionItem implements Comparable<SuggestionItem> {
+        String text;
+        String type; // "title", "company", "category", "location"
+        int matchScore; // Higher = better match
+        int jobCount; // Number of jobs with this suggestion
 
-        for (JobModel job : allJobs) {
-            String title = job.getTitle().toLowerCase();
-            String company = job.getCompany().toLowerCase();
-
-            // Add matching job titles
-            if (title.contains(query)) {
-                suggestions.add(job.getTitle());
-            }
-
-            // Add matching companies
-            if (company.contains(query)) {
-                suggestions.add(job.getCompany());
-            }
-
-            // Limit to top 5 suggestions
-            if (suggestions.size() >= 5)
-                break;
+        SuggestionItem(String text, String type, int matchScore, int jobCount) {
+            this.text = text;
+            this.type = type;
+            this.matchScore = matchScore;
+            this.jobCount = jobCount;
         }
 
-        // Note: For full autocomplete dropdown, you would need to use a custom control
-        // or third-party library like ControlsFX AutoCompleteTextField
-        // For now, the live search provides instant results
+        @Override
+        public int compareTo(SuggestionItem other) {
+            // Sort by score first (descending), then by job count (descending)
+            if (this.matchScore != other.matchScore) {
+                return other.matchScore - this.matchScore;
+            }
+            return other.jobCount - this.jobCount;
+        }
+    }
+
+    private void showSearchSuggestions(String query) {
+        // First, get jobs that match category, location, and salary filters
+        String selectedCategory = jobCategoryFilter.getValue();
+        String selectedLocation = jobLocationFilter.getValue();
+        int minSalary = (int) jobSalarySlider.getValue();
+
+        List<JobModel> availableJobs = allJobs.stream()
+            .filter(job -> {
+                boolean matchesCategory = selectedCategory.equals("All Categories") ||
+                        job.getCategory().equals(selectedCategory);
+                boolean matchesLocation = selectedLocation.equals("All Locations") ||
+                        job.getLocation().equals(selectedLocation);
+                int jobMaxSalary = extractMaxSalary(job.getSalaryRange());
+                boolean matchesSalary = jobMaxSalary >= minSalary;
+                return matchesCategory && matchesLocation && matchesSalary;
+            })
+            .collect(java.util.stream.Collectors.toList());
+
+        // Now create suggestions only from available jobs
+        List<SuggestionItem> suggestions = availableJobs.stream()
+            .flatMap(job -> {
+                java.util.List<AbstractMap.SimpleEntry<String, String>> entries = new java.util.ArrayList<>();
+                
+                // Title matches
+                if (job.getTitle().toLowerCase().contains(query)) {
+                    entries.add(new AbstractMap.SimpleEntry<>(job.getTitle(), "title"));
+                }
+                
+                // Company matches
+                if (job.getCompany().toLowerCase().contains(query)) {
+                    entries.add(new AbstractMap.SimpleEntry<>(job.getCompany(), "company"));
+                }
+                
+                // User name matches
+                if (job.getUserName() != null && job.getUserName().toLowerCase().contains(query)) {
+                    entries.add(new AbstractMap.SimpleEntry<>(job.getUserName(), "user"));
+                }
+                
+                return entries.stream();
+            })
+            .collect(java.util.stream.Collectors.groupingBy(
+                AbstractMap.SimpleEntry::getKey,
+                java.util.stream.Collectors.mapping(
+                    AbstractMap.SimpleEntry::getValue,
+                    java.util.stream.Collectors.collectingAndThen(
+                        java.util.stream.Collectors.toList(),
+                        list -> new AbstractMap.SimpleEntry<>(list.get(0), list.size())
+                    )
+                )
+            ))
+            .entrySet()
+            .stream()
+            .map(entry -> {
+                String text = entry.getKey();
+                String type = entry.getValue().getKey();
+                int count = entry.getValue().getValue();
+                int score = calculateMatchScore(text, query, type);
+                return new SuggestionItem(text, type, score, count);
+            })
+            .sorted()
+            .limit(8)
+            .collect(java.util.stream.Collectors.toList());
+
+        // Build UI items
+        autocompleteMenu.getItems().clear();
+
+        if (suggestions.isEmpty()) {
+            autocompleteMenu.hide();
+            return;
+        }
+
+        suggestions.forEach(suggestion -> {
+            CustomMenuItem item = createSuggestionMenuItem(suggestion, query);
+            autocompleteMenu.getItems().add(item);
+        });
+
+        // Show the menu
+        if (!autocompleteMenu.isShowing() && jobSearchField.isFocused()) {
+            autocompleteMenu.show(jobSearchField, javafx.geometry.Side.BOTTOM, 0, 2);
+        }
+    }
+
+    /**
+     * Calculates match score for intelligent ranking
+     */
+    private int calculateMatchScore(String text, String query, String type) {
+        String queryLower = query.toLowerCase();
+        String textLower = text.toLowerCase();
+        int baseScore = 0;
+
+        if (textLower.startsWith(queryLower)) {
+            baseScore = 100; // Exact prefix match (highest priority)
+        } else if (textLower.indexOf(queryLower) == 0) {
+            baseScore = 80; // Starts with query
+        } else {
+            int index = textLower.indexOf(queryLower);
+            if (index > 0) {
+                baseScore = 60 - (index / 10); // Match in middle, penalize for later position
+            } else {
+                baseScore = 0;
+            }
+        }
+
+        // Type bonus - titles get preference
+        if (type.equals("title")) {
+            baseScore += 30;
+        } else if (type.equals("company")) {
+            baseScore += 20;
+        } else if (type.equals("user")) {
+            baseScore += 15;
+        }
+
+        return baseScore;
+    }
+
+    /**
+     * Creates a stylized MenuItem for the suggestion dropdown
+     */
+    private CustomMenuItem createSuggestionMenuItem(SuggestionItem suggestion, String query) {
+        HBox content = new HBox(10);
+        content.setAlignment(Pos.CENTER_LEFT);
+        content.setPadding(new javafx.geometry.Insets(8, 12, 8, 12));
+
+        // Icon based on type
+        Label icon = new Label();
+        switch (suggestion.type) {
+            case "title":
+                icon.setText("💼");
+                break;
+            case "company":
+                icon.setText("🏢");
+                break;
+            case "user":
+                icon.setText("👤");
+                break;
+        }
+        icon.setStyle("-fx-font-size: 14px;");
+
+        // Main text with highlight
+        VBox textBox = new VBox(2);
+        Label mainText = new Label(suggestion.text);
+        mainText.setStyle("-fx-font-size: 13px; -fx-font-weight: 600; -fx-text-fill: #1f2937;");
+        mainText.setMaxWidth(300);
+        mainText.setWrapText(true);
+
+        Label subText = new Label(suggestion.type.substring(0, 1).toUpperCase() + suggestion.type.substring(1) 
+                + " · " + suggestion.jobCount + " job" + (suggestion.jobCount > 1 ? "s" : ""));
+        subText.setStyle("-fx-font-size: 11px; -fx-text-fill: #9ca3af;");
+
+        textBox.getChildren().addAll(mainText, subText);
+
+        // Count badge
+        Label badge = new Label(String.valueOf(suggestion.jobCount));
+        badge.setStyle("-fx-background-color: #ede9fe; -fx-text-fill: #6c0df2; -fx-font-weight: 700; "
+                + "-fx-padding: 4 8 4 8; -fx-border-radius: 12; -fx-font-size: 11px;");
+
+        Region spacer = new Region();
+        HBox.setHgrow(spacer, Priority.ALWAYS);
+
+        content.getChildren().addAll(icon, textBox, spacer, badge);
+
+        CustomMenuItem item = new CustomMenuItem(content);
+        item.setHideOnClick(true);
+
+        // Handle selection
+        item.setOnAction(event -> {
+            jobSearchField.setText(suggestion.text);
+            jobSearchField.positionCaret(suggestion.text.length());
+            autocompleteMenu.hide();
+            applyFilters();
+        });
+
+        // Hover effect
+        content.setOnMouseEntered(event -> {
+            content.setStyle("-fx-background-color: #f3e8ff; -fx-border-radius: 6;");
+        });
+
+        content.setOnMouseExited(event -> {
+            content.setStyle("-fx-background-color: transparent;");
+        });
+
+        return item;
     }
 
     private void setupSalarySlider() {
@@ -181,7 +392,8 @@ public class JobsController {
                 return;
             }
 
-            String query = "SELECT * FROM jobs ORDER BY posted_date DESC";
+            // Load jobs with user names and emails from users table
+            String query = "SELECT j.*, u.firstName, u.lastName, u.email FROM jobs j LEFT JOIN users u ON j.user_id = u.id ORDER BY j.posted_date DESC";
             try (Statement stmt = conn.createStatement();
                     ResultSet rs = stmt.executeQuery(query)) {
 
@@ -190,6 +402,10 @@ public class JobsController {
                     allJobs.add(job);
                     filteredJobs.add(job);
                 }
+            } catch (SQLException e) {
+                // If user join fails, try loading jobs without user names
+                System.out.println("User join failed, loading jobs without user names: " + e.getMessage());
+                loadJobsWithoutUserNames(conn);
             }
         } catch (SQLException e) {
             System.err.println("Error loading jobs: " + e.getMessage());
@@ -197,9 +413,50 @@ public class JobsController {
         }
     }
 
+    private void loadJobsWithoutUserNames(Connection conn) throws SQLException {
+        String query = "SELECT * FROM jobs ORDER BY posted_date DESC";
+        try (Statement stmt = conn.createStatement();
+                ResultSet rs = stmt.executeQuery(query)) {
+
+            while (rs.next()) {
+                String[] requirements = rs.getString("requirements") != null ? rs.getString("requirements").split(",\\s*")
+                        : new String[0];
+
+                JobModel job = new JobModel(
+                        rs.getInt("id"),
+                        rs.getString("title"),
+                        rs.getString("company"),
+                        rs.getString("location"),
+                        rs.getString("description"),
+                        rs.getString("category"),
+                        rs.getString("salary_range"),
+                        rs.getString("job_type"),
+                        rs.getDate("posted_date").toLocalDate(),
+                        requirements,
+                        rs.getInt("user_id"),
+                        "Unknown User",
+                        "");
+                allJobs.add(job);
+                filteredJobs.add(job);
+            }
+        }
+    }
+
     private JobModel mapResultSetToJob(ResultSet rs) throws SQLException {
         String[] requirements = rs.getString("requirements") != null ? rs.getString("requirements").split(",\\s*")
                 : new String[0];
+
+        // Get user name and email from joined users table
+        String firstName = rs.getString("firstName");
+        String lastName = rs.getString("lastName");
+        String userName = "Unknown User";
+        if (firstName != null && lastName != null) {
+            userName = firstName + " " + lastName;
+        }
+        String userEmail = rs.getString("email");
+        if (userEmail == null) {
+            userEmail = "";
+        }
 
         return new JobModel(
                 rs.getInt("id"),
@@ -212,19 +469,61 @@ public class JobsController {
                 rs.getString("job_type"),
                 rs.getDate("posted_date").toLocalDate(),
                 requirements,
-                rs.getInt("user_id"));
+                rs.getInt("user_id"),
+                userName,
+                userEmail);
     }
 
     private void loadSampleJobs() {
         allJobs.add(new JobModel(1, "Senior Java Developer", "Tech Innovators Inc", "Tunis",
                 "We are looking for an experienced Java developer to join our team...",
                 "Software Development", "2000 - 3500 TND", "Full-time", LocalDate.now().minusDays(2),
-                new String[] { "Java 17+", "Spring Boot", "MySQL", "REST APIs" }, 1));
+                new String[] { "Java 17+", "Spring Boot", "MySQL", "REST APIs" }, 1, "Ahmed Ben Ali", "ahmed.benali@techmail.com"));
 
         allJobs.add(new JobModel(2, "UI/UX Designer", "Creative Studio", "Remote",
                 "Join our design team to create stunning user experiences...",
                 "Design", "1500 - 2500 TND", "Full-time", LocalDate.now().minusDays(5),
-                new String[] { "Figma", "Adobe XD", "Prototyping" }, 2));
+                new String[] { "Figma", "Adobe XD", "Prototyping" }, 2, "Fatima Karray", "fatima.karray@design.com"));
+
+        allJobs.add(new JobModel(3, "Frontend Developer React", "Digital Solutions", "Sfax",
+                "Looking for a React expert to build modern web applications...",
+                "Software Development", "1800 - 3000 TND", "Full-time", LocalDate.now().minusDays(1),
+                new String[] { "React", "JavaScript", "CSS", "REST APIs" }, 1, "Ahmed Ben Ali", "ahmed.benali@techmail.com"));
+
+        allJobs.add(new JobModel(4, "Marketing Manager", "Brand Leaders", "Tunis",
+                "Lead our marketing team and develop strategy for brand growth...",
+                "Marketing", "2200 - 3500 TND", "Full-time", LocalDate.now().minusDays(3),
+                new String[] { "Digital Marketing", "Analytics", "Team Leadership" }, 3, "Salem Mezzi", "salem.mezzi@brandmail.com"));
+
+        allJobs.add(new JobModel(5, "Data Analyst", "Analytics Pro", "Remote",
+                "Analyze data and provide insights for business decisions...",
+                "Finance", "1600 - 2800 TND", "Full-time", LocalDate.now().minusDays(4),
+                new String[] { "Python", "SQL", "Tableau", "Excel" }, 2, "Fatima Karray", "fatima.karray@design.com"));
+
+        allJobs.add(new JobModel(6, "Android Developer", "Mobile Magic", "Tunis",
+                "Develop Android applications for innovative mobile solutions...",
+                "Software Development", "1900 - 3200 TND", "Full-time", LocalDate.now().minusDays(6),
+                new String[] { "Android", "Kotlin", "Java", "Firebase" }, 4, "Marouane Saidane", "marouane.saidane@mobile.com"));
+
+        allJobs.add(new JobModel(7, "Graphic Designer", "Design Studio Pro", "Sousse",
+                "Create stunning visual designs for web and print media...",
+                "Design", "1400 - 2400 TND", "Part-time", LocalDate.now().minusDays(7),
+                new String[] { "Adobe Creative Suite", "UI Design", "Branding" }, 3, "Salem Mezzi", "salem.mezzi@brandmail.com"));
+
+        allJobs.add(new JobModel(8, "Sales Executive", "Sales Force", "Tunis",
+                "Drive sales growth and manage client relationships...",
+                "Sales", "1500 - 2800 TND", "Full-time", LocalDate.now().minusDays(8),
+                new String[] { "Client Relations", "CRM", "Sales Strategy" }, 5, "Noureddine Bouabdallah", "noureddine.bouabdallah@sales.com"));
+
+        allJobs.add(new JobModel(9, "DevOps Engineer", "Cloud Systems", "Remote",
+                "Manage infrastructure and CI/CD pipelines for cloud solutions...",
+                "Software Development", "2500 - 4000 TND", "Full-time", LocalDate.now().minusDays(2),
+                new String[] { "Docker", "Kubernetes", "AWS", "Linux" }, 1, "Ahmed Ben Ali", "ahmed.benali@techmail.com"));
+
+        allJobs.add(new JobModel(10, "HR Manager", "People First", "Tunis",
+                "Manage recruitment, training, and employee relations...",
+                "HR", "2000 - 3200 TND", "Full-time", LocalDate.now().minusDays(5),
+                new String[] { "Recruitment", "Team Building", "HR Systems" }, 6, "Layla Mansour", "layla.mansour@hr.com"));
 
         filteredJobs.addAll(allJobs);
     }
@@ -258,7 +557,7 @@ public class JobsController {
             boolean matchesSearch = searchQuery.isEmpty() ||
                     job.getTitle().toLowerCase().contains(searchQuery) ||
                     job.getCompany().toLowerCase().contains(searchQuery) ||
-                    job.getDescription().toLowerCase().contains(searchQuery);
+                    (job.getUserName() != null && job.getUserName().toLowerCase().contains(searchQuery));
 
             boolean matchesCategory = selectedCategory.equals("All Categories") ||
                     job.getCategory().equals(selectedCategory);
@@ -339,6 +638,20 @@ public class JobsController {
         meta.setAlignment(Pos.CENTER_LEFT);
         meta.getStyleClass().add("job-meta-container");
 
+        // User info (Posted By) - at the TOP position
+        VBox userInfo = new VBox(2);
+        userInfo.setStyle("-fx-padding: 6 8 6 8; -fx-background-color: #f9f5ff; -fx-border-radius: 6;");
+        
+        Label userName = new Label("👤 " + (job.getUserName() != null ? job.getUserName() : "Unknown User"));
+        userName.getStyleClass().add("job-user-name");
+        userName.setStyle("-fx-text-fill: #6c0df2; -fx-font-size: 12; -fx-font-weight: 600;");
+        
+        Label userEmail = new Label("📧 " + (job.getUserEmail() != null && !job.getUserEmail().isEmpty() ? job.getUserEmail() : "No email"));
+        userEmail.getStyleClass().add("job-user-email");
+        userEmail.setStyle("-fx-text-fill: #666666; -fx-font-size: 11;");
+        
+        userInfo.getChildren().addAll(userName, userEmail);
+
         Label type = new Label(job.getJobType());
         type.getStyleClass().add("job-meta-tag");
         type.setStyle(
@@ -366,7 +679,7 @@ public class JobsController {
         category.getStyleClass().add("job-category-tag");
         category.setStyle("-fx-text-fill: #666666; -fx-font-size: 12;");
 
-        meta.getChildren().addAll(type, loc, salary, category);
+        meta.getChildren().addAll(userInfo, type, loc, salary, category);
         card.getChildren().add(meta);
 
         // Description
@@ -1017,6 +1330,13 @@ public class JobsController {
 
         String salaryValue = String.valueOf((int) salarySlider.getValue());
 
+        String userName = "Unknown User";
+        String userEmail = "";
+        if (App.currentUser != null) {
+            userName = App.currentUser.getFirstName() + " " + App.currentUser.getLastName();
+            userEmail = App.currentUser.getEmail();
+        }
+
         JobModel job = new JobModel(
                 original != null ? original.getId() : 0,
                 titleField.getText(),
@@ -1028,7 +1348,9 @@ public class JobsController {
                 typeCombo.getValue(),
                 original != null ? original.getPostedDate() : LocalDate.now(),
                 requirements,
-                App.currentUser != null ? App.currentUser.getId() : 1);
+                App.currentUser != null ? App.currentUser.getId() : 1,
+                userName,
+                userEmail);
 
         return job;
     }

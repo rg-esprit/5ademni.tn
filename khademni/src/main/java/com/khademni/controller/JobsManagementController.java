@@ -55,7 +55,7 @@ public class JobsManagementController {
                 return;
             }
 
-            String query = "SELECT * FROM jobs ORDER BY posted_date DESC";
+            String query = "SELECT j.*, u.firstName, u.lastName, u.email FROM jobs j LEFT JOIN users u ON j.user_id = u.id ORDER BY j.posted_date DESC";
             Statement statement = conn.createStatement();
             ResultSet resultSet = statement.executeQuery(query);
 
@@ -75,9 +75,21 @@ public class JobsManagementController {
                 String[] requirements = requirementsJson != null ? 
                     requirementsJson.split(",\\s*") : new String[0];
 
+                // Get user name and email from joined users table
+                String firstName = resultSet.getString("firstName");
+                String lastName = resultSet.getString("lastName");
+                String userName = "Unknown User";
+                if (firstName != null && lastName != null) {
+                    userName = firstName + " " + lastName;
+                }
+                String userEmail = resultSet.getString("email");
+                if (userEmail == null) {
+                    userEmail = "";
+                }
+
                 JobModel job = new JobModel(id, title, company, location, description, 
                                            category, salaryRange, jobType, postedDate, 
-                                           requirements, userId);
+                                           requirements, userId, userName, userEmail);
                 allJobs.add(job);
             }
 
@@ -95,17 +107,17 @@ public class JobsManagementController {
         allJobs.add(new JobModel(1, "Senior Java Developer", "Tech Innovators Inc", "Tunis",
             "Experienced Java developer needed...", "Software Development", "2000 - 3500 TND", 
             "Full-time", LocalDate.now().minusDays(2),
-            new String[]{"Java 17+", "Spring Boot", "MySQL"}, 1));
+            new String[]{"Java 17+", "Spring Boot", "MySQL"}, 1, "Ahmed Ben Ali", "ahmed.benali@techmail.com"));
 
         allJobs.add(new JobModel(2, "UI/UX Designer", "Creative Studio", "Remote",
             "Join our design team...", "Design", "1500 - 2500 TND", 
             "Full-time", LocalDate.now().minusDays(5),
-            new String[]{"Figma", "Adobe XD", "Prototyping"}, 2));
+            new String[]{"Figma", "Adobe XD", "Prototyping"}, 2, "Fatima Karray", "fatima.karray@design.com"));
 
         allJobs.add(new JobModel(3, "Marketing Manager", "Digital Solutions", "Sfax",
             "Lead marketing initiatives...", "Marketing", "1200 - 2000 TND", 
             "Full-time", LocalDate.now().minusDays(1),
-            new String[]{"Digital Marketing", "Social Media", "Analytics"}, 3));
+            new String[]{"Digital Marketing", "Social Media", "Analytics"}, 3, "Salem Mezzi", "salem.mezzi@brandmail.com"));
     }
 
     // ==================== DISPLAY ====================
