@@ -22,7 +22,8 @@ import javafx.scene.paint.Color;
 
 import java.io.IOException;
 import java.sql.*;
-import java.time.LocalDate;
+import java.time.LocalDateTime;
+import java.time.temporal.ChronoUnit;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Optional;
@@ -55,7 +56,7 @@ public class JobsManagementController {
                 return;
             }
 
-            String query = "SELECT j.*, u.firstName, u.lastName, u.email FROM jobs j LEFT JOIN users u ON j.user_id = u.id ORDER BY j.posted_date DESC";
+            String query = "SELECT j.*, u.first_name, u.last_name, u.email FROM jobs j LEFT JOIN users u ON j.user_id = u.id ORDER BY j.posted_date DESC, j.id DESC";
             Statement statement = conn.createStatement();
             ResultSet resultSet = statement.executeQuery(query);
 
@@ -68,16 +69,15 @@ public class JobsManagementController {
                 String category = resultSet.getString("category");
                 String salaryRange = resultSet.getString("salary_range");
                 String jobType = resultSet.getString("job_type");
-                LocalDate postedDate = resultSet.getDate("posted_date").toLocalDate();
+                LocalDateTime postedDate = resultSet.getTimestamp("posted_date").toLocalDateTime();
                 String requirementsJson = resultSet.getString("requirements");
                 int userId = resultSet.getInt("user_id");
 
-                String[] requirements = requirementsJson != null ? 
-                    requirementsJson.split(",\\s*") : new String[0];
+                String[] requirements = requirementsJson != null ? requirementsJson.split(",\\s*") : new String[0];
 
                 // Get user name and email from joined users table
-                String firstName = resultSet.getString("firstName");
-                String lastName = resultSet.getString("lastName");
+                String firstName = resultSet.getString("first_name");
+                String lastName = resultSet.getString("last_name");
                 String userName = "Unknown User";
                 if (firstName != null && lastName != null) {
                     userName = firstName + " " + lastName;
@@ -87,9 +87,9 @@ public class JobsManagementController {
                     userEmail = "";
                 }
 
-                JobModel job = new JobModel(id, title, company, location, description, 
-                                           category, salaryRange, jobType, postedDate, 
-                                           requirements, userId, userName, userEmail);
+                JobModel job = new JobModel(id, title, company, location, description,
+                        category, salaryRange, jobType, postedDate,
+                        requirements, userId, userName, userEmail);
                 allJobs.add(job);
             }
 
@@ -105,19 +105,20 @@ public class JobsManagementController {
 
     private void loadSampleJobs() {
         allJobs.add(new JobModel(1, "Senior Java Developer", "Tech Innovators Inc", "Tunis",
-            "Experienced Java developer needed...", "Software Development", "2000 - 3500 TND", 
-            "Full-time", LocalDate.now().minusDays(2),
-            new String[]{"Java 17+", "Spring Boot", "MySQL"}, 1, "Ahmed Ben Ali", "ahmed.benali@techmail.com"));
+                "Experienced Java developer needed...", "Software Development", "2000 - 3500 TND",
+                "Full-time", LocalDateTime.now().minusDays(2),
+                new String[] { "Java 17+", "Spring Boot", "MySQL" }, 1, "Ahmed Ben Ali", "ahmed.benali@techmail.com"));
 
         allJobs.add(new JobModel(2, "UI/UX Designer", "Creative Studio", "Remote",
-            "Join our design team...", "Design", "1500 - 2500 TND", 
-            "Full-time", LocalDate.now().minusDays(5),
-            new String[]{"Figma", "Adobe XD", "Prototyping"}, 2, "Fatima Karray", "fatima.karray@design.com"));
+                "Join our design team...", "Design", "1500 - 2500 TND",
+                "Full-time", LocalDateTime.now().minusDays(5),
+                new String[] { "Figma", "Adobe XD", "Prototyping" }, 2, "Fatima Karray", "fatima.karray@design.com"));
 
         allJobs.add(new JobModel(3, "Marketing Manager", "Digital Solutions", "Sfax",
-            "Lead marketing initiatives...", "Marketing", "1200 - 2000 TND", 
-            "Full-time", LocalDate.now().minusDays(1),
-            new String[]{"Digital Marketing", "Social Media", "Analytics"}, 3, "Salem Mezzi", "salem.mezzi@brandmail.com"));
+                "Lead marketing initiatives...", "Marketing", "1200 - 2000 TND",
+                "Full-time", LocalDateTime.now().minusDays(1),
+                new String[] { "Digital Marketing", "Social Media", "Analytics" }, 3, "Salem Mezzi",
+                "salem.mezzi@brandmail.com"));
     }
 
     // ==================== DISPLAY ====================
@@ -140,7 +141,7 @@ public class JobsManagementController {
         int idx = 0;
         for (JobModel job : allJobs) {
             VBox row = createJobRow(job);
-            // animation wl translation 
+            // animation wl translation
             row.setOpacity(0);
             row.setTranslateY(12);
             jobsTableContainer.getChildren().add(row);
@@ -161,8 +162,8 @@ public class JobsManagementController {
     private VBox createJobRow(JobModel job) {
         VBox row = new VBox(12);
         row.setStyle("-fx-background-color: white; -fx-border-radius: 12; -fx-padding: 18 20; " +
-                    "-fx-border-color: rgba(139,92,246,0.06); -fx-border-width: 1; " +
-                    "-fx-effect: dropshadow(gaussian, rgba(124,58,237,0.06), 22, 0, 0, 8);");
+                "-fx-border-color: rgba(139,92,246,0.06); -fx-border-width: 1; " +
+                "-fx-effect: dropshadow(gaussian, rgba(124,58,237,0.06), 22, 0, 0, 8);");
 
         // Header Row
         HBox headerBox = new HBox(16);
@@ -210,17 +211,17 @@ public class JobsManagementController {
 
         Button viewBtn = new Button("👁 View");
         viewBtn.setStyle("-fx-background-color: #f0f0f0; -fx-text-fill: #333333; -fx-font-weight: 600; " +
-                        "-fx-padding: 8 16 8 16; -fx-border-radius: 8; -fx-cursor: hand;");
+                "-fx-padding: 8 16 8 16; -fx-border-radius: 8; -fx-cursor: hand;");
         viewBtn.setOnAction(e -> showJobDetails(job));
 
         Button editBtn = new Button("✏️ Edit");
         editBtn.setStyle("-fx-background-color: #6c0df2; -fx-text-fill: white; -fx-font-weight: 600; " +
-                        "-fx-padding: 8 16 8 16; -fx-border-radius: 8; -fx-cursor: hand;");
+                "-fx-padding: 8 16 8 16; -fx-border-radius: 8; -fx-cursor: hand;");
         editBtn.setOnAction(e -> showEditJobDialog(job));
 
         Button deleteBtn = new Button("🗑️ Delete");
         deleteBtn.setStyle("-fx-background-color: #ef4444; -fx-text-fill: white; -fx-font-weight: 600; " +
-                          "-fx-padding: 8 16 8 16; -fx-border-radius: 8; -fx-cursor: hand;");
+                "-fx-padding: 8 16 8 16; -fx-border-radius: 8; -fx-cursor: hand;");
         deleteBtn.setOnAction(e -> deleteJob(job));
 
         Button appsBtn = new Button("📨 Applications");
@@ -257,13 +258,13 @@ public class JobsManagementController {
         dialog.setHeaderText("Create a new job posting");
 
         DialogPane dialogPane = dialog.getDialogPane();
-        dialogPane.getButtonTypes().addAll(ButtonType.OK, ButtonType.CANCEL);
+        ButtonType postButtonType = new ButtonType("Post", ButtonBar.ButtonData.OK_DONE);
+        dialogPane.getButtonTypes().addAll(postButtonType, ButtonType.CANCEL);
 
         VBox content = createJobForm(null);
         dialogPane.setContent(content);
 
-
-        javafx.scene.Node okButton = dialog.getDialogPane().lookupButton(ButtonType.OK);
+        javafx.scene.Node okButton = dialog.getDialogPane().lookupButton(postButtonType);
         okButton.addEventFilter(ActionEvent.ACTION, evt -> {
             JobModel candidate = extractJobFormData(content, null);
             if (candidate.getTitle() == null || candidate.getTitle().trim().length() < 3
@@ -272,12 +273,13 @@ public class JobsManagementController {
                     || candidate.getDescription() == null || candidate.getDescription().trim().length() < 20
                     || candidate.getSalaryRange() == null || candidate.getSalaryRange().trim().isEmpty()) {
                 evt.consume();
-                showAlert(Alert.AlertType.ERROR, "Validation", "Please provide valid Title, Company, Location (min 3 chars), Description (min 20 chars), and Salary (must be a valid integer).");
+                showAlert(Alert.AlertType.ERROR, "Validation",
+                        "Please provide valid Title, Company, Location (min 3 chars), Description (min 20 chars), and Salary (must be a valid integer).");
             }
         });
 
         dialog.setResultConverter(buttonType -> {
-            if (buttonType == ButtonType.OK) {
+            if (buttonType == postButtonType) {
                 return extractJobFormData(content, null);
             }
             return null;
@@ -297,8 +299,9 @@ public class JobsManagementController {
                 return;
             }
 
-            String query = "INSERT INTO jobs (title, company, location, description, category, salary_range, job_type, posted_date, requirements, user_id) " +
-                          "VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)";
+            String query = "INSERT INTO jobs (title, company, location, description, category, salary_range, job_type, posted_date, requirements, user_id) "
+                    +
+                    "VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)";
             PreparedStatement stmt = conn.prepareStatement(query);
             stmt.setString(1, job.getTitle());
             stmt.setString(2, job.getCompany());
@@ -307,7 +310,7 @@ public class JobsManagementController {
             stmt.setString(5, job.getCategory());
             stmt.setString(6, job.getSalaryRange());
             stmt.setString(7, job.getJobType());
-            stmt.setDate(8, java.sql.Date.valueOf(job.getPostedDate()));
+            stmt.setTimestamp(8, Timestamp.valueOf(job.getPostedDate()));
             stmt.setString(9, String.join(", ", job.getRequirements()));
             stmt.setInt(10, App.currentUser != null ? App.currentUser.getId() : 1);
 
@@ -332,15 +335,15 @@ public class JobsManagementController {
 
         DialogPane dialogPane = dialog.getDialogPane();
         dialogPane.getStylesheets().add(
-        getClass().getResource("/com/khademni/dialogs.css").toExternalForm());
+                getClass().getResource("/com/khademni/dialogs.css").toExternalForm());
         dialogPane.getStyleClass().add("job-dialog");
-        dialogPane.getButtonTypes().addAll(ButtonType.OK, ButtonType.CANCEL);
+        ButtonType editButtonType = new ButtonType("Edit", ButtonBar.ButtonData.OK_DONE);
+        dialogPane.getButtonTypes().addAll(editButtonType, ButtonType.CANCEL);
 
         VBox content = createJobForm(job);
         dialogPane.setContent(content);
 
-
-        javafx.scene.Node okButtonEdit = dialog.getDialogPane().lookupButton(ButtonType.OK);
+        javafx.scene.Node okButtonEdit = dialog.getDialogPane().lookupButton(editButtonType);
         okButtonEdit.addEventFilter(ActionEvent.ACTION, evt -> {
             JobModel candidate = extractJobFormData(content, job);
             if (candidate.getTitle() == null || candidate.getTitle().trim().length() < 3
@@ -349,12 +352,13 @@ public class JobsManagementController {
                     || candidate.getDescription() == null || candidate.getDescription().trim().length() < 20
                     || candidate.getSalaryRange() == null || candidate.getSalaryRange().trim().isEmpty()) {
                 evt.consume();
-                showAlert(Alert.AlertType.ERROR, "Validation", "Please provide valid Title, Company, Location (min 3 chars), Description (min 20 chars), and Salary (must be a valid integer).");
+                showAlert(Alert.AlertType.ERROR, "Validation",
+                        "Please provide valid Title, Company, Location (min 3 chars), Description (min 20 chars), and Salary (must be a valid integer).");
             }
         });
 
         dialog.setResultConverter(buttonType -> {
-            if (buttonType == ButtonType.OK) {
+            if (buttonType == editButtonType) {
                 return extractJobFormData(content, job);
             }
             return null;
@@ -446,7 +450,7 @@ public class JobsManagementController {
         addDetailRow(content, "Job Type", job.getJobType());
         addDetailRow(content, "Salary Range", job.getSalaryRange());
         addDetailRow(content, "Category", job.getCategory());
-        addDetailRow(content, "Posted Date", job.getPostedDate().toString());
+        addDetailRow(content, "Posted Date", formatPostedDate(job.getPostedDate()));
 
         Label descTitle = new Label("Description:");
         descTitle.setStyle("-fx-font-weight: 700; -fx-font-size: 12;");
@@ -469,7 +473,6 @@ public class JobsManagementController {
         alert.getDialogPane().setContent(scroll);
         alert.showAndWait();
     }
-
 
     private void showApplicationsForJob(JobModel job) {
         try {
@@ -509,7 +512,8 @@ public class JobsManagementController {
         TextField companyField = createFormField("Company Name", editingJob != null ? editingJob.getCompany() : "");
         TextField locationField = createFormField("Location", editingJob != null ? editingJob.getLocation() : "");
         TextField categoryField = createFormField("Category", editingJob != null ? editingJob.getCategory() : "");
-        TextField salaryField = createIntegerSalaryField("Salary (in TND)", editingJob != null ? editingJob.getSalaryRange() : "");
+        TextField salaryField = createIntegerSalaryField("Salary (in TND)",
+                editingJob != null ? editingJob.getSalaryRange() : "");
         TextField typeField = createFormField("Job Type", editingJob != null ? editingJob.getJobType() : "");
 
         TextArea descArea = new TextArea(editingJob != null ? editingJob.getDescription() : "");
@@ -527,16 +531,16 @@ public class JobsManagementController {
         form.getChildren().add(reqArea);
 
         // Store fields for later extraction
-        form.setUserData(new Object[]{titleField, companyField, locationField, categoryField, salaryField, typeField, descArea, reqArea});
+        form.setUserData(new Object[] { titleField, companyField, locationField, categoryField, salaryField, typeField,
+                descArea, reqArea });
 
         form.getChildren().addAll(
-            createFormSection("Title", titleField),
-            createFormSection("Company", companyField),
-            createFormSection("Location", locationField),
-            createFormSection("Category", categoryField),
-            createFormSection("Salary Range", salaryField),
-            createFormSection("Job Type", typeField)
-        );
+                createFormSection("Title", titleField),
+                createFormSection("Company", companyField),
+                createFormSection("Location", locationField),
+                createFormSection("Category", categoryField),
+                createFormSection("Salary Range", salaryField),
+                createFormSection("Job Type", typeField));
 
         return form;
     }
@@ -548,23 +552,26 @@ public class JobsManagementController {
         labelNode.setPrefWidth(120);
         labelNode.setStyle("-fx-font-weight: 700;");
         HBox.setHgrow(field, Priority.ALWAYS);
-        field.setStyle("-fx-padding: 8 12 8 12; -fx-border-color: #e5e7eb; -fx-border-radius: 8; -fx-background-radius: 8;");
+        field.setStyle(
+                "-fx-padding: 8 12 8 12; -fx-border-color: #e5e7eb; -fx-border-radius: 8; -fx-background-radius: 8;");
         box.getChildren().addAll(labelNode, field);
         return box;
     }
 
     private TextField createFormField(String label, String value) {
         TextField field = new TextField(value);
-        field.setStyle("-fx-padding: 8 12 8 12; -fx-border-color: #e5e7eb; -fx-border-radius: 8; -fx-background-radius: 8;");
+        field.setStyle(
+                "-fx-padding: 8 12 8 12; -fx-border-color: #e5e7eb; -fx-border-radius: 8; -fx-background-radius: 8;");
         field.setPromptText(label);
         return field;
     }
 
     private TextField createIntegerSalaryField(String label, String value) {
         TextField field = new TextField(value);
-        field.setStyle("-fx-padding: 8 12 8 12; -fx-border-color: #e5e7eb; -fx-border-radius: 8; -fx-background-radius: 8; -fx-focus-color: #6c0df2;");
+        field.setStyle(
+                "-fx-padding: 8 12 8 12; -fx-border-color: #e5e7eb; -fx-border-radius: 8; -fx-background-radius: 8; -fx-focus-color: #6c0df2;");
         field.setPromptText(label);
-        
+
         // Add text formatter to only accept integers
         field.setTextFormatter(new TextFormatter<>(change -> {
             String newText = change.getControlNewText();
@@ -574,14 +581,14 @@ public class JobsManagementController {
             }
             return null;
         }));
-        
 
         field.styleProperty().addListener((obs, oldVal, newVal) -> {
             if (field.getText().isEmpty()) {
-                field.setStyle("-fx-padding: 8 12 8 12; -fx-border-color: #fca5a5; -fx-border-radius: 8; -fx-background-radius: 8; -fx-focus-color: #ef4444;");
+                field.setStyle(
+                        "-fx-padding: 8 12 8 12; -fx-border-color: #fca5a5; -fx-border-radius: 8; -fx-background-radius: 8; -fx-focus-color: #ef4444;");
             }
         });
-        
+
         return field;
     }
 
@@ -610,18 +617,17 @@ public class JobsManagementController {
         String[] requirements = reqArea.getText().split("\n");
 
         JobModel job = new JobModel(
-            original != null ? original.getId() : 0,
-            titleField.getText(),
-            companyField.getText(),
-            locationField.getText(),
-            descArea.getText(),
-            categoryField.getText(),
-            salaryField.getText(),
-            typeField.getText(),
-            original != null ? original.getPostedDate() : LocalDate.now(),
-            requirements,
-            App.currentUser != null ? App.currentUser.getId() : 1
-        );
+                original != null ? original.getId() : 0,
+                titleField.getText(),
+                companyField.getText(),
+                locationField.getText(),
+                descArea.getText(),
+                categoryField.getText(),
+                salaryField.getText(),
+                typeField.getText(),
+                original != null ? original.getPostedDate() : LocalDateTime.now(),
+                requirements,
+                App.currentUser != null ? App.currentUser.getId() : 1);
 
         return job;
     }
@@ -639,22 +645,49 @@ public class JobsManagementController {
             }
         }
 
-        String[] requirements = !textAreas.isEmpty() && textAreas.size() > 1 ? 
-            textAreas.get(1).getText().split("\n") : new String[0];
+        String[] requirements = !textAreas.isEmpty() && textAreas.size() > 1 ? textAreas.get(1).getText().split("\n")
+                : new String[0];
 
         return new JobModel(
-            original != null ? original.getId() : 0,
-            textFields.size() > 0 ? textFields.get(0).getText() : "",
-            textFields.size() > 1 ? textFields.get(1).getText() : "",
-            textFields.size() > 2 ? textFields.get(2).getText() : "",
-            textAreas.size() > 0 ? textAreas.get(0).getText() : "",
-            textFields.size() > 3 ? textFields.get(3).getText() : "",
-            textFields.size() > 4 ? textFields.get(4).getText() : "",
-            textFields.size() > 5 ? textFields.get(5).getText() : "",
-            original != null ? original.getPostedDate() : LocalDate.now(),
-            requirements,
-            App.currentUser != null ? App.currentUser.getId() : 1
-        );
+                original != null ? original.getId() : 0,
+                textFields.size() > 0 ? textFields.get(0).getText() : "",
+                textFields.size() > 1 ? textFields.get(1).getText() : "",
+                textFields.size() > 2 ? textFields.get(2).getText() : "",
+                textAreas.size() > 0 ? textAreas.get(0).getText() : "",
+                textFields.size() > 3 ? textFields.get(3).getText() : "",
+                textFields.size() > 4 ? textFields.get(4).getText() : "",
+                textFields.size() > 5 ? textFields.get(5).getText() : "",
+                original != null ? original.getPostedDate() : LocalDateTime.now(),
+                requirements,
+                App.currentUser != null ? App.currentUser.getId() : 1);
+    }
+
+    private String formatPostedDate(LocalDateTime dateTime) {
+        if (dateTime == null)
+            return "unknown";
+
+        LocalDateTime now = LocalDateTime.now();
+        long years = ChronoUnit.YEARS.between(dateTime, now);
+        if (years > 0)
+            return years + (years == 1 ? " year ago" : " years ago");
+
+        long months = ChronoUnit.MONTHS.between(dateTime, now);
+        if (months > 0)
+            return months + (months == 1 ? " month ago" : " months ago");
+
+        long days = ChronoUnit.DAYS.between(dateTime, now);
+        if (days > 0)
+            return days + (days == 1 ? " day ago" : " days ago");
+
+        long hours = ChronoUnit.HOURS.between(dateTime, now);
+        if (hours > 0)
+            return hours + (hours == 1 ? " hour ago" : " hours ago");
+
+        long minutes = ChronoUnit.MINUTES.between(dateTime, now);
+        if (minutes > 0)
+            return minutes + (minutes == 1 ? " minute ago" : " minutes ago");
+
+        return "Just now";
     }
 
     // ==================== SEARCH ====================
@@ -668,14 +701,13 @@ public class JobsManagementController {
         } else {
             for (JobModel job : allJobs) {
                 if (job.getTitle().toLowerCase().contains(query) ||
-                    job.getCompany().toLowerCase().contains(query) ||
-                    job.getLocation().toLowerCase().contains(query) ||
-                    job.getDescription().toLowerCase().contains(query)) {
+                        job.getCompany().toLowerCase().contains(query) ||
+                        job.getLocation().toLowerCase().contains(query) ||
+                        job.getDescription().toLowerCase().contains(query)) {
                     filteredJobs.add(job);
                 }
             }
         }
-
 
         List<JobModel> temp = new ArrayList<>(allJobs);
         allJobs.clear();

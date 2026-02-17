@@ -19,7 +19,7 @@ import javafx.scene.paint.Color;
 
 import java.io.IOException;
 import java.sql.*;
-import java.time.LocalDate;
+import java.time.LocalDateTime;
 import java.time.temporal.ChronoUnit;
 import java.util.ArrayList;
 import java.util.List;
@@ -90,7 +90,7 @@ public class JobsController {
         // Initialize autocomplete menu
         autocompleteMenu = new ContextMenu();
         autocompleteMenu.setStyle("-fx-padding: 0; -fx-border-radius: 8;");
-        
+
         // Initialize debounce timer for autocomplete
         autocompleteDebounce = new PauseTransition(Duration.millis(300));
         autocompleteDebounce.setOnFinished(event -> {
@@ -112,7 +112,7 @@ public class JobsController {
         jobSearchField.setOnKeyPressed(event -> {
             if (!autocompleteMenu.isShowing())
                 return;
-            
+
             switch (event.getCode()) {
                 case ESCAPE:
                     autocompleteMenu.hide();
@@ -132,7 +132,8 @@ public class JobsController {
     }
 
     /**
-     * Shows intelligent search suggestions based on job titles, companies, categories, and locations
+     * Shows intelligent search suggestions based on job titles, companies,
+     * categories, and locations
      */
     private class SuggestionItem implements Comparable<SuggestionItem> {
         String text;
@@ -164,61 +165,58 @@ public class JobsController {
         int minSalary = (int) jobSalarySlider.getValue();
 
         List<JobModel> availableJobs = allJobs.stream()
-            .filter(job -> {
-                boolean matchesCategory = selectedCategory.equals("All Categories") ||
-                        job.getCategory().equals(selectedCategory);
-                boolean matchesLocation = selectedLocation.equals("All Locations") ||
-                        job.getLocation().equals(selectedLocation);
-                int jobMaxSalary = extractMaxSalary(job.getSalaryRange());
-                boolean matchesSalary = jobMaxSalary >= minSalary;
-                return matchesCategory && matchesLocation && matchesSalary;
-            })
-            .collect(java.util.stream.Collectors.toList());
+                .filter(job -> {
+                    boolean matchesCategory = selectedCategory.equals("All Categories") ||
+                            job.getCategory().equals(selectedCategory);
+                    boolean matchesLocation = selectedLocation.equals("All Locations") ||
+                            job.getLocation().equals(selectedLocation);
+                    int jobMaxSalary = extractMaxSalary(job.getSalaryRange());
+                    boolean matchesSalary = jobMaxSalary >= minSalary;
+                    return matchesCategory && matchesLocation && matchesSalary;
+                })
+                .collect(java.util.stream.Collectors.toList());
 
         // Now create suggestions only from available jobs
         List<SuggestionItem> suggestions = availableJobs.stream()
-            .flatMap(job -> {
-                java.util.List<AbstractMap.SimpleEntry<String, String>> entries = new java.util.ArrayList<>();
-                
-                // Title matches
-                if (job.getTitle().toLowerCase().contains(query)) {
-                    entries.add(new AbstractMap.SimpleEntry<>(job.getTitle(), "title"));
-                }
-                
-                // Company matches
-                if (job.getCompany().toLowerCase().contains(query)) {
-                    entries.add(new AbstractMap.SimpleEntry<>(job.getCompany(), "company"));
-                }
-                
-                // User name matches
-                if (job.getUserName() != null && job.getUserName().toLowerCase().contains(query)) {
-                    entries.add(new AbstractMap.SimpleEntry<>(job.getUserName(), "user"));
-                }
-                
-                return entries.stream();
-            })
-            .collect(java.util.stream.Collectors.groupingBy(
-                AbstractMap.SimpleEntry::getKey,
-                java.util.stream.Collectors.mapping(
-                    AbstractMap.SimpleEntry::getValue,
-                    java.util.stream.Collectors.collectingAndThen(
-                        java.util.stream.Collectors.toList(),
-                        list -> new AbstractMap.SimpleEntry<>(list.get(0), list.size())
-                    )
-                )
-            ))
-            .entrySet()
-            .stream()
-            .map(entry -> {
-                String text = entry.getKey();
-                String type = entry.getValue().getKey();
-                int count = entry.getValue().getValue();
-                int score = calculateMatchScore(text, query, type);
-                return new SuggestionItem(text, type, score, count);
-            })
-            .sorted()
-            .limit(8)
-            .collect(java.util.stream.Collectors.toList());
+                .flatMap(job -> {
+                    java.util.List<AbstractMap.SimpleEntry<String, String>> entries = new java.util.ArrayList<>();
+
+                    // Title matches
+                    if (job.getTitle().toLowerCase().contains(query)) {
+                        entries.add(new AbstractMap.SimpleEntry<>(job.getTitle(), "title"));
+                    }
+
+                    // Company matches
+                    if (job.getCompany().toLowerCase().contains(query)) {
+                        entries.add(new AbstractMap.SimpleEntry<>(job.getCompany(), "company"));
+                    }
+
+                    // User name matches
+                    if (job.getUserName() != null && job.getUserName().toLowerCase().contains(query)) {
+                        entries.add(new AbstractMap.SimpleEntry<>(job.getUserName(), "user"));
+                    }
+
+                    return entries.stream();
+                })
+                .collect(java.util.stream.Collectors.groupingBy(
+                        AbstractMap.SimpleEntry::getKey,
+                        java.util.stream.Collectors.mapping(
+                                AbstractMap.SimpleEntry::getValue,
+                                java.util.stream.Collectors.collectingAndThen(
+                                        java.util.stream.Collectors.toList(),
+                                        list -> new AbstractMap.SimpleEntry<>(list.get(0), list.size())))))
+                .entrySet()
+                .stream()
+                .map(entry -> {
+                    String text = entry.getKey();
+                    String type = entry.getValue().getKey();
+                    int count = entry.getValue().getValue();
+                    int score = calculateMatchScore(text, query, type);
+                    return new SuggestionItem(text, type, score, count);
+                })
+                .sorted()
+                .limit(8)
+                .collect(java.util.stream.Collectors.toList());
 
         // Build UI items
         autocompleteMenu.getItems().clear();
@@ -302,7 +300,7 @@ public class JobsController {
         mainText.setMaxWidth(300);
         mainText.setWrapText(true);
 
-        Label subText = new Label(suggestion.type.substring(0, 1).toUpperCase() + suggestion.type.substring(1) 
+        Label subText = new Label(suggestion.type.substring(0, 1).toUpperCase() + suggestion.type.substring(1)
                 + " · " + suggestion.jobCount + " job" + (suggestion.jobCount > 1 ? "s" : ""));
         subText.setStyle("-fx-font-size: 11px; -fx-text-fill: #9ca3af;");
 
@@ -393,7 +391,7 @@ public class JobsController {
             }
 
             // Load jobs with user names and emails from users table
-            String query = "SELECT j.*, u.firstName, u.lastName, u.email FROM jobs j LEFT JOIN users u ON j.user_id = u.id ORDER BY j.posted_date DESC";
+            String query = "SELECT j.*, u.first_name, u.last_name, u.email FROM jobs j LEFT JOIN users u ON j.user_id = u.id ORDER BY j.posted_date DESC, j.id DESC";
             try (Statement stmt = conn.createStatement();
                     ResultSet rs = stmt.executeQuery(query)) {
 
@@ -414,12 +412,13 @@ public class JobsController {
     }
 
     private void loadJobsWithoutUserNames(Connection conn) throws SQLException {
-        String query = "SELECT * FROM jobs ORDER BY posted_date DESC";
+        String query = "SELECT * FROM jobs ORDER BY posted_date DESC, id DESC";
         try (Statement stmt = conn.createStatement();
                 ResultSet rs = stmt.executeQuery(query)) {
 
             while (rs.next()) {
-                String[] requirements = rs.getString("requirements") != null ? rs.getString("requirements").split(",\\s*")
+                String[] requirements = rs.getString("requirements") != null
+                        ? rs.getString("requirements").split(",\\s*")
                         : new String[0];
 
                 JobModel job = new JobModel(
@@ -431,7 +430,7 @@ public class JobsController {
                         rs.getString("category"),
                         rs.getString("salary_range"),
                         rs.getString("job_type"),
-                        rs.getDate("posted_date").toLocalDate(),
+                        rs.getTimestamp("posted_date").toLocalDateTime(),
                         requirements,
                         rs.getInt("user_id"),
                         "Unknown User",
@@ -447,8 +446,8 @@ public class JobsController {
                 : new String[0];
 
         // Get user name and email from joined users table
-        String firstName = rs.getString("firstName");
-        String lastName = rs.getString("lastName");
+        String firstName = rs.getString("first_name");
+        String lastName = rs.getString("last_name");
         String userName = "Unknown User";
         if (firstName != null && lastName != null) {
             userName = firstName + " " + lastName;
@@ -467,7 +466,7 @@ public class JobsController {
                 rs.getString("category"),
                 rs.getString("salary_range"),
                 rs.getString("job_type"),
-                rs.getDate("posted_date").toLocalDate(),
+                rs.getTimestamp("posted_date").toLocalDateTime(),
                 requirements,
                 rs.getInt("user_id"),
                 userName,
@@ -477,53 +476,61 @@ public class JobsController {
     private void loadSampleJobs() {
         allJobs.add(new JobModel(1, "Senior Java Developer", "Tech Innovators Inc", "Tunis",
                 "We are looking for an experienced Java developer to join our team...",
-                "Software Development", "2000 - 3500 TND", "Full-time", LocalDate.now().minusDays(2),
-                new String[] { "Java 17+", "Spring Boot", "MySQL", "REST APIs" }, 1, "Ahmed Ben Ali", "ahmed.benali@techmail.com"));
+                "Software Development", "2000 - 3500 TND", "Full-time", LocalDateTime.now().minusDays(2),
+                new String[] { "Java 17+", "Spring Boot", "MySQL", "REST APIs" }, 1, "Ahmed Ben Ali",
+                "ahmed.benali@techmail.com"));
 
         allJobs.add(new JobModel(2, "UI/UX Designer", "Creative Studio", "Remote",
                 "Join our design team to create stunning user experiences...",
-                "Design", "1500 - 2500 TND", "Full-time", LocalDate.now().minusDays(5),
+                "Design", "1500 - 2500 TND", "Full-time", LocalDateTime.now().minusDays(5),
                 new String[] { "Figma", "Adobe XD", "Prototyping" }, 2, "Fatima Karray", "fatima.karray@design.com"));
 
         allJobs.add(new JobModel(3, "Frontend Developer React", "Digital Solutions", "Sfax",
                 "Looking for a React expert to build modern web applications...",
-                "Software Development", "1800 - 3000 TND", "Full-time", LocalDate.now().minusDays(1),
-                new String[] { "React", "JavaScript", "CSS", "REST APIs" }, 1, "Ahmed Ben Ali", "ahmed.benali@techmail.com"));
+                "Software Development", "1800 - 3000 TND", "Full-time", LocalDateTime.now().minusDays(1),
+                new String[] { "React", "JavaScript", "CSS", "REST APIs" }, 1, "Ahmed Ben Ali",
+                "ahmed.benali@techmail.com"));
 
         allJobs.add(new JobModel(4, "Marketing Manager", "Brand Leaders", "Tunis",
                 "Lead our marketing team and develop strategy for brand growth...",
-                "Marketing", "2200 - 3500 TND", "Full-time", LocalDate.now().minusDays(3),
-                new String[] { "Digital Marketing", "Analytics", "Team Leadership" }, 3, "Salem Mezzi", "salem.mezzi@brandmail.com"));
+                "Marketing", "2200 - 3500 TND", "Full-time", LocalDateTime.now().minusDays(3),
+                new String[] { "Digital Marketing", "Analytics", "Team Leadership" }, 3, "Salem Mezzi",
+                "salem.mezzi@brandmail.com"));
 
         allJobs.add(new JobModel(5, "Data Analyst", "Analytics Pro", "Remote",
                 "Analyze data and provide insights for business decisions...",
-                "Finance", "1600 - 2800 TND", "Full-time", LocalDate.now().minusDays(4),
+                "Finance", "1600 - 2800 TND", "Full-time", LocalDateTime.now().minusDays(4),
                 new String[] { "Python", "SQL", "Tableau", "Excel" }, 2, "Fatima Karray", "fatima.karray@design.com"));
 
         allJobs.add(new JobModel(6, "Android Developer", "Mobile Magic", "Tunis",
                 "Develop Android applications for innovative mobile solutions...",
-                "Software Development", "1900 - 3200 TND", "Full-time", LocalDate.now().minusDays(6),
-                new String[] { "Android", "Kotlin", "Java", "Firebase" }, 4, "Marouane Saidane", "marouane.saidane@mobile.com"));
+                "Software Development", "1900 - 3200 TND", "Full-time", LocalDateTime.now().minusDays(6),
+                new String[] { "Android", "Kotlin", "Java", "Firebase" }, 4, "Marouane Saidane",
+                "marouane.saidane@mobile.com"));
 
         allJobs.add(new JobModel(7, "Graphic Designer", "Design Studio Pro", "Sousse",
                 "Create stunning visual designs for web and print media...",
-                "Design", "1400 - 2400 TND", "Part-time", LocalDate.now().minusDays(7),
-                new String[] { "Adobe Creative Suite", "UI Design", "Branding" }, 3, "Salem Mezzi", "salem.mezzi@brandmail.com"));
+                "Design", "1400 - 2400 TND", "Part-time", LocalDateTime.now().minusDays(7),
+                new String[] { "Adobe Creative Suite", "UI Design", "Branding" }, 3, "Salem Mezzi",
+                "salem.mezzi@brandmail.com"));
 
         allJobs.add(new JobModel(8, "Sales Executive", "Sales Force", "Tunis",
                 "Drive sales growth and manage client relationships...",
-                "Sales", "1500 - 2800 TND", "Full-time", LocalDate.now().minusDays(8),
-                new String[] { "Client Relations", "CRM", "Sales Strategy" }, 5, "Noureddine Bouabdallah", "noureddine.bouabdallah@sales.com"));
+                "Sales", "1500 - 2800 TND", "Full-time", LocalDateTime.now().minusDays(8),
+                new String[] { "Client Relations", "CRM", "Sales Strategy" }, 5, "Noureddine Bouabdallah",
+                "noureddine.bouabdallah@sales.com"));
 
         allJobs.add(new JobModel(9, "DevOps Engineer", "Cloud Systems", "Remote",
                 "Manage infrastructure and CI/CD pipelines for cloud solutions...",
-                "Software Development", "2500 - 4000 TND", "Full-time", LocalDate.now().minusDays(2),
-                new String[] { "Docker", "Kubernetes", "AWS", "Linux" }, 1, "Ahmed Ben Ali", "ahmed.benali@techmail.com"));
+                "Software Development", "2500 - 4000 TND", "Full-time", LocalDateTime.now().minusDays(2),
+                new String[] { "Docker", "Kubernetes", "AWS", "Linux" }, 1, "Ahmed Ben Ali",
+                "ahmed.benali@techmail.com"));
 
         allJobs.add(new JobModel(10, "HR Manager", "People First", "Tunis",
                 "Manage recruitment, training, and employee relations...",
-                "HR", "2000 - 3200 TND", "Full-time", LocalDate.now().minusDays(5),
-                new String[] { "Recruitment", "Team Building", "HR Systems" }, 6, "Layla Mansour", "layla.mansour@hr.com"));
+                "HR", "2000 - 3200 TND", "Full-time", LocalDateTime.now().minusDays(5),
+                new String[] { "Recruitment", "Team Building", "HR Systems" }, 6, "Layla Mansour",
+                "layla.mansour@hr.com"));
 
         filteredJobs.addAll(allJobs);
     }
@@ -641,15 +648,16 @@ public class JobsController {
         // User info (Posted By) - at the TOP position
         VBox userInfo = new VBox(2);
         userInfo.setStyle("-fx-padding: 6 8 6 8; -fx-background-color: #f9f5ff; -fx-border-radius: 6;");
-        
+
         Label userName = new Label("👤 " + (job.getUserName() != null ? job.getUserName() : "Unknown User"));
         userName.getStyleClass().add("job-user-name");
         userName.setStyle("-fx-text-fill: #6c0df2; -fx-font-size: 12; -fx-font-weight: 600;");
-        
-        Label userEmail = new Label("📧 " + (job.getUserEmail() != null && !job.getUserEmail().isEmpty() ? job.getUserEmail() : "No email"));
+
+        Label userEmail = new Label("📧 "
+                + (job.getUserEmail() != null && !job.getUserEmail().isEmpty() ? job.getUserEmail() : "No email"));
         userEmail.getStyleClass().add("job-user-email");
         userEmail.setStyle("-fx-text-fill: #666666; -fx-font-size: 11;");
-        
+
         userInfo.getChildren().addAll(userName, userEmail);
 
         Label type = new Label(job.getJobType());
@@ -767,17 +775,32 @@ public class JobsController {
         return card;
     }
 
-    private String formatPostedDate(LocalDate date) {
-        long days = ChronoUnit.DAYS.between(date, LocalDate.now());
-        if (days == 0)
-            return "today";
-        if (days == 1)
-            return "yesterday";
-        if (days < 7)
-            return days + " days ago";
-        if (days < 30)
-            return (days / 7) + " weeks ago";
-        return (days / 30) + " months ago";
+    private String formatPostedDate(LocalDateTime dateTime) {
+        if (dateTime == null)
+            return "unknown";
+
+        LocalDateTime now = LocalDateTime.now();
+        long years = ChronoUnit.YEARS.between(dateTime, now);
+        if (years > 0)
+            return years + (years == 1 ? " year ago" : " years ago");
+
+        long months = ChronoUnit.MONTHS.between(dateTime, now);
+        if (months > 0)
+            return months + (months == 1 ? " month ago" : " months ago");
+
+        long days = ChronoUnit.DAYS.between(dateTime, now);
+        if (days > 0)
+            return days + (days == 1 ? " day ago" : " days ago");
+
+        long hours = ChronoUnit.HOURS.between(dateTime, now);
+        if (hours > 0)
+            return hours + (hours == 1 ? " hour ago" : " hours ago");
+
+        long minutes = ChronoUnit.MINUTES.between(dateTime, now);
+        if (minutes > 0)
+            return minutes + (minutes == 1 ? " minute ago" : " minutes ago");
+
+        return "Just now";
     }
 
     // ==================== partie mtaa create job ====================
@@ -802,7 +825,8 @@ public class JobsController {
         dialogPane.getStyleClass().add("job-dialog");
 
         // Boutons
-        dialogPane.getButtonTypes().addAll(ButtonType.OK, ButtonType.CANCEL);
+        ButtonType postButtonType = new ButtonType("Post", ButtonBar.ButtonData.OK_DONE);
+        dialogPane.getButtonTypes().addAll(postButtonType, ButtonType.CANCEL);
 
         // Contenu (Form Helper)
         VBox content = createJobForm(null);
@@ -810,7 +834,7 @@ public class JobsController {
         dialogPane.setContent(content);
 
         // tvalidation 9bal m tsaker
-        javafx.scene.Node okButton = dialogPane.lookupButton(ButtonType.OK);
+        javafx.scene.Node okButton = dialogPane.lookupButton(postButtonType);
         okButton.addEventFilter(javafx.event.ActionEvent.ACTION, event -> {
 
             JobModel job = extractJobFormData(content, null);
@@ -829,7 +853,7 @@ public class JobsController {
         });
 
         dialog.setResultConverter(button -> {
-            if (button == ButtonType.OK) {
+            if (button == postButtonType) {
                 return extractJobFormData(content, null);
             }
             return null;
@@ -867,7 +891,7 @@ public class JobsController {
             stmt.setString(5, job.getCategory());
             stmt.setString(6, job.getSalaryRange());
             stmt.setString(7, job.getJobType());
-            stmt.setDate(8, java.sql.Date.valueOf(job.getPostedDate()));
+            stmt.setTimestamp(8, Timestamp.valueOf(job.getPostedDate()));
             stmt.setString(9, String.join(", ", job.getRequirements()));
             stmt.setInt(10, App.currentUser != null ? App.currentUser.getId() : 1);
 
@@ -899,13 +923,15 @@ public class JobsController {
         dialogPane.getStylesheets().add(
                 getClass().getResource("/com/khademni/dialogs.css").toExternalForm());
         dialogPane.getStyleClass().add("job-dialog");
-        dialogPane.getButtonTypes().addAll(ButtonType.OK, ButtonType.CANCEL);
+        // Boutons
+        ButtonType editButtonType = new ButtonType("Edit", ButtonBar.ButtonData.OK_DONE);
+        dialogPane.getButtonTypes().addAll(editButtonType, ButtonType.CANCEL);
         dialogPane.setStyle("-fx-font-size: 12;");
 
         VBox content = createJobForm(job);
         dialogPane.setContent(content);
 
-        javafx.scene.Node okButton = dialog.getDialogPane().lookupButton(ButtonType.OK);
+        javafx.scene.Node okButton = dialog.getDialogPane().lookupButton(editButtonType);
         okButton.addEventFilter(javafx.event.ActionEvent.ACTION, evt -> {
             JobModel candidate = extractJobFormData(content, job);
             if (candidate.getTitle() == null || candidate.getTitle().trim().length() < 3
@@ -920,7 +946,7 @@ public class JobsController {
         });
 
         dialog.setResultConverter(buttonType -> {
-            if (buttonType == ButtonType.OK) {
+            if (buttonType == editButtonType) {
                 return extractJobFormData(content, job);
             }
             return null;
@@ -1346,7 +1372,7 @@ public class JobsController {
                 categoryCombo.getValue(),
                 salaryValue,
                 typeCombo.getValue(),
-                original != null ? original.getPostedDate() : LocalDate.now(),
+                original != null ? original.getPostedDate() : LocalDateTime.now(),
                 requirements,
                 App.currentUser != null ? App.currentUser.getId() : 1,
                 userName,

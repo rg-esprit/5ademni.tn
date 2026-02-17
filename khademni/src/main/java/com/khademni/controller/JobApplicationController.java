@@ -5,7 +5,6 @@ import com.khademni.model.JobApplicationModel;
 import com.khademni.model.JobModel;
 import com.khademni.utils.MyDataBase;
 import javafx.collections.FXCollections;
-import javafx.collections.ObservableList;
 import javafx.fxml.FXML;
 import javafx.scene.control.*;
 import javafx.scene.layout.HBox;
@@ -17,7 +16,8 @@ import javafx.animation.FadeTransition;
 import javafx.animation.ScaleTransition;
 import javafx.util.Duration;
 import java.sql.*;
-import java.time.LocalDate;
+import java.time.LocalDateTime;
+import java.time.temporal.ChronoUnit;
 import java.util.ArrayList;
 import java.util.List;
 
@@ -98,8 +98,8 @@ public class JobApplicationController {
                 PreparedStatement stmt = conn.prepareStatement(
                         "SELECT ja.id, ja.job_id, ja.title, ja.description, ja.cv_path, ja.status, ja.application_date, "
                                 +
-                                "u.first_name AS applicant_name, u.email AS applicant_email " +
-                                "FROM job_applications ja LEFT JOIN users u ON ja.user_id = u.id WHERE ja.job_id = ? ORDER BY ja.application_date DESC")) {
+                                "u.first_name, u.last_name, u.email AS applicant_email " +
+                                "FROM job_applications ja LEFT JOIN users u ON ja.user_id = u.id WHERE ja.job_id = ? ORDER BY ja.application_date DESC, ja.id DESC")) {
             stmt.setInt(1, selectedJob.getId());
             ResultSet rs = stmt.executeQuery();
             while (rs.next()) {
@@ -173,7 +173,7 @@ public class JobApplicationController {
         Label title = new Label(app.getTitle());
         title.getStyleClass().add("app-title");
 
-        Label email = new Label("📧 " + app.getApplicantEmail() + " • " + app.getAppliedDate().toString());
+        Label email = new Label("📧 " + app.getApplicantEmail() + " • " + formatRelativeDate(app.getAppliedDate()));
         email.getStyleClass().add("applicant-email");
 
         Label descSnippet = new Label(app.getDescription().length() > 60 ? app.getDescription().substring(0, 57) + "..."
@@ -303,17 +303,53 @@ public class JobApplicationController {
 
     private JobApplicationModel mapResultSetToApplication(ResultSet rs) throws SQLException {
         java.sql.Timestamp ts = rs.getTimestamp("application_date");
-        LocalDate applied = ts != null ? ts.toLocalDateTime().toLocalDate() : LocalDate.now();
+        LocalDateTime applied = ts != null ? ts.toLocalDateTime() : LocalDateTime.now();
+
+        String firstName = rs.getString("first_name");
+        String lastName = rs.getString("last_name");
+        String fullName = (firstName != null ? firstName : "Unknown") + " " + (lastName != null ? lastName : "User");
+        String email = rs.getString("applicant_email");
+        if (email == null)
+            email = "No Email Provided";
+
         return new JobApplicationModel(
                 rs.getInt("id"),
                 rs.getInt("job_id"),
-                rs.getString("applicant_name"),
-                rs.getString("applicant_email"),
+                fullName.trim(),
+                email,
                 rs.getString("title"),
                 rs.getString("description"),
                 rs.getString("cv_path"),
                 rs.getString("status"),
                 applied);
+    }
+
+    private String formatRelativeDate(LocalDateTime dateTime) {
+        if (dateTime == null)
+            return "unknown";
+
+        LocalDateTime now = LocalDateTime.now();
+        long years = ChronoUnit.YEARS.between(dateTime, now);
+        if (years > 0)
+            return years + (years == 1 ? " year ago" : " years ago");
+
+        long months = ChronoUnit.MONTHS.between(dateTime, now);
+        if (months > 0)
+            return months + (months == 1 ? " month ago" : " months ago");
+
+        long days = ChronoUnit.DAYS.between(dateTime, now);
+        if (days > 0)
+            return days + (days == 1 ? " day ago" : " days ago");
+
+        long hours = ChronoUnit.HOURS.between(dateTime, now);
+        if (hours > 0)
+            return hours + (hours == 1 ? " hour ago" : " hours ago");
+
+        long minutes = ChronoUnit.MINUTES.between(dateTime, now);
+        if (minutes > 0)
+            return minutes + (minutes == 1 ? " minute ago" : " minutes ago");
+
+        return "Just now";
     }
 
     // This method is no longer needed - filtering is now handled by
@@ -427,7 +463,7 @@ public class JobApplicationController {
                 PreparedStatement stmt = conn.prepareStatement(
                         "SELECT ja.id, ja.job_id, ja.title, ja.description, ja.cv_path, ja.status, ja.application_date, "
                                 +
-                                "u.first_name AS applicant_name, u.email AS applicant_email " +
+                                "u.first_name, u.last_name, u.email AS applicant_email " +
                                 "FROM job_applications ja LEFT JOIN users u ON ja.user_id = u.id " +
                                 "WHERE ja.job_id = ? AND ja.user_id = ?")) {
 
@@ -461,6 +497,9 @@ public class JobApplicationController {
                                 : app.getStatus().equalsIgnoreCase("REJECTED") ? "-fx-background-color: #ef4444;"
                                         : "-fx-background-color: #f59e0b;"));
 
+        Label dateLabel = new Label("📅 Applied: " + formatRelativeDate(app.getAppliedDate()));
+        dateLabel.setStyle("-fx-text-fill: #6b7280; -fx-font-size: 13px;");
+
         Label title = new Label(app.getTitle());
         title.setStyle("-fx-font-size: 16; -fx-font-weight: bold;");
 
@@ -489,7 +528,7 @@ public class JobApplicationController {
             actions.getChildren().add(info);
         }
 
-        detailsBox.getChildren().addAll(statusLabel, title, desc, cv, new Separator(), actions);
+        detailsBox.getChildren().addAll(statusLabel, title, desc, dateLabel, cv, new Separator(), actions);
         applicationFormContainer.getChildren().add(detailsBox);
     }
 
@@ -701,7 +740,7 @@ public class JobApplicationController {
             stmt.setString(3, title);
             stmt.setString(4, desc);
             stmt.setString(5, cv);
-            stmt.setDate(6, java.sql.Date.valueOf(LocalDate.now()));
+            stmt.setTimestamp(6, Timestamp.valueOf(LocalDateTime.now()));
 
             stmt.executeUpdate();
             showAlert("Success", "Application submitted!");

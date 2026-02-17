@@ -1,6 +1,6 @@
 package com.khademni.model;
 
-import java.time.LocalDate;
+import java.time.LocalDateTime;
 
 public class JobApplicationModel {
     private int id;
@@ -10,12 +10,11 @@ public class JobApplicationModel {
     private String title;
     private String description;
     private String cvUrl;
-    private String status; 
-    private LocalDate appliedDate;
+    private String status;
+    private LocalDateTime appliedDate;
 
-    
     public JobApplicationModel(int id, int jobId, String applicantName, String applicantEmail,
-                               String title, String description, String cvUrl, String status, LocalDate appliedDate) {
+            String title, String description, String cvUrl, String status, LocalDateTime appliedDate) {
         this.id = id;
         this.jobId = jobId;
         this.applicantName = applicantName;
@@ -27,9 +26,8 @@ public class JobApplicationModel {
         this.appliedDate = appliedDate;
     }
 
-    
     public JobApplicationModel(int jobId, String applicantName, String applicantEmail,
-                               String title, String description, String cvUrl, String status, LocalDate appliedDate) {
+            String title, String description, String cvUrl, String status, LocalDateTime appliedDate) {
         this.jobId = jobId;
         this.applicantName = applicantName;
         this.applicantEmail = applicantEmail;
@@ -40,7 +38,6 @@ public class JobApplicationModel {
         this.appliedDate = appliedDate;
     }
 
-    
     public int getId() {
         return id;
     }
@@ -73,12 +70,9 @@ public class JobApplicationModel {
         return status;
     }
 
-    public LocalDate getAppliedDate() {
+    public LocalDateTime getAppliedDate() {
         return appliedDate;
     }
-
-
-
 
     public void setId(int id) {
         this.id = id;
@@ -112,13 +106,10 @@ public class JobApplicationModel {
         this.status = status;
     }
 
-    public void setAppliedDate(LocalDate appliedDate) {
+    public void setAppliedDate(LocalDateTime appliedDate) {
         this.appliedDate = appliedDate;
     }
 
-
-
-    
     @Override
     public String toString() {
         return "JobApplicationModel{" +
