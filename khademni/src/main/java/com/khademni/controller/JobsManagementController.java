@@ -128,7 +128,7 @@ public class JobsManagementController {
         int idx = 0;
         for (JobModel job : allJobs) {
             VBox row = createJobRow(job);
-            // initial state for entrance animation
+            // animation wl translation 
             row.setOpacity(0);
             row.setTranslateY(12);
             jobsTableContainer.getChildren().add(row);
@@ -152,7 +152,7 @@ public class JobsManagementController {
                     "-fx-border-color: rgba(139,92,246,0.06); -fx-border-width: 1; " +
                     "-fx-effect: dropshadow(gaussian, rgba(124,58,237,0.06), 22, 0, 0, 8);");
 
-        // Header Row: Title and Company
+        // Header Row
         HBox headerBox = new HBox(16);
         headerBox.setAlignment(Pos.CENTER_LEFT);
 
@@ -250,7 +250,7 @@ public class JobsManagementController {
         VBox content = createJobForm(null);
         dialogPane.setContent(content);
 
-        // Validation: prevent dialog from closing if required fields are invalid
+
         javafx.scene.Node okButton = dialog.getDialogPane().lookupButton(ButtonType.OK);
         okButton.addEventFilter(ActionEvent.ACTION, evt -> {
             JobModel candidate = extractJobFormData(content, null);
@@ -319,12 +319,15 @@ public class JobsManagementController {
         dialog.setHeaderText("Edit job posting: " + job.getTitle());
 
         DialogPane dialogPane = dialog.getDialogPane();
+        dialogPane.getStylesheets().add(
+        getClass().getResource("/com/khademni/dialogs.css").toExternalForm());
+        dialogPane.getStyleClass().add("job-dialog");
         dialogPane.getButtonTypes().addAll(ButtonType.OK, ButtonType.CANCEL);
 
         VBox content = createJobForm(job);
         dialogPane.setContent(content);
 
-        // Validation: prevent dialog from closing if required fields are invalid
+
         javafx.scene.Node okButtonEdit = dialog.getDialogPane().lookupButton(ButtonType.OK);
         okButtonEdit.addEventFilter(ActionEvent.ACTION, evt -> {
             JobModel candidate = extractJobFormData(content, job);
@@ -455,7 +458,7 @@ public class JobsManagementController {
         alert.showAndWait();
     }
 
-    // Open the applications view for a specific job
+
     private void showApplicationsForJob(JobModel job) {
         try {
             FXMLLoader loader = new FXMLLoader(getClass().getResource("/com/khademni/JobApplications.fxml"));
@@ -560,7 +563,7 @@ public class JobsManagementController {
             return null;
         }));
         
-        // Add CSS style for invalid state
+
         field.styleProperty().addListener((obs, oldVal, newVal) -> {
             if (field.getText().isEmpty()) {
                 field.setStyle("-fx-padding: 8 12 8 12; -fx-border-color: #fca5a5; -fx-border-radius: 8; -fx-background-radius: 8; -fx-focus-color: #ef4444;");
@@ -579,7 +582,7 @@ public class JobsManagementController {
     private JobModel extractJobFormData(VBox form, JobModel original) {
         Object[] fields = (Object[]) form.getUserData();
         if (fields == null || fields.length < 8) {
-            // Fallback: try to extract from form children
+
             return extractFromFormChildren(form, original);
         }
 
@@ -612,7 +615,7 @@ public class JobsManagementController {
     }
 
     private JobModel extractFromFormChildren(VBox form, JobModel original) {
-        // Simplified extraction from form children
+
         List<TextField> textFields = new ArrayList<>();
         List<TextArea> textAreas = new ArrayList<>();
 
@@ -661,7 +664,7 @@ public class JobsManagementController {
             }
         }
 
-        // Temporarily replace allJobs for display
+
         List<JobModel> temp = new ArrayList<>(allJobs);
         allJobs.clear();
         allJobs.addAll(filteredJobs);

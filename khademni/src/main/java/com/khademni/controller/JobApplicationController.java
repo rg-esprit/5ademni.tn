@@ -82,7 +82,7 @@ public class JobApplicationController {
         if (selectedJob != null) loadApplicationsForJob();
     }
 
-    // --------------- DATABASE OPERATIONS ----------------
+    // --------------- PARTIE DATABASE ----------------
 
     private void loadApplicationsForJob() {
         List<JobApplicationModel> apps = new ArrayList<>();
@@ -309,7 +309,7 @@ public class JobApplicationController {
         }
     }
 
-    // ----------------- VALIDATION LOGIC -----------------
+    // ----------------- controle saisie -----------------
     private String validateApplicationInputs(String title, String description, String cvUrl) {
         if (title.isEmpty()) return "Application title is required";
         if (title.length() < 5) return "Title must be at least 5 characters";

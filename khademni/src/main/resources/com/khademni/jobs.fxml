@@ -13,7 +13,7 @@
     <VBox spacing="0" styleClass="jobs-root"
         style="-fx-background-color: #f7f5f8;">
 
-        <!-- Reusable Header -->
+        <!-- Header -->
         <fx:include source="header.fxml" />
 
         <!-- Main Content -->
@@ -54,7 +54,7 @@
             <!-- Jobs List Section -->
             <VBox spacing="16" style="-fx-padding: 24 0 0 0; -fx-max-width: 900; -fx-pref-width: 900;">
                 
-                <!-- Jobs Container (will be populated dynamically) -->
+                <!-- Jobs Container -->
                 <VBox fx:id="jobsContainer" spacing="16" styleClass="jobs-list-container" />
 
                 <!-- Empty State -->

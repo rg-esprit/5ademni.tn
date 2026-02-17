@@ -10,10 +10,10 @@ public class JobApplicationModel {
     private String title;
     private String description;
     private String cvUrl;
-    private String status; // PENDING, ACCEPTED, REJECTED
+    private String status; 
     private LocalDate appliedDate;
 
-    // Constructor with all fields
+    
     public JobApplicationModel(int id, int jobId, String applicantName, String applicantEmail,
                                String title, String description, String cvUrl, String status, LocalDate appliedDate) {
         this.id = id;
@@ -27,7 +27,7 @@ public class JobApplicationModel {
         this.appliedDate = appliedDate;
     }
 
-    // Constructor without id (for new applications)
+    
     public JobApplicationModel(int jobId, String applicantName, String applicantEmail,
                                String title, String description, String cvUrl, String status, LocalDate appliedDate) {
         this.jobId = jobId;
@@ -40,7 +40,7 @@ public class JobApplicationModel {
         this.appliedDate = appliedDate;
     }
 
-    // Getters
+    
     public int getId() {
         return id;
     }
@@ -77,7 +77,9 @@ public class JobApplicationModel {
         return appliedDate;
     }
 
-    // Setters
+
+
+
     public void setId(int id) {
         this.id = id;
     }
@@ -114,6 +116,9 @@ public class JobApplicationModel {
         this.appliedDate = appliedDate;
     }
 
+
+
+    
     @Override
     public String toString() {
         return "JobApplicationModel{" +

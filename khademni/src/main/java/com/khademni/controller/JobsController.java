@@ -59,7 +59,7 @@ public class JobsController {
         jobSalaryFilter.setOnAction(e -> applyFilters());
     }
 
-    // ==================== DATABASE ====================
+    // ==================== lehna partie mtaa db ====================
     private void loadJobsFromDB() {
         allJobs.clear();
         filteredJobs.clear();
@@ -101,7 +101,7 @@ public class JobsController {
         );
     }
 
-    private void loadSampleJobs() {
+     private void loadSampleJobs() {
         allJobs.add(new JobModel(1, "Senior Java Developer","Tech Innovators Inc","Tunis",
                 "We are looking for an experienced Java developer to join our team...",
                 "Software Development","2000 - 3500 TND","Full-time",LocalDate.now().minusDays(2),
@@ -115,7 +115,7 @@ public class JobsController {
         filteredJobs.addAll(allJobs);
     }
 
-    // ==================== FILTER & SEARCH ====================
+    // ==================== hethi partie mtaa search wl filtres ====================
     @FXML private void performSearch() { applyFilters(); }
 
     @FXML private void resetFilters() {
@@ -158,7 +158,7 @@ public class JobsController {
         displayJobs(filteredJobs);
     }
 
-    // ==================== DISPLAY ====================
+    // ==================== houni el display ====================
     private void displayJobs(List<JobModel> jobs) {
         jobsContainer.getChildren().clear();
         emptyStateBox.setVisible(jobs.isEmpty());
@@ -166,12 +166,13 @@ public class JobsController {
         int idx = 0;
         for (JobModel job : jobs) {
             VBox card = createJobCard(job);
-            // prepare initial state for load animation
+            
+            // hethi partie mtaa animation w animation 
+
             card.setOpacity(0);
             card.setTranslateY(12);
             jobsContainer.getChildren().add(card);
 
-            // staggered fade + slide up animation
             FadeTransition ft = new FadeTransition(Duration.millis(420), card);
             ft.setFromValue(0);
             ft.setToValue(1);
@@ -230,6 +231,10 @@ public class JobsController {
         Label salary = new Label("💰 " + job.getSalaryRange()); 
         salary.getStyleClass().add("job-salary-tag");
         salary.setStyle("-fx-text-fill: #666666; -fx-font-size: 12;");
+        
+        Label category = new Label("📌"+job.getCategory());
+        category.getStyleClass().add("job-category-tag");
+        category.setStyle("-fx-text-fill: #666666; -fx-font-size: 12;");
         
         meta.getChildren().addAll(type, loc, salary); 
         card.getChildren().add(meta);
@@ -291,7 +296,7 @@ public class JobsController {
                        "-fx-padding: 8 16 8 16; -fx-border-radius: 8; -fx-cursor: hand;");
         apply.setOnAction(e -> handleApplyJob(job));
         
-        // Only show edit/delete if user is the owner or admin
+        // t affichi edit/delete if user is the owner or admin
         if (App.currentUser != null && (App.currentUser.getId() == job.getUserId() || isAdmin())) {
             footer.getChildren().addAll(posted, spacer, edit, delete, apply);
         } else {
@@ -300,10 +305,10 @@ public class JobsController {
         
         card.getChildren().add(footer);
 
-        // Hover lift + subtle glow
+      
         DropShadow hoverShadow = new DropShadow(22, Color.web("#6c0df2", 0.12));
         card.setOnMouseEntered(ev -> {
-            // lift
+            
             TranslateTransition lift = new TranslateTransition(Duration.millis(160), card);
             lift.setToY(-6);
             lift.play();
@@ -329,47 +334,76 @@ public class JobsController {
         return (days/30)+" months ago";
     }
 
-    // ==================== CREATE ====================
+    // ==================== partie mtaa create job ====================
     @FXML
     private void showAddJobDialog() {
-        if(App.currentUser==null){ showAlert("Authentication Required","Please log in to add jobs"); return; }
-        
+
+        if (App.currentUser == null) {
+            showAlert("Authentication Required", "Please log in to add jobs.");
+            return;
+        }
+
+    // creation de dialog 
         Dialog<JobModel> dialog = new Dialog<>();
         dialog.setTitle("Add New Job");
         dialog.setHeaderText("Create a new job posting");
 
         DialogPane dialogPane = dialog.getDialogPane();
-        dialogPane.getButtonTypes().addAll(ButtonType.OK, ButtonType.CANCEL);
-        dialogPane.setStyle("-fx-font-size: 12;");
 
+    // design
+        dialogPane.getStylesheets().add(
+            getClass().getResource("/com/khademni/dialogs.css").toExternalForm()
+        );
+        dialogPane.getStyleClass().add("job-dialog");
+
+    // Boutons
+        dialogPane.getButtonTypes().addAll(ButtonType.OK, ButtonType.CANCEL);
+
+    // Contenu (Form Helper)
         VBox content = createJobForm(null);
+        content.getStyleClass().add("job-form");
         dialogPane.setContent(content);
 
-        javafx.scene.Node okButton = dialog.getDialogPane().lookupButton(ButtonType.OK);
-        okButton.addEventFilter(javafx.event.ActionEvent.ACTION, evt -> {
-            JobModel candidate = extractJobFormData(content, null);
-            if (candidate.getTitle() == null || candidate.getTitle().trim().length() < 3
-                    || candidate.getCompany() == null || candidate.getCompany().trim().length() < 3
-                    || candidate.getLocation() == null || candidate.getLocation().trim().length() < 3
-                    || candidate.getDescription() == null || candidate.getDescription().trim().length() < 20
-                    || candidate.getSalaryRange() == null || candidate.getSalaryRange().trim().isEmpty()) {
-                evt.consume();
-                showAlert("Validation Error", "Please provide valid Title, Company, Location (min 3 chars), Description (min 20 chars), and Salary (integer).");
-            }
-        });
+    // tvalidation 9bal m tsaker
+        javafx.scene.Node okButton = dialogPane.lookupButton(ButtonType.OK);
+        okButton.addEventFilter(javafx.event.ActionEvent.ACTION, event -> {
 
-        dialog.setResultConverter(buttonType -> {
-            if (buttonType == ButtonType.OK) {
+            JobModel job = extractJobFormData(content, null);
+
+            if (!isJobValid(job)) {
+                event.consume(); 
+                showAlert(
+                     "Validation Error",
+                    """
+                    Please check the following:
+                    • Title / Company / Location: minimum 3 characters
+                    • Description: minimum 20 characters
+                    • Salary: required
+                    """
+                );
+            }
+        }       );
+   
+        dialog.setResultConverter(button -> {
+            if (button == ButtonType.OK) {
                 return extractJobFormData(content, null);
             }
             return null;
-        });
+        }     );
 
         Optional<JobModel> result = dialog.showAndWait();
-        if (result.isPresent()) {
-            insertJobToDB(result.get());
-        }
+        result.ifPresent(this::insertJobToDB);
     }
+
+    private boolean isJobValid(JobModel job) {
+        return job != null
+            && job.getTitle() != null && job.getTitle().trim().length() >= 3
+            && job.getCompany() != null && job.getCompany().trim().length() >= 3
+            && job.getLocation() != null && job.getLocation().trim().length() >= 3
+            && job.getDescription() != null && job.getDescription().trim().length() >= 20
+            && job.getSalaryRange() != null && !job.getSalaryRange().trim().isEmpty();
+    }
+
 
     private void insertJobToDB(JobModel job) {
         try {
@@ -406,7 +440,7 @@ public class JobsController {
         }
     }
 
-    // ==================== UPDATE ====================
+    // ====================  EL UPDATE ====================
     private void showEditJobDialog(JobModel job) {
         if(App.currentUser==null || (App.currentUser.getId() != job.getUserId() && !isAdmin())) {
             showAlert("Permission Denied", "You can only edit your own jobs");
@@ -418,6 +452,9 @@ public class JobsController {
         dialog.setHeaderText("Edit job posting: " + job.getTitle());
 
         DialogPane dialogPane = dialog.getDialogPane();
+        dialogPane.getStylesheets().add(
+        getClass().getResource("/com/khademni/dialogs.css").toExternalForm());
+        dialogPane.getStyleClass().add("job-dialog");
         dialogPane.getButtonTypes().addAll(ButtonType.OK, ButtonType.CANCEL);
         dialogPane.setStyle("-fx-font-size: 12;");
 
@@ -483,7 +520,7 @@ public class JobsController {
         }
     }
 
-    // ==================== DELETE ====================
+    // ====================  EL DELETE ====================
     private void deleteJob(JobModel job) {
         if(App.currentUser==null || (App.currentUser.getId() != job.getUserId() && !isAdmin())) {
             showAlert("Permission Denied", "You can only delete your own jobs");
@@ -521,7 +558,7 @@ public class JobsController {
         }
     }
 
-    // ==================== FORM HELPERS ====================
+    // ==================== partie forum helper====================
     private VBox createJobForm(JobModel editingJob) {
         VBox form = new VBox(12);
         form.setStyle("-fx-padding: 20;");
@@ -667,8 +704,7 @@ public class JobsController {
     }
 
     private boolean isAdmin() {
-        // Check if user is admin (you may need to update this based on your User model)
-        return App.currentUser != null && App.currentUser.getId() == 1; // Assuming ID 1 is admin
+        return App.currentUser != null && App.currentUser.getId() == 1; 
     }
     private void handleApplyJob(JobModel job) {
         if(App.currentUser==null){ showAlert("Authentication Required","Please log in to apply"); return; }

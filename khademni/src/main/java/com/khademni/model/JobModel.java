@@ -10,12 +10,12 @@ public class JobModel {
     private String description;
     private String category;
     private String salaryRange;
-    private String jobType; // Full-time, Part-time, Contract, etc.
+    private String jobType; // tnejem tkoun (Full-time,part-time, .....).
     private LocalDate postedDate;
     private String[] requirements;
     private int userId;
 
-    // Constructor
+    
     public JobModel(int id, String title, String company, String location, 
                     String description, String category, String salaryRange, 
                     String jobType, LocalDate postedDate, String[] requirements, int userId) {
@@ -32,7 +32,7 @@ public class JobModel {
         this.userId = userId;
     }
 
-    // Getters
+    
     public int getId() { return id; }
     public String getTitle() { return title; }
     public String getCompany() { return company; }
@@ -45,7 +45,7 @@ public class JobModel {
     public String[] getRequirements() { return requirements; }
     public int getUserId() { return userId; }
 
-    // Setters
+    
     public void setId(int id) { this.id = id; }
     public void setTitle(String title) { this.title = title; }
     public void setCompany(String company) { this.company = company; }
