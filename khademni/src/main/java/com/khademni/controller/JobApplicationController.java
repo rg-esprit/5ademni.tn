@@ -7,14 +7,15 @@ import com.khademni.utils.MyDataBase;
 import javafx.collections.FXCollections;
 import javafx.collections.ObservableList;
 import javafx.fxml.FXML;
-import javafx.geometry.Insets;
-import javafx.scene.Scene;
 import javafx.scene.control.*;
 import javafx.scene.layout.HBox;
 import javafx.scene.layout.VBox;
-import javafx.stage.Modality;
-import javafx.stage.Stage;
 
+import javafx.geometry.Pos;
+
+import javafx.animation.FadeTransition;
+import javafx.animation.ScaleTransition;
+import javafx.util.Duration;
 import java.sql.*;
 import java.time.LocalDate;
 import java.util.ArrayList;
@@ -22,307 +23,892 @@ import java.util.List;
 
 public class JobApplicationController {
 
-    @FXML private TableView<JobApplicationModel> applicationsTable;
-    @FXML private TableColumn<JobApplicationModel, String> nameColumn;
-    @FXML private TableColumn<JobApplicationModel, String> emailColumn;
-    @FXML private TableColumn<JobApplicationModel, String> titleColumn;
-    @FXML private TableColumn<JobApplicationModel, String> descriptionColumn;
-    @FXML private TableColumn<JobApplicationModel, String> cvColumn;
-    @FXML private TableColumn<JobApplicationModel, String> statusColumn;
-    @FXML private TableColumn<JobApplicationModel, LocalDate> appliedDateColumn;
-    @FXML private Label jobTitleLabel;
-    @FXML private Label applicationsCountLabel;
-    @FXML private Button addButton;
-    @FXML private Button editButton;
-    @FXML private Button deleteButton;
-    @FXML private ComboBox<String> statusFilterCombo;
+    // Common UI
+    @FXML
+    private Label jobTitleLabel;
+    @FXML
+    private Label applicationsCountLabel;
+
+    // Admin/Owner UI
+    @FXML
+    private ScrollPane adminScrollPane;
+    @FXML
+    private VBox adminCardsContainer;
+
+    @FXML
+    private ComboBox<String> statusFilterCombo;
+    @FXML
+    private HBox adminButtonsBox; // Parent container of buttons (in bottom)
+
+    // Freelancer UI
+    @FXML
+    private ScrollPane freelancerView;
+    @FXML
+    private Label jobDescriptionLabel;
+    @FXML
+    private Label totalApplicantsLabel;
+    @FXML
+    private VBox applicationFormContainer;
 
     private JobModel selectedJob;
-    private ObservableList<JobApplicationModel> applicationsList;
+    private List<JobApplicationModel> allApplications = new ArrayList<>();
 
     public void setSelectedJob(JobModel job) {
         this.selectedJob = job;
-        jobTitleLabel.setText("Job: " + job.getTitle());
-        initialize();
+        jobTitleLabel.setText(job.getTitle() + " at " + job.getCompany());
+        initializeView();
     }
 
     @FXML
     public void initialize() {
-        applicationsList = FXCollections.observableArrayList();
-        applicationsTable.setItems(applicationsList);
-
-        // Table columns
-        nameColumn.setCellValueFactory(c -> new javafx.beans.property.SimpleStringProperty(c.getValue().getApplicantName()));
-        emailColumn.setCellValueFactory(c -> new javafx.beans.property.SimpleStringProperty(c.getValue().getApplicantEmail()));
-        titleColumn.setCellValueFactory(c -> new javafx.beans.property.SimpleStringProperty(c.getValue().getTitle()));
-        descriptionColumn.setCellValueFactory(c -> new javafx.beans.property.SimpleStringProperty(c.getValue().getDescription()));
-        cvColumn.setCellValueFactory(c -> new javafx.beans.property.SimpleStringProperty(c.getValue().getCvUrl()));
-        statusColumn.setCellValueFactory(c -> new javafx.beans.property.SimpleStringProperty(c.getValue().getStatus()));
-        appliedDateColumn.setCellValueFactory(c -> new javafx.beans.property.SimpleObjectProperty<>(c.getValue().getAppliedDate()));
-
-        // Apply styling
-        nameColumn.setStyle("-fx-alignment: CENTER-LEFT;");
-        emailColumn.setStyle("-fx-alignment: CENTER-LEFT;");
-        titleColumn.setStyle("-fx-alignment: CENTER-LEFT;");
-        descriptionColumn.setStyle("-fx-alignment: CENTER-LEFT;");
-        cvColumn.setStyle("-fx-alignment: CENTER-LEFT;");
-        statusColumn.setStyle("-fx-alignment: CENTER;");
-        appliedDateColumn.setStyle("-fx-alignment: CENTER;");
-
-        // Status filter
-        statusFilterCombo.setItems(FXCollections.observableArrayList("All", "PENDING", "ACCEPTED", "REJECTED"));
-        statusFilterCombo.setValue("All");
-        statusFilterCombo.setOnAction(e -> loadApplicationsFiltered());
-
-        // Buttons
-        addButton.setOnAction(e -> showAddApplicationDialog());
-        editButton.setOnAction(e -> showEditApplicationDialog());
-        deleteButton.setOnAction(e -> deleteSelectedApplication());
-
-        if (selectedJob != null) loadApplicationsForJob();
+        // Default init
     }
 
-    // --------------- PARTIE DATABASE ----------------
+    private void initializeView() {
+        boolean isOwnerOrAdmin = App.currentUser != null &&
+                (App.currentUser.isIsAdmin() || App.currentUser.getId() == 1
+                        || App.currentUser.getId() == selectedJob.getUserId());
+
+        if (isOwnerOrAdmin) {
+            setupAdminView();
+        } else {
+            setupFreelancerView();
+        }
+    }
+
+    // ==================== ADMIN / OWNER VIEW ====================
+
+    private void setupAdminView() {
+        adminScrollPane.setVisible(true);
+        freelancerView.setVisible(false);
+
+        setupFiltersAndButtons();
+        loadApplicationsForJob();
+    }
+
+    private void setupFiltersAndButtons() {
+        statusFilterCombo.setItems(FXCollections.observableArrayList("All", "PENDING", "ACCEPTED", "REJECTED"));
+        statusFilterCombo.setValue("All");
+        statusFilterCombo.setOnAction(e -> renderApplications(filterApplications(statusFilterCombo.getValue())));
+    }
 
     private void loadApplicationsForJob() {
-        List<JobApplicationModel> apps = new ArrayList<>();
+        allApplications.clear();
         try (Connection conn = MyDataBase.getConnection();
-             PreparedStatement stmt = conn.prepareStatement(
-                     "SELECT ja.id, ja.job_id, ja.title, ja.description, ja.cv_path, ja.status, ja.application_date, " +
-                             "u.first_name AS applicant_name, u.email AS applicant_email " +
-                             "FROM job_applications ja LEFT JOIN users u ON ja.user_id = u.id WHERE ja.job_id = ? ORDER BY ja.application_date DESC"
-             )) {
+                PreparedStatement stmt = conn.prepareStatement(
+                        "SELECT ja.id, ja.job_id, ja.title, ja.description, ja.cv_path, ja.status, ja.application_date, "
+                                +
+                                "u.first_name AS applicant_name, u.email AS applicant_email " +
+                                "FROM job_applications ja LEFT JOIN users u ON ja.user_id = u.id WHERE ja.job_id = ? ORDER BY ja.application_date DESC")) {
             stmt.setInt(1, selectedJob.getId());
             ResultSet rs = stmt.executeQuery();
             while (rs.next()) {
-                java.sql.Timestamp ts = rs.getTimestamp("application_date");
-                LocalDate applied = ts != null ? ts.toLocalDateTime().toLocalDate() : LocalDate.now();
-                apps.add(new JobApplicationModel(
-                        rs.getInt("id"),
-                        rs.getInt("job_id"),
-                        rs.getString("applicant_name"),
-                        rs.getString("applicant_email"),
-                        rs.getString("title"),
-                        rs.getString("description"),
-                        rs.getString("cv_path"),
-                        rs.getString("status"),
-                        applied
-                ));
+                allApplications.add(mapResultSetToApplication(rs));
             }
         } catch (SQLException e) {
             showAlert("Error", "Failed to load applications: " + e.getMessage());
         }
-        applicationsList.setAll(apps);
-        applicationsCountLabel.setText("Total applications: " + apps.size());
+
+        renderApplications(allApplications);
+        updateCounts(allApplications.size());
     }
 
-    private void loadApplicationsFiltered() {
-        String filter = statusFilterCombo.getValue();
-        if ("All".equals(filter)) {
-            loadApplicationsForJob();
-        } else {
-            List<JobApplicationModel> filtered = new ArrayList<>();
-            for (JobApplicationModel app : applicationsList) {
-                if (app.getStatus().equalsIgnoreCase(filter)) filtered.add(app);
-            }
-            applicationsList.setAll(filtered);
-            applicationsCountLabel.setText("Showing: " + filtered.size() + " application(s)");
+    private void renderApplications(List<JobApplicationModel> apps) {
+        adminCardsContainer.getChildren().clear();
+
+        if (apps.isEmpty()) {
+            Label placeholder = new Label("No applications found.");
+            placeholder.setStyle("-fx-text-fill: #9ca3af; -fx-font-size: 14; -fx-padding: 20;");
+            adminCardsContainer.getChildren().add(placeholder);
+            return;
+        }
+
+        int delay = 0;
+        for (JobApplicationModel app : apps) {
+            HBox card = createApplicationCard(app);
+            adminCardsContainer.getChildren().add(card);
+
+            // Staggered Animation
+            FadeTransition ft = new FadeTransition(Duration.millis(400), card);
+            ft.setFromValue(0);
+            ft.setToValue(1);
+            ft.setDelay(Duration.millis(delay));
+            ft.play();
+
+            javafx.animation.TranslateTransition tt = new javafx.animation.TranslateTransition(Duration.millis(400),
+                    card);
+            tt.setFromY(20);
+            tt.setToY(0);
+            tt.setDelay(Duration.millis(delay));
+            tt.play();
+
+            delay += 100;
+        }
+
+        applicationsCountLabel.setText("Showing " + apps.size() + " applications");
+    }
+
+    private HBox createApplicationCard(JobApplicationModel app) {
+        HBox card = new HBox(20);
+        card.setAlignment(Pos.CENTER_LEFT);
+        card.getStyleClass().add("app-card");
+
+        // 1. Avatar (Initials)
+        String initials = getInitials(app.getApplicantName());
+        javafx.scene.shape.Circle avatarCircle = new javafx.scene.shape.Circle(24);
+        avatarCircle.getStyleClass().add("avatar-circle");
+
+        Label initialsLabel = new Label(initials);
+        initialsLabel.getStyleClass().add("avatar-text");
+
+        javafx.scene.layout.StackPane avatarPane = new javafx.scene.layout.StackPane(avatarCircle, initialsLabel);
+
+        // 2. Main Info
+        VBox infoBox = new VBox(4);
+        HBox.setHgrow(infoBox, javafx.scene.layout.Priority.ALWAYS);
+
+        Label name = new Label(app.getApplicantName());
+        name.getStyleClass().add("applicant-name");
+
+        Label title = new Label(app.getTitle());
+        title.getStyleClass().add("app-title");
+
+        Label email = new Label("📧 " + app.getApplicantEmail() + " • " + app.getAppliedDate().toString());
+        email.getStyleClass().add("applicant-email");
+
+        Label descSnippet = new Label(app.getDescription().length() > 60 ? app.getDescription().substring(0, 57) + "..."
+                : app.getDescription());
+        descSnippet.getStyleClass().add("app-desc-snippet");
+        descSnippet.setWrapText(true);
+
+        infoBox.getChildren().addAll(name, title, email, descSnippet);
+
+        // 3. Status Badge
+        Label statusBadge = new Label(app.getStatus());
+        statusBadge.getStyleClass().addAll("status-badge", "status-" + app.getStatus().toLowerCase());
+
+        // 4. Actions
+        VBox actionsBox = new VBox(8);
+        actionsBox.setAlignment(Pos.CENTER_RIGHT);
+
+        Button cvBtn = new Button("📄 View CV");
+        cvBtn.getStyleClass().addAll("action-btn", "btn-cv");
+        cvBtn.setOnAction(e -> viewCv(app));
+
+        HBox decisionBtns = new HBox(8);
+        if ("PENDING".equalsIgnoreCase(app.getStatus())) {
+            Button acceptBtn = new Button("Accept");
+            acceptBtn.getStyleClass().addAll("action-btn", "btn-accept");
+            acceptBtn.setOnAction(e -> updateStatus(app, "ACCEPTED"));
+
+            Button rejectBtn = new Button("Reject");
+            rejectBtn.getStyleClass().addAll("action-btn", "btn-reject");
+            rejectBtn.setOnAction(e -> updateStatus(app, "REJECTED"));
+
+            decisionBtns.getChildren().addAll(acceptBtn, rejectBtn);
+        }
+
+        actionsBox.getChildren().addAll(statusBadge, cvBtn, decisionBtns);
+
+        card.getChildren().addAll(avatarPane, infoBox, actionsBox);
+        return card;
+    }
+
+    private void updateStatus(JobApplicationModel app, String newStatus) {
+        try (Connection conn = MyDataBase.getConnection();
+                PreparedStatement stmt = conn.prepareStatement("UPDATE job_applications SET status=? WHERE id=?")) {
+            stmt.setString(1, newStatus);
+            stmt.setInt(2, app.getId());
+            stmt.executeUpdate();
+
+            // Refresh local list and re-render
+            app.setStatus(newStatus);
+            renderApplications(filterApplications(statusFilterCombo.getValue()));
+
+        } catch (SQLException e) {
+            showAlert("Error", e.getMessage());
         }
     }
 
-    // ----------------- ADD / EDIT / DELETE -----------------
-
-    @FXML
-    private void showAddApplicationDialog() {
-        if (selectedJob == null) { showAlert("Warning", "No job selected"); return; }
-
-        Stage dialog = new Stage();
-        dialog.setTitle("Add Job Application");
-        dialog.initModality(Modality.APPLICATION_MODAL);
-        dialog.setResizable(false);
-
-        ScrollPane form = createApplicationForm(null, dialog);
-        Scene scene = new Scene(form, 600, 550);
-        dialog.setScene(scene);
-        dialog.show();
+    private List<JobApplicationModel> filterApplications(String status) {
+        if ("All".equals(status) || status == null)
+            return allApplications;
+        List<JobApplicationModel> filtered = new ArrayList<>();
+        for (JobApplicationModel app : allApplications) {
+            if (app.getStatus().equalsIgnoreCase(status))
+                filtered.add(app);
+        }
+        return filtered;
     }
 
-    public void openAddApplicationDialog() {
-        showAddApplicationDialog();
+    private String getInitials(String name) {
+        if (name == null || name.isEmpty())
+            return "?";
+        String[] parts = name.split(" ");
+        if (parts.length >= 2)
+            return (parts[0].substring(0, 1) + parts[1].substring(0, 1)).toUpperCase();
+        return name.substring(0, Math.min(2, name.length())).toUpperCase();
     }
 
-    private void showEditApplicationDialog() {
-        JobApplicationModel selected = applicationsTable.getSelectionModel().getSelectedItem();
-        if (selected == null) { showAlert("Warning", "Please select an application to edit"); return; }
-
-        Stage dialog = new Stage();
-        dialog.setTitle("Edit Job Application");
-        dialog.initModality(Modality.APPLICATION_MODAL);
-        dialog.setResizable(false);
-
-        ScrollPane form = createApplicationForm(selected, dialog);
-        Scene scene = new Scene(form, 500, 400);
-        dialog.setScene(scene);
-        dialog.show();
+    private void updateCounts(int size) {
+        applicationsCountLabel.setText("Total applications: " + size);
+        totalApplicantsLabel.setText(String.valueOf(size));
     }
 
-    private ScrollPane createApplicationForm(JobApplicationModel app, Stage dialog) {
-        VBox vbox = new VBox(15);
-        vbox.setPadding(new Insets(20));
-        vbox.setStyle("-fx-spacing: 15; -fx-padding: 20;");
+    /**
+     * Opens/views the CV (file or URL) for an application
+     * Only accessible by job poster and the applicant
+     */
+    private void viewCv(JobApplicationModel app) {
+        String cvPath = app.getCvUrl();
 
-        // Auto-filled user info (read-only)
-        String userName = App.currentUser != null ? (App.currentUser.getFirstName() + " " + App.currentUser.getLastName()) : "Unknown";
-        String userEmail = App.currentUser != null ? App.currentUser.getEmail() : "Unknown";
+        if (cvPath == null || cvPath.isEmpty()) {
+            showAlert("No CV", "No CV file or URL provided for this application.");
+            return;
+        }
 
-        Label userInfoLabel = new Label("👤 Applicant: " + userName + " | " + userEmail);
-        userInfoLabel.setStyle("-fx-font-size: 12; -fx-font-weight: 600; -fx-text-fill: #6c0df2;");
+        // Check if it's a URL or file path
+        try {
+            if (cvPath.startsWith("http://") || cvPath.startsWith("https://")) {
+                // It's a URL - open in default browser
+                String os = System.getProperty("os.name").toLowerCase();
+                if (os.contains("win")) {
+                    new ProcessBuilder("cmd", "/c", "start", cvPath).start();
+                } else if (os.contains("mac")) {
+                    new ProcessBuilder("open", cvPath).start();
+                } else {
+                    new ProcessBuilder("xdg-open", cvPath).start();
+                }
+            } else {
+                // It's a file path - open with default application
+                java.io.File file = new java.io.File(cvPath);
+                if (!file.exists()) {
+                    showAlert("File Not Found", "The CV file could not be found at: " + cvPath);
+                    return;
+                }
 
-        // Title field
-        TextField titleField = new TextField();
-        titleField.setPromptText("Application Title (e.g., Senior Developer Application)");
-        titleField.setStyle("-fx-padding: 10 12 10 12; -fx-border-color: #e5e7eb; -fx-border-radius: 8; -fx-background-radius: 8; -fx-font-size: 12;");
-        if (app != null) titleField.setText(app.getTitle());
+                String os = System.getProperty("os.name").toLowerCase();
+                if (os.contains("win")) {
+                    new ProcessBuilder("cmd", "/c", "start", "\"\"", file.getAbsolutePath()).start();
+                } else if (os.contains("mac")) {
+                    new ProcessBuilder("open", file.getAbsolutePath()).start();
+                } else {
+                    new ProcessBuilder("xdg-open", file.getAbsolutePath()).start();
+                }
+            }
+        } catch (Exception e) {
+            showAlert("Error", "Could not open CV: " + e.getMessage());
+        }
+    }
 
-        // Description field
-        TextArea descriptionArea = new TextArea();
-        descriptionArea.setPromptText("Why are you interested in this position? Tell us about your experience and motivation...");
-        descriptionArea.setStyle("-fx-padding: 10 12 10 12; -fx-border-color: #e5e7eb; -fx-border-radius: 8; -fx-background-radius: 8; -fx-font-size: 12; -fx-control-inner-background: #fafafa;");
-        descriptionArea.setWrapText(true);
-        descriptionArea.setPrefRowCount(6);
-        if (app != null) descriptionArea.setText(app.getDescription());
+    private JobApplicationModel mapResultSetToApplication(ResultSet rs) throws SQLException {
+        java.sql.Timestamp ts = rs.getTimestamp("application_date");
+        LocalDate applied = ts != null ? ts.toLocalDateTime().toLocalDate() : LocalDate.now();
+        return new JobApplicationModel(
+                rs.getInt("id"),
+                rs.getInt("job_id"),
+                rs.getString("applicant_name"),
+                rs.getString("applicant_email"),
+                rs.getString("title"),
+                rs.getString("description"),
+                rs.getString("cv_path"),
+                rs.getString("status"),
+                applied);
+    }
 
-        // CV URL field
-        TextField cvField = new TextField();
-        cvField.setPromptText("CV URL (e.g., https://resume.example.com or file path)");
-        cvField.setStyle("-fx-padding: 10 12 10 12; -fx-border-color: #e5e7eb; -fx-border-radius: 8; -fx-background-radius: 8; -fx-font-size: 12;");
-        if (app != null) cvField.setText(app.getCvUrl());
+    // This method is no longer needed - filtering is now handled by
+    // renderApplications()
 
-        // Status combo
-        ComboBox<String> statusCombo = new ComboBox<>();
-        statusCombo.setItems(FXCollections.observableArrayList("PENDING", "ACCEPTED", "REJECTED"));
-        statusCombo.setValue(app != null ? app.getStatus() : "PENDING");
-        statusCombo.setStyle("-fx-padding: 8 12 8 12; -fx-border-color: #e5e7eb; -fx-border-radius: 8;");
+    // ==================== FREELANCER VIEW ====================
 
-        // Validation label
-        Label validationLabel = new Label();
-        validationLabel.setStyle("-fx-text-fill: #ef4444; -fx-font-weight: 600; -fx-font-size: 11;");
+    private void setupFreelancerView() {
+        adminScrollPane.setVisible(false);
+        freelancerView.setVisible(true);
+        if (adminButtonsBox != null)
+            adminButtonsBox.setVisible(false); // Hide admin buttons
 
-        // Action buttons
-        Button save = new Button(app != null ? "✏️ Update Application" : "✅ Submit Application");
-        save.setStyle("-fx-background-color: #6c0df2; -fx-text-fill: white; -fx-font-weight: 600; " +
-                      "-fx-padding: 12 24 12 24; -fx-border-radius: 8; -fx-cursor: hand; -fx-font-size: 12;");
+        // Hide top admin controls
+        statusFilterCombo.setVisible(false);
 
-        Button cancel = new Button("✕ Cancel");
-        cancel.setStyle("-fx-background-color: #f0f0f0; -fx-text-fill: #333333; -fx-font-weight: 600; " +
-                        "-fx-padding: 12 24 12 24; -fx-border-radius: 8; -fx-cursor: hand; -fx-font-size: 12;");
+        // Rebuild the content to show rich job details
+        VBox container = (VBox) freelancerView.getContent();
+        container.getChildren().clear();
 
-        HBox buttons = new HBox(12);
-        buttons.setAlignment(javafx.geometry.Pos.CENTER_RIGHT);
-        buttons.getChildren().addAll(cancel, save);
+        container.getChildren().add(buildJobDetailsView());
+        container.getChildren().add(applicationFormContainer);
 
-        save.setOnAction(e -> {
-            String title = titleField.getText().trim();
-            String description = descriptionArea.getText().trim();
-            String cv = cvField.getText().trim();
-            String status = statusCombo.getValue();
+        // Check for existing application
+        loadFreelancerApplicationState();
+    }
 
-            // Validation
-            String validationError = validateApplicationInputs(title, description, cv);
-            if (!validationError.isEmpty()) {
-                validationLabel.setText("❌ " + validationError);
-                return;
+    private javafx.scene.Node buildJobDetailsView() {
+        VBox root = new VBox(15);
+        root.setStyle("-fx-padding: 0 0 20 0; -fx-border-color: #f0f0f0; -fx-border-width: 0 0 1 0;");
+
+        // Header: Job Title
+        Label title = new Label(selectedJob.getTitle());
+        title.setStyle("-fx-font-size: 22px; -fx-font-weight: bold; -fx-text-fill: #141118;");
+
+        // Company & Location Row
+        HBox metaRow = new HBox(15);
+        metaRow.setAlignment(Pos.CENTER_LEFT);
+
+        String posterName = getJobPosterName(selectedJob.getUserId());
+        Label company = new Label(
+                "🏢 " + (selectedJob.getCompany() != null ? selectedJob.getCompany() : "Company") + " (" + posterName
+                        + ")");
+        company.setStyle("-fx-text-fill: #6b7280; -fx-font-weight: 600; -fx-font-size: 13px;");
+
+        Label location = new Label("📍 " + selectedJob.getLocation());
+        location.setStyle("-fx-text-fill: #6b7280; -fx-font-size: 13px;");
+
+        Label type = new Label("💼 " + selectedJob.getJobType());
+        type.setStyle(
+                "-fx-background-color: #f3e8ff; -fx-text-fill: #6c0df2; -fx-padding: 4 8; -fx-background-radius: 4; -fx-font-size: 11px; -fx-font-weight: bold;");
+
+        Label category = new Label("🏷️ " + selectedJob.getCategory());
+        category.setStyle(
+                "-fx-background-color: #e0f2fe; -fx-text-fill: #0284c7; -fx-padding: 4 8; -fx-background-radius: 4; -fx-font-size: 11px; -fx-font-weight: bold;");
+
+        metaRow.getChildren().addAll(company, location, type, category);
+
+        // Salary
+        Label salary = new Label("💰 " + selectedJob.getSalaryRange());
+        salary.setStyle("-fx-text-fill: #059669; -fx-font-weight: bold; -fx-font-size: 14px;");
+
+        // Description
+        Label descHeader = new Label("About the role");
+        descHeader
+                .setStyle("-fx-font-size: 16px; -fx-font-weight: bold; -fx-text-fill: #1f2937; -fx-padding: 10 0 5 0;");
+
+        Label desc = new Label(selectedJob.getDescription());
+        desc.setWrapText(true);
+        desc.setStyle("-fx-font-size: 14px; -fx-text-fill: #4b5563; -fx-line-spacing: 5;");
+
+        // Applicants count
+        HBox statsRow = new HBox(8);
+        statsRow.setAlignment(Pos.CENTER_LEFT);
+        statsRow.setStyle("-fx-padding: 15 0 0 0;");
+        Label applicantsLabel = new Label("👥 Applicants:");
+        applicantsLabel.setStyle("-fx-font-weight: bold; -fx-text-fill: #6b7280;");
+
+        // We need to keep a reference to update this label
+        totalApplicantsLabel = new Label("0");
+        totalApplicantsLabel.setStyle("-fx-font-weight: bold; -fx-text-fill: #6c0df2;");
+        // Count immediately
+        countTotalApplicants();
+
+        statsRow.getChildren().addAll(applicantsLabel, totalApplicantsLabel);
+
+        root.getChildren().addAll(title, metaRow, salary, descHeader, desc, statsRow);
+        return root;
+    }
+
+    private void countTotalApplicants() {
+        try (Connection conn = MyDataBase.getConnection();
+                PreparedStatement stmt = conn
+                        .prepareStatement("SELECT COUNT(*) FROM job_applications WHERE job_id=?")) {
+            stmt.setInt(1, selectedJob.getId());
+            ResultSet rs = stmt.executeQuery();
+            if (rs.next()) {
+                int count = rs.getInt(1);
+                applicationsCountLabel.setText("Total applications: " + count);
+                totalApplicantsLabel.setText(String.valueOf(count));
+            }
+        } catch (SQLException e) {
+            e.printStackTrace();
+        }
+    }
+
+    private void loadFreelancerApplicationState() {
+        applicationFormContainer.getChildren().clear();
+
+        try (Connection conn = MyDataBase.getConnection();
+                PreparedStatement stmt = conn.prepareStatement(
+                        "SELECT ja.id, ja.job_id, ja.title, ja.description, ja.cv_path, ja.status, ja.application_date, "
+                                +
+                                "u.first_name AS applicant_name, u.email AS applicant_email " +
+                                "FROM job_applications ja LEFT JOIN users u ON ja.user_id = u.id " +
+                                "WHERE ja.job_id = ? AND ja.user_id = ?")) {
+
+            stmt.setInt(1, selectedJob.getId());
+            stmt.setInt(2, App.currentUser.getId());
+            ResultSet rs = stmt.executeQuery();
+
+            if (rs.next()) {
+                // Application exists
+                JobApplicationModel app = mapResultSetToApplication(rs);
+                showApplicationDetails(app);
+            } else {
+                // No application -> Show Apply Button
+                showApplyButton();
             }
 
-            try (Connection conn = MyDataBase.getConnection()) {
-                if (app == null) {
-                    // INSERT
-                    PreparedStatement stmt = conn.prepareStatement(
-                            "INSERT INTO job_applications(job_id, user_id, title, description, cv_path, status, application_date) VALUES(?,?,?,?,?,?,?)"
-                    );
-                    stmt.setInt(1, selectedJob.getId());
-                    stmt.setInt(2, App.currentUser != null ? App.currentUser.getId() : 1);
-                    stmt.setString(3, title);
-                    stmt.setString(4, description);
-                    stmt.setString(5, cv);
-                    stmt.setString(6, status.toUpperCase());
-                    stmt.setDate(7, java.sql.Date.valueOf(LocalDate.now()));
-                    stmt.executeUpdate();
-                    showAlert("Success", "✅ Application submitted successfully!");
-                } else {
-                    // UPDATE
-                    PreparedStatement stmt = conn.prepareStatement(
-                            "UPDATE job_applications SET title=?, description=?, cv_path=?, status=? WHERE id=?"
-                    );
-                    stmt.setString(1, title);
-                    stmt.setString(2, description);
-                    stmt.setString(3, cv);
-                    stmt.setString(4, status.toUpperCase());
-                    stmt.setInt(5, app.getId());
-                    stmt.executeUpdate();
-                    showAlert("Success", "✅ Application updated successfully!");
+        } catch (SQLException e) {
+            showAlert("Error", "Failed to check application status: " + e.getMessage());
+        }
+    }
+
+    private void showApplicationDetails(JobApplicationModel app) {
+        VBox detailsBox = new VBox(15);
+        detailsBox.setStyle(
+                "-fx-padding: 20; -fx-background-color: #f9f9f9; -fx-border-radius: 8; -fx-background-radius: 8;");
+
+        Label statusLabel = new Label("Status: " + app.getStatus());
+        statusLabel
+                .setStyle("-fx-font-weight: bold; -fx-padding: 5 10; -fx-text-fill: white; -fx-background-radius: 4; " +
+                        (app.getStatus().equalsIgnoreCase("ACCEPTED") ? "-fx-background-color: #10b981;"
+                                : app.getStatus().equalsIgnoreCase("REJECTED") ? "-fx-background-color: #ef4444;"
+                                        : "-fx-background-color: #f59e0b;"));
+
+        Label title = new Label(app.getTitle());
+        title.setStyle("-fx-font-size: 16; -fx-font-weight: bold;");
+
+        Label desc = new Label(app.getDescription());
+        desc.setWrapText(true);
+
+        Label cv = new Label("CV: " + app.getCvUrl());
+        cv.setStyle("-fx-text-fill: #6c0df2; -fx-underline: true; -fx-cursor: hand;");
+
+        HBox actions = new HBox(10);
+        actions.setAlignment(Pos.CENTER_RIGHT);
+
+        if ("PENDING".equalsIgnoreCase(app.getStatus())) {
+            Button editBtn = new Button("✏️ Edit");
+            editBtn.setStyle("-fx-background-color: #8b5cf6; -fx-text-fill: white; -fx-cursor: hand;");
+            editBtn.setOnAction(e -> showApplicationForm(app));
+
+            Button deleteBtn = new Button("🗑️ Delete");
+            deleteBtn.setStyle("-fx-background-color: #ef4444; -fx-text-fill: white; -fx-cursor: hand;");
+            deleteBtn.setOnAction(e -> deleteMyApplication(app));
+
+            actions.getChildren().addAll(editBtn, deleteBtn);
+        } else {
+            Label info = new Label("Application " + app.getStatus().toLowerCase() + ". Modification disabled.");
+            info.setStyle("-fx-text-fill: #6b7280; -fx-font-style: italic;");
+            actions.getChildren().add(info);
+        }
+
+        detailsBox.getChildren().addAll(statusLabel, title, desc, cv, new Separator(), actions);
+        applicationFormContainer.getChildren().add(detailsBox);
+    }
+
+    private void showApplyButton() {
+        applicationFormContainer.getChildren().clear();
+
+        Button applyBtn = new Button("✨ Apply Now");
+        applyBtn.setStyle(
+                "-fx-background-color: #6c0df2; -fx-text-fill: white; -fx-font-size: 16px; -fx-font-weight: bold; -fx-padding: 12 30; -fx-background-radius: 30; -fx-cursor: hand; -fx-effect: dropshadow(gaussian, rgba(108, 13, 242, 0.3), 10, 0, 0, 4);");
+
+        applyBtn.setOnMouseEntered(e -> {
+            applyBtn.setStyle(
+                    "-fx-background-color: #5b0bc9; -fx-text-fill: white; -fx-font-size: 16px; -fx-font-weight: bold; -fx-padding: 12 30; -fx-background-radius: 30; -fx-cursor: hand; -fx-effect: dropshadow(gaussian, rgba(108, 13, 242, 0.4), 15, 0, 0, 6);");
+            ScaleTransition st = new ScaleTransition(Duration.millis(200), applyBtn);
+            st.setToX(1.1);
+            st.setToY(1.1);
+            st.play();
+        });
+
+        applyBtn.setOnMouseExited(e -> {
+            applyBtn.setStyle(
+                    "-fx-background-color: #6c0df2; -fx-text-fill: white; -fx-font-size: 16px; -fx-font-weight: bold; -fx-padding: 12 30; -fx-background-radius: 30; -fx-cursor: hand; -fx-effect: dropshadow(gaussian, rgba(108, 13, 242, 0.3), 10, 0, 0, 4);");
+            ScaleTransition st = new ScaleTransition(Duration.millis(200), applyBtn);
+            st.setToX(1.0);
+            st.setToY(1.0);
+            st.play();
+        });
+
+        applyBtn.setOnAction(e -> showApplicationForm(null));
+
+        HBox container = new HBox(applyBtn);
+        container.setAlignment(Pos.CENTER);
+        container.setStyle("-fx-padding: 20 0;");
+
+        applicationFormContainer.getChildren().add(container);
+
+        // Fade in
+        FadeTransition ft = new FadeTransition(Duration.millis(500), container);
+        ft.setFromValue(0);
+        ft.setToValue(1);
+        ft.play();
+    }
+
+    private void showApplicationForm(JobApplicationModel existingApp) {
+        applicationFormContainer.getChildren().clear();
+
+        VBox form = new VBox(12);
+        form.setStyle("-fx-padding: 10;");
+
+        Label header = new Label(existingApp == null ? "✨ Apply for this Job" : "✏️ Edit Application");
+        header.setStyle("-fx-font-size: 18; -fx-font-weight: bold; -fx-text-fill: #141118;");
+
+        TextField titleField = new TextField(existingApp != null ? existingApp.getTitle() : "");
+        titleField.setPromptText("Application Title");
+        titleField.setStyle("-fx-padding: 10; -fx-border-color: #e5e7eb; -fx-border-radius: 6;");
+
+        TextArea descArea = new TextArea(existingApp != null ? existingApp.getDescription() : "");
+        descArea.setPromptText("Why are you a good fit?");
+        descArea.setPrefRowCount(4);
+        descArea.setWrapText(true);
+        descArea.setStyle("-fx-control-inner-background: #fafafa; -fx-border-color: #e5e7eb; -fx-border-radius: 6;");
+
+        // CV Section - Dual Option: File Upload OR URL
+        Label cvSectionLabel = new Label("CV / Resume (Choose one option)");
+        cvSectionLabel.setStyle("-fx-font-weight: 700; -fx-font-size: 13px; -fx-text-fill: #374151;");
+
+        // Option 1: File Upload
+        Label cvFileLabel = new Label("No file selected");
+        cvFileLabel.setStyle("-fx-text-fill: #6b7280; -fx-font-size: 12px; -fx-padding: 5 0;");
+        cvFileLabel.setWrapText(true);
+
+        Button uploadCvBtn = new Button("📄 Upload CV File");
+        uploadCvBtn.setStyle(
+                "-fx-background-color: #e0f2fe; -fx-text-fill: #0284c7; -fx-font-weight: 600; -fx-padding: 10 20; -fx-background-radius: 6; -fx-cursor: hand;");
+
+        final String[] selectedCvPath = { "" };
+
+        // Option 2: URL Input
+        TextField cvUrlField = new TextField();
+        cvUrlField.setPromptText("Or paste CV URL (Google Drive, LinkedIn, etc.)");
+        cvUrlField.setStyle("-fx-padding: 10; -fx-border-color: #e5e7eb; -fx-border-radius: 6;");
+
+        // Initialize from existing app
+        if (existingApp != null && existingApp.getCvUrl() != null && !existingApp.getCvUrl().isEmpty()) {
+            if (existingApp.getCvUrl().startsWith("http://") || existingApp.getCvUrl().startsWith("https://")) {
+                cvUrlField.setText(existingApp.getCvUrl());
+            } else {
+                selectedCvPath[0] = existingApp.getCvUrl();
+                cvFileLabel.setText(new java.io.File(existingApp.getCvUrl()).getName());
+                cvFileLabel.setStyle(
+                        "-fx-text-fill: #10b981; -fx-font-size: 12px; -fx-padding: 5 0; -fx-font-weight: 600;");
+            }
+        }
+
+        uploadCvBtn.setOnAction(e -> {
+            javafx.stage.FileChooser fileChooser = new javafx.stage.FileChooser();
+            fileChooser.setTitle("Select CV File");
+            fileChooser.getExtensionFilters().addAll(
+                    new javafx.stage.FileChooser.ExtensionFilter("PDF Files", "*.pdf"),
+                    new javafx.stage.FileChooser.ExtensionFilter("Word Documents", "*.doc", "*.docx"),
+                    new javafx.stage.FileChooser.ExtensionFilter("Text Files", "*.txt"));
+
+            java.io.File file = fileChooser.showOpenDialog(uploadCvBtn.getScene().getWindow());
+            if (file != null) {
+                // Security validation
+                String validationError = validateCvFile(file);
+                if (validationError != null) {
+                    showAlert("Security Error", validationError);
+                    return;
                 }
-                loadApplicationsForJob();
-                dialog.close();
-            } catch (SQLException ex) {
-                showAlert("Error", "Database error: " + ex.getMessage());
+
+                selectedCvPath[0] = file.getAbsolutePath();
+                cvFileLabel.setText("✓ " + file.getName() + " (" + formatFileSize(file.length()) + ")");
+                cvFileLabel.setStyle(
+                        "-fx-text-fill: #10b981; -fx-font-size: 12px; -fx-padding: 5 0; -fx-font-weight: 600;");
+                cvUrlField.clear(); // Clear URL if file is selected
             }
         });
 
-        cancel.setOnAction(e -> dialog.close());
+        // Clear file selection when URL is entered
+        cvUrlField.textProperty().addListener((obs, oldVal, newVal) -> {
+            if (newVal != null && !newVal.trim().isEmpty()) {
+                selectedCvPath[0] = "";
+                cvFileLabel.setText("No file selected");
+                cvFileLabel.setStyle("-fx-text-fill: #6b7280; -fx-font-size: 12px; -fx-padding: 5 0;");
+            }
+        });
 
-        vbox.getChildren().addAll(
-                new Label("📝 Application Form"),
-                userInfoLabel,
-                new Label("Application Title:"),
-                titleField,
-                new Label("Why are you interested?"),
-                descriptionArea,
-                new Label("CV URL:"),
-                cvField,
-                new Label("Status:"),
-                statusCombo,
-                validationLabel,
-                buttons
-        );
+        VBox cvFileBox = new VBox(5, uploadCvBtn, cvFileLabel);
+        cvFileBox.setStyle("-fx-padding: 5 0;");
 
-        ScrollPane scrollPane = new ScrollPane(vbox);
-        scrollPane.setFitToWidth(true);
-        scrollPane.setStyle("-fx-padding: 0; -fx-background-color: white;");
-        return scrollPane;
+        Label orLabel = new Label("OR");
+        orLabel.setStyle("-fx-text-fill: #9ca3af; -fx-font-weight: 600; -fx-padding: 5 0;");
+
+        Label errorLabel = new Label();
+        errorLabel.setStyle("-fx-text-fill: #ef4444;");
+
+        Button submitBtn = new Button(existingApp == null ? "Submit Application" : "Save Changes");
+        submitBtn.setStyle(
+                "-fx-background-color: #6c0df2; -fx-text-fill: white; -fx-font-weight: 600; -fx-padding: 10 20; -fx-background-radius: 6; -fx-cursor: hand;");
+
+        Button cancelBtn = new Button("Cancel");
+        cancelBtn.setStyle(
+                "-fx-background-color: #f3f4f6; -fx-text-fill: #374151; -fx-padding: 10 20; -fx-background-radius: 6; -fx-cursor: hand;");
+        cancelBtn.setOnAction(e -> loadFreelancerApplicationState());
+
+        HBox btns = new HBox(10);
+        btns.getChildren().addAll(submitBtn);
+        if (existingApp != null)
+            btns.getChildren().add(cancelBtn);
+
+        submitBtn.setOnAction(e -> {
+            String t = titleField.getText().trim();
+            String d = descArea.getText().trim();
+            String cvFile = selectedCvPath[0];
+            String cvUrl = cvUrlField.getText().trim();
+
+            if (t.length() < 3 || d.length() < 10) {
+                errorLabel.setText("Title (min 3 chars) and Motivation (min 10 chars) are required.");
+                return;
+            }
+
+            // Validate that at least one CV option is provided
+            if ((cvFile == null || cvFile.isEmpty()) && (cvUrl == null || cvUrl.isEmpty())) {
+                errorLabel.setText("Please upload a CV file OR provide a CV URL.");
+                return;
+            }
+
+            // Validate URL if provided
+            if (cvUrl != null && !cvUrl.isEmpty()) {
+                String urlValidationError = validateCvUrl(cvUrl);
+                if (urlValidationError != null) {
+                    errorLabel.setText(urlValidationError);
+                    return;
+                }
+            }
+
+            // Use file path if available, otherwise use URL
+            String finalCvPath = (cvFile != null && !cvFile.isEmpty()) ? cvFile : cvUrl;
+
+            if (existingApp == null) {
+                saveApplication(t, d, finalCvPath);
+            } else {
+                updateApplication(existingApp.getId(), t, d, finalCvPath);
+            }
+        });
+
+        form.getChildren().addAll(header,
+                new Label("Title"), titleField,
+                new Label("Motivation"), descArea,
+                cvSectionLabel, cvFileBox, orLabel, cvUrlField,
+                errorLabel, btns);
+        applicationFormContainer.getChildren().add(form);
+
+        // Fade in
+        FadeTransition ft = new FadeTransition(Duration.millis(400), form);
+        ft.setFromValue(0);
+        ft.setToValue(1);
+        ft.play();
     }
 
-    private void deleteSelectedApplication() {
-        JobApplicationModel selected = applicationsTable.getSelectionModel().getSelectedItem();
-        if (selected == null) { showAlert("Warning", "Please select an application to delete"); return; }
+    private void saveApplication(String title, String desc, String cv) {
+        try (Connection conn = MyDataBase.getConnection();
+                PreparedStatement stmt = conn.prepareStatement(
+                        "INSERT INTO job_applications(job_id, user_id, title, description, cv_path, status, application_date) VALUES(?,?,?,?,?,'PENDING',?)")) {
 
-        Alert confirm = new Alert(Alert.AlertType.CONFIRMATION,"Are you sure you want to delete?",ButtonType.YES,ButtonType.NO);
-        confirm.setTitle("Confirm Delete");
-        if (confirm.showAndWait().get() == ButtonType.YES) {
-            try (Connection conn = MyDataBase.getConnection();
-                 PreparedStatement stmt = conn.prepareStatement("DELETE FROM job_applications WHERE id=?")) {
-                stmt.setInt(1, selected.getId());
-                stmt.executeUpdate();
-                showAlert("Success","Application deleted successfully!");
-                loadApplicationsForJob();
-            } catch (SQLException e) { showAlert("Error","Database error: "+e.getMessage()); }
+            stmt.setInt(1, selectedJob.getId());
+            stmt.setInt(2, App.currentUser.getId());
+            stmt.setString(3, title);
+            stmt.setString(4, desc);
+            stmt.setString(5, cv);
+            stmt.setDate(6, java.sql.Date.valueOf(LocalDate.now()));
+
+            stmt.executeUpdate();
+            showAlert("Success", "Application submitted!");
+            loadFreelancerApplicationState(); // Refresh
+            countTotalApplicants();
+
+        } catch (SQLException e) {
+            showAlert("Error", "Failed to submit: " + e.getMessage());
         }
     }
 
-    // ----------------- controle saisie -----------------
-    private String validateApplicationInputs(String title, String description, String cvUrl) {
-        if (title.isEmpty()) return "Application title is required";
-        if (title.length() < 5) return "Title must be at least 5 characters";
-        if (description.isEmpty()) return "Description is required";
-        if (description.length() < 20) return "Description must be at least 20 characters";
-        if (cvUrl.isEmpty()) return "CV URL is required";
-        if (!cvUrl.matches("^(https?://.+|file://.+|.+\\.(pdf|doc|docx))$")) return "Invalid CV URL format";
-        return "";
+    private void updateApplication(int appId, String title, String desc, String cv) {
+        try (Connection conn = MyDataBase.getConnection();
+                PreparedStatement stmt = conn.prepareStatement(
+                        "UPDATE job_applications SET title=?, description=?, cv_path=? WHERE id=?")) {
+
+            stmt.setString(1, title);
+            stmt.setString(2, desc);
+            stmt.setString(3, cv);
+            stmt.setInt(4, appId);
+
+            stmt.executeUpdate();
+            showAlert("Success", "Application updated!");
+            loadFreelancerApplicationState(); // Refresh
+
+        } catch (SQLException e) {
+            showAlert("Error", "Failed to update: " + e.getMessage());
+        }
     }
 
-    // ----------------- UTILITY -----------------
+    private void deleteMyApplication(JobApplicationModel app) {
+        Alert confirm = new Alert(Alert.AlertType.CONFIRMATION, "Withdraw application?", ButtonType.YES, ButtonType.NO);
+        if (confirm.showAndWait().orElse(ButtonType.NO) == ButtonType.YES) {
+            try (Connection conn = MyDataBase.getConnection();
+                    PreparedStatement stmt = conn.prepareStatement("DELETE FROM job_applications WHERE id=?")) {
+                stmt.setInt(1, app.getId());
+                stmt.executeUpdate();
+                showAlert("Success", "Application withdrawn.");
+                loadFreelancerApplicationState();
+                countTotalApplicants();
+            } catch (SQLException e) {
+                showAlert("Error", e.getMessage());
+            }
+        }
+    }
+
+    // ==================== COMMON UTILS ====================
+
+    // For Admin: Delete ANY application
+    private void deleteSelectedApplication() {
+        // Not used in card view, but kept if needed for future logic
+    }
+
+    // For Admin: Edit status
+    private void showEditApplicationDialog() {
+        // Not used in card view
+    }
+
+    // ==================== SECURITY VALIDATION ====================
+
+    /**
+     * Validates uploaded CV files for security
+     * Checks: file size, extension, and basic content validation
+     */
+    private String validateCvFile(java.io.File file) {
+        // Check file size (max 10MB)
+        long maxSize = 10 * 1024 * 1024; // 10MB
+        if (file.length() > maxSize) {
+            return "File too large. Maximum size is 10MB.";
+        }
+
+        // Check file extension (whitelist approach)
+        String fileName = file.getName().toLowerCase();
+        String[] allowedExtensions = { ".pdf", ".doc", ".docx", ".txt" };
+        boolean validExtension = false;
+        for (String ext : allowedExtensions) {
+            if (fileName.endsWith(ext)) {
+                validExtension = true;
+                break;
+            }
+        }
+
+        if (!validExtension) {
+            return "Invalid file type. Only PDF, DOC, DOCX, and TXT files are allowed.";
+        }
+
+        // Block executable and script files
+        String[] dangerousExtensions = { ".exe", ".bat", ".sh", ".cmd", ".com", ".scr", ".vbs", ".js", ".jar" };
+        for (String ext : dangerousExtensions) {
+            if (fileName.endsWith(ext)) {
+                return "Dangerous file type detected. This file type is not allowed.";
+            }
+        }
+
+        // Basic content check - read first few bytes to verify it's not an executable
+        try (java.io.FileInputStream fis = new java.io.FileInputStream(file)) {
+            byte[] header = new byte[4];
+            int bytesRead = fis.read(header);
+            if (bytesRead >= 2) {
+                // Check for common executable signatures
+                if (header[0] == 'M' && header[1] == 'Z') { // Windows PE executable
+                    return "File appears to be an executable. Not allowed.";
+                }
+                if (bytesRead >= 4 && header[0] == 0x7F && header[1] == 'E' && header[2] == 'L' && header[3] == 'F') { // ELF
+                                                                                                                       // executable
+                    return "File appears to be an executable. Not allowed.";
+                }
+            }
+        } catch (java.io.IOException e) {
+            return "Error reading file. Please try again.";
+        }
+
+        return null; // File is valid
+    }
+
+    /**
+     * Validates CV URLs for security
+     * Checks: URL format, protocol, and blocks suspicious domains
+     */
+    private String validateCvUrl(String url) {
+        if (url == null || url.trim().isEmpty()) {
+            return "URL cannot be empty.";
+        }
+
+        url = url.trim();
+
+        // Check if it's a valid URL format
+        if (!url.startsWith("http://") && !url.startsWith("https://")) {
+            return "URL must start with http:// or https://";
+        }
+
+        // Block suspicious or dangerous URL patterns
+        String lowerUrl = url.toLowerCase();
+        String[] blockedPatterns = {
+                "javascript:", "data:", "file:", "ftp:",
+                ".exe", ".bat", ".sh", ".cmd", ".scr", ".vbs"
+        };
+
+        for (String pattern : blockedPatterns) {
+            if (lowerUrl.contains(pattern)) {
+                return "Suspicious URL pattern detected. This URL is not allowed.";
+            }
+        }
+
+        // Block adult/inappropriate content keywords
+        String[] adultKeywords = {
+                "porn", "xxx", "adult", "sex", "nude", "nsfw",
+                "escort", "casino", "gambling", "viagra", "cialis",
+                "18+", "xnxx", "xvideos", "pornhub", "redtube",
+                "onlyfans", "chaturbate", "livejasmin"
+        };
+
+        for (String keyword : adultKeywords) {
+            if (lowerUrl.contains(keyword)) {
+                return "⚠️ Inappropriate content detected. This URL is not allowed for professional CV submissions.";
+            }
+        }
+
+        // Block known malicious/spam domains and URL shorteners
+        String[] blockedDomains = {
+                "bit.ly", "tinyurl.com", "goo.gl",
+                "mediafire.com", "4shared.com",
+                "torrent", "pirate", "crack", "keygen"
+        };
+
+        for (String domain : blockedDomains) {
+            if (lowerUrl.contains(domain)) {
+                return "This domain is not allowed. Please use professional platforms like Google Drive, Dropbox, LinkedIn, or GitHub.";
+            }
+        }
+
+        // Check URL length (prevent extremely long URLs)
+        if (url.length() > 2048) {
+            return "URL is too long. Maximum length is 2048 characters.";
+        }
+
+        return null; // URL is valid
+    }
+
+    private String formatFileSize(long bytes) {
+        if (bytes < 1024)
+            return bytes + " B";
+        int exp = (int) (Math.log(bytes) / Math.log(1024));
+        String pre = "KMGTPE".charAt(exp - 1) + "";
+        return String.format("%.1f %sB", bytes / Math.pow(1024, exp), pre);
+    }
+
     private void showAlert(String title, String content) {
         Alert alert = new Alert(Alert.AlertType.INFORMATION);
-        alert.setTitle(title); alert.setContentText(content); alert.showAndWait();
+        alert.setTitle(title);
+        alert.setContentText(content);
+        alert.showAndWait();
+    }
+
+    private String getJobPosterName(int userId) {
+        String name = "Unknown";
+        try (Connection conn = MyDataBase.getConnection();
+                PreparedStatement stmt = conn
+                        .prepareStatement("SELECT first_name, last_name FROM users WHERE id = ?")) {
+            stmt.setInt(1, userId);
+            ResultSet rs = stmt.executeQuery();
+            if (rs.next()) {
+                name = rs.getString("first_name") + " " + rs.getString("last_name");
+            }
+        } catch (SQLException e) {
+            e.printStackTrace();
+        }
+        return name;
     }
 }

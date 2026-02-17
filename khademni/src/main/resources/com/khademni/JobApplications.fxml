@@ -9,155 +9,64 @@
 <?import javafx.scene.layout.BorderPane?>
 <?import javafx.scene.layout.HBox?>
 <?import javafx.scene.layout.VBox?>
+<?import javafx.scene.layout.StackPane?>
+<?import javafx.scene.control.ScrollPane?>
 
 <BorderPane xmlns="http://javafx.com/javafx/22" xmlns:fx="http://javafx.com/fxml/1" fx:controller="com.khademni.controller.JobApplicationController"
-    style="-fx-background-color: #f7f5f8;">
-    <style>
-        .root {
-            -fx-font-family: "Inter", "Segoe UI", "Helvetica Neue", Arial;
-            -fx-font-size: 12px;
-        }
-        
-        .header-label {
-            -fx-font-size: 24px;
-            -fx-font-weight: bold;
-            -fx-text-fill: #141118;
-        }
-        
-        .job-label {
-            -fx-font-size: 14px;
-            -fx-font-weight: 600;
-            -fx-text-fill: #6c0df2;
-        }
-        
-        .button {
-            -fx-padding: 10 18 10 18;
-            -fx-font-size: 12px;
-            -fx-font-weight: 600;
-            -fx-border-radius: 8;
-            -fx-background-radius: 8;
-            -fx-cursor: hand;
-            -fx-effect: dropshadow(gaussian, rgba(0, 0, 0, 0.06), 12, 0.2, 0, 2);
-        }
-        
-        .button:hover {
-            -fx-scale-x: 1.05;
-            -fx-scale-y: 1.05;
-            -fx-effect: dropshadow(gaussian, rgba(0, 0, 0, 0.12), 20, 0.3, 0, 4);
-        }
-        
-        .add-btn {
-            -fx-background-color: #6c0df2;
-            -fx-text-fill: white;
-        }
-        
-        .add-btn:hover {
-            -fx-background-color: #5a0ad9;
-        }
-        
-        .edit-btn {
-            -fx-background-color: #8b5cf6;
-            -fx-text-fill: white;
-        }
-        
-        .edit-btn:hover {
-            -fx-background-color: #7c3aed;
-        }
-        
-        .delete-btn {
-            -fx-background-color: #ef4444;
-            -fx-text-fill: white;
-        }
-        
-        .delete-btn:hover {
-            -fx-background-color: #dc2626;
-        }
-        
-        .combo-box {
-            -fx-padding: 8 12 8 12;
-            -fx-font-size: 12px;
-            -fx-background-color: #fafafa;
-            -fx-border-color: #e5e7eb;
-            -fx-border-radius: 8;
-            -fx-border-width: 1.5;
-        }
-        
-        .combo-box:focused {
-            -fx-border-color: #6c0df2;
-            -fx-background-color: white;
-        }
-        
-        .table-view {
-            -fx-padding: 0;
-            -fx-background-color: white;
-        }
-        
-        .table-view .table-row-cell {
-            -fx-border-color: #f0f0f0;
-            -fx-border-width: 0 0 1 0;
-            -fx-padding: 8 0 8 0;
-        }
-        
-        .table-view .table-row-cell:hover {
-            -fx-background-color: #f9f9f9;
-        }
-        
-        .table-view .table-row-cell:selected {
-            -fx-background-color: #f3e8ff;
-        }
-        
-        .table-view .column-header {
-            -fx-background-color: #f9fafb;
-            -fx-border-color: #e5e7eb;
-            -fx-border-width: 0 0 2 0;
-            -fx-font-weight: 600;
-            -fx-font-size: 12px;
-            -fx-text-fill: #374151;
-            -fx-padding: 12 8 12 8;
-        }
-    </style>
+    stylesheets="@job_applications.css" styleClass="root">
 
     <!-- Top Header -->
     <top>
-        <VBox spacing="15" style="-fx-padding: 20 24 20 24; -fx-background-color: white; -fx-border-color: #f0f0f0; -fx-border-width: 0 0 1 0;">
-            <VBox spacing="8">
-                <Label text="📋 Job Applications" styleClass="header-label" />
-                <Label fx:id="jobTitleLabel" style="-fx-font-size: 14; -fx-font-weight: bold; -fx-text-fill: #374151;" />
+        <HBox styleClass="hero-header" alignment="CENTER_LEFT" spacing="20">
+            <VBox spacing="4" HBox.hgrow="ALWAYS">
+                <Label text="Job Applications" styleClass="hero-title" />
+                <Label fx:id="jobTitleLabel" styleClass="hero-subtitle" />
             </VBox>
-            <HBox spacing="20" alignment="CENTER_LEFT">
-                <Label fx:id="applicationsCountLabel" style="-fx-text-fill: #6b7280; -fx-font-size: 12; -fx-font-weight: 600;" />
-                <HBox spacing="8" alignment="CENTER_LEFT">
-                    <Label text="Filter by Status:" style="-fx-font-size: 12; -fx-font-weight: 600;"/>
-                    <ComboBox fx:id="statusFilterCombo" prefWidth="150" styleClass="combo-box" />
-                </HBox>
+            
+            <!-- Stats -->
+            <VBox styleClass="stats-card" alignment="CENTER">
+                <Label fx:id="totalApplicantsLabel" text="0" styleClass="stats-count" />
+                <Label text="Applicants" styleClass="stats-label" />
+            </VBox>
+
+            <!-- Filter -->
+            <HBox styleClass="filter-box" alignment="CENTER" spacing="8">
+                <Label fx:id="applicationsCountLabel" text="All applications" style="-fx-text-fill: #374151; -fx-font-size: 12px; -fx-font-weight: 600;" />
+                <ComboBox fx:id="statusFilterCombo" promptText="Filter Status" styleClass="filter-combo" />
             </HBox>
-        </VBox>
+        </HBox>
     </top>
 
-    <!-- Center - Table View -->
+    <!-- Center - Content Area -->
     <center>
-        <TableView fx:id="applicationsTable" style="-fx-font-size: 11px; -fx-padding: 0; -fx-background-color: white;" styleClass="table-view">
-            <columns>
-                <TableColumn fx:id="nameColumn" text="👤 Applicant Name" prefWidth="130" />
-                <TableColumn fx:id="emailColumn" text="📧 Email" prefWidth="150" />
-                <TableColumn fx:id="titleColumn" text="📝 Application Title" prefWidth="180" />
-                <TableColumn fx:id="descriptionColumn" text="💬 Description" prefWidth="200" />
-                <TableColumn fx:id="cvColumn" text="📄 CV URL" prefWidth="150" />
-                <TableColumn fx:id="statusColumn" text="✓ Status" prefWidth="90" />
-                <TableColumn fx:id="appliedDateColumn" text="📅 Applied Date" prefWidth="110" />
-            </columns>
-            <columnResizePolicy>
-                <TableView fx:constant="CONSTRAINED_RESIZE_POLICY" />
-            </columnResizePolicy>
-        </TableView>
+        <StackPane style="-fx-padding: 20;">
+            <!-- Admin View: Scrollable Cards -->
+            <ScrollPane fx:id="adminScrollPane" fitToWidth="true" styleClass="scroll-pane" visible="true">
+                <VBox fx:id="adminCardsContainer" spacing="16" style="-fx-padding: 0 10 20 10; -fx-background-color: transparent;" />
+            </ScrollPane>
+
+            <!-- Freelancer View: Job Details + Application Status/Form -->
+            <ScrollPane fx:id="freelancerView" visible="false" fitToWidth="true" styleClass="scroll-pane">
+                <VBox spacing="20" style="-fx-background-color: transparent; -fx-padding: 0 10 20 10;">
+                    
+                    <!-- Job Description Section -->
+                    <VBox styleClass="app-card">
+                         <Label text="Job Details" style="-fx-font-size: 18; -fx-font-weight: bold; -fx-text-fill: #111827; -fx-padding: 0 0 15 0;" />
+                         <Label fx:id="jobDescriptionLabel" wrapText="true" style="-fx-font-size: 14; -fx-text-fill: #4b5563; -fx-line-spacing: 5;" />
+                    </VBox>
+
+                    <!-- Application Section -->
+                     <VBox fx:id="applicationFormContainer" spacing="15" />
+
+                </VBox>
+            </ScrollPane>
+        </StackPane>
     </center>
 
-    <!-- Bottom - Buttons -->
+    <!-- Bottom - Buttons (Hidden mostly, logic handled in cards) -->
+    <!-- We keep adminButtonsBox but make it hidden by default or repurpose if needed -->
     <bottom>
-        <HBox spacing="12" style="-fx-padding: 20; -fx-background-color: white; -fx-border-color: #f0f0f0; -fx-border-width: 1 0 0 0;" alignment="CENTER_LEFT">
-            <Button fx:id="addButton" text="➕ Add Application" styleClass="add-btn" />
-            <Button fx:id="editButton" text="✏️ Edit Application" styleClass="edit-btn" />
-            <Button fx:id="deleteButton" text="🗑️ Delete Application" styleClass="delete-btn" />
-        </HBox>
+        <HBox fx:id="adminButtonsBox" visible="false" managed="false" />
     </bottom>
+
 </BorderPane>

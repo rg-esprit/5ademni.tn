@@ -44,8 +44,10 @@
                         styleClass="jobs-filter-combo" prefWidth="180" />
                     <ComboBox fx:id="jobLocationFilter" promptText="Location"
                         styleClass="jobs-filter-combo" prefWidth="180" />
-                    <ComboBox fx:id="jobSalaryFilter" promptText="Salary Range"
-                        styleClass="jobs-filter-combo" prefWidth="180" />
+                    <VBox spacing="5" alignment="CENTER_LEFT" HBox.hgrow="ALWAYS" maxWidth="300">
+                        <Label fx:id="salaryFilterLabel" text="Min Salary: 0 TND" styleClass="jobs-filter-label" style="-fx-font-size: 11px; -fx-text-fill: #666;" />
+                        <Slider fx:id="jobSalarySlider" min="0" max="10000" value="0" showTickLabels="false" showTickMarks="false" />
+                    </VBox>
                     <Region HBox.hgrow="ALWAYS" />
                     <Button text="Reset Filters" styleClass="jobs-reset-btn" onAction="#resetFilters" />
                 </HBox>

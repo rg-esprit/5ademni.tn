@@ -27,36 +27,148 @@ import java.util.Optional;
 
 public class JobsController {
 
-    @FXML private TextField jobSearchField;
-    @FXML private ComboBox<String> jobCategoryFilter;
-    @FXML private ComboBox<String> jobLocationFilter;
-    @FXML private ComboBox<String> jobSalaryFilter;
-    @FXML private VBox jobsContainer;
-    @FXML private VBox emptyStateBox;
+    @FXML
+    private TextField jobSearchField;
+    @FXML
+    private ComboBox<String> jobCategoryFilter;
+    @FXML
+    private ComboBox<String> jobLocationFilter;
+    @FXML
+    private Slider jobSalarySlider;
+    @FXML
+    private Label salaryFilterLabel;
+    @FXML
+    private VBox jobsContainer;
+    @FXML
+    private VBox emptyStateBox;
 
     private List<JobModel> allJobs = new ArrayList<>();
     private List<JobModel> filteredJobs = new ArrayList<>();
 
     @FXML
     public void initialize() {
-        setupComboBoxes();
-        loadJobsFromDB();
-        displayJobs(filteredJobs);
+        System.out.println("DEBUG: JobsController initializing...");
+        try {
+            setupComboBoxes();
+            System.out.println("DEBUG: ComboBoxes setup done");
+            loadJobsFromDB();
+            System.out.println("DEBUG: Jobs loaded");
+            setupSalarySlider();
+            System.out.println("DEBUG: Salary Slider setup done");
+            displayJobs(filteredJobs);
+            System.out.println("DEBUG: Jobs displayed");
+        } catch (Exception e) {
+            System.err.println("DEBUG: Error in JobsController initialize: " + e.getMessage());
+            e.printStackTrace();
+        }
     }
 
     private void setupComboBoxes() {
-        jobCategoryFilter.getItems().addAll("All Categories","Software Development","Design","Marketing","Sales","Business","HR","Finance");
+        jobCategoryFilter.getItems().addAll("All Categories", "Software Development", "Design", "Marketing", "Sales",
+                "Business", "HR", "Finance");
         jobCategoryFilter.setValue("All Categories");
 
-        jobLocationFilter.getItems().addAll("All Locations","Tunisia","Remote","Tunis","Sfax","Sousse","Gabes");
+        jobLocationFilter.getItems().addAll("All Locations", "Tunisia", "Remote", "Tunis", "Sfax", "Sousse", "Gabes");
         jobLocationFilter.setValue("All Locations");
-
-        jobSalaryFilter.getItems().addAll("All Ranges","500 - 1000 TND","1000 - 2000 TND","2000 - 3500 TND","3500+ TND");
-        jobSalaryFilter.setValue("All Ranges");
 
         jobCategoryFilter.setOnAction(e -> applyFilters());
         jobLocationFilter.setOnAction(e -> applyFilters());
-        jobSalaryFilter.setOnAction(e -> applyFilters());
+
+        // Setup smart search with autocomplete
+        setupSmartSearch();
+
+        // Slider setup logic moved to separate method
+    }
+
+    /**
+     * Sets up smart search with autocomplete and live filtering
+     */
+    private void setupSmartSearch() {
+        // Live search - update results as user types
+        jobSearchField.textProperty().addListener((observable, oldValue, newValue) -> {
+            applyFilters(); // Automatically filter as user types
+        });
+
+        // Add autocomplete suggestions (optional enhancement)
+        // This will show suggestions based on existing job titles and companies
+        jobSearchField.setOnKeyReleased(event -> {
+            String currentText = jobSearchField.getText().toLowerCase().trim();
+            if (currentText.length() >= 2) { // Start suggesting after 2 characters
+                showSearchSuggestions(currentText);
+            }
+        });
+    }
+
+    /**
+     * Shows smart search suggestions based on job titles and companies
+     */
+    private void showSearchSuggestions(String query) {
+        // Collect unique suggestions from job titles and companies
+        java.util.Set<String> suggestions = new java.util.LinkedHashSet<>();
+
+        for (JobModel job : allJobs) {
+            String title = job.getTitle().toLowerCase();
+            String company = job.getCompany().toLowerCase();
+
+            // Add matching job titles
+            if (title.contains(query)) {
+                suggestions.add(job.getTitle());
+            }
+
+            // Add matching companies
+            if (company.contains(query)) {
+                suggestions.add(job.getCompany());
+            }
+
+            // Limit to top 5 suggestions
+            if (suggestions.size() >= 5)
+                break;
+        }
+
+        // Note: For full autocomplete dropdown, you would need to use a custom control
+        // or third-party library like ControlsFX AutoCompleteTextField
+        // For now, the live search provides instant results
+    }
+
+    private void setupSalarySlider() {
+        // Find max salary in DB or use fixed 10000 per user request
+        int maxSalary = 10000;
+
+        jobSalarySlider.setMin(0);
+        jobSalarySlider.setMax(maxSalary);
+        jobSalarySlider.setValue(0);
+        jobSalarySlider.setBlockIncrement(100);
+        jobSalarySlider.setMajorTickUnit(1000);
+
+        updateSalaryLabel((int) jobSalarySlider.getValue());
+
+        jobSalarySlider.valueProperty().addListener((obs, oldVal, newVal) -> {
+            updateSalaryLabel(newVal.intValue());
+            applyFilters();
+        });
+    }
+
+    private void updateSalaryLabel(int value) {
+        salaryFilterLabel.setText("Min Salary: " + value + " TND");
+    }
+
+    private int extractMaxSalary(String salaryRange) {
+        if (salaryRange == null)
+            return 0;
+        // Simple regex to find the last number in the string which is usually the max
+        // E.g. "2000 - 3500" -> 3500. "3500+" -> 3500. "1500" -> 1500.
+        try {
+            java.util.regex.Matcher m = java.util.regex.Pattern.compile("(\\d+)").matcher(salaryRange);
+            int max = 0;
+            while (m.find()) {
+                int val = Integer.parseInt(m.group(1));
+                if (val > max)
+                    max = val;
+            }
+            return max;
+        } catch (Exception e) {
+            return 0;
+        }
     }
 
     // ==================== lehna partie mtaa db ====================
@@ -64,11 +176,14 @@ public class JobsController {
         allJobs.clear();
         filteredJobs.clear();
         try (Connection conn = MyDataBase.getConnection()) {
-            if (conn == null) { loadSampleJobs(); return; }
+            if (conn == null) {
+                loadSampleJobs();
+                return;
+            }
 
             String query = "SELECT * FROM jobs ORDER BY posted_date DESC";
             try (Statement stmt = conn.createStatement();
-                 ResultSet rs = stmt.executeQuery(query)) {
+                    ResultSet rs = stmt.executeQuery(query)) {
 
                 while (rs.next()) {
                     JobModel job = mapResultSetToJob(rs);
@@ -83,8 +198,8 @@ public class JobsController {
     }
 
     private JobModel mapResultSetToJob(ResultSet rs) throws SQLException {
-        String[] requirements = rs.getString("requirements") != null ?
-                rs.getString("requirements").split(",\\s*") : new String[0];
+        String[] requirements = rs.getString("requirements") != null ? rs.getString("requirements").split(",\\s*")
+                : new String[0];
 
         return new JobModel(
                 rs.getInt("id"),
@@ -97,32 +212,35 @@ public class JobsController {
                 rs.getString("job_type"),
                 rs.getDate("posted_date").toLocalDate(),
                 requirements,
-                rs.getInt("user_id")
-        );
+                rs.getInt("user_id"));
     }
 
-     private void loadSampleJobs() {
-        allJobs.add(new JobModel(1, "Senior Java Developer","Tech Innovators Inc","Tunis",
+    private void loadSampleJobs() {
+        allJobs.add(new JobModel(1, "Senior Java Developer", "Tech Innovators Inc", "Tunis",
                 "We are looking for an experienced Java developer to join our team...",
-                "Software Development","2000 - 3500 TND","Full-time",LocalDate.now().minusDays(2),
-                new String[]{"Java 17+","Spring Boot","MySQL","REST APIs"},1));
+                "Software Development", "2000 - 3500 TND", "Full-time", LocalDate.now().minusDays(2),
+                new String[] { "Java 17+", "Spring Boot", "MySQL", "REST APIs" }, 1));
 
-        allJobs.add(new JobModel(2,"UI/UX Designer","Creative Studio","Remote",
+        allJobs.add(new JobModel(2, "UI/UX Designer", "Creative Studio", "Remote",
                 "Join our design team to create stunning user experiences...",
-                "Design","1500 - 2500 TND","Full-time",LocalDate.now().minusDays(5),
-                new String[]{"Figma","Adobe XD","Prototyping"},2));
+                "Design", "1500 - 2500 TND", "Full-time", LocalDate.now().minusDays(5),
+                new String[] { "Figma", "Adobe XD", "Prototyping" }, 2));
 
         filteredJobs.addAll(allJobs);
     }
 
     // ==================== hethi partie mtaa search wl filtres ====================
-    @FXML private void performSearch() { applyFilters(); }
+    @FXML
+    private void performSearch() {
+        applyFilters();
+    }
 
-    @FXML private void resetFilters() {
+    @FXML
+    private void resetFilters() {
         jobSearchField.clear();
         jobCategoryFilter.setValue("All Categories");
         jobLocationFilter.setValue("All Locations");
-        jobSalaryFilter.setValue("All Ranges");
+        jobSalarySlider.setValue(0);
         filteredJobs.clear();
         filteredJobs.addAll(allJobs);
         displayJobs(filteredJobs);
@@ -132,7 +250,7 @@ public class JobsController {
         String searchQuery = jobSearchField.getText().toLowerCase().trim();
         String selectedCategory = jobCategoryFilter.getValue();
         String selectedLocation = jobLocationFilter.getValue();
-        String selectedSalary = jobSalaryFilter.getValue();
+        int minSalary = (int) jobSalarySlider.getValue();
 
         filteredJobs.clear();
 
@@ -148,8 +266,9 @@ public class JobsController {
             boolean matchesLocation = selectedLocation.equals("All Locations") ||
                     job.getLocation().equals(selectedLocation);
 
-            boolean matchesSalary = selectedSalary.equals("All Ranges") ||
-                    job.getSalaryRange().equals(selectedSalary);
+            // Salary Filter: Check if max salary of job >= slider min
+            int jobMaxSalary = extractMaxSalary(job.getSalaryRange());
+            boolean matchesSalary = jobMaxSalary >= minSalary;
 
             if (matchesSearch && matchesCategory && matchesLocation && matchesSalary)
                 filteredJobs.add(job);
@@ -166,8 +285,8 @@ public class JobsController {
         int idx = 0;
         for (JobModel job : jobs) {
             VBox card = createJobCard(job);
-            
-            // hethi partie mtaa animation w animation 
+
+            // hethi partie mtaa animation w animation
 
             card.setOpacity(0);
             card.setTranslateY(12);
@@ -190,72 +309,83 @@ public class JobsController {
         VBox card = new VBox(16);
         card.getStyleClass().add("job-card");
         card.setStyle("-fx-padding: 20; -fx-background-color: white; -fx-border-radius: 12; " +
-                     "-fx-border-color: #f0f0f0; -fx-border-width: 1; " +
-                     "-fx-effect: dropshadow(gaussian, rgba(0, 0, 0, 0.06), 30, 0, 0, 8);");
+                "-fx-border-color: #f0f0f0; -fx-border-width: 1; " +
+                "-fx-effect: dropshadow(gaussian, rgba(0, 0, 0, 0.06), 30, 0, 0, 8);");
 
         // Header
-        HBox header = new HBox(16); 
+        HBox header = new HBox(16);
         header.setAlignment(Pos.TOP_LEFT);
-        Circle logo = new Circle(32); 
+        Circle logo = new Circle(32);
         logo.getStyleClass().add("job-company-logo");
         logo.setStyle("-fx-fill: #6c0df2;");
-        
+
         VBox info = new VBox(4);
-        Label company = new Label(job.getCompany()); 
+        Label company = new Label(job.getCompany());
         company.getStyleClass().add("job-company-name");
         company.setStyle("-fx-font-size: 12; -fx-font-weight: 600; -fx-text-fill: #6c0df2;");
-        
-        Label title = new Label(job.getTitle()); 
-        title.getStyleClass().add("job-title"); 
+
+        Label title = new Label(job.getTitle());
+        title.getStyleClass().add("job-title");
         title.setWrapText(true);
         title.setStyle("-fx-font-size: 16; -fx-font-weight: 800; -fx-text-fill: #141118;");
-        
-        info.getChildren().addAll(company, title); 
+
+        info.getChildren().addAll(company, title);
         HBox.setHgrow(info, Priority.ALWAYS);
-        header.getChildren().addAll(logo, info); 
+        header.getChildren().addAll(logo, info);
         card.getChildren().add(header);
 
         // Meta
-        HBox meta = new HBox(12); 
-        meta.setAlignment(Pos.CENTER_LEFT); 
+        HBox meta = new HBox(12);
+        meta.setAlignment(Pos.CENTER_LEFT);
         meta.getStyleClass().add("job-meta-container");
-        
-        Label type = new Label(job.getJobType()); 
+
+        Label type = new Label(job.getJobType());
         type.getStyleClass().add("job-meta-tag");
-        type.setStyle("-fx-background-color: #f3e8ff; -fx-text-fill: #6c0df2; -fx-padding: 4 8 4 8; -fx-border-radius: 6; -fx-font-size: 11; -fx-font-weight: 600;");
-        
-        Label loc = new Label("📍 "+ job.getLocation()); 
+        type.setStyle(
+                "-fx-background-color: #f3e8ff; -fx-text-fill: #6c0df2; -fx-padding: 4 8 4 8; -fx-border-radius: 6; -fx-font-size: 11; -fx-font-weight: 600;");
+
+        String fullLocation = job.getLocation();
+        String displayLocation = fullLocation;
+        if (fullLocation != null && fullLocation.length() > 35) {
+            displayLocation = fullLocation.substring(0, 32) + "...";
+        }
+        Label loc = new Label("📍 " + displayLocation);
+        if (fullLocation != null) {
+            Tooltip locTooltip = new Tooltip(fullLocation);
+            locTooltip.setStyle("-fx-font-size: 13px;");
+            loc.setTooltip(locTooltip);
+        }
         loc.getStyleClass().add("job-location-tag");
         loc.setStyle("-fx-text-fill: #666666; -fx-font-size: 12;");
-        
-        Label salary = new Label("💰 " + job.getSalaryRange()); 
+
+        Label salary = new Label("💰 " + job.getSalaryRange() + " TND");
         salary.getStyleClass().add("job-salary-tag");
         salary.setStyle("-fx-text-fill: #666666; -fx-font-size: 12;");
-        
-        Label category = new Label("📌"+job.getCategory());
+
+        Label category = new Label("📌 " + job.getCategory());
         category.getStyleClass().add("job-category-tag");
         category.setStyle("-fx-text-fill: #666666; -fx-font-size: 12;");
-        
-        meta.getChildren().addAll(type, loc, salary); 
+
+        meta.getChildren().addAll(type, loc, salary, category);
         card.getChildren().add(meta);
 
         // Description
-        Label desc = new Label(job.getDescription()); 
-        desc.getStyleClass().add("job-description"); 
+        Label desc = new Label(job.getDescription());
+        desc.getStyleClass().add("job-description");
         desc.setWrapText(true);
         desc.setStyle("-fx-text-fill: #666666; -fx-font-size: 13; -fx-wrap-text: true;");
         card.getChildren().add(desc);
 
         // Requirements
         if (job.getRequirements().length > 0) {
-            Label reqLabel = new Label("Key Requirements:"); 
+            Label reqLabel = new Label("Key Requirements:");
             reqLabel.getStyleClass().add("job-requirements-label");
             reqLabel.setStyle("-fx-font-size: 12; -fx-font-weight: 700; -fx-text-fill: #141118;");
-            
+
             VBox reqList = new VBox(6);
             for (String r : job.getRequirements()) {
-                Label l = new Label("• " + r); 
-                l.getStyleClass().add("job-requirement-item"); 
+                Label l = new Label("• " + r);
+                l.getStyleClass().add("job-requirement-item");
                 l.setStyle("-fx-font-size: 11; -fx-text-fill: #666666;");
                 reqList.getChildren().add(l);
             }
@@ -263,52 +393,51 @@ public class JobsController {
         }
 
         // Footer
-        HBox footer = new HBox(16); 
-        footer.setAlignment(Pos.CENTER_LEFT); 
+        HBox footer = new HBox(16);
+        footer.setAlignment(Pos.CENTER_LEFT);
         footer.getStyleClass().add("job-card-footer");
-        
-        Label posted = new Label("Posted " + formatPostedDate(job.getPostedDate())); 
+
+        Label posted = new Label("Posted " + formatPostedDate(job.getPostedDate()));
         posted.getStyleClass().add("job-posted-date");
         posted.setStyle("-fx-text-fill: #999999; -fx-font-size: 11;");
-        
-        Region spacer = new Region(); 
+
+        Region spacer = new Region();
         HBox.setHgrow(spacer, Priority.ALWAYS);
-        
-        Button save = new Button("Save"); 
+
+        Button save = new Button("Save");
         save.getStyleClass().add("job-save-btn");
         save.setStyle("-fx-background-color: #f0f0f0; -fx-text-fill: #333333; -fx-font-weight: 600; " +
-                      "-fx-padding: 8 16 8 16; -fx-border-radius: 8; -fx-cursor: hand;");
+                "-fx-padding: 8 16 8 16; -fx-border-radius: 8; -fx-cursor: hand;");
         save.setOnAction(e -> handleSaveJob(job));
-        
+
         Button edit = new Button("✏️ Edit");
         edit.setStyle("-fx-background-color: #6c0df2; -fx-text-fill: white; -fx-font-weight: 600; " +
-                      "-fx-padding: 8 16 8 16; -fx-border-radius: 8; -fx-cursor: hand;");
+                "-fx-padding: 8 16 8 16; -fx-border-radius: 8; -fx-cursor: hand;");
         edit.setOnAction(e -> showEditJobDialog(job));
-        
+
         Button delete = new Button("🗑️ Delete");
         delete.setStyle("-fx-background-color: #ef4444; -fx-text-fill: white; -fx-font-weight: 600; " +
-                        "-fx-padding: 8 16 8 16; -fx-border-radius: 8; -fx-cursor: hand;");
+                "-fx-padding: 8 16 8 16; -fx-border-radius: 8; -fx-cursor: hand;");
         delete.setOnAction(e -> deleteJob(job));
-        
-        Button apply = new Button("Apply Now"); 
+
+        Button apply = new Button("Apply Now");
         apply.getStyleClass().add("job-apply-btn");
         apply.setStyle("-fx-background-color: #10b981; -fx-text-fill: white; -fx-font-weight: 600; " +
-                       "-fx-padding: 8 16 8 16; -fx-border-radius: 8; -fx-cursor: hand;");
+                "-fx-padding: 8 16 8 16; -fx-border-radius: 8; -fx-cursor: hand;");
         apply.setOnAction(e -> handleApplyJob(job));
-        
+
         // t affichi edit/delete if user is the owner or admin
         if (App.currentUser != null && (App.currentUser.getId() == job.getUserId() || isAdmin())) {
             footer.getChildren().addAll(posted, spacer, edit, delete, apply);
         } else {
             footer.getChildren().addAll(posted, spacer, save, apply);
         }
-        
+
         card.getChildren().add(footer);
 
-      
         DropShadow hoverShadow = new DropShadow(22, Color.web("#6c0df2", 0.12));
         card.setOnMouseEntered(ev -> {
-            
+
             TranslateTransition lift = new TranslateTransition(Duration.millis(160), card);
             lift.setToY(-6);
             lift.play();
@@ -326,12 +455,16 @@ public class JobsController {
     }
 
     private String formatPostedDate(LocalDate date) {
-        long days = ChronoUnit.DAYS.between(date,LocalDate.now());
-        if(days==0) return "today";
-        if(days==1) return "yesterday";
-        if(days<7) return days+" days ago";
-        if(days<30) return (days/7)+" weeks ago";
-        return (days/30)+" months ago";
+        long days = ChronoUnit.DAYS.between(date, LocalDate.now());
+        if (days == 0)
+            return "today";
+        if (days == 1)
+            return "yesterday";
+        if (days < 7)
+            return days + " days ago";
+        if (days < 30)
+            return (days / 7) + " weeks ago";
+        return (days / 30) + " months ago";
     }
 
     // ==================== partie mtaa create job ====================
@@ -343,53 +476,51 @@ public class JobsController {
             return;
         }
 
-    // creation de dialog 
+        // creation de dialog
         Dialog<JobModel> dialog = new Dialog<>();
         dialog.setTitle("Add New Job");
         dialog.setHeaderText("Create a new job posting");
 
         DialogPane dialogPane = dialog.getDialogPane();
 
-    // design
+        // design
         dialogPane.getStylesheets().add(
-            getClass().getResource("/com/khademni/dialogs.css").toExternalForm()
-        );
+                getClass().getResource("/com/khademni/dialogs.css").toExternalForm());
         dialogPane.getStyleClass().add("job-dialog");
 
-    // Boutons
+        // Boutons
         dialogPane.getButtonTypes().addAll(ButtonType.OK, ButtonType.CANCEL);
 
-    // Contenu (Form Helper)
+        // Contenu (Form Helper)
         VBox content = createJobForm(null);
         content.getStyleClass().add("job-form");
         dialogPane.setContent(content);
 
-    // tvalidation 9bal m tsaker
+        // tvalidation 9bal m tsaker
         javafx.scene.Node okButton = dialogPane.lookupButton(ButtonType.OK);
         okButton.addEventFilter(javafx.event.ActionEvent.ACTION, event -> {
 
             JobModel job = extractJobFormData(content, null);
 
             if (!isJobValid(job)) {
-                event.consume(); 
+                event.consume();
                 showAlert(
-                     "Validation Error",
-                    """
-                    Please check the following:
-                    • Title / Company / Location: minimum 3 characters
-                    • Description: minimum 20 characters
-                    • Salary: required
-                    """
-                );
+                        "Validation Error",
+                        """
+                                Please check the following:
+                                • Title / Company / Location: minimum 3 characters
+                                • Description: minimum 20 characters
+                                • Salary: required
+                                """);
             }
-        }       );
-   
+        });
+
         dialog.setResultConverter(button -> {
             if (button == ButtonType.OK) {
                 return extractJobFormData(content, null);
             }
             return null;
-        }     );
+        });
 
         Optional<JobModel> result = dialog.showAndWait();
         result.ifPresent(this::insertJobToDB);
@@ -397,13 +528,12 @@ public class JobsController {
 
     private boolean isJobValid(JobModel job) {
         return job != null
-            && job.getTitle() != null && job.getTitle().trim().length() >= 3
-            && job.getCompany() != null && job.getCompany().trim().length() >= 3
-            && job.getLocation() != null && job.getLocation().trim().length() >= 3
-            && job.getDescription() != null && job.getDescription().trim().length() >= 20
-            && job.getSalaryRange() != null && !job.getSalaryRange().trim().isEmpty();
+                && job.getTitle() != null && job.getTitle().trim().length() >= 3
+                && job.getCompany() != null && job.getCompany().trim().length() >= 3
+                && job.getLocation() != null && job.getLocation().trim().length() >= 3
+                && job.getDescription() != null && job.getDescription().trim().length() >= 20
+                && job.getSalaryRange() != null && !job.getSalaryRange().trim().isEmpty();
     }
-
 
     private void insertJobToDB(JobModel job) {
         try {
@@ -413,8 +543,9 @@ public class JobsController {
                 return;
             }
 
-            String query = "INSERT INTO jobs (title, company, location, description, category, salary_range, job_type, posted_date, requirements, user_id) " +
-                          "VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)";
+            String query = "INSERT INTO jobs (title, company, location, description, category, salary_range, job_type, posted_date, requirements, user_id) "
+                    +
+                    "VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)";
             PreparedStatement stmt = conn.prepareStatement(query);
             stmt.setString(1, job.getTitle());
             stmt.setString(2, job.getCompany());
@@ -440,20 +571,20 @@ public class JobsController {
         }
     }
 
-    // ====================  EL UPDATE ====================
+    // ==================== EL UPDATE ====================
     private void showEditJobDialog(JobModel job) {
-        if(App.currentUser==null || (App.currentUser.getId() != job.getUserId() && !isAdmin())) {
+        if (App.currentUser == null || (App.currentUser.getId() != job.getUserId() && !isAdmin())) {
             showAlert("Permission Denied", "You can only edit your own jobs");
             return;
         }
-        
+
         Dialog<JobModel> dialog = new Dialog<>();
         dialog.setTitle("Edit Job");
         dialog.setHeaderText("Edit job posting: " + job.getTitle());
 
         DialogPane dialogPane = dialog.getDialogPane();
         dialogPane.getStylesheets().add(
-        getClass().getResource("/com/khademni/dialogs.css").toExternalForm());
+                getClass().getResource("/com/khademni/dialogs.css").toExternalForm());
         dialogPane.getStyleClass().add("job-dialog");
         dialogPane.getButtonTypes().addAll(ButtonType.OK, ButtonType.CANCEL);
         dialogPane.setStyle("-fx-font-size: 12;");
@@ -470,7 +601,8 @@ public class JobsController {
                     || candidate.getDescription() == null || candidate.getDescription().trim().length() < 20
                     || candidate.getSalaryRange() == null || candidate.getSalaryRange().trim().isEmpty()) {
                 evt.consume();
-                showAlert("Validation Error", "Please provide valid Title, Company, Location (min 3 chars), Description (min 20 chars), and Salary (integer).");
+                showAlert("Validation Error",
+                        "Please provide valid Title, Company, Location (min 3 chars), Description (min 20 chars), and Salary (integer).");
             }
         });
 
@@ -520,13 +652,13 @@ public class JobsController {
         }
     }
 
-    // ====================  EL DELETE ====================
+    // ==================== EL DELETE ====================
     private void deleteJob(JobModel job) {
-        if(App.currentUser==null || (App.currentUser.getId() != job.getUserId() && !isAdmin())) {
+        if (App.currentUser == null || (App.currentUser.getId() != job.getUserId() && !isAdmin())) {
             showAlert("Permission Denied", "You can only delete your own jobs");
             return;
         }
-        
+
         Alert confirmAlert = new Alert(Alert.AlertType.CONFIRMATION);
         confirmAlert.setTitle("Delete Job");
         confirmAlert.setHeaderText("Confirm Deletion");
@@ -565,10 +697,62 @@ public class JobsController {
 
         TextField titleField = createFormField("Job Title", editingJob != null ? editingJob.getTitle() : "");
         TextField companyField = createFormField("Company Name", editingJob != null ? editingJob.getCompany() : "");
+
+        // Location Autocomplete with Map Button
         TextField locationField = createFormField("Location", editingJob != null ? editingJob.getLocation() : "");
-        TextField categoryField = createFormField("Category", editingJob != null ? editingJob.getCategory() : "");
-        TextField salaryField = createIntegerSalaryField("Salary (in TND)", editingJob != null ? editingJob.getSalaryRange() : "");
-        TextField typeField = createFormField("Job Type", editingJob != null ? editingJob.getJobType() : "");
+        HBox.setHgrow(locationField, Priority.ALWAYS);
+        setupLocationAutocomplete(locationField);
+
+        Button mapBtn = new Button("🌍 Map");
+        mapBtn.setStyle(
+                "-fx-background-color: #e0f2fe; -fx-text-fill: #0284c7; -fx-font-weight: bold; -fx-cursor: hand;");
+        mapBtn.setOnAction(e -> showMapPickerDialog(locationField));
+
+        HBox locationBox = new HBox(5, locationField, mapBtn);
+        locationBox.setAlignment(Pos.CENTER_LEFT);
+
+        // Category ComboBox
+        ComboBox<String> categoryCombo = new ComboBox<>();
+        categoryCombo.getItems().addAll("Software Development", "Design", "Marketing", "Sales", "Business", "HR",
+                "Finance", "Other");
+        categoryCombo.setValue(editingJob != null ? editingJob.getCategory() : "Software Development");
+        categoryCombo.setMaxWidth(Double.MAX_VALUE);
+        categoryCombo
+                .setStyle("-fx-padding: 8; -fx-background-radius: 8; -fx-border-radius: 8; -fx-border-color: #e5e7eb;");
+
+        // Salary Slider
+        int initialSalary = 0;
+        if (editingJob != null && editingJob.getSalaryRange() != null) {
+            try {
+                // Try to parse existing salary if it's just a number
+                initialSalary = Integer.parseInt(editingJob.getSalaryRange().replaceAll("[^0-9]", ""));
+            } catch (NumberFormatException e) {
+                // ignore
+            }
+        }
+
+        Slider salarySlider = new Slider(0, 5000, initialSalary);
+        salarySlider.setShowTickLabels(true);
+        salarySlider.setShowTickMarks(true);
+        salarySlider.setMajorTickUnit(1000);
+        salarySlider.setBlockIncrement(100);
+
+        Label salaryLabel = new Label("Salary: " + (int) salarySlider.getValue() + " TND");
+        salaryLabel.setStyle("-fx-font-weight: 700;");
+
+        salarySlider.valueProperty().addListener((obs, oldVal, newVal) -> {
+            salaryLabel.setText("Salary: " + newVal.intValue() + " TND");
+        });
+
+        VBox salaryBox = new VBox(5, salaryLabel, salarySlider);
+
+        // Job Type ComboBox
+        ComboBox<String> typeCombo = new ComboBox<>();
+        typeCombo.getItems().addAll("Full-time", "Part-time", "Freelance", "Internship", "Contract");
+        typeCombo.setValue(editingJob != null ? editingJob.getJobType() : "Full-time");
+        typeCombo.setMaxWidth(Double.MAX_VALUE);
+        typeCombo
+                .setStyle("-fx-padding: 8; -fx-background-radius: 8; -fx-border-radius: 8; -fx-border-color: #e5e7eb;");
 
         TextArea descArea = new TextArea(editingJob != null ? editingJob.getDescription() : "");
         descArea.setStyle("-fx-control-inner-background: #fafafa; -fx-focus-color: #6c0df2;");
@@ -584,52 +768,226 @@ public class JobsController {
         addFormLabel("Requirements (one per line)", form);
         form.getChildren().add(reqArea);
 
-        form.setUserData(new Object[]{titleField, companyField, locationField, categoryField, salaryField, typeField, descArea, reqArea});
+        // Store references for extraction
+        form.setUserData(new Object[] { titleField, companyField, locationField, categoryCombo, salarySlider, typeCombo,
+                descArea, reqArea });
 
         form.getChildren().addAll(
-            createFormSection("Title", titleField),
-            createFormSection("Company", companyField),
-            createFormSection("Location", locationField),
-            createFormSection("Category", categoryField),
-            createFormSection("Salary (TND)", salaryField),
-            createFormSection("Job Type", typeField)
-        );
+                createFormSection("Title", titleField),
+                createFormSection("Company", companyField),
+                createFormSection("Location", locationBox),
+                createFormSection("Category", categoryCombo),
+                // Salary section is self-contained so we add it directly mostly
+                salaryBox,
+                createFormSection("Job Type", typeCombo));
 
         return form;
     }
 
-    private HBox createFormSection(String label, TextField field) {
+    private void showMapPickerDialog(TextField locationField) {
+        Dialog<String> dialog = new Dialog<>();
+        dialog.setTitle("Pick Location");
+        dialog.setHeaderText("Click on the map to select location");
+
+        DialogPane pane = dialog.getDialogPane();
+        pane.getButtonTypes().add(ButtonType.CLOSE);
+        pane.setPrefSize(800, 600);
+
+        javafx.scene.web.WebView webView = new javafx.scene.web.WebView();
+        javafx.scene.web.WebEngine engine = webView.getEngine();
+
+        // Simple HTML for Leaflet Map
+        String html = """
+                    <!DOCTYPE html>
+                    <html>
+                    <head>
+                        <link rel="stylesheet" href="https://unpkg.com/leaflet@1.7.1/dist/leaflet.css" />
+                        <script src="https://unpkg.com/leaflet@1.7.1/dist/leaflet.js"></script>
+                        <style>
+                            body, html, #map { margin: 0; padding: 0; height: 100%; width: 100%; }
+                        </style>
+                    </head>
+                    <body>
+                        <div id="map"></div>
+                        <script>
+                            var map = L.map('map').setView([36.8065, 10.1815], 10); // Tunis center
+                            L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+                                attribution: '&copy; OpenStreetMap contributors'
+                            }).addTo(map);
+
+                            var marker;
+
+                            map.on('click', function(e) {
+                                var lat = e.latlng.lat;
+                                var lon = e.latlng.lng;
+
+                                if (marker) map.removeLayer(marker);
+                                marker = L.marker([lat, lon]).addTo(map);
+
+                // Reverse Geocoding via Nominatim
+                                fetch(`https://nominatim.openstreetmap.org/reverse?format=json&lat=${lat}&lon=${lon}`)
+                                    .then(response => response.json())
+                                    .then(data => {
+                                        // Use full address for precision
+                                        var fullAddress = data.display_name;
+                                        // Call Java
+                                        if (window.javaObj) {
+                                            window.javaObj.setLocation(fullAddress);
+                                        } else {
+                                            console.log("Java object not found");
+                                        }
+                                    });
+                            });
+                        </script>
+                    </body>
+                    </html>
+                """;
+
+        engine.loadContent(html);
+
+        // Register bridge when page loads
+        engine.getLoadWorker().stateProperty().addListener((obs, oldState, newState) -> {
+            if (newState == javafx.concurrent.Worker.State.SUCCEEDED) {
+                netscape.javascript.JSObject window = (netscape.javascript.JSObject) engine.executeScript("window");
+                window.setMember("javaObj", new MapBridge(locationField, dialog));
+            }
+        });
+
+        pane.setContent(webView);
+        dialog.showAndWait();
+
+    }
+
+    private void setupLocationAutocomplete(TextField locationField) {
+        ContextMenu suggestions = new ContextMenu();
+
+        // Debounce timer
+        PauseTransition pause = new PauseTransition(Duration.millis(400));
+
+        pause.setOnFinished(event -> {
+            String query = locationField.getText().trim();
+            if (query.length() < 3)
+                return;
+
+            fetchSuggestions(query, suggestions, locationField);
+        });
+
+        locationField.textProperty().addListener((obs, oldVal, newVal) -> {
+            suggestions.hide();
+            if (newVal == null || newVal.length() < 3) {
+                return;
+            }
+            pause.playFromStart();
+        });
+
+        locationField.focusedProperty().addListener((obs, wasFocused, isNowFocused) -> {
+            if (!isNowFocused)
+                suggestions.hide();
+        });
+    }
+
+    private void fetchSuggestions(String query, ContextMenu suggestions, TextField locationField) {
+        // Run in background thread
+        new Thread(() -> {
+            try {
+                String encodedQuery = java.net.URLEncoder.encode(query, java.nio.charset.StandardCharsets.UTF_8);
+                // Viewbox for Tunisia (approx): 7.5E, 30N to 11.6E, 37.5N
+                // bounded=0 means prioritize this area but search globally if needed
+                String url = "https://nominatim.openstreetmap.org/search?q=" + encodedQuery
+                        + "&format=json&limit=5&addressdetails=1"
+                        + "&viewbox=7.5,37.6,11.6,30.2&bounded=0";
+
+                java.net.http.HttpClient client = java.net.http.HttpClient.newHttpClient();
+                java.net.http.HttpRequest request = java.net.http.HttpRequest.newBuilder()
+                        .uri(java.net.URI.create(url))
+                        .header("User-Agent", "KhademniApp/1.0")
+                        .build();
+
+                java.net.http.HttpResponse<String> response = client.send(request,
+                        java.net.http.HttpResponse.BodyHandlers.ofString());
+
+                if (response.statusCode() == 200) {
+                    List<String> results = parseNominatimResponse(response.body());
+
+                    javafx.application.Platform.runLater(() -> {
+                        if (results.isEmpty())
+                            return;
+
+                        List<CustomMenuItem> items = new ArrayList<>();
+                        for (String place : results) {
+                            // Customize the look to be Google-style
+                            Label icon = new Label("📍");
+                            icon.setStyle("-fx-font-size: 16px; -fx-padding: 0 8 0 0;");
+
+                            Label text = new Label(place);
+                            text.setStyle("-fx-font-size: 13px; -fx-text-fill: #333;");
+                            text.setWrapText(true);
+                            text.setMaxWidth(400); // Prevent overly wide menus
+
+                            HBox content = new HBox(icon, text);
+                            content.setAlignment(Pos.CENTER_LEFT);
+                            content.setPadding(new javafx.geometry.Insets(5, 10, 5, 10));
+
+                            CustomMenuItem item = new CustomMenuItem(content);
+                            item.setHideOnClick(true);
+                            item.setOnAction(e -> {
+                                locationField.setText(place);
+                                locationField.positionCaret(place.length());
+                                suggestions.hide();
+                            });
+                            items.add(item);
+                        }
+
+                        suggestions.getItems().setAll(items);
+                        if (!suggestions.isShowing() && locationField.isFocused()) {
+                            suggestions.show(locationField, javafx.geometry.Side.BOTTOM, 0, 0);
+                        }
+                    });
+                }
+            } catch (Exception e) {
+                e.printStackTrace();
+            }
+        }).start();
+    }
+
+    private List<String> parseNominatimResponse(String json) {
+        List<String> results = new ArrayList<>();
+        try {
+            // Simple regex parsing to avoid adding JSON dependency
+            // Look for "display_name":"..."
+            java.util.regex.Matcher m = java.util.regex.Pattern.compile("\"display_name\":\"([^\"]+)\"").matcher(json);
+            while (m.find()) {
+                // Unicode unescaping might be needed but usually raw string works for basic
+                // display
+                String name = m.group(1);
+                // Clean up unicode escapes if any simple ones
+                results.add(name);
+            }
+        } catch (Exception e) {
+            e.printStackTrace();
+        }
+        return results;
+    }
+
+    private HBox createFormSection(String label, javafx.scene.Node field) {
         HBox box = new HBox(8);
         box.setAlignment(Pos.CENTER_LEFT);
         Label labelNode = new Label(label + ":");
         labelNode.setPrefWidth(120);
         labelNode.setStyle("-fx-font-weight: 700;");
         HBox.setHgrow(field, Priority.ALWAYS);
-        field.setStyle("-fx-padding: 8 12 8 12; -fx-border-color: #e5e7eb; -fx-border-radius: 8; -fx-background-radius: 8;");
+
+        // Style handled in creation
+
         box.getChildren().addAll(labelNode, field);
         return box;
     }
 
     private TextField createFormField(String label, String value) {
         TextField field = new TextField(value);
-        field.setStyle("-fx-padding: 8 12 8 12; -fx-border-color: #e5e7eb; -fx-border-radius: 8; -fx-background-radius: 8;");
+        field.setStyle(
+                "-fx-padding: 8 12 8 12; -fx-border-color: #e5e7eb; -fx-border-radius: 8; -fx-background-radius: 8;");
         field.setPromptText(label);
-        return field;
-    }
-
-    private TextField createIntegerSalaryField(String label, String value) {
-        TextField field = new TextField(value);
-        field.setStyle("-fx-padding: 8 12 8 12; -fx-border-color: #e5e7eb; -fx-border-radius: 8; -fx-background-radius: 8; -fx-focus-color: #6c0df2;");
-        field.setPromptText(label);
-        
-        field.setTextFormatter(new TextFormatter<>(change -> {
-            String newText = change.getControlNewText();
-            if (newText.isEmpty() || newText.matches("\\d+")) {
-                return change;
-            }
-            return null;
-        }));
-        
         return field;
     }
 
@@ -642,83 +1000,61 @@ public class JobsController {
     private JobModel extractJobFormData(VBox form, JobModel original) {
         Object[] fields = (Object[]) form.getUserData();
         if (fields == null || fields.length < 8) {
-            return extractFromFormChildren(form, original);
+            // Fallback for safety, though standard flow goes through here
+            return null;
         }
 
         TextField titleField = (TextField) fields[0];
         TextField companyField = (TextField) fields[1];
         TextField locationField = (TextField) fields[2];
-        TextField categoryField = (TextField) fields[3];
-        TextField salaryField = (TextField) fields[4];
-        TextField typeField = (TextField) fields[5];
+        ComboBox<String> categoryCombo = (ComboBox<String>) fields[3];
+        Slider salarySlider = (Slider) fields[4];
+        ComboBox<String> typeCombo = (ComboBox<String>) fields[5];
         TextArea descArea = (TextArea) fields[6];
         TextArea reqArea = (TextArea) fields[7];
 
         String[] requirements = reqArea.getText().split("\n");
 
+        String salaryValue = String.valueOf((int) salarySlider.getValue());
+
         JobModel job = new JobModel(
-            original != null ? original.getId() : 0,
-            titleField.getText(),
-            companyField.getText(),
-            locationField.getText(),
-            descArea.getText(),
-            categoryField.getText(),
-            salaryField.getText(),
-            typeField.getText(),
-            original != null ? original.getPostedDate() : LocalDate.now(),
-            requirements,
-            App.currentUser != null ? App.currentUser.getId() : 1
-        );
+                original != null ? original.getId() : 0,
+                titleField.getText(),
+                companyField.getText(),
+                locationField.getText(),
+                descArea.getText(),
+                categoryCombo.getValue(),
+                salaryValue,
+                typeCombo.getValue(),
+                original != null ? original.getPostedDate() : LocalDate.now(),
+                requirements,
+                App.currentUser != null ? App.currentUser.getId() : 1);
 
         return job;
     }
 
-    private JobModel extractFromFormChildren(VBox form, JobModel original) {
-        List<TextField> textFields = new ArrayList<>();
-        List<TextArea> textAreas = new ArrayList<>();
+    private boolean isAdmin() {
+        return App.currentUser != null && App.currentUser.getId() == 1;
+    }
 
-        for (javafx.scene.Node node : form.getChildren()) {
-            if (node instanceof TextField) {
-                textFields.add((TextField) node);
-            } else if (node instanceof TextArea) {
-                textAreas.add((TextArea) node);
-            }
+    private void handleApplyJob(JobModel job) {
+        if (App.currentUser == null) {
+            showAlert("Authentication Required", "Please log in to apply");
+            return;
         }
 
-        String[] requirements = !textAreas.isEmpty() && textAreas.size() > 1 ? 
-            textAreas.get(1).getText().split("\n") : new String[0];
-
-        return new JobModel(
-            original != null ? original.getId() : 0,
-            textFields.size() > 0 ? textFields.get(0).getText() : "",
-            textFields.size() > 1 ? textFields.get(1).getText() : "",
-            textFields.size() > 2 ? textFields.get(2).getText() : "",
-            textAreas.size() > 0 ? textAreas.get(0).getText() : "",
-            textFields.size() > 3 ? textFields.get(3).getText() : "",
-            textFields.size() > 4 ? textFields.get(4).getText() : "",
-            textFields.size() > 5 ? textFields.get(5).getText() : "",
-            original != null ? original.getPostedDate() : LocalDate.now(),
-            requirements,
-            App.currentUser != null ? App.currentUser.getId() : 1
-        );
-    }
-
-    private boolean isAdmin() {
-        return App.currentUser != null && App.currentUser.getId() == 1; 
-    }
-    private void handleApplyJob(JobModel job) {
-        if(App.currentUser==null){ showAlert("Authentication Required","Please log in to apply"); return; }
-        
         try {
             FXMLLoader loader = new FXMLLoader(getClass().getResource("/com/khademni/JobApplications.fxml"));
             BorderPane root = loader.load();
 
             JobApplicationController controller = loader.getController();
             controller.setSelectedJob(job);
-            controller.openAddApplicationDialog();
+
+            // Logic moved to JobApplicationController.initializeView()
+            // controller.openAddApplicationDialog();
 
             Stage stage = new Stage();
-            stage.setTitle("Apply for: " + job.getTitle());
+            stage.setTitle("Job Applications: " + job.getTitle());
             stage.setScene(new Scene(root, 900, 600));
             stage.initModality(Modality.APPLICATION_MODAL);
             stage.show();
@@ -728,11 +1064,37 @@ public class JobsController {
     }
 
     private void handleSaveJob(JobModel job) {
-        if(App.currentUser==null){ showAlert("Authentication Required","Please log in to save jobs"); return; }
-        showAlert("Job Saved",job.getTitle()+" has been added to your saved jobs");
+        if (App.currentUser == null) {
+            showAlert("Authentication Required", "Please log in to save jobs");
+            return;
+        }
+        showAlert("Job Saved", job.getTitle() + " has been added to your saved jobs");
     }
 
-    private void showAlert(String title,String msg){
-        Alert a=new Alert(Alert.AlertType.INFORMATION); a.setTitle(title); a.setHeaderText(null); a.setContentText(msg); a.showAndWait();
+    private void showAlert(String title, String msg) {
+        Alert a = new Alert(Alert.AlertType.INFORMATION);
+        a.setTitle(title);
+        a.setHeaderText(null);
+        a.setContentText(msg);
+        a.showAndWait();
+    }
+
+    // Public static class for JS bridge
+    public static class MapBridge {
+        private final TextField locationField;
+        private final Dialog<String> dialog;
+
+        public MapBridge(TextField locationField, Dialog<String> dialog) {
+            this.locationField = locationField;
+            this.dialog = dialog;
+        }
+
+        public void setLocation(String loc) {
+            javafx.application.Platform.runLater(() -> {
+                locationField.setText(loc);
+                dialog.setResult(loc);
+                dialog.close();
+            });
+        }
     }
 }

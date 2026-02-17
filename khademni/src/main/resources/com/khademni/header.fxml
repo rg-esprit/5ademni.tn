@@ -46,7 +46,7 @@
         <!-- Navigation Links -->
         <HBox spacing="24" alignment="CENTER">
 
-            <Hyperlink text="Jobs Management" onAction="#goToJobsAdmin"
+            <Hyperlink fx:id="jobsManagementLink" text="Jobs Management" onAction="#goToJobsAdmin"
                        style="-fx-font-size: 14px; -fx-font-weight: 600; -fx-text-fill: #141118;" />
             <Hyperlink text="Jobs" onAction="#goToJobsPublic"
                        style="-fx-font-size: 14px; -fx-font-weight: 600; -fx-text-fill: #141118;" />
