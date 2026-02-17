@@ -10,9 +10,24 @@ public class HeaderController {
 
     @FXML
     private void goToJobs() throws IOException {
-        // App.setRoot("primary");
+        // Role-aware: admins see management, regular users see public jobs
+        if (App.getCurrentUser() != null && App.getCurrentUser().isIsAdmin()) {
+            App.setRoot("jobs-management");
+        } else {
+            App.setRoot("jobs");
+        }
     }
 
+    @FXML
+    private void goToJobsPublic() throws IOException {
+        App.setRoot("jobs");
+    }
+
+    @FXML
+    private void goToJobsAdmin() throws IOException {
+        App.setRoot("jobs-management");
+    }
+    
     @FXML
     private void goToDashboard() throws IOException {
         // App.setRoot("secondary");

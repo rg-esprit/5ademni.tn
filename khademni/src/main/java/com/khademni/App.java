@@ -49,6 +49,12 @@ public class App extends Application {
         } else if (fxml.equals("profile")) {
             primaryStage.setTitle("5ademni.tn — My Profile");
             scene.getStylesheets().add(App.class.getResource("profile.css").toExternalForm());
+        } else if (fxml.equals("jobs")) {
+            primaryStage.setTitle("5ademni.tn — Jobs & Opportunities");
+            scene.getStylesheets().add(App.class.getResource("jobs.css").toExternalForm());
+        } else if (fxml.equals("jobs-management")) {
+            primaryStage.setTitle("5ademni.tn — Jobs Management");
+            scene.getStylesheets().add(App.class.getResource("jobs-management.css").toExternalForm());
         }
         primaryStage.setFullScreen(true);
     }

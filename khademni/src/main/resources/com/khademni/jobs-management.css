@@ -1,0 +1,50 @@
+/* Upgraded Jobs Management Theme */
+
+/* Page background */
+.jobs-mgmt-root { -fx-background-color: linear-gradient(#fbf9fb, #f3eef6); }
+
+/* Titles */
+.jobs-mgmt-page-title { -fx-font-size: 34; -fx-font-weight: 800; -fx-text-fill: #111827; }
+.jobs-mgmt-page-subtitle { -fx-font-size: 14; -fx-text-fill: #6b7280; }
+
+/* Search / actions bar */
+.jobs-mgmt-search-input {
+  -fx-background-color: #fbfbfd; -fx-background-radius: 12; -fx-padding: 12 16; -fx-font-size: 14;
+  -fx-border-color: #efe8fb; -fx-prompt-text-fill: #c8bfe6;
+}
+.jobs-mgmt-search-input:focused { -fx-effect: dropshadow(gaussian, rgba(124,58,237,0.08), 10, 0, 0, 6); -fx-border-color: #8b5cf6; }
+
+.jobs-mgmt-search-btn { -fx-background-color: #f3f2f7; -fx-padding: 10 14; -fx-border-radius: 10; -fx-cursor: hand; }
+.jobs-mgmt-search-btn:hover { -fx-background-color: #ece9f8; }
+
+/* Accent add button (if placed elsewhere) */
+.jobs-mgmt-add-btn {
+  -fx-background-color: linear-gradient(#7c3aed, #5b21b6); -fx-text-fill: white; -fx-padding: 10 16; -fx-background-radius: 12;
+}
+
+/* Container */
+.jobs-table-container { -fx-spacing: 12; }
+
+/* Row style */
+.job-row {
+  -fx-background-color: white; -fx-background-radius: 12; -fx-padding: 18 20; -fx-border-color: rgba(139,92,246,0.06);
+  -fx-effect: dropshadow(gaussian, rgba(124,58,237,0.06), 22, 0, 0, 8);
+}
+.job-row:hover { -fx-effect: dropshadow(gaussian, rgba(124,58,237,0.12), 36, 0.1, 0, 14); -fx-translate-y: -6; }
+
+.job-row .title { -fx-font-size: 18; -fx-font-weight: 800; }
+.job-row .company { -fx-text-fill: #7c3aed; -fx-font-weight: 700; }
+.job-row .info { -fx-text-fill: #374151; }
+
+/* Buttons */
+.job-view-btn, .job-edit-btn, .job-delete-btn, .job-action-btn, .job-delete-btn { -fx-cursor: hand; }
+.job-edit-btn { -fx-background-color: linear-gradient(#7c3aed, #5b21b6); -fx-text-fill: white; }
+.job-delete-btn { -fx-background-color: #ef4444; -fx-text-fill: white; }
+.job-view-btn { -fx-background-color: #f3f2f7; }
+.job-action-btn { -fx-padding: 8 12; -fx-background-radius: 8; }
+
+/* Empty state */
+.empty-state-box { -fx-background-color: white; -fx-padding: 60 40; -fx-background-radius: 16; -fx-effect: dropshadow(gaussian, rgba(0,0,0,0.06), 30,0,0,8); }
+
+/* subtle focus outline */
+.job-row:focused { -fx-border-color: rgba(124,58,237,0.18); }
