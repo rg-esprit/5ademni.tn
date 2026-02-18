@@ -49,6 +49,8 @@
                 style="-fx-font-size: 14px; -fx-font-weight: 600; -fx-text-fill: #141118;" />
             <Hyperlink text="Blogs" onAction="#goToBlogs"
                 style="-fx-font-size: 14px; -fx-font-weight: 600; -fx-text-fill: #141118;" />
+            <Hyperlink text="Articles" onAction="#goToArticles"
+                style="-fx-font-size: 14px; -fx-font-weight: 600; -fx-text-fill: #141118;" />
         </HBox>
 
         <!-- Profile Section with Separator -->

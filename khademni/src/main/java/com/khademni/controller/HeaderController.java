@@ -25,11 +25,16 @@ public class HeaderController {
 
     @FXML
     private void goToBlogs() throws IOException {
-        // App.setRoot("blogs");
+        App.setRoot("Article/AjouterArticle");
     }
 
     @FXML
     private void goToProfile() throws IOException {
         App.setRoot("profile");
+    }
+
+    @FXML
+    private void goToArticles() throws IOException {
+        App.setRoot("Article/ArticlesPublications");
     }
 }

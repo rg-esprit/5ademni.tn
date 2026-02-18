@@ -1,0 +1,296 @@
+.root {
+    -fx-font-family: "Segoe UI";
+    -fx-background-color: #f3f4f9;
+}
+
+/* TITLE */
+.profile-page-title {
+    -fx-font-size: 28px;
+    -fx-font-weight: 800;
+    -fx-text-fill: #1e1b4b;
+}
+
+/* CARDS */
+.profile-card {
+    -fx-background-color: white;
+    -fx-background-radius: 20;
+    -fx-padding: 25;
+    -fx-effect: dropshadow(gaussian, rgba(0,0,0,0.05), 25, 0, 0, 8);
+}
+
+/* STAT CARDS MODERN */
+.stat-card {
+    -fx-background-color: #ffffff; /* Replacing gradient with solid color */
+    -fx-background-radius: 20;
+    -fx-padding: 25;
+    -fx-pref-width: 280;
+    -fx-effect: dropshadow(gaussian, rgba(124,58,237,0.15), 30, 0, 0, 8);
+    -fx-border-color: #ede9fe;
+    -fx-border-radius: 20;
+}
+
+.stat-title {
+    -fx-font-size: 14px;
+    -fx-text-fill: #6b7280;
+}
+
+.stat-value {
+    -fx-font-size: 32px;
+    -fx-font-weight: 800;
+    -fx-text-fill: #6c0df2;
+}
+
+/* TABLE */
+.table-view {
+    -fx-background-color: transparent;
+}
+
+.table-view .column-header-background {
+    -fx-background-color: #f8f7ff;
+}
+
+.table-view .column-header .label {
+    -fx-text-fill: #6c0df2;
+    -fx-font-weight: bold;
+}
+
+.table-row-cell:selected {
+    -fx-background-color: #ede9fe;
+}
+
+/* INPUT */
+.profile-input {
+    -fx-background-color: #f8f7ff;
+    -fx-border-color: #e9e5ff;
+    -fx-border-radius: 12;
+    -fx-background-radius: 12;
+    -fx-padding: 10 14;
+}
+
+.profile-input:focused {
+    -fx-border-color: #6c0df2;
+    -fx-background-color: white;
+}
+
+/* BUTTON */
+.profile-save-btn {
+    -fx-background-color: linear-gradient(to right, #7c3aed, #6c0df2);
+    -fx-text-fill: white;
+    -fx-font-weight: bold;
+    -fx-background-radius: 12;
+    -fx-padding: 10 20;
+}
+
+/* CHART CLEAN */
+.chart {
+    -fx-background-color: transparent;
+}
+
+.chart-plot-background {
+    -fx-background-color: transparent;
+}
+
+.chart-vertical-grid-lines {
+    -fx-stroke: #eeeeee;
+}
+
+.chart-horizontal-grid-lines {
+    -fx-stroke: #eeeeee;
+}
+
+.axis {
+    -fx-tick-label-fill: #9ca3af;
+}
+
+/* BAR STYLE */
+.default-color0.chart-bar {
+    -fx-bar-fill: #8b5cf6; /* Replacing gradient with solid color */
+    -fx-background-radius: 8px 8px 0 0;
+}
+
+.default-color1.chart-bar {
+    -fx-bar-fill: #a78bfa; /* Replacing gradient with solid color */
+    -fx-background-radius: 8px 8px 0 0;
+}
+
+/* Updated CSS with both -fx- and standard properties */
+
+.example-class {
+    -fx-font-family: "Segoe UI";
+    font-family: "Segoe UI";
+    -fx-background-color: #f3f4f9;
+    background-color: #f3f4f9;
+    -fx-font-size: 28px;
+    font-size: 28px;
+    -fx-font-weight: 800;
+    font-weight: 800;
+    -fx-padding: 25;
+    padding: 25px;
+    -fx-border-color: #ede9fe;
+    border-color: #ede9fe;
+    -fx-border-radius: 20;
+    border-radius: 20px;
+    -fx-stroke: #eeeeee;
+    stroke: #eeeeee;
+}
+
+/* Additional selectors for other properties */
+
+.another-class {
+    -fx-background-color: white;
+    background-color: white;
+    -fx-padding: 25;
+    padding: 25px;
+    -fx-border-color: #ede9fe;
+    border-color: #ede9fe;
+    -fx-border-radius: 20;
+    border-radius: 20px;
+}
+
+/* ================= ROOT ================= */
+.profile-scroll {
+    -fx-font-family: "Segoe UI";
+    -fx-background-color: #f5f6fa;
+}
+
+.profile-root {
+    -fx-alignment: TOP_CENTER;
+    -fx-spacing: 30;
+    -fx-padding: 0;
+}
+
+
+/* ================= TITLE ================= */
+.profile-page-title {
+    -fx-font-size: 30px;
+    -fx-font-weight: 800;
+    -fx-text-fill: #5b21b6;
+}
+
+.section-title {
+    -fx-font-size: 18px;
+    -fx-font-weight: 600;
+    -fx-text-fill: #374151;
+}
+
+/* ================= CARD ================= */
+.profile-card {
+    -fx-background-color: white;
+    -fx-background-radius: 24;
+    -fx-padding: 35;
+    -fx-spacing: 25;
+    -fx-effect: dropshadow(gaussian, rgba(91,33,182,0.08), 30, 0, 0, 10);
+}
+
+/* ================= SEARCH ================= */
+.search-container {
+    -fx-background-color: #f3f4f6;
+    -fx-background-radius: 14;
+    -fx-padding: 8 16;
+    -fx-alignment: CENTER_LEFT;
+    -fx-spacing: 10;
+    -fx-border-color: transparent;
+}
+
+.search-container:focused-within {
+    -fx-background-color: white;
+    -fx-border-color: #7c3aed;
+    -fx-border-radius: 14;
+}
+
+.search-icon {
+    -fx-font-size: 16px;
+}
+
+.modern-search {
+    -fx-background-color: transparent;
+    -fx-border-color: transparent;
+    -fx-font-size: 14px;
+    -fx-prompt-text-fill: #9ca3af;
+}
+/* ================= ARTICLE CARD ================= */
+.modern-list {
+    -fx-background-color: transparent;
+    -fx-padding: 0;
+}
+
+.modern-list .list-cell {
+    -fx-background-color: white;
+    -fx-background-radius: 20;
+    -fx-border-radius: 20;
+    -fx-padding: 25;
+    -fx-spacing: 15;
+    -fx-border-color: #ede9fe;
+    -fx-border-width: 1;
+    -fx-effect: dropshadow(gaussian, rgba(124,58,237,0.08), 25, 0, 0, 8);
+}
+
+/* Hover effect */
+.modern-list .list-cell:hover {
+    -fx-background-color: #faf7ff;
+    -fx-effect: dropshadow(gaussian, rgba(124,58,237,0.18), 35, 0, 0, 12);
+    -fx-scale-x: 1.01;
+    -fx-scale-y: 1.01;
+}
+
+/* Remove blue selection */
+.modern-list .list-cell:selected {
+    -fx-background-color: #f3e8ff;
+    -fx-border-color: #c4b5fd;
+}
+
+/* ================= ARTICLE TEXT ================= */
+.card-title {
+    -fx-font-size: 17px;
+    -fx-font-weight: 700;
+    -fx-text-fill: #5b21b6;
+}
+
+.card-content {
+    -fx-font-size: 14px;
+    -fx-text-fill: #4b5563;
+}
+
+.card-date {
+    -fx-font-size: 12px;
+    -fx-text-fill: #9ca3af;
+}
+
+/* ================= ACTION BUTTONS ================= */
+.btn-icon {
+    -fx-background-color: transparent;
+     -fx-padding: 4;
+    -fx-min-width: 30;
+    -fx-min-height: 30;
+}
+
+.btn-icon:hover {
+   -fx-background-color: transparent;
+}
+.article-card {
+    -fx-background-color: white;
+    -fx-background-radius: 20;
+    -fx-padding: 25;
+    -fx-spacing: 15;
+    -fx-border-color: #ede9fe;
+    -fx-border-width: 1;
+    -fx-effect: dropshadow(gaussian, rgba(124,58,237,0.08), 25, 0, 0, 8);
+}
+
+.article-card:hover {
+    -fx-background-color: #faf7ff;
+    -fx-effect: dropshadow(gaussian, rgba(124,58,237,0.18), 35, 0, 0, 12);
+}
+
+.article-card .btn-icon {
+    -fx-background-color: transparent;
+}
+
+.article-card .article-image {
+    -fx-border-radius: 15;
+    -fx-background-radius: 15;
+}
+
+.article-card .heart-button {
+    -fx-cursor: hand;
+}

@@ -55,6 +55,10 @@
                         <Label fx:id="profileBalanceLabel" text="0.00" styleClass="balance-amount" />
                     </HBox>
                 </VBox>
+<!-- Action Buttons -->
+<HBox spacing="16" alignment="CENTER_RIGHT" style="-fx-padding: 12 0 0 0;">
+    <Button text="Mes Favoris" onAction="#onShowFavoris" styleClass="profile-save-btn" />
+   </HBox>
 
                 <!-- Separator -->
                 <Separator style="-fx-padding: 0;" />
