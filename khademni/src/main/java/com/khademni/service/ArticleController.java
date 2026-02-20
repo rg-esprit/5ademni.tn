@@ -1,6 +1,7 @@
 package com.khademni.service;
 
 import com.khademni.model.Article;
+import com.khademni.model.GigModel;
 import com.khademni.interfaces.IArticle;
 import com.khademni.utils.MyDataBase;
 
@@ -118,4 +119,83 @@ stmt.setLong(5, article.getId());
 
 		return new Article(id, title, content, status, createdAt, imagePath);
 	}
+
+private List<GigModel> findGigsByKeywords(List<String> keywords) throws SQLException {
+    List<GigModel> gigs = new ArrayList<>();
+
+    // Construire une requête SQL dynamique avec des mots-clés
+    StringBuilder queryBuilder = new StringBuilder("""
+        SELECT g.id, g.title, g.description, g.price, g.delivery_time, g.image, g.status
+        FROM gig g
+        WHERE
+    """);
+
+    for (int i = 0; i < keywords.size(); i++) {
+        queryBuilder.append("LOWER(g.title) LIKE ? OR LOWER(g.description) LIKE ?");
+        if (i < keywords.size() - 1) {
+            queryBuilder.append(" OR ");
+        }
+    }
+
+    try (Connection conn = MyDataBase.getConnection();
+         PreparedStatement ps = conn.prepareStatement(queryBuilder.toString())) {
+
+        // Ajouter les mots-clés aux paramètres de la requête
+        int paramIndex = 1;
+        for (String keyword : keywords) {
+            String likePattern = "%" + keyword + "%";
+            ps.setString(paramIndex++, likePattern);
+            ps.setString(paramIndex++, likePattern);
+        }
+
+        ResultSet rs = ps.executeQuery();
+
+        while (rs.next()) {
+            GigModel gig = new GigModel(
+                rs.getInt("id"),
+                rs.getString("title"),
+                rs.getString("description"),
+                rs.getDouble("price"),
+                rs.getTimestamp("delivery_time").toLocalDateTime(),
+                rs.getString("image"),
+                rs.getString("status")
+            );
+            gigs.add(gig);
+        }
+    }
+
+    return gigs;
+}
+public List<GigModel> getGigsByArticle(Long articleId) throws SQLException {
+    List<GigModel> gigs = new ArrayList<>();
+
+    String query = """
+        SELECT g.id, g.title, g.description, g.price, g.delivery_time, g.image, g.status
+        FROM gig g
+        WHERE g.article_id = ?
+    """;
+
+    try (Connection conn = MyDataBase.getConnection();
+         PreparedStatement ps = conn.prepareStatement(query)) {
+
+        ps.setLong(1, articleId);
+        ResultSet rs = ps.executeQuery();
+
+        while (rs.next()) {
+            GigModel gig = new GigModel(
+                rs.getInt("id"),
+                rs.getString("title"),
+                rs.getString("description"),
+                rs.getDouble("price"),
+                rs.getTimestamp("delivery_time").toLocalDateTime(),
+                rs.getString("image"),
+                rs.getString("status")
+            );
+            gigs.add(gig);
+        }
+    }
+
+    return gigs;
+}
+
 }

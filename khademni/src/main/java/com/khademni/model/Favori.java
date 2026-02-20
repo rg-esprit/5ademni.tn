@@ -4,21 +4,25 @@ import java.time.LocalDateTime;
 
 public class Favori {
     private Long id;
-    private Long userId;
+    private int userId;
     private Article article;
     private LocalDateTime createdAt;
 
     public Favori() {
     }
 
-public Favori(Long id, Long userId, Article article, LocalDateTime createdAt) {
+public Favori(Long id, int userId, Article article, LocalDateTime createdAt) {
     this.id = id;
     this.userId = userId;
     this.article = article;
     this.createdAt = createdAt;
 }
 
-
+public Favori(int userId, Long articleId) {
+    this.userId = userId;
+    this.article = new Article();
+    this.article.setId(articleId);
+}
     public Long getId() {
         return id;
     }
@@ -27,11 +31,11 @@ public Favori(Long id, Long userId, Article article, LocalDateTime createdAt) {
         this.id = id;
     }
 
-    public Long getUserId() {
+    public int getUserId() {
         return userId;
     }
 
-    public void setUserId(Long userId) {
+    public void setUserId(int userId) {
         this.userId = userId;
     }
 

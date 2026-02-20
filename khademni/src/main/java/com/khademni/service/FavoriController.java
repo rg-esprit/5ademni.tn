@@ -22,25 +22,33 @@ public class FavoriController implements IFavori {
     }
 	}
 
-	@Override
-	public Favori create(Favori favori) throws SQLException {
-		String sql = "INSERT INTO favori (user_id, article_id) VALUES (?, ?)";
+@Override
+public Favori create(Favori favori) throws SQLException {
+    // Vérifiez si l'utilisateur existe dans la table `users`
+    String checkUserQuery = "SELECT COUNT(*) FROM users WHERE id = ?";
+    try (PreparedStatement checkUserStmt = connection.prepareStatement(checkUserQuery)) {
+        checkUserStmt.setLong(1, favori.getUserId());
+        ResultSet rs = checkUserStmt.executeQuery();
+        if (rs.next() && rs.getInt(1) == 0) {
+            throw new SQLException("L'utilisateur avec l'ID " + favori.getUserId() + " n'existe pas.");
+        }
+    }
 
-		try (PreparedStatement stmt = connection.prepareStatement(
-				sql, Statement.RETURN_GENERATED_KEYS)) {
+    // Insérez le favori dans la table `favori`
+    String sql = "INSERT INTO favori (user_id, article_id) VALUES (?, ?)";
+    try (PreparedStatement stmt = connection.prepareStatement(sql, Statement.RETURN_GENERATED_KEYS)) {
+        stmt.setLong(1, favori.getUserId());
+        stmt.setLong(2, favori.getArticle().getId());
+        stmt.executeUpdate();
 
-			stmt.setLong(1, favori.getUserId());
-			stmt.setLong(2, favori.getArticleId());
-			stmt.executeUpdate();
-
-			try (ResultSet rs = stmt.getGeneratedKeys()) {
-				if (rs.next()) {
-					favori.setId(rs.getLong(1));
-				}
-			}
-		}
-		return favori;
-	}
+        try (ResultSet rs = stmt.getGeneratedKeys()) {
+            if (rs.next()) {
+                favori.setId(rs.getLong(1));
+            }
+        }
+    }
+    return favori;
+}
 
 	@Override
 	public boolean update(Favori favori) throws SQLException {
@@ -98,7 +106,7 @@ public class FavoriController implements IFavori {
 	private Favori map(ResultSet rs) throws SQLException {
 
     Long id = rs.getLong("id");
-    Long userId = rs.getLong("user_id");
+    Integer userId = rs.getInt("user_id");
 
     Article article = new Article();
     article.setId(rs.getLong("article_id"));
@@ -114,7 +122,7 @@ public class FavoriController implements IFavori {
 }
 
 
-public List<Favori> findByUserId(Long userId) throws SQLException {
+public List<Favori> findByUserId(long userId) throws SQLException {
     String query = "SELECT * FROM favori WHERE user_id = ?";
     PreparedStatement statement = MyDataBase.getConnection().prepareStatement(query);
     statement.setLong(1, userId);
@@ -125,7 +133,7 @@ public List<Favori> findByUserId(Long userId) throws SQLException {
     while (resultSet.next()) {
         Favori favori = new Favori();
         favori.setId(resultSet.getLong("id"));
-        favori.setUserId(resultSet.getLong("user_id"));
+        favori.setUserId(resultSet.getInt("user_id"));
         favori.setArticle(new Article());
         favori.getArticle().setId(resultSet.getLong("article_id"));
         favori.setCreatedAt(resultSet.getTimestamp("created_at").toLocalDateTime());
@@ -134,6 +142,18 @@ public List<Favori> findByUserId(Long userId) throws SQLException {
 
     return favoris;
 }
-
+public boolean isFavori(Favori favori) throws SQLException {
+    String query = "SELECT COUNT(*) FROM favori WHERE user_id = ? AND article_id = ?";
+    try (PreparedStatement stmt = connection.prepareStatement(query)) {
+        stmt.setLong(1, favori.getUserId());
+        stmt.setLong(2, favori.getArticle().getId());
+        try (ResultSet rs = stmt.executeQuery()) {
+            if (rs.next()) {
+                return rs.getInt(1) > 0;
+            }
+        }
+    }
+    return false;
+}
 
 }

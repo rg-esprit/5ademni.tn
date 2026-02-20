@@ -8,7 +8,7 @@
             fx:controller="com.khademni.controller.ArticlePublicationController"
             fitToWidth="true"
             styleClass="profile-scroll"
-              stylesheets="@dashboard-article.css">
+            stylesheets="@dashboard-article.css">
 
     <VBox styleClass="profile-root">
  <fx:include source="../header.fxml"/>
@@ -25,11 +25,12 @@
                 <Label text="Articles"
                        styleClass="profile-field-label"/>
 
-             <TilePane fx:id="articlesContainer"
+            <TilePane fx:id="articlesContainer"
           hgap="30"
           vgap="30"
-          prefColumns="3"
-          tileAlignment="TOP_LEFT"/>
+          prefColumns="1"
+          alignment="CENTER"
+          tileAlignment="CENTER" />
 
 
            

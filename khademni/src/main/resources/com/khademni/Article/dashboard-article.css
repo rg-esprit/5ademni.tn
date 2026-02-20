@@ -158,7 +158,16 @@
     -fx-spacing: 30;
     -fx-padding: 0;
 }
-
+.tile-pane .card {
+    -fx-border-color: #ddd;
+    -fx-border-radius: 10;
+    -fx-background-radius: 10;
+    -fx-background-color: white;
+    -fx-padding: 15;
+    -fx-effect: dropshadow(gaussian, rgba(0, 0, 0, 0.2), 10, 0, 0, 4);
+    -fx-max-width: 250px;
+    -fx-min-width: 250px;
+}
 
 /* ================= TITLE ================= */
 .profile-page-title {
@@ -269,17 +278,14 @@
 }
 .article-card {
     -fx-background-color: white;
-    -fx-background-radius: 20;
-    -fx-padding: 25;
-    -fx-spacing: 15;
-    -fx-border-color: #ede9fe;
-    -fx-border-width: 1;
-    -fx-effect: dropshadow(gaussian, rgba(124,58,237,0.08), 25, 0, 0, 8);
+    -fx-background-radius: 15;
+    -fx-padding: 15;
+    -fx-effect: dropshadow(gaussian, rgba(0,0,0,0.08), 10, 0, 0, 4);
 }
 
 .article-card:hover {
-    -fx-background-color: #faf7ff;
-    -fx-effect: dropshadow(gaussian, rgba(124,58,237,0.18), 35, 0, 0, 12);
+    -fx-background-color: #f9f9f9;
+    -fx-effect: dropshadow(gaussian, rgba(0,0,0,0.15), 15, 0, 0, 6);
 }
 
 .article-card .btn-icon {

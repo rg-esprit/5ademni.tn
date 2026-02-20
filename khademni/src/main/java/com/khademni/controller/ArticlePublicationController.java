@@ -1,10 +1,16 @@
 package com.khademni.controller;
 
 import javafx.fxml.FXML;
+import javafx.fxml.FXMLLoader;
 import javafx.geometry.Insets;
 import javafx.geometry.Pos;
+import javafx.scene.Parent;
+import javafx.scene.Scene;
 import javafx.scene.control.*;
+import javafx.scene.image.Image;
+import javafx.scene.image.ImageView;
 import javafx.scene.layout.*;
+import javafx.stage.Stage;
 
 import com.khademni.App;
 import com.khademni.model.*;
@@ -12,12 +18,18 @@ import com.khademni.model.*;
 import com.khademni.service.ArticleController;
 import com.khademni.service.CommentaireController;
 import com.khademni.service.FavoriController;
+import com.khademni.utils.MyDataBase;
 import com.khademni.utils.SessionManager;
 
 import org.kordamp.ikonli.javafx.FontIcon;
 
+import java.io.IOException;
+import java.sql.Connection;
+import java.sql.PreparedStatement;
+import java.sql.ResultSet;
 import java.sql.SQLException;
 import java.time.LocalDateTime;
+import java.util.ArrayList;
 import java.util.List;
 import java.util.Optional;
 
@@ -34,12 +46,14 @@ public class ArticlePublicationController {
     private final FavoriController favoriService = new FavoriController();
 @FXML
 private TilePane articlesContainer;
-
+@FXML
+private TilePane gigsContainer;
     @FXML
     public void initialize() {
-        loadArticles();
-
+      loadArticles();
     }
+
+
     private void showAlert(Alert.AlertType type, String title, String message) {
         Alert alert = new Alert(type);
         alert.setTitle(title);
@@ -47,109 +61,131 @@ private TilePane articlesContainer;
         alert.setContentText(message);
         alert.showAndWait();
     }
-
-    private void loadArticles() {
+private void loadArticles() {
         try {
+            // Charger uniquement les articles avec le statut "VISIBLE"
             var articlesVisibles = articleService.findAll().stream()
                     .filter(a -> "VISIBLE".equalsIgnoreCase(a.getStatus()))
                     .toList();
 
             articlesContainer.getChildren().clear();
 
-for (Article article : articlesVisibles) {
-    VBox card = createArticleCard(article);
-    articlesContainer.getChildren().add(card);
-}
+            for (Article article : articlesVisibles) {
+                VBox card = createArticleCard(article);
+                articlesContainer.getChildren().add(card);
+            }
 
         } catch (Exception e) {
             e.printStackTrace();
+            showAlert(Alert.AlertType.ERROR, "Erreur", "Impossible de charger les articles.");
         }
     }
 private VBox createArticleCard(Article article) {
-    VBox commentairesBox = new VBox(10);
-    commentairesBox.setVisible(false);
-    commentairesBox.setManaged(false);
 
-    // ===== IMAGE =====
-    StackPane imageContainer = new StackPane();
-    imageContainer.setPrefWidth(380);
-    imageContainer.setPrefHeight(180);
-    imageContainer.setStyle("-fx-border-color: #ddd; -fx-border-radius: 15; -fx-background-radius: 15; -fx-overflow: hidden;");
+    // ===== CARTE PRINCIPALE =====
+    VBox card = new VBox(15);
+    card.setAlignment(Pos.CENTER_LEFT);
+    card.setStyle("""
+        -fx-background-color: white;
+        -fx-padding: 20;
+        -fx-background-radius: 20;
+        -fx-effect: dropshadow(three-pass-box, rgba(0,0,0,0.08), 15, 0, 0, 5);
+    """);
+    card.setPrefWidth(900);
 
-    javafx.scene.image.ImageView imageView = new javafx.scene.image.ImageView();
-    imageView.setFitWidth(380);
-    imageView.setFitHeight(180);
+    // ================= IMAGE (GAUCHE) =================
+    ImageView imageView = new ImageView();
+    imageView.setFitWidth(150);
+    imageView.setFitHeight(150);
     imageView.setPreserveRatio(true);
-    imageView.setSmooth(true);
-    imageView.setCache(true);
 
     try {
         String path = article.getImagePath();
         if (path != null && !path.isEmpty()) {
-            javafx.scene.image.Image img = new javafx.scene.image.Image("file:" + path, false);
-            imageView.setImage(img);
+            imageView.setImage(new Image("file:" + path));
         } else {
-            // image par défaut si aucun chemin
-            javafx.scene.image.Image img = new javafx.scene.image.Image(getClass().getResource("/images/default.png").toExternalForm());
-            imageView.setImage(img);
+            imageView.setImage(new Image(getClass()
+                    .getResource("/images/default.png").toExternalForm()));
         }
     } catch (Exception e) {
         e.printStackTrace();
     }
 
-    // ===== FAVORI ICON =====
+    // ================= CONTENU CENTRE =================
+    VBox contentBox = new VBox(8);
+    contentBox.setAlignment(Pos.CENTER_LEFT);
+    contentBox.setPrefWidth(500);
+
+    Label title = new Label(article.getTitle());
+    title.setStyle("-fx-font-size: 20px; -fx-font-weight: bold; -fx-text-fill: #2c3e50;");
+
+    Label description = new Label(article.getContent());
+    description.setWrapText(true);
+    description.setStyle("-fx-font-size: 14px; -fx-text-fill: #555;");
+
+    Label date = new Label("Publié le " + article.getCreatedAt());
+    date.setStyle("-fx-text-fill: gray; -fx-font-size: 12px;");
+
+    contentBox.getChildren().addAll(title, description, date);
+
+    // ================= ACTIONS DROITE =================
+    VBox actionsBox = new VBox(20);
+    actionsBox.setAlignment(Pos.CENTER);
+
+    // ===== FAVORI =====
     FontIcon heartIcon = new FontIcon(FontAwesomeSolid.HEART);
-    heartIcon.setIconSize(30); // plus grand
+    heartIcon.setIconSize(22);
     updateHeartColor(heartIcon, article);
 
-    Label favoriCountLabel = new Label(String.valueOf(getFavoriCount(article)));
-    favoriCountLabel.setStyle("-fx-font-size: 14px; -fx-text-fill: gray;");
+    Label favoriCount = new Label(String.valueOf(getFavoriCount(article)));
 
     Button likeBtn = new Button();
     likeBtn.setGraphic(heartIcon);
-    likeBtn.getStyleClass().add("btn-icon");
     likeBtn.setStyle("-fx-background-color: transparent;");
 
     likeBtn.setOnAction(e -> {
         toggleFavori(article);
         updateHeartColor(heartIcon, article);
-        favoriCountLabel.setText(String.valueOf(getFavoriCount(article))); // Mettre à jour le compteur
+        favoriCount.setText(String.valueOf(getFavoriCount(article)));
     });
 
-    HBox favoriBox = new HBox(5, likeBtn, favoriCountLabel);
-    favoriBox.setAlignment(Pos.CENTER_LEFT);
+    HBox favoriBox = new HBox(5, likeBtn, favoriCount);
+    favoriBox.setAlignment(Pos.CENTER);
 
-    StackPane.setAlignment(favoriBox, Pos.TOP_RIGHT);
-    StackPane.setMargin(favoriBox, new Insets(10));
-    imageContainer.getChildren().addAll(imageView, favoriBox);
+    // ===== BOUTON VOIR ARTICLE =====
+    Button voirArticleBtn = new Button("Voir Article");
+    voirArticleBtn.setStyle("""
+        -fx-background-color: #6a1b9a;
+        -fx-text-fill: white;
+        -fx-background-radius: 20;
+        -fx-padding: 6 18;
+    """);
 
-    // ===== TITRE =====
-    Label title = new Label(article.getTitle());
-    title.getStyleClass().add("card-title");
+    voirArticleBtn.setOnAction(e -> navigateToGigsPage(article));
 
-    // ===== CONTENU =====
-    Label content = new Label(article.getContent());
-    content.setWrapText(true);
-    content.getStyleClass().add("card-content");
+    // ===== COMMENTAIRE =====
+    FontIcon commentIcon = new FontIcon(FontAwesomeSolid.COMMENT);
+    commentIcon.setIconSize(20);
 
-    // ===== DATE =====
-    Label date = new Label("Publié le " + article.getCreatedAt());
-    date.getStyleClass().add("card-date");
+    Label commentCount = new Label(String.valueOf(getCommentCount(article)));
 
-    // ===== COMMENT BUTTON avec compteur =====
-    int nbCommentaires = 0;
-    try {
-        var commentaires = commentaireService.findAll().stream()
-                .filter(c -> c.getArticle().getId().equals(article.getId()))
-                .toList();
+    Button commentBtn = new Button();
+    commentBtn.setGraphic(commentIcon);
+    commentBtn.setStyle("-fx-background-color: transparent;");
 
-        nbCommentaires = commentaires.size(); // nombre de commentaires
-    } catch (SQLException e1) {
-        e1.printStackTrace();
-    }
+    HBox commentBox = new HBox(5, commentBtn, commentCount);
+    commentBox.setAlignment(Pos.CENTER);
 
-    Button commentBtn = new Button("💬 " + nbCommentaires);
-    commentBtn.getStyleClass().add("btn-icon");
+    actionsBox.getChildren().addAll(favoriBox, voirArticleBtn, commentBox);
+
+    // ================= LAYOUT PRINCIPAL =================
+    HBox mainRow = new HBox(30, imageView, contentBox, actionsBox);
+    mainRow.setAlignment(Pos.CENTER_LEFT);
+
+    // ================= COMMENTAIRES (EN DESSOUS) =================
+    VBox commentairesBox = new VBox(10);
+    commentairesBox.setVisible(false);
+    commentairesBox.setManaged(false);
 
     commentBtn.setOnAction(e -> {
         boolean visible = !commentairesBox.isVisible();
@@ -161,16 +197,271 @@ private VBox createArticleCard(Article article) {
         }
     });
 
-    HBox actions = new HBox(10, commentBtn);
-    actions.setAlignment(Pos.CENTER_LEFT);
-
-    VBox card = new VBox(15, imageContainer, title, content, date, actions, commentairesBox);
-    card.getStyleClass().add("article-card");
-    card.setPrefWidth(400);
+    card.getChildren().addAll(mainRow, commentairesBox);
 
     return card;
 }
 
+
+
+
+private int getCommentCount(Article article) {
+    try {
+        return (int) commentaireService.findAll()
+                .stream()
+                .filter(comment -> comment.getArticle().getId().equals(article.getId()))
+                .count();
+    } catch (SQLException e) {
+        e.printStackTrace();
+        return 0;
+    }
+}
+
+private void navigateToGigsPage(Article article) {
+    try {
+        FXMLLoader loader = new FXMLLoader(getClass().getResource("/com/khademni/Article/GigPage.fxml"));
+        Parent gigsPage = loader.load();
+
+        // Passer l'article sélectionné au contrôleur de la page des gigs
+        GigDisplayController gigDisplayController = loader.getController();
+        gigDisplayController.setArticle(article);
+
+        // Afficher la nouvelle page
+        Stage stage = (Stage) articlesContainer.getScene().getWindow();
+        stage.setScene(new Scene(gigsPage));
+        stage.show();
+    } catch (IOException e) {
+        e.printStackTrace();
+        showAlert(Alert.AlertType.ERROR, "Erreur", "Impossible de charger la page des gigs.");
+    }
+}
+
+public void loadGigsByArticle(Article article) {
+    try {
+        // Extraire les mots-clés de l'article
+        List<String> keywords = extractKeywords(article);
+
+        // Rechercher les Gigs correspondants dans la base de données
+        List<GigModel> gigs = findGigsByKeywords(keywords);
+
+        // Vider le conteneur avant d'ajouter les nouveaux Gigs
+        gigsContainer.getChildren().clear();
+
+        if (gigs.isEmpty()) {
+            Label noGigsLabel = new Label("Aucun Gig trouvé pour cet article.");
+            noGigsLabel.setStyle("-fx-font-size: 16px; -fx-text-fill: gray;");
+            gigsContainer.getChildren().add(noGigsLabel);
+        } else {
+            for (GigModel gig : gigs) {
+                VBox gigCard = createGigCard(gig);
+                gigsContainer.getChildren().add(gigCard);
+            }
+        }
+    } catch (Exception e) {
+        e.printStackTrace();
+        showAlert(Alert.AlertType.ERROR, "Erreur", "Impossible de charger les Gigs.");
+    }
+}
+
+private void loadGigsForArticle(Article article) {
+    try {
+        // Extraire les mots-clés de l'article
+        List<String> keywords = extractKeywords(article);
+
+        // Rechercher les Gigs correspondants dans la base de données
+        List<GigModel> gigs = findGigsByKeywords(keywords);
+
+        // Créer une nouvelle fenêtre pour afficher les Gigs
+        Stage stage = new Stage();
+        VBox gigsContainer = new VBox(10);
+        gigsContainer.setPadding(new Insets(10));
+
+        if (gigs.isEmpty()) {
+            Label noGigsLabel = new Label("Aucun Gig trouvé pour cet article.");
+            noGigsLabel.setStyle("-fx-font-size: 16px; -fx-text-fill: gray;");
+            gigsContainer.getChildren().add(noGigsLabel);
+
+            // Suggérer des Gigs populaires
+            List<GigModel> popularGigs = findPopularGigs();
+            if (!popularGigs.isEmpty()) {
+                Label suggestionLabel = new Label("Suggestions de Gigs populaires :");
+                suggestionLabel.setStyle("-fx-font-size: 14px; -fx-font-weight: bold;");
+                gigsContainer.getChildren().add(suggestionLabel);
+
+                for (GigModel gig : popularGigs) {
+                    VBox gigCard = createGigCard(gig);
+                    gigsContainer.getChildren().add(gigCard);
+                }
+            }
+        } else {
+            for (GigModel gig : gigs) {
+                VBox gigCard = createGigCard(gig);
+                gigsContainer.getChildren().add(gigCard);
+            }
+        }
+
+        ScrollPane scrollPane = new ScrollPane(gigsContainer);
+        scrollPane.setFitToWidth(true);
+
+        Scene scene = new Scene(scrollPane, 400, 600);
+        stage.setScene(scene);
+        stage.setTitle("Liste des Gigs");
+        stage.show();
+    } catch (Exception e) {
+        showAlert(Alert.AlertType.ERROR, "Erreur", "Impossible de charger les Gigs : " + e.getMessage());
+    }
+}
+
+private List<GigModel> findPopularGigs() throws SQLException {
+    List<GigModel> gigs = new ArrayList<>();
+
+    String query = """
+        SELECT g.id, g.title, g.description, g.price, g.delivery_time, g.image, g.status
+        FROM gig g
+        ORDER BY g.delivery_time DESC
+        LIMIT 5
+    """;
+
+    try (Connection conn = MyDataBase.getConnection();
+         PreparedStatement ps = conn.prepareStatement(query)) {
+
+        ResultSet rs = ps.executeQuery();
+
+        while (rs.next()) {
+            GigModel gig = new GigModel(
+                rs.getInt("id"),
+                rs.getString("title"),
+                rs.getString("description"),
+                rs.getDouble("price"),
+                rs.getTimestamp("delivery_time").toLocalDateTime(),
+                rs.getString("image"),
+                rs.getString("status")
+            );
+            gigs.add(gig);
+        }
+    }
+
+    return gigs;
+}
+
+private VBox createGigCard(GigModel gig) {
+    VBox card = new VBox(10);
+    card.setStyle("-fx-border-color: #ddd; -fx-border-radius: 10; -fx-padding: 10;");
+
+    // Titre du Gig
+    Label gigTitle = new Label(gig.getTitle());
+    gigTitle.setStyle("-fx-font-size: 16px; -fx-font-weight: bold;");
+
+    // Description du Gig
+    Label gigDescription = new Label(gig.getDescription());
+    gigDescription.setWrapText(true);
+    gigDescription.setStyle("-fx-font-size: 14px;");
+
+    // Prix du Gig
+    Label gigPrice = new Label(String.format("Prix : %.2f TND", gig.getPrice()));
+    gigPrice.setStyle("-fx-font-size: 14px; -fx-text-fill: #4caf50;");
+
+    // Ajouter les éléments à la carte
+    card.getChildren().addAll(gigTitle, gigDescription, gigPrice);
+
+    return card;
+}
+
+
+private List<GigModel> findGigsByKeywords(List<String> keywords) throws SQLException {
+    List<GigModel> gigs = new ArrayList<>();
+
+    // Construire une requête SQL dynamique avec des mots-clés
+    StringBuilder queryBuilder = new StringBuilder("""
+        SELECT g.id, g.title, g.description, g.price, g.delivery_time, g.image, g.status
+        FROM gig g
+        WHERE
+    """);
+
+    for (int i = 0; i < keywords.size(); i++) {
+        queryBuilder.append("LOWER(g.title) LIKE ? OR LOWER(g.description) LIKE ?");
+        if (i < keywords.size() - 1) {
+            queryBuilder.append(" OR ");
+        }
+    }
+
+    try (Connection conn = MyDataBase.getConnection();
+         PreparedStatement ps = conn.prepareStatement(queryBuilder.toString())) {
+
+        // Ajouter les mots-clés aux paramètres de la requête
+        int paramIndex = 1;
+        for (String keyword : keywords) {
+            String likePattern = "%" + keyword + "%";
+            ps.setString(paramIndex++, likePattern);
+            ps.setString(paramIndex++, likePattern);
+        }
+
+        ResultSet rs = ps.executeQuery();
+
+        while (rs.next()) {
+            GigModel gig = new GigModel(
+                rs.getInt("id"),
+                rs.getString("title"),
+                rs.getString("description"),
+                rs.getDouble("price"),
+                rs.getTimestamp("delivery_time").toLocalDateTime(),
+                rs.getString("image"),
+                rs.getString("status")
+            );
+
+            // Calculer le score de pertinence
+            double relevanceScore = calculateRelevanceScore(gig, keywords);
+            gig.setRelevanceScore(relevanceScore); // Ajoutez un champ `relevanceScore` dans `GigModel`
+
+            gigs.add(gig);
+        }
+    }
+
+    // Trier les Gigs par pertinence (score décroissant)
+    gigs.sort((g1, g2) -> Double.compare(g2.getRelevanceScore(), g1.getRelevanceScore()));
+
+    return gigs;
+}
+
+private double calculateRelevanceScore(GigModel gig, List<String> keywords) {
+    double score = 0.0;
+
+    // Convertir le titre et la description en minuscules
+    String title = gig.getTitle().toLowerCase();
+    String description = gig.getDescription().toLowerCase();
+
+    // Calculer le score en fonction des mots-clés
+    for (String keyword : keywords) {
+        if (title.contains(keyword)) {
+            score += 2.0; // Le titre a un poids plus élevé
+        }
+        if (description.contains(keyword)) {
+            score += 1.0; // La description a un poids plus faible
+        }
+    }
+
+    return score;
+}
+
+
+private List<String> extractKeywords(Article article) {
+    List<String> keywords = new ArrayList<>();
+
+    // Ajouter les mots du titre
+    if (article.getTitle() != null) {
+        String[] titleWords = article.getTitle().toLowerCase().split("\\s+");
+        keywords.addAll(List.of(titleWords));
+    }
+
+    // Ajouter les mots de la description
+    if (article.getContent() != null) {
+        String[] contentWords = article.getContent().toLowerCase().split("\\s+");
+        keywords.addAll(List.of(contentWords));
+    }
+
+    // Supprimer les doublons
+    return keywords.stream().distinct().toList();
+}
 private UserModel getCurrentUser() {
     // Replace with the actual logic to retrieve the logged-in user
     return SessionManager.getCurrentUser(); // Example: Using a SessionManager class
@@ -450,23 +741,24 @@ private void updateHeartColor(FontIcon icon, Article article) {
 
 private void toggleFavori(Article article) {
     try {
-        var exist = favoriService.findAll().stream()
-                .filter(f -> f.getArticleId().equals(article.getId()))
-                .findFirst();
-
-        if (exist.isPresent()) {
-            favoriService.delete(exist.get().getId());
-        } else {
-            Favori f = new Favori(null, 1L, article, null);
-            favoriService.create(f);
+        UserModel currentUser = SessionManager.getCurrentUser();
+        if (currentUser == null) {
+            showAlert(Alert.AlertType.WARNING, "Erreur", "Vous devez être connecté pour ajouter un favori.");
+            return;
         }
 
+        Favori favori = new Favori(currentUser.getId(), article.getId());
+        if (favoriService.isFavori(favori)) {
+            favoriService.delete(favori.getId());
+        } else {
+            favoriService.create(favori);
+        }
+    } catch (SQLException e) {
+        e.printStackTrace();
+       showAlert(Alert.AlertType.WARNING, "Erreur", "Une erreur s'est produite.");
     } catch (Exception e) {
         e.printStackTrace();
-    }
+       showAlert(Alert.AlertType.WARNING, "Erreur", "Une erreur s'est produite.");   }
 }
 
-
 }
-
-
