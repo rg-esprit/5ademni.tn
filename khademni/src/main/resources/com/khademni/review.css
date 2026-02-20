@@ -1,0 +1,50 @@
+.title {
+  -fx-font-size: 24px;
+  -fx-font-weight: bold;
+  -fx-text-fill: #333;
+}
+
+.btn-primary {
+  -fx-background-color: #007bff;
+  -fx-text-fill: white;
+  -fx-padding: 10 20;
+  -fx-cursor: hand;
+}
+
+.btn-primary:hover {
+  -fx-background-color: #0056b3;
+}
+
+.btn-danger {
+  -fx-background-color: #dc3545;
+  -fx-text-fill: white;
+  -fx-padding: 10 20;
+  -fx-cursor: hand;
+}
+
+.btn-danger:hover {
+  -fx-background-color: #c82333;
+}
+
+.table-view {
+  -fx-background-color: white;
+  -fx-border-color: #ddd;
+  -fx-border-radius: 5;
+}
+
+.table-view .column-header {
+  -fx-background-color: #f8f9fa;
+  -fx-font-weight: bold;
+}
+
+TextField,
+TextArea {
+  -fx-border-color: #ced4da;
+  -fx-border-radius: 5;
+  -fx-padding: 8;
+}
+
+TextField:focused,
+TextArea:focused {
+  -fx-border-color: #007bff;
+}

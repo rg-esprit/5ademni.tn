@@ -65,6 +65,11 @@ public class HeaderController {
     }
 
     @FXML
+    private void goToReviews() throws IOException {
+        App.setRoot("review");
+    }
+
+    @FXML
     private void goToProfile() throws IOException {
         App.setRoot("profile");
     }
