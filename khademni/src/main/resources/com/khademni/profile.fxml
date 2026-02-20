@@ -117,6 +117,8 @@
                             styleClass="profile-delete-btn"
                             style="-fx-background-color: #dc2626; -fx-text-fill: white;" />
                         <Region HBox.hgrow="ALWAYS" />
+                        <Button text="Enroll / Update Face ID" onAction="#onEnrollFace"
+                            style="-fx-background-color: #1e1e3a; -fx-text-fill: #a0a0d0; -fx-border-color: #3a3a6a; -fx-border-width: 1; -fx-border-radius: 8; -fx-background-radius: 8; -fx-padding: 10 16 10 16; -fx-font-size: 13; -fx-cursor: hand;" />
                         <Button text="Cancel" onAction="#onProfileCancel"
                             styleClass="profile-cancel-btn" />
                         <Button text="Save Changes" onAction="#onProfileSave"

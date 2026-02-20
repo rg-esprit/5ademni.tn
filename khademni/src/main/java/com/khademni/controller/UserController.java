@@ -5,7 +5,12 @@ import com.khademni.model.UserModel;
 import com.khademni.utils.MyDataBase;
 import javafx.event.ActionEvent;
 import javafx.fxml.FXML;
+import javafx.fxml.FXMLLoader;
+import javafx.scene.Parent;
+import javafx.scene.Scene;
 import javafx.scene.control.*;
+import javafx.stage.Modality;
+import javafx.stage.Stage;
 
 import java.io.IOException;
 import java.security.MessageDigest;
@@ -114,6 +119,9 @@ public class UserController {
     private boolean passwordVisible = false;
     private boolean confirmPasswordVisible = false;
 
+    /** Holds the DB-generated id of the user just created during signup, to allow face enrollment. */
+    private int tempNewUserId = -1;
+
     @FXML
     public void initialize() {
         // Bind password fields for login
@@ -198,6 +206,7 @@ public class UserController {
                 user.setIsAdmin(rs.getBoolean("is_admin"));
                 user.setProfileImg(rs.getString("profile_img"));
                 user.setBio(rs.getString("bio"));
+                try { user.setFaceEmbedding(rs.getString("face_embedding")); } catch (SQLException ignored) {}
                 return user;
             }
         }
@@ -314,7 +323,8 @@ public class UserController {
             user.setBio(bio);
             if (createUser(user)) {
                 System.out.println("Signup successful: " + user);
-                showError("Account created successfully! Redirecting to login...", signupErrorLabel);
+                tempNewUserId = user.getId();
+                showError("Account created! You can now enroll your face or proceed to login.", signupErrorLabel);
                 
                 // Navigate to login after 2 seconds
                 new Thread(() -> {
@@ -361,7 +371,7 @@ public class UserController {
         String query = "INSERT INTO users (first_name, last_name, date_of_birth, balance, email, password, is_admin, profile_img, bio) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)";
 
         Connection conn = MyDataBase.getConnection();
-        try (PreparedStatement stmt = conn.prepareStatement(query)) {
+        try (PreparedStatement stmt = conn.prepareStatement(query, Statement.RETURN_GENERATED_KEYS)) {
 
             stmt.setString(1, user.getFirstName());
             stmt.setString(2, user.getLastName());
@@ -374,7 +384,14 @@ public class UserController {
             stmt.setString(9, user.getBio() != null ? user.getBio() : "");
 
             int rowsAffected = stmt.executeUpdate();
-            return rowsAffected > 0;
+            if (rowsAffected > 0) {
+                ResultSet generatedKeys = stmt.getGeneratedKeys();
+                if (generatedKeys.next()) {
+                    user.setId(generatedKeys.getInt(1)); // store DB-assigned id on model
+                }
+                return true;
+            }
+            return false;
         }
     }
 
@@ -440,6 +457,71 @@ public class UserController {
     private void onSignupAppleSignIn(ActionEvent event) {
         System.out.println("Apple Sign Up clicked");
         // TODO: Implement Apple Sign In
+    }
+
+    // ============ FACE RECOGNITION METHODS ============
+
+    /**
+     * Opens the face-capture dialog in enrollment mode.
+     * Can be triggered from signup (uses tempNewUserId) or profile (uses currentUser).
+     */
+    @FXML
+    private void onEnrollFace(ActionEvent event) {
+        int userId = -1;
+        if (App.getCurrentUser() != null) {
+            userId = App.getCurrentUser().getId();
+        } else if (tempNewUserId > 0) {
+            userId = tempNewUserId;
+        }
+        if (userId <= 0) {
+            Label label = (signupErrorLabel != null) ? signupErrorLabel : errorLabel;
+            showError("Please create your account first before enrolling your face.", label);
+            return;
+        }
+        openFaceCaptureDialog(true, userId);
+    }
+
+    /**
+     * Opens the face-capture dialog in 1:N identification mode (Face ID Login).
+     * Available from the login screen.
+     */
+    @FXML
+    private void onFaceLogin(ActionEvent event) {
+        openFaceCaptureDialog(false, -1);
+    }
+
+    private void openFaceCaptureDialog(boolean enroll, int userId) {
+        try {
+            FXMLLoader loader = new FXMLLoader(App.class.getResource("face_capture.fxml"));
+            Parent root = loader.load();
+            FaceController fc = loader.getController();
+
+            Stage dialog = new Stage();
+            dialog.initOwner(App.getPrimaryStage());
+            dialog.initModality(Modality.APPLICATION_MODAL);
+            dialog.setTitle(enroll ? "Enroll Face ID" : "Face ID Login");
+            dialog.setResizable(false);
+
+            Scene dialogScene = new Scene(root);
+            String cssUrl = App.class.getResource("face_capture.css") != null
+                    ? App.class.getResource("face_capture.css").toExternalForm() : null;
+            if (cssUrl != null) dialogScene.getStylesheets().add(cssUrl);
+            dialog.setScene(dialogScene);
+
+            // Configure mode BEFORE showing
+            if (enroll) {
+                fc.configureEnroll(userId);
+            } else {
+                fc.configureLogin();
+            }
+
+            // Ensure dialog releases resources on window close
+            dialog.setOnCloseRequest(e -> dialog.close());
+
+            dialog.showAndWait();
+        } catch (IOException e) {
+            e.printStackTrace();
+        }
     }
 
     // ============ PROFILE METHODS ============
