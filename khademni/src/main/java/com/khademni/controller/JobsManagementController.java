@@ -254,6 +254,7 @@ public class JobsManagementController {
     @FXML
     private void showAddJobDialog() {
         Dialog<JobModel> dialog = new Dialog<>();
+        dialog.initOwner(App.getPrimaryStage());
         dialog.setTitle("Add New Job");
         dialog.setHeaderText("Create a new job posting");
 
@@ -330,6 +331,7 @@ public class JobsManagementController {
     // ==================== UPDATE ====================
     private void showEditJobDialog(JobModel job) {
         Dialog<JobModel> dialog = new Dialog<>();
+        dialog.initOwner(App.getPrimaryStage());
         dialog.setTitle("Edit Job");
         dialog.setHeaderText("Edit job posting: " + job.getTitle());
 
@@ -406,6 +408,7 @@ public class JobsManagementController {
     // ==================== DELETE ====================
     private void deleteJob(JobModel job) {
         Alert confirmAlert = new Alert(Alert.AlertType.CONFIRMATION);
+        confirmAlert.initOwner(App.getPrimaryStage());
         confirmAlert.setTitle("Delete Job");
         confirmAlert.setHeaderText("Confirm Deletion");
         confirmAlert.setContentText("Are you sure you want to delete this job?\n\n" + job.getTitle());
@@ -439,6 +442,7 @@ public class JobsManagementController {
     // ==================== VIEW ====================
     private void showJobDetails(JobModel job) {
         Alert alert = new Alert(Alert.AlertType.INFORMATION);
+        alert.initOwner(App.getPrimaryStage());
         alert.setTitle("Job Details");
         alert.setHeaderText(job.getTitle() + " at " + job.getCompany());
 
@@ -720,6 +724,7 @@ public class JobsManagementController {
     // ==================== UTILITIES ====================
     private void showAlert(Alert.AlertType type, String title, String message) {
         Alert alert = new Alert(type);
+        alert.initOwner(App.getPrimaryStage());
         alert.setTitle(title);
         alert.setHeaderText(null);
         alert.setContentText(message);

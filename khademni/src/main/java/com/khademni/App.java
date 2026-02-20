@@ -76,4 +76,8 @@ public class App extends Application {
         currentUser = user;
     }
 
+    public static Stage getPrimaryStage() {
+        return primaryStage;
+    }
+
 }

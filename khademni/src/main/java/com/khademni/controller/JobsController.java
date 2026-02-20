@@ -814,6 +814,7 @@ public class JobsController {
 
         // creation de dialog
         Dialog<JobModel> dialog = new Dialog<>();
+        dialog.initOwner(App.getPrimaryStage());
         dialog.setTitle("Add New Job");
         dialog.setHeaderText("Create a new job posting");
 
@@ -916,6 +917,7 @@ public class JobsController {
         }
 
         Dialog<JobModel> dialog = new Dialog<>();
+        dialog.initOwner(App.getPrimaryStage());
         dialog.setTitle("Edit Job");
         dialog.setHeaderText("Edit job posting: " + job.getTitle());
 
@@ -999,6 +1001,7 @@ public class JobsController {
         }
 
         Alert confirmAlert = new Alert(Alert.AlertType.CONFIRMATION);
+        confirmAlert.initOwner(App.getPrimaryStage());
         confirmAlert.setTitle("Delete Job");
         confirmAlert.setHeaderText("Confirm Deletion");
         confirmAlert.setContentText("Are you sure you want to delete this job?\n\n" + job.getTitle());
@@ -1125,6 +1128,7 @@ public class JobsController {
 
     private void showMapPickerDialog(TextField locationField) {
         Dialog<String> dialog = new Dialog<>();
+        dialog.initOwner(App.getPrimaryStage());
         dialog.setTitle("Pick Location");
         dialog.setHeaderText("Click on the map to select location");
 
@@ -1421,6 +1425,7 @@ public class JobsController {
 
     private void showAlert(String title, String msg) {
         Alert a = new Alert(Alert.AlertType.INFORMATION);
+        a.initOwner(App.getPrimaryStage());
         a.setTitle(title);
         a.setHeaderText(null);
         a.setContentText(msg);

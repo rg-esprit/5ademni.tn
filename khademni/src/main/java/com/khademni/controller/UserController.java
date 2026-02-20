@@ -563,6 +563,7 @@ public class UserController {
 
         // Show confirmation dialog
         Alert alert = new Alert(Alert.AlertType.CONFIRMATION);
+        alert.initOwner(App.getPrimaryStage());
         alert.setTitle("Delete Account");
         alert.setHeaderText("Are you sure you want to delete your account?");
         alert.setContentText("This action cannot be undone. All your data will be permanently deleted.");
