@@ -1,0 +1,58 @@
+<?xml version="1.0" encoding="UTF-8"?>
+
+<?import javafx.scene.control.*?>
+<?import javafx.scene.layout.*?>
+<?import javafx.geometry.Insets?>
+<?import org.kordamp.ikonli.javafx.FontIcon?>
+
+<VBox xmlns="http://javafx.com/javafx/17" xmlns:fx="http://javafx.com/fxml/1"
+    fx:controller="com.khademni.controller.FaceController"
+    alignment="CENTER" spacing="24" styleClass="face-root"
+    prefWidth="420" prefHeight="420">
+
+    <padding>
+        <Insets top="36" right="32" bottom="36" left="32" />
+    </padding>
+
+    <!-- Title row -->
+    <HBox alignment="CENTER" spacing="12">
+        <StackPane styleClass="face-icon-box" prefWidth="40" prefHeight="40">
+            <FontIcon iconLiteral="fas-id-badge" iconSize="20" iconColor="white" />
+        </StackPane>
+        <Label text="Face ID" styleClass="face-title" />
+    </HBox>
+
+    <!-- Camera illustration -->
+    <StackPane prefWidth="120" prefHeight="120" maxWidth="120"
+        style="-fx-background-color: #0c0c22; -fx-background-radius: 60;">
+        <FontIcon iconLiteral="fas-camera" iconSize="52" iconColor="#6c63ff" />
+    </StackPane>
+
+    <!-- Spinner (shown during capture) -->
+    <ProgressIndicator fx:id="spinner" prefWidth="48" prefHeight="48"
+        visible="false" managed="false"
+        style="-fx-progress-color: #6c63ff;" />
+
+    <!-- Status text -->
+    <Label fx:id="statusLabel" text="Ready."
+        wrapText="true" maxWidth="356" alignment="CENTER"
+        styleClass="face-status" />
+
+    <!-- Hint text -->
+    <Label fx:id="hintLabel"
+        text="Your webcam will open automatically.&#10;Look straight at the camera in good lighting."
+        wrapText="true" maxWidth="356" alignment="CENTER"
+        styleClass="face-hint" />
+
+    <!-- Action button -->
+    <Button fx:id="startBtn" text="Start"
+        onAction="#onStart"
+        maxWidth="Infinity"
+        styleClass="face-btn"
+        graphicTextGap="10">
+        <graphic>
+            <FontIcon iconLiteral="fas-play" iconColor="white" iconSize="14" />
+        </graphic>
+    </Button>
+
+</VBox>

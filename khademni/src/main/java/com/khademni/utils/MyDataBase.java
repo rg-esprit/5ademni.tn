@@ -33,6 +33,19 @@ public class MyDataBase {
             } catch (SQLException e) {
                 System.out.println("Note: job_applications.application_date fix skipped.");
             }
+
+            // Add face_embedding column for face recognition feature.
+            // Error code 1060 = "Duplicate column name" — safe to ignore.
+            try {
+                stmt.execute("ALTER TABLE users ADD COLUMN face_embedding JSON NULL");
+                System.out.println("Schema update: users.face_embedding column added.");
+            } catch (SQLException e) {
+                if (e.getErrorCode() == 1060) {
+                    System.out.println("Note: users.face_embedding already exists — OK.");
+                } else {
+                    System.out.println("Note: users.face_embedding fix skipped: " + e.getMessage());
+                }
+            }
         } catch (SQLException e) {
             System.err.println("Error during schema check: " + e.getMessage());
         }

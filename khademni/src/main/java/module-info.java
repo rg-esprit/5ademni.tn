@@ -5,10 +5,12 @@ module com.khademni {
     requires jdk.jsobject;
     requires java.net.http;
     requires java.sql;
+    requires java.desktop;          // BufferedImage, ImageIO
     requires mysql.connector.j;
     requires org.kordamp.ikonli.javafx;
     requires org.kordamp.ikonli.material2;
     requires org.kordamp.ikonli.fontawesome5;
+    requires com.google.gson;       // JSON parsing of backend responses
 
     opens com.khademni to javafx.fxml;
     opens com.khademni.controller to javafx.fxml;
