@@ -1,0 +1,320 @@
+┌──────────────────────────────────────────────────────────────┐
+│                                                              │
+│  ✅ COMPTEUR DE GIGS PAR CATÉGORIE - IMPLÉMENTÉ !          │
+│                                                              │
+└──────────────────────────────────────────────────────────────┘
+
+
+╔══════════════════════════════════════════════════════════════╗
+║                    AVANT vs APRÈS                            ║
+╚══════════════════════════════════════════════════════════════╝
+
+┌─────────────── AVANT ─────────────────┐
+│                                        │
+│  ┌──────────────────────────────────┐  │
+│  │ 📂 Web Development    [● Active] │  │
+│  │ ID: 4                            │  │
+│  ├──────────────────────────────────┤  │
+│  │ Professional web development     │  │
+│  │ services for businesses          │  │
+│  ├──────────────────────────────────┤  │
+│  │ [✎ Edit]      [✕ Delete]        │  │
+│  └──────────────────────────────────┘  │
+│                                        │
+└────────────────────────────────────────┘
+
+
+┌─────────────── APRÈS ─────────────────┐
+│                                        │
+│  ┌──────────────────────────────────┐  │
+│  │ 📂 Web Development    [● Active] │  │
+│  │ ID: 4                            │  │
+│  ├──────────────────────────────────┤  │
+│  │ Professional web development     │  │
+│  │ services for businesses          │  │
+│  ├──────────────────────────────────┤  │
+│  │ ╔════════════════════════════╗   │  │
+│  │ ║  💼  5 Gigs               ║   │  │  ← NOUVEAU !
+│  │ ╚════════════════════════════╝   │  │
+│  ├──────────────────────────────────┤  │
+│  │ [✎ Edit]      [✕ Delete]        │  │
+│  └──────────────────────────────────┘  │
+│                                        │
+└────────────────────────────────────────┘
+
+
+╔══════════════════════════════════════════════════════════════╗
+║                  EXEMPLES D'AFFICHAGE                        ║
+╚══════════════════════════════════════════════════════════════╝
+
+┌─────────────────────────────────────┐
+│ Catégorie VIDE (0 gigs)             │
+├─────────────────────────────────────┤
+│ ┌─────────────────────────────────┐ │
+│ │ 💼  0 Gigs                      │ │
+│ └─────────────────────────────────┘ │
+└─────────────────────────────────────┘
+
+
+┌─────────────────────────────────────┐
+│ Catégorie avec 1 GIG (singulier)    │
+├─────────────────────────────────────┤
+│ ┌─────────────────────────────────┐ │
+│ │ 💼  1 Gig                       │ │  ← Singulier !
+│ └─────────────────────────────────┘ │
+└─────────────────────────────────────┘
+
+
+┌─────────────────────────────────────┐
+│ Catégorie POPULAIRE (10+ gigs)      │
+├─────────────────────────────────────┤
+│ ┌─────────────────────────────────┐ │
+│ │ 💼  15 Gigs                     │ │  ← Pluriel !
+│ └─────────────────────────────────┘ │
+└─────────────────────────────────────┘
+
+
+╔══════════════════════════════════════════════════════════════╗
+║                    CODE AJOUTÉ                               ║
+╚══════════════════════════════════════════════════════════════╝
+
+Fichier : CategoryController.java
+
+┌──────────────────────────────────────────────────────────────┐
+│  1️⃣  MÉTHODE DE COMPTAGE                                    │
+└──────────────────────────────────────────────────────────────┘
+
+private int getGigCountForCategory(int categoryId) {
+    String query = "SELECT COUNT(*) as count FROM gig WHERE category_id = ?";
+
+    try (Connection conn = MyDataBase.getInstance().getConnection();
+         PreparedStatement ps = conn.prepareStatement(query)) {
+
+        ps.setInt(1, categoryId);
+        ResultSet rs = ps.executeQuery();
+
+        if (rs.next()) {
+            return rs.getInt("count");
+        }
+    } catch (SQLException e) {
+        System.err.println("Error: " + e.getMessage());
+    }
+    return 0;
+}
+
+
+┌──────────────────────────────────────────────────────────────┐
+│  2️⃣  BADGE DANS LA CARTE                                    │
+└──────────────────────────────────────────────────────────────┘
+
+// Gig Counter Badge
+int gigCount = getGigCountForCategory(category.getId());
+
+HBox gigCountBox = new HBox(8);
+gigCountBox.setAlignment(Pos.CENTER_LEFT);
+gigCountBox.setStyle(
+    "-fx-background-color: #f0f9ff;" +     // Fond bleu clair
+    "-fx-padding: 10 14;" +
+    "-fx-background-radius: 10;" +
+    "-fx-border-color: #bae6fd;" +         // Bordure bleue
+    "-fx-border-width: 1.5;" +
+    "-fx-border-radius: 10;"
+);
+
+Label gigIcon = new Label("💼");
+gigIcon.setStyle("-fx-font-size: 16;");
+
+Label gigCountLabel = new Label(
+    gigCount + " Gig" + (gigCount != 1 ? "s" : "")  // Pluriel auto !
+);
+gigCountLabel.setStyle(
+    "-fx-font-size: 13; -fx-font-weight: 700; -fx-text-fill: #0369a1;"
+);
+
+gigCountBox.getChildren().addAll(gigIcon, gigCountLabel);
+
+// Ajouter à la carte (entre description et separator)
+card.getChildren().addAll(header, desc, gigCountBox, sep, actions);
+
+
+╔══════════════════════════════════════════════════════════════╗
+║                  INSTRUCTIONS DE TEST                        ║
+╚══════════════════════════════════════════════════════════════╝
+
+┌──────────────────────────────────────────────────────────────┐
+│  ÉTAPE 1 : COMPILER                                          │
+└──────────────────────────────────────────────────────────────┘
+
+    Dans IntelliJ IDEA :
+
+    Build → Rebuild Project
+
+
+┌──────────────────────────────────────────────────────────────┐
+│  ÉTAPE 2 : LANCER                                            │
+└──────────────────────────────────────────────────────────────┘
+
+    Run → Run 'App'
+
+
+┌──────────────────────────────────────────────────────────────┐
+│  ÉTAPE 3 : TESTER                                            │
+└──────────────────────────────────────────────────────────────┘
+
+    1. Se connecter avec : emna@gmail.com
+
+    2. Menu → Manage Categories
+
+    3. Vérifier : Chaque carte affiche "💼 X Gigs"
+
+    4. Exemples attendus :
+
+       ✅ Web Development      → 💼 5 Gigs
+       ✅ Workflow Automation  → 💼 2 Gigs
+       ✅ Graphic Design       → 💼 0 Gigs
+
+
+┌──────────────────────────────────────────────────────────────┐
+│  ÉTAPE 4 : TESTER LA MISE À JOUR                             │
+└──────────────────────────────────────────────────────────────┘
+
+    1. Noter le compteur actuel (ex: "💼 2 Gigs")
+
+    2. Aller dans Gig Management
+
+    3. Créer un nouveau gig dans cette catégorie
+
+    4. Retourner à Category Management
+
+    5. Cliquer sur "⟳ Refresh"
+
+    6. Vérifier : Le compteur a augmenté → "💼 3 Gigs"
+
+
+╔══════════════════════════════════════════════════════════════╗
+║                    STYLE DU BADGE                            ║
+╚══════════════════════════════════════════════════════════════╝
+
+┌──────────────────────────────────────────────────────────────┐
+│  COULEURS                                                    │
+└──────────────────────────────────────────────────────────────┘
+
+    Fond :       #f0f9ff  (bleu très clair)
+    Bordure :    #bae6fd  (bleu clair)
+    Texte :      #0369a1  (bleu foncé)
+    Icône :      💼        (briefcase emoji)
+
+
+┌──────────────────────────────────────────────────────────────┐
+│  DIMENSIONS                                                  │
+└──────────────────────────────────────────────────────────────┘
+
+    Padding :         10px 14px
+    Border radius :   10px
+    Border width :    1.5px
+
+    Icône :          16px
+    Texte :          13px (bold)
+
+
+╔══════════════════════════════════════════════════════════════╗
+║                    AVANTAGES                                 ║
+╚══════════════════════════════════════════════════════════════╝
+
+✅  Visibilité immédiate du nombre de gigs par catégorie
+
+✅  Design moderne et cohérent avec l'interface
+
+✅  Aide à identifier les catégories populaires vs vides
+
+✅  Facilite la prise de décision (suppression de catégories vides)
+
+✅  Pluriel automatique (1 Gig / 5 Gigs)
+
+✅  Performance optimale (requête SQL simple)
+
+✅  Gestion des erreurs (retourne 0 si problème)
+
+
+╔══════════════════════════════════════════════════════════════╗
+║                    RÉSUMÉ TECHNIQUE                          ║
+╚══════════════════════════════════════════════════════════════╝
+
+┌──────────────────────────────────────────────────────────────┐
+│  Fichier modifié                                             │
+└──────────────────────────────────────────────────────────────┘
+
+    CategoryController.java
+
+
+┌──────────────────────────────────────────────────────────────┐
+│  Méthodes ajoutées                                           │
+└──────────────────────────────────────────────────────────────┘
+
+    getGigCountForCategory(int categoryId) : int
+
+
+┌──────────────────────────────────────────────────────────────┐
+│  Méthodes modifiées                                          │
+└──────────────────────────────────────────────────────────────┘
+
+    createCategoryCard(CategoryModel category) : VBox
+
+
+┌──────────────────────────────────────────────────────────────┐
+│  Requête SQL                                                 │
+└──────────────────────────────────────────────────────────────┘
+
+    SELECT COUNT(*) as count FROM gig WHERE category_id = ?
+
+
+┌──────────────────────────────────────────────────────────────┐
+│  Lignes de code ajoutées                                     │
+└──────────────────────────────────────────────────────────────┘
+
+    Méthode de comptage :  ~15 lignes
+    Badge dans carte :     ~30 lignes
+    ───────────────────────────────
+    TOTAL :                ~45 lignes
+
+
+╔══════════════════════════════════════════════════════════════╗
+║                    MISE À JOUR DU COMPTEUR                   ║
+╚══════════════════════════════════════════════════════════════╝
+
+Le compteur se met à jour dans ces cas :
+
+✅  Au chargement de la page
+
+✅  Après recherche/filtrage
+
+✅  Après clic sur "⟳ Refresh"
+
+✅  Après ajout/suppression de catégorie
+
+⚠️  PAS en temps réel automatique
+
+
+╔══════════════════════════════════════════════════════════════╗
+║                    C'EST PRÊT !                              ║
+╚══════════════════════════════════════════════════════════════╝
+
+🎉  Le compteur de gigs par catégorie est maintenant fonctionnel !
+
+📊  Chaque carte affiche le nombre exact de gigs associés
+
+💼  Badge visuellement attrayant avec icône briefcase
+
+📝  Pluriel intelligent (1 Gig vs 5 Gigs)
+
+🔄  Mise à jour via le bouton Refresh
+
+✅  Compilation sans erreurs
+
+
+┌──────────────────────────────────────────────────────────────┐
+│                                                              │
+│            COMPILE ET TESTE L'APPLICATION ! 🚀              │
+│                                                              │
+└──────────────────────────────────────────────────────────────┘
+

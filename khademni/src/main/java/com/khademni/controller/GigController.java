@@ -1,220 +1,195 @@
 package com.khademni.controller;
 
-import com.khademni.model.GigModel;
+import com.khademni.App;
 import com.khademni.model.CategoryModel;
+import com.khademni.model.GigModel;
 import com.khademni.utils.MyDataBase;
-
-import javafx.collections.FXCollections;
-import javafx.collections.ObservableList;
 import javafx.fxml.FXML;
+import javafx.fxml.Initializable;
+import javafx.geometry.Insets;
+import javafx.geometry.Pos;
 import javafx.scene.control.*;
-import javafx.scene.control.cell.PropertyValueFactory;
+import javafx.scene.image.Image;
+import javafx.scene.image.ImageView;
+import javafx.scene.layout.*;
 import javafx.stage.FileChooser;
-import javafx.util.StringConverter;
+import javafx.stage.Stage;
 
 import java.io.File;
-import java.io.IOException;
+import java.net.URL;
 import java.sql.*;
-import java.time.LocalDate;
 import java.time.LocalDateTime;
-import java.time.LocalTime;
+import java.util.ArrayList;
+import java.util.List;
+import java.util.Optional;
+import java.util.ResourceBundle;
 
-public class GigController {
+/**
+ * Controller for Gig Management (Fiverr-Style Modern UI)
+ */
+public class GigController implements Initializable {
 
-    // ===== FIELDS =====
-    @FXML private TextField titleField;
-    @FXML private TextArea descriptionArea;
-    @FXML private TextField priceField;
-    @FXML private DatePicker deliveryDatePicker;
-    @FXML private Spinner<Integer> deliveryHourSpinner;
-    @FXML private Spinner<Integer> deliveryMinuteSpinner;
-    @FXML private TextField imageField;
-    @FXML private Button selectImageButton;
+    // ===== FXML Components - Filters =====
+    @FXML private TextField searchField;
+    @FXML private ComboBox<CategoryModel> filterCategoryComboBox;
+    @FXML private ComboBox<String> filterStatusComboBox;
+    @FXML private TextField minPriceField;
+    @FXML private TextField maxPriceField;
 
-    @FXML private ComboBox<CategoryModel> categoryComboBox;
-    @FXML private ComboBox<String> statusComboBox;
+    // ===== FXML Components - Stats & Display =====
+    @FXML private Label messageLabel;
+    @FXML private Label totalGigsLabel;
+    @FXML private Label activeGigsLabel;
+    @FXML private Label totalRevenueLabel;
+    @FXML private FlowPane gigsContainer;
+    @FXML private VBox emptyState;
 
-    @FXML private TableView<GigModel> gigTable;
-    @FXML private TableColumn<GigModel, Integer> colId;
-    @FXML private TableColumn<GigModel, String> colTitle;
-    @FXML private TableColumn<GigModel, Double> colPrice;
-    @FXML private TableColumn<GigModel, String> colStatus;
-    @FXML private TableColumn<GigModel, String> colCategory;
+    // ===== Data =====
+    private List<GigModel> allGigs = new ArrayList<>();
+    private List<CategoryModel> categories = new ArrayList<>();
 
-    private ObservableList<GigModel> gigList = FXCollections.observableArrayList();
+    @Override
+    public void initialize(URL url, ResourceBundle resourceBundle) {
+        System.out.println("=== GigController: Starting initialization ===");
 
-    // ===== INITIALIZE =====
-    @FXML
-    public void initialize() {
-        configureTable();
-        configureDateTimePickers();
-        configurePriceField();
-        configureCategoryComboBox();
+        // Check if components are initialized
+        System.out.println("searchField: " + (searchField != null ? "OK" : "NULL"));
+        System.out.println("filterCategoryComboBox: " + (filterCategoryComboBox != null ? "OK" : "NULL"));
+        System.out.println("filterStatusComboBox: " + (filterStatusComboBox != null ? "OK" : "NULL"));
+        System.out.println("gigsContainer: " + (gigsContainer != null ? "OK" : "NULL"));
+
+        setupFilters();
+        System.out.println("Filters setup complete");
+
         loadCategories();
+        System.out.println("Categories loaded: " + categories.size());
+
         loadGigs();
+        System.out.println("Gigs loaded: " + allGigs.size());
 
-        statusComboBox.setItems(FXCollections.observableArrayList("ACTIVE", "INACTIVE"));
+        updateStats();
+        System.out.println("=== GigController: Initialization complete ===");
+    }
 
-        // Click row to fill form
-        gigTable.getSelectionModel().selectedItemProperty().addListener((obs, oldVal, selectedGig) -> {
-            if (selectedGig != null) {
-                fillForm(selectedGig);
+    // ==================== SETUP ====================
+
+    private void setupFilters() {
+        // Status filter
+        filterStatusComboBox.getItems().addAll("All Status", "Active", "Inactive", "Expired");
+        filterStatusComboBox.setValue("All Status");
+
+        // Add listeners for real-time filtering
+        filterStatusComboBox.valueProperty().addListener((obs, oldVal, newVal) -> applyFilters());
+        filterCategoryComboBox.valueProperty().addListener((obs, oldVal, newVal) -> applyFilters());
+
+        // Real-time search
+        searchField.textProperty().addListener((obs, oldVal, newVal) -> applyFilters());
+
+        // Price fields listeners
+        minPriceField.textProperty().addListener((obs, oldVal, newVal) -> {
+            if (!newVal.matches("\\d*\\.?\\d*")) {
+                minPriceField.setText(oldVal);
+            }
+        });
+        maxPriceField.textProperty().addListener((obs, oldVal, newVal) -> {
+            if (!newVal.matches("\\d*\\.?\\d*")) {
+                maxPriceField.setText(oldVal);
             }
         });
     }
 
-    // ===== CONFIGURE DATE TIME PICKERS =====
-    private void configureDateTimePickers() {
-        // Vérifier que les champs existent
-        if (deliveryDatePicker == null) {
-            System.err.println("ATTENTION: deliveryDatePicker est null. Le fichier FXML doit être recompilé.");
-            return;
-        }
-
-        // DatePicker - désactiver les dates passées
-        deliveryDatePicker.setDayCellFactory(picker -> new DateCell() {
-            @Override
-            public void updateItem(LocalDate date, boolean empty) {
-                super.updateItem(date, empty);
-                setDisable(empty || date.isBefore(LocalDate.now()));
-            }
-        });
-
-        // Spinner pour les heures (0-23)
-        if (deliveryHourSpinner != null) {
-            SpinnerValueFactory<Integer> hourValueFactory =
-                new SpinnerValueFactory.IntegerSpinnerValueFactory(0, 23, LocalTime.now().getHour());
-            deliveryHourSpinner.setValueFactory(hourValueFactory);
-            deliveryHourSpinner.setEditable(true);
-        }
-
-        // Spinner pour les minutes (0-59)
-        if (deliveryMinuteSpinner != null) {
-            SpinnerValueFactory<Integer> minuteValueFactory =
-                new SpinnerValueFactory.IntegerSpinnerValueFactory(0, 59, 0, 5);
-            deliveryMinuteSpinner.setValueFactory(minuteValueFactory);
-            deliveryMinuteSpinner.setEditable(true);
-        }
-    }
-
-    // ===== CONFIGURE PRICE FIELD =====
-    private void configurePriceField() {
-        // Limiter la saisie aux chiffres et au point décimal
-        priceField.textProperty().addListener((observable, oldValue, newValue) -> {
-            if (!newValue.matches("\\d*(\\.\\d{0,2})?")) {
-                priceField.setText(oldValue);
-            }
-        });
-    }
-
-    // ===== CONFIGURE CATEGORY COMBOBOX =====
-    private void configureCategoryComboBox() {
-        // Afficher uniquement le nom de la catégorie
-        categoryComboBox.setConverter(new StringConverter<CategoryModel>() {
-            @Override
-            public String toString(CategoryModel category) {
-                return category != null ? category.getName() : "";
-            }
-
-            @Override
-            public CategoryModel fromString(String string) {
-                return categoryComboBox.getItems().stream()
-                    .filter(cat -> cat.getName().equals(string))
-                    .findFirst()
-                    .orElse(null);
-            }
-        });
-    }
-
-    // ===== SELECT IMAGE FROM PC =====
-    @FXML
-    private void selectImage() {
-        FileChooser fileChooser = new FileChooser();
-        fileChooser.setTitle("Sélectionner une image");
-
-        // Filtrer uniquement les images PNG et JPG
-        fileChooser.getExtensionFilters().addAll(
-            new FileChooser.ExtensionFilter("Images", "*.png", "*.jpg", "*.jpeg"),
-            new FileChooser.ExtensionFilter("PNG", "*.png"),
-            new FileChooser.ExtensionFilter("JPG", "*.jpg", "*.jpeg")
-        );
-
-        // Ouvrir le dialogue de sélection
-        File selectedFile = fileChooser.showOpenDialog(selectImageButton.getScene().getWindow());
-
-        if (selectedFile != null) {
-            // Stocker le chemin absolu du fichier
-            imageField.setText(selectedFile.getAbsolutePath());
-        }
-    }
-
-    // ===== CONFIG TABLE =====
-    private void configureTable() {
-        colId.setCellValueFactory(new PropertyValueFactory<>("id"));
-        colTitle.setCellValueFactory(new PropertyValueFactory<>("title"));
-        colPrice.setCellValueFactory(new PropertyValueFactory<>("price"));
-        colStatus.setCellValueFactory(new PropertyValueFactory<>("status"));
-        colCategory.setCellValueFactory(cellData ->
-                new javafx.beans.property.SimpleStringProperty(
-                        cellData.getValue().getCategory().getName()
-                ));
-    }
-
-    // ===== LOAD CATEGORIES =====
     private void loadCategories() {
-        try (Connection conn = MyDataBase.getConnection()) {
+        categories.clear();
+        System.out.println("Loading categories...");
 
-            String query = "SELECT * FROM category WHERE is_active = true";
-            PreparedStatement ps = conn.prepareStatement(query);
-            ResultSet rs = ps.executeQuery();
+        // Default option - using constructor with isActive
+        CategoryModel allCat = new CategoryModel(0, "All Categories", "", true);
+        categories.add(allCat);
 
-            ObservableList<CategoryModel> categories = FXCollections.observableArrayList();
+        // Load categories using 'name' column
+        String query = "SELECT id, name, description, is_active FROM category";
 
+        try (Connection conn = MyDataBase.getConnection();
+             PreparedStatement ps = conn.prepareStatement(query);
+             ResultSet rs = ps.executeQuery()) {
+
+            int count = 0;
             while (rs.next()) {
-                CategoryModel c = new CategoryModel(
+                CategoryModel cat = new CategoryModel(
                         rs.getInt("id"),
                         rs.getString("name"),
                         rs.getString("description"),
                         rs.getBoolean("is_active")
                 );
-                categories.add(c);
+                categories.add(cat);
+                count++;
+                System.out.println("  Loaded category: " + cat.getName());
             }
 
-            categoryComboBox.setItems(categories);
+            System.out.println("Total categories loaded: " + count);
 
-        } catch (Exception e) {
-            showAlert("Error loading categories.");
+            if (filterCategoryComboBox != null) {
+                filterCategoryComboBox.getItems().setAll(categories);
+                filterCategoryComboBox.setValue(categories.get(0));
+                System.out.println("Categories set in ComboBox");
+            }
+
+            if (count > 0) {
+                System.out.println("✓ Categories loaded successfully!");
+            } else {
+                System.out.println("⚠ WARNING: No categories found in database!");
+                System.out.println("→ Please add some categories to the database.");
+            }
+
+        } catch (SQLException e) {
+            System.err.println("ERROR loading categories: " + e.getMessage());
             e.printStackTrace();
+            showError("Error loading categories: " + e.getMessage());
         }
     }
 
-    // ===== LOAD GIGS =====
     private void loadGigs() {
-        gigList.clear();
+        allGigs.clear();
+        System.out.println("Loading gigs...");
 
-        try (Connection conn = MyDataBase.getConnection()) {
+        // Load ALL gigs (no user_id filter)
+        String query = """
+            SELECT g.id, g.title, g.description, g.price, g.delivery_time,
+                   g.image, g.status, c.id as cat_id, c.name as cat_name, c.description as cat_desc
+            FROM gig g
+            LEFT JOIN category c ON g.category_id = c.id
+            ORDER BY g.id DESC
+        """;
 
-            String query = """
-                    SELECT g.*, c.id as cid, c.name as cname, c.description as cdesc, c.is_active as cactive
-                    FROM gig g
-                    JOIN category c ON g.category_id = c.id
-                    """;
+        try (Connection conn = MyDataBase.getConnection();
+             PreparedStatement ps = conn.prepareStatement(query)) {
 
-            PreparedStatement ps = conn.prepareStatement(query);
+            System.out.println("Loading ALL gigs from database...");
             ResultSet rs = ps.executeQuery();
 
+            int count = 0;
             while (rs.next()) {
+                // Check if category exists
+                int catId = rs.getInt("cat_id");
+                CategoryModel category;
 
-                CategoryModel category = new CategoryModel(
-                        rs.getInt("cid"),
-                        rs.getString("cname"),
-                        rs.getString("cdesc"),
-                        rs.getBoolean("cactive")
-                );
+                if (catId > 0) {
+                    category = new CategoryModel(
+                            catId,
+                            rs.getString("cat_name"),
+                            rs.getString("cat_desc"),
+                            true
+                    );
+                } else {
+                    // Default category if no category assigned
+                    category = new CategoryModel(0, "Uncategorized", "No category", true);
+                }
 
-                // Convertir le Timestamp SQL en LocalDateTime
-                Timestamp timestamp = rs.getTimestamp("delivery_time");
-                LocalDateTime deliveryTime = timestamp != null ? timestamp.toLocalDateTime() : null;
+                LocalDateTime deliveryTime = rs.getTimestamp("delivery_time").toLocalDateTime();
+                String dbStatus = rs.getString("status");
+
+                // Calculate dynamic status based on delivery time
+                String actualStatus = calculateDynamicStatus(deliveryTime, dbStatus);
 
                 GigModel gig = new GigModel(
                         rs.getInt("id"),
@@ -223,305 +198,688 @@ public class GigController {
                         rs.getDouble("price"),
                         deliveryTime,
                         rs.getString("image"),
-                        rs.getString("status")
+                        actualStatus  // Use dynamic status
                 );
-
-                // Définir la catégorie après la construction
                 gig.setCategory(category);
 
-                gigList.add(gig);
+                allGigs.add(gig);
+                count++;
+                System.out.println("  Loaded gig: " + gig.getTitle() + " (Status: " + actualStatus + ")");
             }
 
-            gigTable.setItems(gigList);
+            System.out.println("Total gigs loaded: " + count);
 
-        } catch (Exception e) {
-            showAlert("Erreur lors du chargement des gigs:\n\n" + e.getMessage());
+            applyFilters();
+
+        } catch (SQLException e) {
+            System.err.println("ERROR loading gigs: " + e.getMessage());
             e.printStackTrace();
+            showError("Error loading gigs: " + e.getMessage());
         }
     }
 
-    // ===== ADD GIG =====
-    @FXML
-    private void addGig() {
+    /**
+     * Calculate dynamic status based on delivery time
+     * If delivery_time < current time → status becomes "EXPIRED"
+     */
+    private String calculateDynamicStatus(LocalDateTime deliveryTime, String dbStatus) {
+        LocalDateTime now = LocalDateTime.now();
 
-        if (!validateInputs()) return;
-
-        try (Connection conn = MyDataBase.getConnection()) {
-
-            String query = "INSERT INTO gig (title, description, price, delivery_time, image, status, category_id) VALUES (?, ?, ?, ?, ?, ?, ?)";
-
-            PreparedStatement ps = conn.prepareStatement(query);
-
-            ps.setString(1, titleField.getText().trim());
-            ps.setString(2, descriptionArea.getText().trim());
-            ps.setDouble(3, Double.parseDouble(priceField.getText()));
-
-            // Convertir la date et l'heure en LocalDateTime
-            LocalDate date = deliveryDatePicker.getValue();
-            int hour = deliveryHourSpinner != null ? deliveryHourSpinner.getValue() : 0;
-            int minute = deliveryMinuteSpinner != null ? deliveryMinuteSpinner.getValue() : 0;
-            LocalDateTime deliveryTime = LocalDateTime.of(date, LocalTime.of(hour, minute));
-            ps.setTimestamp(4, Timestamp.valueOf(deliveryTime));
-
-            ps.setString(5, imageField.getText());
-            ps.setString(6, statusComboBox.getValue());
-            ps.setInt(7, categoryComboBox.getValue().getId());
-
-            ps.executeUpdate();
-
-            showAlert("Gig ajouté avec succès !");
-            clearForm();
-            loadGigs();
-
-        } catch (Exception e) {
-            showAlert("Erreur lors de l'ajout du gig.");
-            e.printStackTrace();
+        if (deliveryTime.isBefore(now)) {
+            System.out.println("    → Gig expired (delivery: " + deliveryTime + " < now: " + now + ")");
+            return "EXPIRED";
         }
+
+        // Return original status from database
+        return dbStatus;
     }
 
-    // ===== UPDATE GIG =====
-    @FXML
-    private void updateGig() {
+    // ==================== FILTERS ====================
 
-        GigModel selectedGig = gigTable.getSelectionModel().getSelectedItem();
-        if (selectedGig == null) {
-            showAlert("Select a gig to update.");
+    @FXML
+    public void applyFilters() {
+        if (searchField == null || filterCategoryComboBox == null || filterStatusComboBox == null) {
+            return; // Components not yet initialized
+        }
+
+        String searchText = searchField.getText().toLowerCase().trim();
+        CategoryModel selectedCategory = filterCategoryComboBox.getValue();
+        String selectedStatus = filterStatusComboBox.getValue();
+
+        String minPriceStr = minPriceField.getText().trim();
+        String maxPriceStr = maxPriceField.getText().trim();
+
+        double minPrice = minPriceStr.isEmpty() ? 0 : parseDouble(minPriceStr, 0);
+        double maxPrice = maxPriceStr.isEmpty() ? Double.MAX_VALUE : parseDouble(maxPriceStr, Double.MAX_VALUE);
+
+        List<GigModel> filtered = allGigs.stream()
+                .filter(gig -> searchText.isEmpty() ||
+                        gig.getTitle().toLowerCase().contains(searchText) ||
+                        gig.getDescription().toLowerCase().contains(searchText))
+                .filter(gig -> selectedCategory == null || selectedCategory.getId() == 0 ||
+                        gig.getCategory().getId() == selectedCategory.getId())
+                .filter(gig -> selectedStatus.equals("All Status") ||
+                        gig.getStatus().equalsIgnoreCase(selectedStatus))
+                .filter(gig -> gig.getPrice() >= minPrice && gig.getPrice() <= maxPrice)
+                .toList();
+
+        displayGigs(filtered);
+    }
+
+    @FXML
+    public void clearFilters() {
+        searchField.clear();
+        filterCategoryComboBox.setValue(categories.get(0));
+        filterStatusComboBox.setValue("All Status");
+        minPriceField.clear();
+        maxPriceField.clear();
+        displayGigs(allGigs);
+    }
+
+    // ==================== DISPLAY ====================
+
+    private void displayGigs(List<GigModel> gigs) {
+        if (gigsContainer == null || emptyState == null) {
+            System.out.println("Display containers not yet initialized");
             return;
         }
 
-        if (!validateInputs()) return;
+        gigsContainer.getChildren().clear();
 
-        try (Connection conn = MyDataBase.getConnection()) {
-
-            String query = "UPDATE gig SET title=?, description=?, price=?, delivery_time=?, image=?, status=?, category_id=? WHERE id=?";
-
-            PreparedStatement ps = conn.prepareStatement(query);
-
-            ps.setString(1, titleField.getText().trim());
-            ps.setString(2, descriptionArea.getText().trim());
-            ps.setDouble(3, Double.parseDouble(priceField.getText()));
-
-            // Convertir la date et l'heure en LocalDateTime
-            LocalDate date = deliveryDatePicker.getValue();
-            int hour = deliveryHourSpinner != null ? deliveryHourSpinner.getValue() : 0;
-            int minute = deliveryMinuteSpinner != null ? deliveryMinuteSpinner.getValue() : 0;
-            LocalDateTime deliveryTime = LocalDateTime.of(date, LocalTime.of(hour, minute));
-            ps.setTimestamp(4, Timestamp.valueOf(deliveryTime));
-
-            ps.setString(5, imageField.getText());
-            ps.setString(6, statusComboBox.getValue());
-            ps.setInt(7, categoryComboBox.getValue().getId());
-            ps.setInt(8, selectedGig.getId());
-
-            ps.executeUpdate();
-
-            showAlert("Gig modifié avec succès !");
-            clearForm();
-            loadGigs();
-
-        } catch (Exception e) {
-            showAlert("Error updating gig.");
-            e.printStackTrace();
-        }
-    }
-
-    // ===== DELETE GIG =====
-    @FXML
-    private void deleteGig() {
-
-        GigModel selectedGig = gigTable.getSelectionModel().getSelectedItem();
-        if (selectedGig == null) {
-            showAlert("Select a gig to delete.");
-            return;
-        }
-
-        try (Connection conn = MyDataBase.getConnection()) {
-
-            String query = "DELETE FROM gig WHERE id=?";
-            PreparedStatement ps = conn.prepareStatement(query);
-            ps.setInt(1, selectedGig.getId());
-            ps.executeUpdate();
-
-            showAlert("Gig deleted successfully!");
-            clearForm();
-            loadGigs();
-
-        } catch (Exception e) {
-            showAlert("Error deleting gig.");
-            e.printStackTrace();
-        }
-    }
-
-    // ===== VALIDATION =====
-    private boolean validateInputs() {
-        StringBuilder errors = new StringBuilder();
-
-        // 1. Validation du Title
-        String title = titleField.getText().trim();
-        if (title.isEmpty()) {
-            errors.append("• Le titre est obligatoire.\n");
-        } else if (title.length() < 5) {
-            errors.append("• Le titre doit contenir au moins 5 caractères.\n");
-        } else if (title.length() > 100) {
-            errors.append("• Le titre ne doit pas dépasser 100 caractères.\n");
-        }
-
-        // 2. Validation de la Description
-        String description = descriptionArea.getText().trim();
-        if (description.isEmpty()) {
-            errors.append("• La description est obligatoire.\n");
-        } else if (description.length() < 20) {
-            errors.append("• La description doit contenir au moins 20 caractères.\n");
-        } else if (description.length() > 1000) {
-            errors.append("• La description ne doit pas dépasser 1000 caractères.\n");
-        }
-
-        // 3. Validation du Prix (Currency)
-        String priceText = priceField.getText().trim();
-        if (priceText.isEmpty()) {
-            errors.append("• Le prix est obligatoire.\n");
+        if (gigs.isEmpty()) {
+            emptyState.setVisible(true);
+            emptyState.setManaged(true);
         } else {
+            emptyState.setVisible(false);
+            emptyState.setManaged(false);
+
+            for (GigModel gig : gigs) {
+                gigsContainer.getChildren().add(createGigCard(gig));
+            }
+        }
+    }
+
+    private VBox createGigCard(GigModel gig) {
+        VBox card = new VBox();
+        card.getStyleClass().add("gig-card");
+        card.setPrefWidth(320);
+        card.setMaxWidth(320);
+        card.setStyle("-fx-cursor: hand;");
+
+        // Image Preview
+        StackPane imagePane = new StackPane();
+        imagePane.getStyleClass().add("gig-card-image");
+        imagePane.setPrefHeight(180);
+        imagePane.setMaxHeight(180);
+
+        if (gig.getImage() != null && !gig.getImage().isEmpty()) {
             try {
-                double price = Double.parseDouble(priceText);
-                if (price <= 0) {
-                    errors.append("• Le prix doit être supérieur à 0.\n");
-                } else if (price > 1000000) {
-                    errors.append("• Le prix ne doit pas dépasser 1,000,000.\n");
+                ImageView imageView = new ImageView(new Image(gig.getImage(), 320, 180, false, true));
+                imageView.setFitWidth(320);
+                imageView.setFitHeight(180);
+                imageView.setPreserveRatio(false);
+                imagePane.getChildren().add(imageView);
+            } catch (Exception e) {
+                Label placeholder = new Label("📷");
+                placeholder.setStyle("-fx-font-size: 48; -fx-text-fill: #9ca3af;");
+                imagePane.getChildren().add(placeholder);
+            }
+        } else {
+            Label placeholder = new Label("📷");
+            placeholder.setStyle("-fx-font-size: 48; -fx-text-fill: #9ca3af;");
+            imagePane.getChildren().add(placeholder);
+        }
+
+        // Content
+        VBox content = new VBox(12);
+        content.getStyleClass().add("gig-card-content");
+        content.setPadding(new Insets(16));
+
+        // Title
+        Label title = new Label(gig.getTitle());
+        title.getStyleClass().add("gig-card-title");
+        title.setWrapText(true);
+        title.setMaxHeight(50);
+
+        // Description
+        Label description = new Label(gig.getDescription());
+        description.getStyleClass().add("gig-card-description");
+        description.setWrapText(true);
+        description.setMaxHeight(40);
+
+        // Category & Status
+        HBox badges = new HBox(8);
+        badges.setAlignment(Pos.CENTER_LEFT);
+
+        Label categoryBadge = new Label(gig.getCategory().getName());
+        categoryBadge.getStyleClass().add("gig-card-category");
+
+        Label statusBadge = new Label(gig.getStatus());
+
+        // Dynamic styling based on status
+        if (gig.getStatus().equalsIgnoreCase("EXPIRED")) {
+            statusBadge.setStyle("-fx-background-color: #fee2e2; -fx-text-fill: #991b1b; " +
+                               "-fx-font-size: 11; -fx-font-weight: 700; -fx-padding: 6 12; " +
+                               "-fx-background-radius: 20;");
+        } else if (gig.getStatus().equalsIgnoreCase("active")) {
+            statusBadge.setStyle("-fx-background-color: #dcfce7; -fx-text-fill: #16a34a; " +
+                               "-fx-font-size: 11; -fx-font-weight: 700; -fx-padding: 6 12; " +
+                               "-fx-background-radius: 20;");
+        } else {
+            statusBadge.setStyle("-fx-background-color: #fef3c7; -fx-text-fill: #92400e; " +
+                               "-fx-font-size: 11; -fx-font-weight: 700; -fx-padding: 6 12; " +
+                               "-fx-background-radius: 20;");
+        }
+
+        badges.getChildren().addAll(categoryBadge, statusBadge);
+
+        // Price & Actions
+        HBox footer = new HBox(12);
+        footer.setAlignment(Pos.CENTER_LEFT);
+
+        Label price = new Label(String.format("%.2f TND", gig.getPrice()));
+        price.getStyleClass().add("gig-card-price");
+        HBox.setHgrow(price, Priority.ALWAYS);
+
+        Button editBtn = new Button("✏️");
+        editBtn.setStyle("-fx-background-color: #3b82f6; -fx-text-fill: white; " +
+                        "-fx-padding: 8 12; -fx-background-radius: 6; -fx-cursor: hand;");
+        editBtn.setOnAction(e -> showEditGigDialog(gig));
+
+        Button deleteBtn = new Button("🗑️");
+        deleteBtn.setStyle("-fx-background-color: #ef4444; -fx-text-fill: white; " +
+                          "-fx-padding: 8 12; -fx-background-radius: 6; -fx-cursor: hand;");
+        deleteBtn.setOnAction(e -> deleteGig(gig));
+
+        // Disable actions for EXPIRED gigs
+        if (gig.getStatus().equalsIgnoreCase("EXPIRED")) {
+            editBtn.setDisable(true);
+            editBtn.setStyle("-fx-background-color: #9ca3af; -fx-text-fill: white; " +
+                            "-fx-padding: 8 12; -fx-background-radius: 6; -fx-opacity: 0.5;");
+            deleteBtn.setDisable(false); // Allow deletion of expired gigs
+
+            // Add expired tooltip
+            Tooltip expiredTooltip = new Tooltip("⚠️ This gig has expired and cannot be edited");
+            Tooltip.install(editBtn, expiredTooltip);
+        }
+
+        footer.getChildren().addAll(price, editBtn, deleteBtn);
+
+        content.getChildren().addAll(title, description, badges, new Separator(), footer);
+        card.getChildren().addAll(imagePane, content);
+
+        return card;
+    }
+
+    private void updateStats() {
+        if (totalGigsLabel == null || activeGigsLabel == null || totalRevenueLabel == null) {
+            System.out.println("Stats labels not yet initialized");
+            return;
+        }
+
+        totalGigsLabel.setText(String.valueOf(allGigs.size()));
+
+        long activeCount = allGigs.stream()
+                .filter(g -> g.getStatus().equalsIgnoreCase("active"))
+                .count();
+        activeGigsLabel.setText(String.valueOf(activeCount));
+
+        double totalRevenue = allGigs.stream()
+                .mapToDouble(GigModel::getPrice)
+                .sum();
+        totalRevenueLabel.setText(String.format("%.2f TND", totalRevenue));
+    }
+
+    // ==================== CRUD OPERATIONS ====================
+
+    @FXML
+    public void showAddGigDialog() {
+        showGigDialog(null);
+    }
+
+    private void showEditGigDialog(GigModel gig) {
+        showGigDialog(gig);
+    }
+
+    private void showGigDialog(GigModel gigToEdit) {
+        Dialog<GigModel> dialog = new Dialog<>();
+        dialog.setTitle(gigToEdit == null ? "Add New Gig" : "Edit Gig");
+        dialog.setHeaderText(gigToEdit == null ? "Create a new service offering" : "Update your gig");
+
+        // Buttons
+        ButtonType saveButtonType = new ButtonType("Save", ButtonBar.ButtonData.OK_DONE);
+        dialog.getDialogPane().getButtonTypes().addAll(saveButtonType, ButtonType.CANCEL);
+
+        // Form
+        GridPane grid = new GridPane();
+        grid.setHgap(15);
+        grid.setVgap(15);
+        grid.setPadding(new Insets(20));
+        grid.setStyle("-fx-background-color: white;");
+
+        TextField titleField = new TextField();
+        titleField.setPromptText("Enter gig title");
+        if (gigToEdit != null) titleField.setText(gigToEdit.getTitle());
+
+        TextArea descField = new TextArea();
+        descField.setPromptText("Describe your service...");
+        descField.setPrefRowCount(4);
+        if (gigToEdit != null) descField.setText(gigToEdit.getDescription());
+
+        TextField priceField = new TextField();
+        priceField.setPromptText("Minimum 10.00 DT");
+        if (gigToEdit != null) priceField.setText(String.valueOf(gigToEdit.getPrice()));
+
+        // Allow only numeric input with one decimal point
+        priceField.textProperty().addListener((obs, oldVal, newVal) -> {
+            if (!newVal.matches("\\d*\\.?\\d{0,2}")) {
+                priceField.setText(oldVal);
+            }
+        });
+
+        ComboBox<CategoryModel> categoryCombo = new ComboBox<>();
+        categoryCombo.getItems().setAll(categories.subList(1, categories.size())); // Skip "All"
+        if (gigToEdit != null && gigToEdit.getCategory() != null) {
+            categoryCombo.setValue(gigToEdit.getCategory());
+        }
+
+        DatePicker deliveryDatePicker = new DatePicker();
+        Spinner<Integer> deliveryHourSpinner = new Spinner<>(0, 23, 12);
+        if (gigToEdit != null) {
+            deliveryDatePicker.setValue(gigToEdit.getDeliveryTime().toLocalDate());
+            deliveryHourSpinner.getValueFactory().setValue(gigToEdit.getDeliveryTime().getHour());
+        }
+
+        TextField imageField = new TextField();
+        imageField.setPromptText("Image URL or path");
+        imageField.setEditable(false);
+        if (gigToEdit != null) imageField.setText(gigToEdit.getImage());
+
+        Button browseBtn = new Button("Browse...");
+        browseBtn.setOnAction(e -> {
+            FileChooser fileChooser = new FileChooser();
+            fileChooser.setTitle("Select Image");
+            fileChooser.getExtensionFilters().addAll(
+                    new FileChooser.ExtensionFilter("Image Files", "*.png", "*.jpg", "*.jpeg", "*.gif")
+            );
+            File file = fileChooser.showOpenDialog(dialog.getOwner());
+            if (file != null) {
+                imageField.setText(file.toURI().toString());
+            }
+        });
+
+        ComboBox<String> statusCombo = new ComboBox<>();
+        statusCombo.getItems().addAll("active", "inactive");
+        statusCombo.setValue(gigToEdit != null ? gigToEdit.getStatus() : "active");
+
+        // Error labels (always visible with min height)
+        Label titleError = new Label();
+        titleError.setStyle("-fx-text-fill: #ef4444; -fx-font-size: 12; -fx-font-weight: 600;");
+        titleError.setMinHeight(18);
+        titleError.setWrapText(true);
+
+        Label descError = new Label();
+        descError.setStyle("-fx-text-fill: #ef4444; -fx-font-size: 12; -fx-font-weight: 600;");
+        descError.setMinHeight(18);
+        descError.setWrapText(true);
+
+        Label priceError = new Label();
+        priceError.setStyle("-fx-text-fill: #ef4444; -fx-font-size: 12; -fx-font-weight: 600;");
+        priceError.setMinHeight(18);
+        priceError.setWrapText(true);
+
+        Label categoryError = new Label();
+        categoryError.setStyle("-fx-text-fill: #ef4444; -fx-font-size: 12; -fx-font-weight: 600;");
+        categoryError.setMinHeight(18);
+        categoryError.setWrapText(true);
+
+        Label dateError = new Label();
+        dateError.setStyle("-fx-text-fill: #ef4444; -fx-font-size: 12; -fx-font-weight: 600;");
+        dateError.setMinHeight(18);
+        dateError.setWrapText(true);
+
+        // Layout
+        int row = 0;
+        grid.add(new Label("Title:"), 0, row);
+        grid.add(titleField, 1, row++);
+        grid.add(titleError, 1, row++);
+
+        grid.add(new Label("Description:"), 0, row);
+        grid.add(descField, 1, row++);
+        grid.add(descError, 1, row++);
+
+        grid.add(new Label("Price (TND):"), 0, row);
+        grid.add(priceField, 1, row++);
+        grid.add(priceError, 1, row++);
+
+        grid.add(new Label("Category:"), 0, row);
+        grid.add(categoryCombo, 1, row++);
+        grid.add(categoryError, 1, row++);
+
+        grid.add(new Label("Delivery Date:"), 0, row);
+        HBox dateBox = new HBox(10, deliveryDatePicker, new Label("Hour:"), deliveryHourSpinner);
+        grid.add(dateBox, 1, row++);
+        grid.add(dateError, 1, row++);
+
+        grid.add(new Label("Image:"), 0, row);
+        HBox imageBox = new HBox(10, imageField, browseBtn);
+        HBox.setHgrow(imageField, Priority.ALWAYS);
+        grid.add(imageBox, 1, row++);
+
+        grid.add(new Label("Status:"), 0, row);
+        grid.add(statusCombo, 1, row++);
+
+        dialog.getDialogPane().setContent(grid);
+
+        // Disable Save button initially and enable it when form is valid
+        Button saveButton = (Button) dialog.getDialogPane().lookupButton(saveButtonType);
+
+        // Validation function
+        Runnable validateForm = () -> {
+            boolean valid = true;
+            System.out.println("=== Validating form ===");
+
+            // Clear errors
+            titleError.setText("");
+            descError.setText("");
+            priceError.setText("");
+            categoryError.setText("");
+            dateError.setText("");
+
+            // Validate Title
+            if (titleField.getText().trim().isEmpty()) {
+                titleError.setText("✗ Title is required");
+                valid = false;
+                System.out.println("  ✗ Title empty");
+            } else {
+                System.out.println("  ✓ Title OK: " + titleField.getText());
+            }
+
+            // Validate Description
+            if (descField.getText().trim().isEmpty()) {
+                descError.setText("✗ Description is required");
+                valid = false;
+                System.out.println("  ✗ Description empty");
+            } else {
+                System.out.println("  ✓ Description OK");
+            }
+
+            // Validate Price
+            try {
+                double price = Double.parseDouble(priceField.getText().trim());
+                if (price < 10) {
+                    priceError.setText("✗ Price must be at least 10 DT");
+                    valid = false;
+                    System.out.println("  ✗ Price < 10 DT: " + price);
+                } else {
+                    System.out.println("  ✓ Price OK: " + price);
                 }
             } catch (NumberFormatException e) {
-                errors.append("• Le prix doit être un nombre valide.\n");
+                if (!priceField.getText().trim().isEmpty()) {
+                    priceError.setText("✗ Invalid price format");
+                    System.out.println("  ✗ Invalid price format: " + priceField.getText());
+                } else {
+                    priceError.setText("✗ Price is required");
+                    System.out.println("  ✗ Price empty");
+                }
+                valid = false;
             }
-        }
 
-        // 4. Validation de la Date et Heure de livraison
-        LocalDate deliveryDate = deliveryDatePicker.getValue();
-        if (deliveryDate == null) {
-            errors.append("• La date de livraison est obligatoire.\n");
-        } else {
-            int hour = deliveryHourSpinner != null ? deliveryHourSpinner.getValue() : 0;
-            int minute = deliveryMinuteSpinner != null ? deliveryMinuteSpinner.getValue() : 0;
-            LocalDateTime deliveryDateTime = LocalDateTime.of(deliveryDate, LocalTime.of(hour, minute));
-
-            // Vérifier que la date/heure est supérieure à la date/heure actuelle
-            if (deliveryDateTime.isBefore(LocalDateTime.now())) {
-                errors.append("• La date et l'heure de livraison doivent être supérieures à la date actuelle.\n");
+            // Validate Category
+            if (categoryCombo.getValue() == null) {
+                categoryError.setText("✗ Please select a category");
+                valid = false;
+                System.out.println("  ✗ Category not selected");
+            } else {
+                System.out.println("  ✓ Category OK: " + categoryCombo.getValue().getName());
             }
-        }
 
-        // 5. Validation de l'URL/Chemin de l'image
-        String imagePath = imageField.getText().trim();
-        if (imagePath.isEmpty()) {
-            errors.append("• L'image est obligatoire.\n");
-        } else {
-            String lowerPath = imagePath.toLowerCase();
-            if (!lowerPath.endsWith(".png") && !lowerPath.endsWith(".jpg") && !lowerPath.endsWith(".jpeg")) {
-                errors.append("• L'image doit être au format PNG ou JPG.\n");
+            // Validate Date
+            if (deliveryDatePicker.getValue() == null) {
+                dateError.setText("✗ Delivery date is required");
+                valid = false;
+                System.out.println("  ✗ Date not selected");
+            } else {
+                LocalDateTime deliveryTime = LocalDateTime.of(
+                        deliveryDatePicker.getValue(),
+                        java.time.LocalTime.of(deliveryHourSpinner.getValue(), 0)
+                );
+                if (deliveryTime.isBefore(LocalDateTime.now())) {
+                    dateError.setText("✗ Delivery time must be in the future");
+                    valid = false;
+                    System.out.println("  ✗ Date in past: " + deliveryTime);
+                } else {
+                    System.out.println("  ✓ Date OK: " + deliveryTime);
+                }
             }
-            // Vérifier que le fichier existe
-            File imageFile = new File(imagePath);
-            if (!imageFile.exists()) {
-                errors.append("• Le fichier image n'existe pas.\n");
+
+            System.out.println("  Form valid: " + valid);
+            System.out.println("  Save button disabled: " + !valid);
+            saveButton.setDisable(!valid);
+        };
+
+        // Add listeners for real-time validation
+        titleField.textProperty().addListener((obs, oldVal, newVal) -> validateForm.run());
+        descField.textProperty().addListener((obs, oldVal, newVal) -> validateForm.run());
+        priceField.textProperty().addListener((obs, oldVal, newVal) -> validateForm.run());
+        categoryCombo.valueProperty().addListener((obs, oldVal, newVal) -> validateForm.run());
+        deliveryDatePicker.valueProperty().addListener((obs, oldVal, newVal) -> validateForm.run());
+        deliveryHourSpinner.valueProperty().addListener((obs, oldVal, newVal) -> validateForm.run());
+
+        // Initial validation
+        validateForm.run();
+
+        // Result conversion
+        dialog.setResultConverter(dialogButton -> {
+            if (dialogButton == saveButtonType) {
+                // Create/Update Gig
+                LocalDateTime deliveryTime = LocalDateTime.of(
+                        deliveryDatePicker.getValue(),
+                        java.time.LocalTime.of(deliveryHourSpinner.getValue(), 0)
+                );
+
+                double price = Double.parseDouble(priceField.getText().trim());
+
+                GigModel gig = new GigModel(
+                        gigToEdit != null ? gigToEdit.getId() : 0,
+                        titleField.getText().trim(),
+                        descField.getText().trim(),
+                        price,
+                        deliveryTime,
+                        imageField.getText().trim(),
+                        statusCombo.getValue()
+                );
+                gig.setCategory(categoryCombo.getValue());
+
+                return gig;
             }
-        }
+            return null;
+        });
 
-        // 6. Validation de la Catégorie
-        if (categoryComboBox.getValue() == null) {
-            errors.append("• La catégorie est obligatoire.\n");
-        }
-
-        // 7. Validation du Statut
-        if (statusComboBox.getValue() == null) {
-            errors.append("• Le statut est obligatoire.\n");
-        }
-
-        // Afficher les erreurs s'il y en a
-        if (errors.length() > 0) {
-            showAlert("Erreurs de validation :\n\n" + errors.toString());
-            return false;
-        }
-
-        return true;
+        Optional<GigModel> result = dialog.showAndWait();
+        result.ifPresent(gig -> {
+            if (gigToEdit == null) {
+                saveGig(gig);
+            } else {
+                updateGig(gig);
+            }
+        });
     }
 
-    // ===== FILL FORM =====
-    private void fillForm(GigModel gig) {
-        titleField.setText(gig.getTitle());
-        descriptionArea.setText(gig.getDescription());
-        priceField.setText(String.valueOf(gig.getPrice()));
+    private void saveGig(GigModel gig) {
+        // Insert without user_id
+        String query = """
+            INSERT INTO gig (title, description, price, delivery_time, image, status, category_id)
+            VALUES (?, ?, ?, ?, ?, ?, ?)
+        """;
 
-        // Remplir la date et l'heure
-        LocalDateTime deliveryTime = gig.getDeliveryTime();
-        if (deliveryTime != null) {
-            deliveryDatePicker.setValue(deliveryTime.toLocalDate());
-            if (deliveryHourSpinner != null) {
-                deliveryHourSpinner.getValueFactory().setValue(deliveryTime.getHour());
-            }
-            if (deliveryMinuteSpinner != null) {
-                deliveryMinuteSpinner.getValueFactory().setValue(deliveryTime.getMinute());
-            }
-        }
+        try (Connection conn = MyDataBase.getConnection();
+             PreparedStatement ps = conn.prepareStatement(query)) {
 
-        imageField.setText(gig.getImage());
-        statusComboBox.setValue(gig.getStatus());
-        categoryComboBox.setValue(gig.getCategory());
-    }
+            ps.setString(1, gig.getTitle());
+            ps.setString(2, gig.getDescription());
+            ps.setDouble(3, gig.getPrice());
+            ps.setTimestamp(4, Timestamp.valueOf(gig.getDeliveryTime()));
+            ps.setString(5, gig.getImage());
+            ps.setString(6, gig.getStatus());
+            ps.setInt(7, gig.getCategory().getId());
 
-    // ===== CLEAR FORM =====
-    private void clearForm() {
-        titleField.clear();
-        descriptionArea.clear();
-        priceField.clear();
-        deliveryDatePicker.setValue(null);
-        if (deliveryHourSpinner != null) {
-            deliveryHourSpinner.getValueFactory().setValue(LocalTime.now().getHour());
-        }
-        if (deliveryMinuteSpinner != null) {
-            deliveryMinuteSpinner.getValueFactory().setValue(0);
-        }
-        imageField.clear();
-        categoryComboBox.setValue(null);
-        statusComboBox.setValue(null);
-    }
+            ps.executeUpdate();
+            showSuccess("Gig added successfully! 🎉");
+            loadGigs();
+            updateStats();
 
-    // ===== ALERT =====
-    private void showAlert(String message) {
-        Alert alert = new Alert(Alert.AlertType.INFORMATION);
-        alert.setTitle("Information");
-        alert.setContentText(message);
-        alert.showAndWait();
-    }
-
-    // ===== REFRESH - Recharger les données =====
-    @FXML
-    private void onRefresh() {
-        loadCategories();
-        loadGigs();
-        clearForm();
-        showAlert("✓ Données rechargées avec succès !");
-    }
-
-    // ===== GO BACK - Retour à la page profile =====
-    @FXML
-    private void onGoBack() {
-        try {
-            com.khademni.App.setRoot("profile");
-        } catch (IOException e) {
-            showAlert("Erreur lors du retour au profile:\n\n" + e.getMessage());
+        } catch (SQLException e) {
+            System.err.println("ERROR saving gig: " + e.getMessage());
             e.printStackTrace();
+            showError("Error saving gig: " + e.getMessage());
         }
     }
 
-    // ===== EXIT - Quitter l'application =====
-    @FXML
-    private void onExit() {
-        Alert confirmation = new Alert(Alert.AlertType.CONFIRMATION);
-        confirmation.setTitle("Confirmation");
-        confirmation.setHeaderText("Quitter l'application");
-        confirmation.setContentText("Voulez-vous vraiment quitter l'application ?");
+    private void updateGig(GigModel gig) {
+        String query = """
+            UPDATE gig
+            SET title = ?, description = ?, price = ?, delivery_time = ?,
+                image = ?, status = ?, category_id = ?
+            WHERE id = ?
+        """;
 
-        if (confirmation.showAndWait().orElse(ButtonType.CANCEL) == ButtonType.OK) {
-            javafx.application.Platform.exit();
-            System.exit(0);
+        try (Connection conn = MyDataBase.getConnection();
+             PreparedStatement ps = conn.prepareStatement(query)) {
+
+            ps.setString(1, gig.getTitle());
+            ps.setString(2, gig.getDescription());
+            ps.setDouble(3, gig.getPrice());
+            ps.setTimestamp(4, Timestamp.valueOf(gig.getDeliveryTime()));
+            ps.setString(5, gig.getImage());
+            ps.setString(6, gig.getStatus());
+            ps.setInt(7, gig.getCategory().getId());
+            ps.setInt(8, gig.getId());
+
+            ps.executeUpdate();
+            showSuccess("Gig updated successfully! ✓");
+            loadGigs();
+            updateStats();
+
+        } catch (SQLException e) {
+            showError("Error updating gig: " + e.getMessage());
+        }
+    }
+
+    private void deleteGig(GigModel gig) {
+        Alert alert = new Alert(Alert.AlertType.CONFIRMATION);
+        alert.setTitle("Delete Gig");
+        alert.setHeaderText("Are you sure?");
+        alert.setContentText("This will permanently delete \"" + gig.getTitle() + "\"");
+
+        Optional<ButtonType> result = alert.showAndWait();
+        if (result.isPresent() && result.get() == ButtonType.OK) {
+            try (Connection conn = MyDataBase.getConnection();
+                 PreparedStatement ps = conn.prepareStatement("DELETE FROM gig WHERE id = ?")) {
+
+                ps.setInt(1, gig.getId());
+                ps.executeUpdate();
+
+                showSuccess("Gig deleted successfully! 🗑️");
+                loadGigs();
+                updateStats();
+
+            } catch (SQLException e) {
+                showError("Error deleting gig: " + e.getMessage());
+            }
+        }
+    }
+
+    // ==================== NAVIGATION ====================
+
+    @FXML
+    public void onRefresh() {
+        loadGigs();
+        updateStats();
+        showSuccess("Refreshed! ⟳");
+    }
+
+    @FXML
+    public void onGoBack() {
+        try {
+            App.setRoot("profile");
+        } catch (Exception e) {
+            showError("Error navigating to profile: " + e.getMessage());
+        }
+    }
+
+    @FXML
+    public void onExit() {
+        Alert alert = new Alert(Alert.AlertType.CONFIRMATION);
+        alert.setTitle("Exit");
+        alert.setHeaderText("Are you sure you want to exit?");
+        alert.setContentText("You will be logged out.");
+
+        Optional<ButtonType> result = alert.showAndWait();
+        if (result.isPresent() && result.get() == ButtonType.OK) {
+            Stage stage = (Stage) gigsContainer.getScene().getWindow();
+            stage.close();
+        }
+    }
+
+    // ==================== UTILITIES ====================
+
+    private void showSuccess(String message) {
+        if (messageLabel == null) {
+            System.out.println("SUCCESS: " + message);
+            return;
+        }
+        messageLabel.setText("✓ " + message);
+        messageLabel.setStyle("-fx-background-color: #d1fae5; -fx-text-fill: #065f46; " +
+                             "-fx-padding: 12 20; -fx-background-radius: 8; -fx-font-weight: 600;");
+        messageLabel.setVisible(true);
+        messageLabel.setManaged(true);
+    }
+
+    private void showError(String message) {
+        if (messageLabel == null) {
+            System.err.println("ERROR: " + message);
+            return;
+        }
+        messageLabel.setText("✗ " + message);
+        messageLabel.setStyle("-fx-background-color: #fee2e2; -fx-text-fill: #991b1b; " +
+                             "-fx-padding: 12 20; -fx-background-radius: 8; -fx-font-weight: 600;");
+        messageLabel.setVisible(true);
+        messageLabel.setManaged(true);
+    }
+
+    private double parseDouble(String value, double defaultValue) {
+        try {
+            return Double.parseDouble(value);
+        } catch (NumberFormatException e) {
+            return defaultValue;
         }
     }
 }
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+

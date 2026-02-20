@@ -60,6 +60,10 @@ public class GigModel {
         return image;
     }
 
+    public String getImageUrl() {
+        return image;
+    }
+
     public String getStatus() {
         return status;
     }

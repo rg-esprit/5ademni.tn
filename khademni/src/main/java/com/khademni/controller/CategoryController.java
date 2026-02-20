@@ -3,85 +3,71 @@ package com.khademni.controller;
 import com.khademni.model.CategoryModel;
 import com.khademni.utils.MyDataBase;
 
-import javafx.collections.FXCollections;
-import javafx.collections.ObservableList;
 import javafx.fxml.FXML;
+import javafx.geometry.Insets;
+import javafx.geometry.Pos;
 import javafx.scene.control.*;
+import javafx.scene.layout.*;
 
 import java.io.IOException;
 import java.sql.*;
+import java.util.ArrayList;
+import java.util.List;
+import java.util.Optional;
 
 public class CategoryController {
 
-    @FXML private TableView<CategoryModel> categoryTable;
-    @FXML private TableColumn<CategoryModel, Integer> idCol;
-    @FXML private TableColumn<CategoryModel, String> nameCol;
-    @FXML private TableColumn<CategoryModel, String> descCol;
-    @FXML private TableColumn<CategoryModel, Boolean> activeCol;
+    // Stats
+    @FXML private Label totalCategoriesLabel;
+    @FXML private Label activeCategoriesLabel;
+    @FXML private Label inactiveCategoriesLabel;
+    @FXML private Label categoryCountLabel;
 
-    @FXML private TextField nameField;
-    @FXML private TextArea descField;
-    @FXML private CheckBox activeCheck;
+    // Search & Filters
+    @FXML private TextField searchField;
+    @FXML private ComboBox<String> statusFilterCombo;
+
+    // Display
+    @FXML private FlowPane categoriesContainer;
+    @FXML private VBox emptyState;
+
+    // Messages
+    @FXML private HBox messageContainer;
     @FXML private Label errorLabel;
 
-    private ObservableList<CategoryModel> categoryList = FXCollections.observableArrayList();
+    private final List<CategoryModel> allCategories = new ArrayList<>();
 
     @FXML
     public void initialize() {
+        System.out.println("=== CategoryController: Starting initialization ===");
 
-        idCol.setCellValueFactory(data -> new javafx.beans.property.SimpleIntegerProperty(data.getValue().getId()).asObject());
-        nameCol.setCellValueFactory(data -> new javafx.beans.property.SimpleStringProperty(data.getValue().getName()));
-        descCol.setCellValueFactory(data -> new javafx.beans.property.SimpleStringProperty(data.getValue().getDescription()));
-        activeCol.setCellValueFactory(data -> new javafx.beans.property.SimpleBooleanProperty(data.getValue().isActive()));
+        if (statusFilterCombo != null) {
+            statusFilterCombo.getItems().addAll("All Status", "Active", "Inactive");
+            statusFilterCombo.setValue("All Status");
+            statusFilterCombo.setOnAction(e -> applyFilters());
+        }
 
-        // Contrôles de saisie en temps réel
-        setupInputValidation();
+        if (searchField != null) {
+            searchField.textProperty().addListener((obs, oldVal, newVal) -> applyFilters());
+        }
 
         loadCategories();
+        updateStats();
 
-        categoryTable.getSelectionModel().selectedItemProperty().addListener((obs, oldSel, newSel) -> {
-            if (newSel != null) {
-                nameField.setText(newSel.getName());
-                descField.setText(newSel.getDescription());
-                activeCheck.setSelected(newSel.isActive());
-            }
-        });
+        System.out.println("=== CategoryController: Initialization complete ===");
     }
 
-    // 🔹 Configuration de la validation en temps réel
-    private void setupInputValidation() {
-        // Limiter la longueur du nom à 100 caractères
-        nameField.textProperty().addListener((observable, oldValue, newValue) -> {
-            if (newValue != null && newValue.length() > 100) {
-                nameField.setText(oldValue);
-            }
-            // Supprimer les caractères non autorisés
-            if (newValue != null && !newValue.matches("^[a-zA-ZÀ-ÿ0-9\\s&-]*$")) {
-                nameField.setText(oldValue);
-            }
-        });
-
-        // Limiter la longueur de la description à 500 caractères
-        descField.textProperty().addListener((observable, oldValue, newValue) -> {
-            if (newValue != null && newValue.length() > 500) {
-                descField.setText(oldValue);
-            }
-        });
-
-        // Afficher le compteur de caractères (optionnel)
-        nameField.setPromptText("Nom de la catégorie (3-100 caractères)");
-        descField.setPromptText("Description (10-500 caractères)");
-    }
-
-    // 🔹 READ
     private void loadCategories() {
-        categoryList.clear();
+        allCategories.clear();
+        System.out.println("Loading categories...");
 
-        try {
-            String sql = "SELECT * FROM category";
-            PreparedStatement ps = MyDataBase.getConnection().prepareStatement(sql);
-            ResultSet rs = ps.executeQuery();
+        String query = "SELECT id, name, description, is_active FROM category ORDER BY id DESC";
 
+        try (Connection conn = MyDataBase.getConnection();
+             PreparedStatement ps = conn.prepareStatement(query);
+             ResultSet rs = ps.executeQuery()) {
+
+            int count = 0;
             while (rs.next()) {
                 CategoryModel cat = new CategoryModel(
                         rs.getInt("id"),
@@ -89,251 +75,467 @@ public class CategoryController {
                         rs.getString("description"),
                         rs.getBoolean("is_active")
                 );
-                categoryList.add(cat);
+                allCategories.add(cat);
+                count++;
+                System.out.println("  Loaded category: " + cat.getName() + " (ID: " + cat.getId() + ")");
             }
 
-            categoryTable.setItems(categoryList);
+            System.out.println("Total categories loaded: " + count);
+            applyFilters();
 
         } catch (SQLException e) {
-            showError("Erreur chargement: " + e.getMessage());
+            System.err.println("ERROR loading categories: " + e.getMessage());
+            e.printStackTrace();
+            showError("Error loading categories: " + e.getMessage());
         }
     }
 
-    // 🔹 CREATE
-    @FXML
-    private void onAddCategory() {
+    private void applyFilters() {
+        List<CategoryModel> filtered = new ArrayList<>(allCategories);
 
-        if (!validateInput()) return;
-
-        try {
-            String sql = "INSERT INTO category (name, description, is_active) VALUES (?, ?, ?)";
-            PreparedStatement ps = MyDataBase.getConnection().prepareStatement(sql);
-
-            ps.setString(1, nameField.getText());
-            ps.setString(2, descField.getText());
-            ps.setBoolean(3, activeCheck.isSelected());
-
-            ps.executeUpdate();
-
-            loadCategories();
-            clearForm();
-
-        } catch (SQLException e) {
-            showError("Erreur ajout: " + e.getMessage());
-        }
-    }
-
-    // 🔹 UPDATE
-    @FXML
-    private void onUpdateCategory() {
-
-        CategoryModel selected = categoryTable.getSelectionModel().getSelectedItem();
-        if (selected == null) {
-            showError("Sélectionnez une catégorie.");
-            return;
+        if (searchField != null && !searchField.getText().trim().isEmpty()) {
+            String search = searchField.getText().toLowerCase();
+            filtered.removeIf(cat ->
+                !cat.getName().toLowerCase().contains(search) &&
+                !cat.getDescription().toLowerCase().contains(search)
+            );
         }
 
-        if (!validateInput()) return;
-
-        try {
-            String sql = "UPDATE category SET name=?, description=?, is_active=? WHERE id=?";
-            PreparedStatement ps = MyDataBase.getConnection().prepareStatement(sql);
-
-            ps.setString(1, nameField.getText());
-            ps.setString(2, descField.getText());
-            ps.setBoolean(3, activeCheck.isSelected());
-            ps.setInt(4, selected.getId());
-
-            ps.executeUpdate();
-
-            loadCategories();
-
-        } catch (SQLException e) {
-            showError("Erreur modification: " + e.getMessage());
-        }
-    }
-
-    // 🔹 DELETE
-    @FXML
-    private void onDeleteCategory() {
-
-        CategoryModel selected = categoryTable.getSelectionModel().getSelectedItem();
-        if (selected == null) {
-            showError("⚠ Sélectionnez une catégorie à supprimer.");
-            return;
-        }
-
-        // Confirmation de suppression
-        Alert confirmation = new Alert(Alert.AlertType.CONFIRMATION);
-        confirmation.setTitle("Confirmation");
-        confirmation.setHeaderText("Supprimer la catégorie");
-        confirmation.setContentText("Voulez-vous vraiment supprimer la catégorie :\n\"" + selected.getName() + "\" ?");
-
-        if (confirmation.showAndWait().get() != ButtonType.OK) {
-            return;
-        }
-
-        try {
-            String sql = "DELETE FROM category WHERE id=?";
-            PreparedStatement ps = MyDataBase.getConnection().prepareStatement(sql);
-            ps.setInt(1, selected.getId());
-
-            ps.executeUpdate();
-
-            loadCategories();
-            clearForm();
-            showSuccess("✓ Catégorie supprimée avec succès !");
-
-        } catch (SQLException e) {
-            showError("Erreur suppression:\n" + e.getMessage());
-        }
-    }
-
-    // 🔹 Validation améliorée
-    private boolean validateInput() {
-        StringBuilder errors = new StringBuilder();
-
-        // 1. Validation du Nom
-        String name = nameField.getText().trim();
-        if (name.isEmpty()) {
-            errors.append("• Le nom est obligatoire.\n");
-        } else if (name.length() < 3) {
-            errors.append("• Le nom doit contenir au moins 3 caractères.\n");
-        } else if (name.length() > 100) {
-            errors.append("• Le nom ne doit pas dépasser 100 caractères.\n");
-        } else if (!name.matches("^[a-zA-ZÀ-ÿ0-9\\s&-]+$")) {
-            errors.append("• Le nom contient des caractères non autorisés.\n");
-        }
-
-        // 2. Validation de la Description
-        String desc = descField.getText().trim();
-        if (desc.isEmpty()) {
-            errors.append("• La description est obligatoire.\n");
-        } else if (desc.length() < 10) {
-            errors.append("• La description doit contenir au moins 10 caractères.\n");
-        } else if (desc.length() > 500) {
-            errors.append("• La description ne doit pas dépasser 500 caractères.\n");
-        }
-
-        // 3. Vérifier si le nom existe déjà (pour l'ajout uniquement)
-        if (errors.length() == 0 && !name.isEmpty()) {
-            CategoryModel selected = categoryTable.getSelectionModel().getSelectedItem();
-            if (selected == null && nameExists(name)) {
-                errors.append("• Une catégorie avec ce nom existe déjà.\n");
-            } else if (selected != null && nameExistsForOther(name, selected.getId())) {
-                errors.append("• Une autre catégorie utilise déjà ce nom.\n");
+        if (statusFilterCombo != null && statusFilterCombo.getValue() != null) {
+            String status = statusFilterCombo.getValue();
+            if ("Active".equals(status)) {
+                filtered.removeIf(cat -> !cat.isActive());
+            } else if ("Inactive".equals(status)) {
+                filtered.removeIf(CategoryModel::isActive);
             }
         }
 
-        // Afficher les erreurs s'il y en a
-        if (errors.length() > 0) {
-            showError("Erreurs de validation :\n" + errors.toString());
-            return false;
-        }
-
-        clearError();
-        return true;
+        displayCategories(filtered);
+        updateStats();
     }
 
-    // 🔹 Vérifier si le nom existe déjà
-    private boolean nameExists(String name) {
-        try {
-            String sql = "SELECT COUNT(*) FROM category WHERE LOWER(name) = LOWER(?)";
-            PreparedStatement ps = MyDataBase.getConnection().prepareStatement(sql);
-            ps.setString(1, name.trim());
+    private void displayCategories(List<CategoryModel> categories) {
+        if (categoriesContainer == null || emptyState == null) return;
+
+        categoriesContainer.getChildren().clear();
+
+        if (categories.isEmpty()) {
+            emptyState.setVisible(true);
+            emptyState.setManaged(true);
+        } else {
+            emptyState.setVisible(false);
+            emptyState.setManaged(false);
+
+            for (CategoryModel category : categories) {
+                categoriesContainer.getChildren().add(createCategoryCard(category));
+            }
+        }
+
+        if (categoryCountLabel != null) {
+            categoryCountLabel.setText(categories.size() + " categor" + (categories.size() > 1 ? "ies" : "y"));
+        }
+    }
+
+    private VBox createCategoryCard(CategoryModel category) {
+        VBox card = new VBox();
+        card.setAlignment(Pos.TOP_LEFT);
+        card.setSpacing(16);
+        card.setPrefWidth(340);
+        card.setMaxWidth(340);
+        card.setPadding(new Insets(24));
+        card.setStyle(
+            "-fx-background-color: white;" +
+            "-fx-background-radius: 16;" +
+            "-fx-border-color: " + (category.isActive() ? "#e0e7ff" : "#fee2e2") + ";" +
+            "-fx-border-width: 2;" +
+            "-fx-border-radius: 16;" +
+            "-fx-effect: dropshadow(gaussian, rgba(0,0,0,0.06), 16, 0, 0, 4);"
+        );
+
+        HBox header = new HBox();
+        header.setAlignment(Pos.CENTER_LEFT);
+        header.setSpacing(12);
+
+        Label icon = new Label("📂");
+        icon.setStyle("-fx-font-size: 28;");
+
+        VBox titleBox = new VBox(4);
+        HBox.setHgrow(titleBox, Priority.ALWAYS);
+
+        Label name = new Label(category.getName());
+        name.setStyle("-fx-font-size: 18; -fx-font-weight: 700; -fx-text-fill: #1e293b;");
+        name.setWrapText(true);
+        name.setMaxWidth(200);
+
+        Label idLabel = new Label("ID: " + category.getId());
+        idLabel.setStyle("-fx-font-size: 11; -fx-text-fill: #94a3b8; -fx-font-weight: 500;");
+
+        titleBox.getChildren().addAll(name, idLabel);
+
+        Label statusBadge = new Label(category.isActive() ? "● Active" : "● Inactive");
+        statusBadge.setStyle(
+            "-fx-background-color: " + (category.isActive() ? "#dcfce7" : "#fee2e2") + ";" +
+            "-fx-text-fill: " + (category.isActive() ? "#16a34a" : "#dc2626") + ";" +
+            "-fx-font-size: 11; -fx-font-weight: 700; -fx-padding: 6 12;" +
+            "-fx-background-radius: 20;"
+        );
+
+        header.getChildren().addAll(icon, titleBox, statusBadge);
+
+        Label desc = new Label(category.getDescription());
+        desc.setWrapText(true);
+        desc.setMaxHeight(60);
+        desc.setStyle("-fx-font-size: 13; -fx-text-fill: #64748b; -fx-line-spacing: 2;");
+
+        // Gig Counter Badge
+        int gigCount = getGigCountForCategory(category.getId());
+        HBox gigCountBox = new HBox(8);
+        gigCountBox.setAlignment(Pos.CENTER_LEFT);
+        gigCountBox.setStyle(
+            "-fx-background-color: #f0f9ff;" +
+            "-fx-padding: 10 14;" +
+            "-fx-background-radius: 10;" +
+            "-fx-border-color: #bae6fd;" +
+            "-fx-border-width: 1.5;" +
+            "-fx-border-radius: 10;"
+        );
+
+        Label gigIcon = new Label("💼");
+        gigIcon.setStyle("-fx-font-size: 16;");
+
+        Label gigCountLabel = new Label(gigCount + " Gig" + (gigCount != 1 ? "s" : ""));
+        gigCountLabel.setStyle(
+            "-fx-font-size: 13; -fx-font-weight: 700; -fx-text-fill: #0369a1;"
+        );
+
+        gigCountBox.getChildren().addAll(gigIcon, gigCountLabel);
+
+        Separator sep = new Separator();
+        sep.setStyle("-fx-background-color: #e2e8f0;");
+
+        HBox actions = new HBox(10);
+        actions.setAlignment(Pos.CENTER);
+
+        Button editBtn = new Button("✎ Edit");
+        editBtn.setMaxWidth(Double.MAX_VALUE);
+        HBox.setHgrow(editBtn, Priority.ALWAYS);
+        editBtn.setStyle(
+            "-fx-background-color: #6366f1;" +
+            "-fx-text-fill: white;" +
+            "-fx-font-size: 13; -fx-font-weight: 600;" +
+            "-fx-padding: 10 16; -fx-background-radius: 8;" +
+            "-fx-cursor: hand;"
+        );
+        editBtn.setOnAction(e -> showEditDialog(category));
+
+        Button deleteBtn = new Button("✕ Delete");
+        deleteBtn.setMaxWidth(Double.MAX_VALUE);
+        HBox.setHgrow(deleteBtn, Priority.ALWAYS);
+        deleteBtn.setStyle(
+            "-fx-background-color: #ef4444;" +
+            "-fx-text-fill: white;" +
+            "-fx-font-size: 13; -fx-font-weight: 600;" +
+            "-fx-padding: 10 16; -fx-background-radius: 8;" +
+            "-fx-cursor: hand;"
+        );
+        deleteBtn.setOnAction(e -> deleteCategory(category));
+
+        actions.getChildren().addAll(editBtn, deleteBtn);
+        card.getChildren().addAll(header, desc, gigCountBox, sep, actions);
+
+        return card;
+    }
+
+    private void updateStats() {
+        int total = allCategories.size();
+        int active = (int) allCategories.stream().filter(CategoryModel::isActive).count();
+        int inactive = total - active;
+
+        if (totalCategoriesLabel != null) totalCategoriesLabel.setText(String.valueOf(total));
+        if (activeCategoriesLabel != null) activeCategoriesLabel.setText(String.valueOf(active));
+        if (inactiveCategoriesLabel != null) inactiveCategoriesLabel.setText(String.valueOf(inactive));
+    }
+
+    private int getGigCountForCategory(int categoryId) {
+        String query = "SELECT COUNT(*) as count FROM gig WHERE category_id = ?";
+        try (Connection conn = MyDataBase.getConnection();
+             PreparedStatement ps = conn.prepareStatement(query)) {
+
+            ps.setInt(1, categoryId);
             ResultSet rs = ps.executeQuery();
 
             if (rs.next()) {
-                return rs.getInt(1) > 0;
+                return rs.getInt("count");
             }
         } catch (SQLException e) {
-            e.printStackTrace();
+            System.err.println("Error counting gigs for category " + categoryId + ": " + e.getMessage());
         }
-        return false;
+        return 0;
     }
 
-    // 🔹 Vérifier si le nom existe pour une autre catégorie
-    private boolean nameExistsForOther(String name, int currentId) {
+    @FXML
+    public void onAddCategory() {
+        showEditDialog(null);
+    }
+
+    private void showEditDialog(CategoryModel categoryToEdit) {
+        Dialog<CategoryModel> dialog = new Dialog<>();
+        dialog.setTitle(categoryToEdit == null ? "New Category" : "Edit Category");
+        dialog.setHeaderText(categoryToEdit == null ? "✨ Create New Category" : "✎ Edit Category");
+
+        ButtonType saveButtonType = new ButtonType(categoryToEdit == null ? "Create" : "Save Changes", ButtonBar.ButtonData.OK_DONE);
+        dialog.getDialogPane().getButtonTypes().addAll(saveButtonType, ButtonType.CANCEL);
+
+        GridPane grid = new GridPane();
+        grid.setHgap(16);
+        grid.setVgap(16);
+        grid.setPadding(new Insets(24));
+        grid.setStyle("-fx-min-width: 500;");
+
+        TextField nameField = new TextField(categoryToEdit != null ? categoryToEdit.getName() : "");
+        nameField.setPromptText("Category name");
+        nameField.setStyle("-fx-font-size: 14; -fx-padding: 10;");
+
+        TextArea descField = new TextArea(categoryToEdit != null ? categoryToEdit.getDescription() : "");
+        descField.setPromptText("Category description");
+        descField.setPrefRowCount(4);
+        descField.setWrapText(true);
+        descField.setStyle("-fx-font-size: 14; -fx-padding: 10;");
+
+        CheckBox activeCheck = new CheckBox("Active Category");
+        activeCheck.setSelected(categoryToEdit != null ? categoryToEdit.isActive() : true);
+        activeCheck.setStyle("-fx-font-size: 14; -fx-font-weight: 500;");
+
+        Label nameError = new Label();
+        nameError.setStyle("-fx-text-fill: #ef4444; -fx-font-size: 12; -fx-font-weight: 600;");
+        nameError.setMinHeight(18);
+        nameError.setWrapText(true);
+
+        Label descError = new Label();
+        descError.setStyle("-fx-text-fill: #ef4444; -fx-font-size: 12; -fx-font-weight: 600;");
+        descError.setMinHeight(18);
+        descError.setWrapText(true);
+
+        int row = 0;
+        grid.add(new Label("Name:"), 0, row);
+        grid.add(nameField, 1, row++);
+        grid.add(nameError, 1, row++);
+
+        grid.add(new Label("Description:"), 0, row);
+        grid.add(descField, 1, row++);
+        grid.add(descError, 1, row++);
+
+        grid.add(activeCheck, 1, row);
+
+        dialog.getDialogPane().setContent(grid);
+
+        Button saveButton = (Button) dialog.getDialogPane().lookupButton(saveButtonType);
+
+        Runnable validateForm = () -> {
+            boolean valid = true;
+            System.out.println("=== Validating category form ===");
+
+            nameError.setText("");
+            descError.setText("");
+
+            if (nameField.getText().trim().isEmpty()) {
+                nameError.setText("✗ Name is required");
+                valid = false;
+                System.out.println("  ✗ Name empty");
+            } else if (nameField.getText().trim().length() < 3) {
+                nameError.setText("✗ Name must be at least 3 characters");
+                valid = false;
+                System.out.println("  ✗ Name too short");
+            } else {
+                System.out.println("  ✓ Name OK");
+            }
+
+            if (descField.getText().trim().isEmpty()) {
+                descError.setText("✗ Description is required");
+                valid = false;
+                System.out.println("  ✗ Description empty");
+            } else if (descField.getText().trim().length() < 10) {
+                descError.setText("✗ Description must be at least 10 characters");
+                valid = false;
+                System.out.println("  ✗ Description too short");
+            } else {
+                System.out.println("  ✓ Description OK");
+            }
+
+            System.out.println("  Form valid: " + valid);
+            saveButton.setDisable(!valid);
+        };
+
+        nameField.textProperty().addListener((obs, old, val) -> validateForm.run());
+        descField.textProperty().addListener((obs, old, val) -> validateForm.run());
+        validateForm.run();
+
+        dialog.setResultConverter(dialogButton -> {
+            if (dialogButton == saveButtonType) {
+                CategoryModel cat = categoryToEdit != null ? categoryToEdit : new CategoryModel();
+                cat.setName(nameField.getText().trim());
+                cat.setDescription(descField.getText().trim());
+                cat.setActive(activeCheck.isSelected());
+                return cat;
+            }
+            return null;
+        });
+
+        dialog.showAndWait().ifPresent(cat -> {
+            if (categoryToEdit == null) {
+                saveCategory(cat);
+            } else {
+                updateCategory(cat);
+            }
+        });
+    }
+
+    private void saveCategory(CategoryModel category) {
+        String query = "INSERT INTO category (name, description, is_active) VALUES (?, ?, ?)";
+
+        try (Connection conn = MyDataBase.getConnection();
+             PreparedStatement ps = conn.prepareStatement(query)) {
+
+            ps.setString(1, category.getName());
+            ps.setString(2, category.getDescription());
+            ps.setBoolean(3, category.isActive());
+
+            ps.executeUpdate();
+            showSuccess("✅ Category created successfully!");
+            loadCategories();
+
+        } catch (SQLException e) {
+            System.err.println("ERROR saving category: " + e.getMessage());
+            e.printStackTrace();
+            showError("Error saving category: " + e.getMessage());
+        }
+    }
+
+    private void updateCategory(CategoryModel category) {
+        String query = "UPDATE category SET name = ?, description = ?, is_active = ? WHERE id = ?";
+
+        try (Connection conn = MyDataBase.getConnection();
+             PreparedStatement ps = conn.prepareStatement(query)) {
+
+            ps.setString(1, category.getName());
+            ps.setString(2, category.getDescription());
+            ps.setBoolean(3, category.isActive());
+            ps.setInt(4, category.getId());
+
+            ps.executeUpdate();
+            showSuccess("✅ Category updated successfully!");
+            loadCategories();
+
+        } catch (SQLException e) {
+            System.err.println("ERROR updating category: " + e.getMessage());
+            e.printStackTrace();
+            showError("Error updating category: " + e.getMessage());
+        }
+    }
+
+    private void deleteCategory(CategoryModel category) {
+        Alert alert = new Alert(Alert.AlertType.CONFIRMATION);
+        alert.setTitle("Delete Category");
+        alert.setHeaderText("Are you sure?");
+        alert.setContentText("Delete category: " + category.getName() + "?");
+
+        Optional<ButtonType> result = alert.showAndWait();
+        if (result.isPresent() && result.get() == ButtonType.OK) {
+            String query = "DELETE FROM category WHERE id = ?";
+
+            try (Connection conn = MyDataBase.getConnection();
+                 PreparedStatement ps = conn.prepareStatement(query)) {
+
+                ps.setInt(1, category.getId());
+                ps.executeUpdate();
+
+                showSuccess("✅ Category deleted successfully!");
+                loadCategories();
+
+            } catch (SQLException e) {
+                System.err.println("ERROR deleting category: " + e.getMessage());
+                e.printStackTrace();
+                showError("Error deleting category: " + e.getMessage());
+            }
+        }
+    }
+
+    @FXML
+    public void onClearFilters() {
+        if (searchField != null) searchField.clear();
+        if (statusFilterCombo != null) statusFilterCombo.setValue("All Status");
+        applyFilters();
+    }
+
+    @FXML
+    public void onRefresh() {
+        loadCategories();
+        showSuccess("🔄 Categories refreshed!");
+    }
+
+    @FXML
+    public void onGoBack() {
         try {
-            String sql = "SELECT COUNT(*) FROM category WHERE LOWER(name) = LOWER(?) AND id != ?";
-            PreparedStatement ps = MyDataBase.getConnection().prepareStatement(sql);
-            ps.setString(1, name.trim());
-            ps.setInt(2, currentId);
-            ResultSet rs = ps.executeQuery();
-
-            if (rs.next()) {
-                return rs.getInt(1) > 0;
-            }
-        } catch (SQLException e) {
-            e.printStackTrace();
+            com.khademni.App.setRoot("profile");
+        } catch (IOException e) {
+            showError("Error navigating to profile: " + e.getMessage());
         }
-        return false;
     }
 
-    private void clearForm() {
-        nameField.clear();
-        descField.clear();
-        activeCheck.setSelected(false);
+    @FXML
+    public void onExit() {
+        Alert alert = new Alert(Alert.AlertType.CONFIRMATION);
+        alert.setTitle("Exit");
+        alert.setHeaderText("Are you sure?");
+        alert.setContentText("Do you want to exit the application?");
+
+        if (alert.showAndWait().orElse(ButtonType.CANCEL) == ButtonType.OK) {
+            javafx.application.Platform.exit();
+            System.exit(0);
+        }
     }
 
     private void showError(String message) {
+        if (errorLabel == null || messageContainer == null) return;
+
         errorLabel.setText(message);
-        errorLabel.setStyle("-fx-text-fill: red; -fx-font-weight: bold;");
-        errorLabel.setVisible(true);
-    }
+        messageContainer.setStyle("-fx-background-color: #fee2e2; -fx-padding: 16 24;");
+        errorLabel.setStyle("-fx-text-fill: #dc2626; -fx-font-size: 14; -fx-font-weight: 600;");
+        messageContainer.setVisible(true);
+        messageContainer.setManaged(true);
 
-    private void clearError() {
-        errorLabel.setText("");
-        errorLabel.setVisible(false);
-    }
-
-    // 🔹 Afficher un message de succès
-    private void showSuccess(String message) {
-        errorLabel.setText(message);
-        errorLabel.setStyle("-fx-text-fill: green; -fx-font-weight: bold;");
-        errorLabel.setVisible(true);
-
-        // Masquer le message après 3 secondes
         new Thread(() -> {
             try {
-                Thread.sleep(3000);
-                javafx.application.Platform.runLater(() -> clearError());
+                Thread.sleep(5000);
+                javafx.application.Platform.runLater(() -> {
+                    messageContainer.setVisible(false);
+                    messageContainer.setManaged(false);
+                });
             } catch (InterruptedException e) {
                 e.printStackTrace();
             }
         }).start();
     }
 
-    // 🔹 REFRESH - Recharger les données
-    @FXML
-    private void onRefresh() {
-        loadCategories();
-        clearForm();
-        showSuccess("✓ Données rechargées !");
-    }
+    private void showSuccess(String message) {
+        if (errorLabel == null || messageContainer == null) return;
 
-    // 🔹 GO BACK - Retour à la page profile
-    @FXML
-    private void onGoBack() {
-        try {
-            com.khademni.App.setRoot("profile");
-        } catch (IOException e) {
-            showError("Erreur lors du retour au profile:\n" + e.getMessage());
-            e.printStackTrace();
-        }
-    }
+        errorLabel.setText(message);
+        messageContainer.setStyle("-fx-background-color: #d1fae5; -fx-padding: 16 24;");
+        errorLabel.setStyle("-fx-text-fill: #047857; -fx-font-size: 14; -fx-font-weight: 600;");
+        messageContainer.setVisible(true);
+        messageContainer.setManaged(true);
 
-    // 🔹 EXIT - Quitter l'application
-    @FXML
-    private void onExit() {
-        Alert confirmation = new Alert(Alert.AlertType.CONFIRMATION);
-        confirmation.setTitle("Confirmation");
-        confirmation.setHeaderText("Quitter l'application");
-        confirmation.setContentText("Voulez-vous vraiment quitter l'application ?");
-
-        if (confirmation.showAndWait().orElse(ButtonType.CANCEL) == ButtonType.OK) {
-            javafx.application.Platform.exit();
-            System.exit(0);
-        }
+        new Thread(() -> {
+            try {
+                Thread.sleep(3000);
+                javafx.application.Platform.runLater(() -> {
+                    messageContainer.setVisible(false);
+                    messageContainer.setManaged(false);
+                });
+            } catch (InterruptedException e) {
+                e.printStackTrace();
+            }
+        }).start();
     }
 }

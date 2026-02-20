@@ -55,12 +55,7 @@ public class CategoryModel {
 
     @Override
     public String toString() {
-        return "Category{" +
-                "id=" + id +
-                ", name='" + name + '\'' +
-                ", description='" + description + '\'' +
-                ", isActive=" + isActive +
-                '}';
+        return name;
     }
 }
 
