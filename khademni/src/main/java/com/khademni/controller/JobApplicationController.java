@@ -773,6 +773,7 @@ public class JobApplicationController {
 
     private void deleteMyApplication(JobApplicationModel app) {
         Alert confirm = new Alert(Alert.AlertType.CONFIRMATION, "Withdraw application?", ButtonType.YES, ButtonType.NO);
+        confirm.initOwner(App.getPrimaryStage());
         if (confirm.showAndWait().orElse(ButtonType.NO) == ButtonType.YES) {
             try (Connection conn = MyDataBase.getConnection();
                     PreparedStatement stmt = conn.prepareStatement("DELETE FROM job_applications WHERE id=?")) {
@@ -930,6 +931,7 @@ public class JobApplicationController {
 
     private void showAlert(String title, String content) {
         Alert alert = new Alert(Alert.AlertType.INFORMATION);
+        alert.initOwner(App.getPrimaryStage());
         alert.setTitle(title);
         alert.setContentText(content);
         alert.showAndWait();
