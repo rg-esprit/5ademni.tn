@@ -1,0 +1,65 @@
+<?xml version="1.0" encoding="UTF-8"?>
+
+<?import javafx.geometry.Insets?>
+<?import javafx.scene.control.*?>
+<?import javafx.scene.layout.*?>
+
+<ScrollPane xmlns="http://javafx.com/javafx/17" xmlns:fx="http://javafx.com/fxml/1"
+    fx:controller="com.khademni.controller.ReviewController"
+    fitToWidth="true" fitToHeight="true"
+    style="-fx-background-color: #f7f5f8; -fx-background: #f7f5f8;">
+
+    <VBox spacing="0" style="-fx-background-color: #f7f5f8;">
+
+        <!-- Reusable Header -->
+        <fx:include source="header.fxml" />
+
+        <!-- Main Content -->
+        <VBox spacing="20" alignment="CENTER" stylesheets="@review.css"
+            style="-fx-padding: 40 24 60 24;">
+
+            <Label text="Gestion des Reviews" styleClass="title" />
+
+            <!-- Error/Status Label -->
+            <Label fx:id="statusLabel" text="" styleClass="status-label"
+                visible="false" managed="false"
+                style="-fx-text-fill: #dc2626; -fx-background-color: #fef2f2; -fx-border-color: #fecaca; -fx-border-radius: 10; -fx-background-radius: 10; -fx-padding: 12 20 12 20; -fx-font-size: 14; -fx-font-weight: 600;" />
+
+            <HBox spacing="15" alignment="CENTER">
+                <VBox spacing="5">
+                    <Label text="Client ID" />
+                    <TextField fx:id="txtClientId" promptText="Client ID" />
+                </VBox>
+                <VBox spacing="5">
+                    <Label text="Freelancer ID" />
+                    <TextField fx:id="txtFreelancerId" promptText="Freelancer ID" />
+                </VBox>
+                <VBox spacing="5">
+                    <Label text="Rating (1-5)" />
+                    <TextField fx:id="txtRating" promptText="Rating" />
+                </VBox>
+            </HBox>
+
+            <VBox spacing="5" alignment="CENTER">
+                <Label text="Review Text" />
+                <TextArea fx:id="txtReviewText" promptText="Entrez votre avis..." prefRowCount="3"
+                    prefWidth="400" />
+            </VBox>
+
+            <HBox spacing="10" alignment="CENTER">
+                <Button text="Ajouter" onAction="#ajouterReview" styleClass="btn-primary" />
+                <Button text="Supprimer" onAction="#supprimerReview" styleClass="btn-danger" />
+            </HBox>
+
+            <TableView fx:id="tableReview" prefHeight="300" prefWidth="600">
+                <columns>
+                    <TableColumn fx:id="colId" text="ID" prefWidth="50" />
+                    <TableColumn fx:id="colClient" text="Client ID" prefWidth="80" />
+                    <TableColumn fx:id="colFreelancer" text="Freelancer ID" prefWidth="100" />
+                    <TableColumn fx:id="colRating" text="Rating" prefWidth="70" />
+                    <TableColumn fx:id="colReviewText" text="Review Text" prefWidth="280" />
+                </columns>
+            </TableView>
+        </VBox>
+    </VBox>
+</ScrollPane>
