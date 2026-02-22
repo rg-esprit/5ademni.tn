@@ -141,6 +141,7 @@ public class CategoryController {
         card.setAlignment(Pos.TOP_LEFT);
         card.setSpacing(16);
         card.setPrefWidth(340);
+        card.setMinWidth(340);
         card.setMaxWidth(340);
         card.setPadding(new Insets(24));
         card.setStyle(
@@ -286,6 +287,14 @@ public class CategoryController {
         ButtonType saveButtonType = new ButtonType(categoryToEdit == null ? "Create" : "Save Changes", ButtonBar.ButtonData.OK_DONE);
         dialog.getDialogPane().getButtonTypes().addAll(saveButtonType, ButtonType.CANCEL);
 
+        // Style the DialogPane
+        DialogPane dialogPane = dialog.getDialogPane();
+        dialogPane.setStyle(
+            "-fx-background-color: white;" +
+            "-fx-background-radius: 16;" +
+            "-fx-effect: dropshadow(gaussian, rgba(0,0,0,0.2), 40, 0, 0, 10);"
+        );
+
         GridPane grid = new GridPane();
         grid.setHgap(16);
         grid.setVgap(16);
@@ -294,42 +303,147 @@ public class CategoryController {
 
         TextField nameField = new TextField(categoryToEdit != null ? categoryToEdit.getName() : "");
         nameField.setPromptText("Category name");
-        nameField.setStyle("-fx-font-size: 14; -fx-padding: 10;");
+        nameField.setStyle(
+            "-fx-background-color: #f9fafb;" +
+            "-fx-background-radius: 10;" +
+            "-fx-border-color: #e5e7eb;" +
+            "-fx-border-radius: 10;" +
+            "-fx-border-width: 1.5;" +
+            "-fx-padding: 12 16;" +
+            "-fx-font-size: 14;" +
+            "-fx-font-weight: 400;" +
+            "-fx-text-fill: #1f2937;"
+        );
 
         TextArea descField = new TextArea(categoryToEdit != null ? categoryToEdit.getDescription() : "");
         descField.setPromptText("Category description");
         descField.setPrefRowCount(4);
         descField.setWrapText(true);
-        descField.setStyle("-fx-font-size: 14; -fx-padding: 10;");
+        descField.setStyle(
+            "-fx-background-color: #f9fafb;" +
+            "-fx-background-radius: 10;" +
+            "-fx-border-color: #e5e7eb;" +
+            "-fx-border-radius: 10;" +
+            "-fx-border-width: 1.5;" +
+            "-fx-padding: 12 16;" +
+            "-fx-font-size: 14;" +
+            "-fx-text-fill: #1f2937;"
+        );
+
+        // Generate Description Button
+        Button generateDescBtn = new Button("✨ Generate Description");
+        generateDescBtn.setStyle(
+            "-fx-background-color: linear-gradient(to right, #10b981, #059669);" +
+            "-fx-text-fill: white;" +
+            "-fx-font-size: 13;" +
+            "-fx-font-weight: 600;" +
+            "-fx-padding: 8 16;" +
+            "-fx-background-radius: 8;" +
+            "-fx-cursor: hand;" +
+            "-fx-effect: dropshadow(gaussian, rgba(16,185,129,0.3), 8, 0, 0, 2);"
+        );
+        generateDescBtn.setOnAction(e -> {
+            String name = nameField.getText().trim();
+            if (name.isEmpty()) {
+                showError("Please enter a category name first!");
+                return;
+            }
+
+            generateDescBtn.setDisable(true);
+            generateDescBtn.setText("⏳ Generating...");
+
+            // Run in background thread
+            new Thread(() -> {
+                try {
+                    System.out.println("🚀 Starting FREE AI generation for category...");
+                    System.out.println("   Category name: " + name);
+
+                    // Utilise le service AI GRATUIT (pas besoin de quota/crédit)
+                    com.khademni.utils.FreeAIService freeAI = new com.khademni.utils.FreeAIService();
+                    String generatedDesc = freeAI.generateCategoryDescription(name);
+
+                    System.out.println("✅ AI generation completed for category!");
+
+                    // Update UI on JavaFX thread
+                    javafx.application.Platform.runLater(() -> {
+                        descField.setText(generatedDesc);
+                        generateDescBtn.setDisable(false);
+                        generateDescBtn.setText("✨ Generate Description");
+                        showSuccess("Description generated with FREE AI! ✨");
+                    });
+                } catch (Exception ex) {
+                    System.err.println("❌ Error during AI generation for category:");
+                    ex.printStackTrace();
+
+                    javafx.application.Platform.runLater(() -> {
+                        generateDescBtn.setDisable(false);
+                        generateDescBtn.setText("✨ Generate Description");
+                        showError("Error generating description: " + ex.getMessage());
+                    });
+                }
+            }).start();
+        });
 
         CheckBox activeCheck = new CheckBox("Active Category");
         activeCheck.setSelected(categoryToEdit != null ? categoryToEdit.isActive() : true);
-        activeCheck.setStyle("-fx-font-size: 14; -fx-font-weight: 500;");
+        activeCheck.setStyle("-fx-font-size: 14; -fx-font-weight: 600; -fx-text-fill: #1e293b;");
 
         Label nameError = new Label();
         nameError.setStyle("-fx-text-fill: #ef4444; -fx-font-size: 12; -fx-font-weight: 600;");
         nameError.setMinHeight(18);
         nameError.setWrapText(true);
+        nameError.setMaxWidth(Double.MAX_VALUE);
 
         Label descError = new Label();
         descError.setStyle("-fx-text-fill: #ef4444; -fx-font-size: 12; -fx-font-weight: 600;");
         descError.setMinHeight(18);
         descError.setWrapText(true);
+        descError.setMaxWidth(Double.MAX_VALUE);
+
+        // Labels for fields
+        Label nameLabel = new Label("Name:");
+        nameLabel.setStyle("-fx-font-size: 14; -fx-font-weight: 600; -fx-text-fill: #1e293b;");
+
+        Label descLabel = new Label("Description:");
+        descLabel.setStyle("-fx-font-size: 14; -fx-font-weight: 600; -fx-text-fill: #1e293b;");
 
         int row = 0;
-        grid.add(new Label("Name:"), 0, row);
+        grid.add(nameLabel, 0, row);
         grid.add(nameField, 1, row++);
         grid.add(nameError, 1, row++);
 
-        grid.add(new Label("Description:"), 0, row);
+        grid.add(descLabel, 0, row);
         grid.add(descField, 1, row++);
+        grid.add(generateDescBtn, 1, row++);
         grid.add(descError, 1, row++);
 
         grid.add(activeCheck, 1, row);
 
         dialog.getDialogPane().setContent(grid);
 
+        // Style the buttons
         Button saveButton = (Button) dialog.getDialogPane().lookupButton(saveButtonType);
+        saveButton.setStyle(
+            "-fx-background-color: linear-gradient(to bottom right, #6366f1, #8b5cf6);" +
+            "-fx-text-fill: white;" +
+            "-fx-font-size: 14;" +
+            "-fx-font-weight: 700;" +
+            "-fx-padding: 12 32;" +
+            "-fx-background-radius: 10;" +
+            "-fx-cursor: hand;" +
+            "-fx-effect: dropshadow(gaussian, rgba(99,102,241,0.3), 12, 0, 0, 4);"
+        );
+
+        Button cancelButton = (Button) dialog.getDialogPane().lookupButton(ButtonType.CANCEL);
+        cancelButton.setStyle(
+            "-fx-background-color: #f3f4f6;" +
+            "-fx-text-fill: #374151;" +
+            "-fx-font-size: 14;" +
+            "-fx-font-weight: 600;" +
+            "-fx-padding: 12 32;" +
+            "-fx-background-radius: 10;" +
+            "-fx-cursor: hand;"
+        );
 
         Runnable validateForm = () -> {
             boolean valid = true;
@@ -381,55 +495,53 @@ public class CategoryController {
             return null;
         });
 
-        dialog.showAndWait().ifPresent(cat -> {
-            if (categoryToEdit == null) {
-                saveCategory(cat);
-            } else {
-                updateCategory(cat);
+        Optional<CategoryModel> result = dialog.showAndWait();
+        if (result.isPresent()) {
+            CategoryModel cat = result.get();
+            if (saveCategory(categoryToEdit, cat.getName(), cat.getDescription(), cat.isActive())) {
+                loadCategories();
+                updateStats();
             }
-        });
+        }
     }
 
-    private void saveCategory(CategoryModel category) {
-        String query = "INSERT INTO category (name, description, is_active) VALUES (?, ?, ?)";
+    private boolean saveCategory(CategoryModel categoryToEdit, String name, String desc, boolean isActive) {
+        String query;
+
+        if (categoryToEdit == null) {
+            // Create new category
+            query = "INSERT INTO category (name, description, is_active) VALUES (?, ?, ?)";
+        } else {
+            // Update existing category
+            query = "UPDATE category SET name = ?, description = ?, is_active = ? WHERE id = ?";
+        }
 
         try (Connection conn = MyDataBase.getConnection();
              PreparedStatement ps = conn.prepareStatement(query)) {
 
-            ps.setString(1, category.getName());
-            ps.setString(2, category.getDescription());
-            ps.setBoolean(3, category.isActive());
+            ps.setString(1, name);
+            ps.setString(2, desc);
+            ps.setBoolean(3, isActive);
+
+            if (categoryToEdit != null) {
+                ps.setInt(4, categoryToEdit.getId());
+            }
 
             ps.executeUpdate();
-            showSuccess("✅ Category created successfully!");
-            loadCategories();
+
+            if (categoryToEdit == null) {
+                showSuccess("✅ Category created successfully!");
+            } else {
+                showSuccess("✅ Category updated successfully!");
+            }
+
+            return true;
 
         } catch (SQLException e) {
             System.err.println("ERROR saving category: " + e.getMessage());
             e.printStackTrace();
-            showError("Error saving category: " + e.getMessage());
-        }
-    }
-
-    private void updateCategory(CategoryModel category) {
-        String query = "UPDATE category SET name = ?, description = ?, is_active = ? WHERE id = ?";
-
-        try (Connection conn = MyDataBase.getConnection();
-             PreparedStatement ps = conn.prepareStatement(query)) {
-
-            ps.setString(1, category.getName());
-            ps.setString(2, category.getDescription());
-            ps.setBoolean(3, category.isActive());
-            ps.setInt(4, category.getId());
-
-            ps.executeUpdate();
-            showSuccess("✅ Category updated successfully!");
-            loadCategories();
-
-        } catch (SQLException e) {
-            System.err.println("ERROR updating category: " + e.getMessage());
-            e.printStackTrace();
-            showError("Error updating category: " + e.getMessage());
+            showError("❌ Error saving category: " + e.getMessage());
+            return false;
         }
     }
 

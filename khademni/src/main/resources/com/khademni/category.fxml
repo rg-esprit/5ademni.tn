@@ -113,6 +113,7 @@
                 <ScrollPane fitToWidth="true" style="-fx-background-color: transparent; -fx-background: transparent;">
                     <FlowPane fx:id="categoriesContainer"
                               hgap="20" vgap="20"
+                              alignment="TOP_LEFT"
                               style="-fx-padding: 28; -fx-background-color: white;" />
                 </ScrollPane>
 

@@ -253,6 +253,7 @@
                         <!-- Gigs Container (will be populated programmatically) -->
                         <FlowPane fx:id="gigsContainer"
                                   hgap="20" vgap="20"
+                                  alignment="TOP_LEFT"
                                   prefWrapLength="1000">
                             <!-- Gig cards will be added here dynamically -->
                         </FlowPane>
