@@ -8,21 +8,24 @@
 <ScrollPane xmlns="http://javafx.com/javafx/22"
             xmlns:fx="http://javafx.com/fxml"
             fx:controller="com.khademni.controller.FavorisController"
-            fitToWidth="true">
+            fitToWidth="true"
+            styleClass="profile-scroll"
+            stylesheets="@dashboard-article.css">
 
     <content>
         <VBox spacing="20" styleClass="profile-root">
-
             <fx:include source="../header.fxml"/>
-    <Label text="Mes Articles Favoris"
-           style="-fx-font-size: 28px; -fx-font-weight: bold; -fx-padding: 20 0 0 20;" />
+
+            <Label text="Mes Articles Favoris"
+                   styleClass="profile-page-title"
+                   style="-fx-padding: 20 0 0 20;" />
 
             <TilePane fx:id="favorisContainer"
                       hgap="20"
                       vgap="20"
                       prefColumns="1"
                       tileAlignment="TOP_LEFT"
-                      style="-fx-padding: 20;" />
+                      styleClass="tile-pane" />
         </VBox>
     </content>
 </ScrollPane>

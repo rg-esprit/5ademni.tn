@@ -68,77 +68,105 @@ public class FavorisController {
     }
 }
 
-    private VBox createFavoriCard(Article article, Long favoriId, LocalDateTime createdAt) {
+   private VBox createFavoriCard(Article article, Long favoriId, LocalDateTime createdAt) {
+    // ===== CARTE PRINCIPALE =====
+    VBox card = new VBox(10);
+    card.setAlignment(Pos.CENTER);
+    card.setStyle("""
+        -fx-background-color: white;
+        -fx-padding: 20;
+        -fx-background-radius: 16;
+        -fx-effect: dropshadow(gaussian, rgba(0, 0, 0, 0.08), 20, 0, 0, 5);
+    """);
+    card.setPrefWidth(600); // Ajustez la largeur pour centrer les cartes
 
-        VBox card = new VBox();
-        card.setPrefWidth(800);
-        card.setStyle("""
-            -fx-background-color: white;
-            -fx-padding: 15;
-            -fx-background-radius: 15;
-            -fx-effect: dropshadow(three-pass-box, rgba(0,0,0,0.08), 10, 0, 0, 4);
-        """);
+    // ================= IMAGE =================
+    ImageView imageView = new ImageView();
+    imageView.setFitWidth(100);
+    imageView.setFitHeight(100);
+    imageView.setPreserveRatio(true);
 
-        HBox mainContainer = new HBox(20);
-        mainContainer.setAlignment(Pos.CENTER_LEFT);
-
-        // IMAGE À GAUCHE
-        ImageView imageView = new ImageView();
-        imageView.setFitWidth(120);
-        imageView.setFitHeight(120);
-        imageView.setPreserveRatio(true);
-
-        if (article.getImagePath() != null) {
-            imageView.setImage(new Image("file:" + article.getImagePath()));
+    try {
+        String path = article.getImagePath();
+        if (path != null && !path.isEmpty()) {
+            imageView.setImage(new Image("file:" + path));
+        } else {
+            imageView.setImage(new Image(getClass()
+                    .getResource("/images/default.png").toExternalForm()));
         }
-
-        // CENTRE (Titre + Description + Date)
-        VBox contentBox = new VBox(8);
-
-        Label title = new Label(article.getTitle());
-        title.setStyle("-fx-font-size: 20px; -fx-font-weight: bold;");
-
-        Label description = new Label(article.getContent());
-        description.setWrapText(true);
-        description.setMaxWidth(450);
-
-        Label dateLabel = new Label(
-            createdAt != null
-                    ? "Ajouté le : " + createdAt.toLocalDate()
-                    : "Date inconnue"
-        );
-
-        dateLabel.setStyle("-fx-text-fill: gray; -fx-font-size: 12px;");
-
-        contentBox.getChildren().addAll(title, description, dateLabel);
-        // Vérifier si l'article est favori et changer la couleur du titre
-        title.setStyle("-fx-font-size: 20px; -fx-font-weight: bold; -fx-text-fill: red;");
-
-        // BOUTON À DROITE
-        Button removeBtn = new Button("Retirer");
-        removeBtn.setStyle("""
-            -fx-background-color: #ff4d4d;
-            -fx-text-fill: white;
-            -fx-background-radius: 20;
-            -fx-padding: 8 20;
-        """);
-
-        removeBtn.setOnAction(e -> {
-            try {
-                favoriService.delete(favoriId);
-                loadFavoris();
-            } catch (SQLException ex) {
-                ex.printStackTrace();
-            }
-        });
-
-        Region spacer = new Region();
-        HBox.setHgrow(spacer, Priority.ALWAYS);
-
-        mainContainer.getChildren().addAll(imageView, contentBox, spacer, removeBtn);
-
-        card.getChildren().add(mainContainer);
-
-        return card;
+    } catch (Exception e) {
+        e.printStackTrace();
     }
+
+    // ================= CONTENU =================
+    VBox contentBox = new VBox(8);
+    contentBox.setAlignment(Pos.CENTER_LEFT);
+
+    Label title = new Label(article.getTitle());
+    title.setStyle("-fx-font-size: 18px; -fx-font-weight: bold; -fx-text-fill: #6c0df2;");
+
+    Label description = new Label(article.getContent());
+    description.setWrapText(true);
+    description.setStyle("-fx-font-size: 14px; -fx-text-fill: #6b7280;");
+
+    Label date = new Label("Ajouté le : " + article.getCreatedAt());
+    date.setStyle("-fx-text-fill: gray; -fx-font-size: 12px;");
+
+    contentBox.getChildren().addAll(title, description, date);
+
+    // ================= ACTIONS =================
+    Button removeBtn = new Button("Retirer");
+    removeBtn.setStyle("""
+        -fx-background-color: #f87171;
+        -fx-text-fill: white;
+        -fx-font-size: 14px;
+        -fx-font-weight: bold;
+        -fx-background-radius: 20;
+        -fx-padding: 8 20;
+        -fx-cursor: hand;
+        -fx-effect: dropshadow(gaussian, rgba(248, 113, 113, 0.3), 10, 0, 0, 4);
+    """);
+
+    removeBtn.setOnMouseEntered(e -> removeBtn.setStyle("""
+        -fx-background-color: #ef4444;
+        -fx-text-fill: white;
+        -fx-font-size: 14px;
+        -fx-font-weight: bold;
+        -fx-background-radius: 20;
+        -fx-padding: 8 20;
+        -fx-cursor: hand;
+        -fx-effect: dropshadow(gaussian, rgba(239, 68, 68, 0.5), 12, 0, 0, 6);
+    """));
+
+    removeBtn.setOnMouseExited(e -> removeBtn.setStyle("""
+        -fx-background-color: #f87171;
+        -fx-text-fill: white;
+        -fx-font-size: 14px;
+        -fx-font-weight: bold;
+        -fx-background-radius: 20;
+        -fx-padding: 8 20;
+        -fx-cursor: hand;
+        -fx-effect: dropshadow(gaussian, rgba(248, 113, 113, 0.3), 10, 0, 0, 4);
+    """));
+
+    removeBtn.setOnAction(e -> {
+        try {
+            favoriService.delete(favoriId);
+            loadFavoris();
+        } catch (SQLException ex) {
+            ex.printStackTrace();
+        }
+    });
+
+    HBox actionsBox = new HBox(removeBtn);
+    actionsBox.setAlignment(Pos.CENTER_RIGHT);
+
+    // ================= LAYOUT PRINCIPAL =================
+    HBox mainRow = new HBox(20, imageView, contentBox, actionsBox);
+    mainRow.setAlignment(Pos.CENTER_LEFT);
+
+    card.getChildren().add(mainRow);
+
+    return card;
+}
 }

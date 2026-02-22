@@ -152,14 +152,41 @@ private VBox createArticleCard(Article article) {
     HBox favoriBox = new HBox(5, likeBtn, favoriCount);
     favoriBox.setAlignment(Pos.CENTER);
 
-    // ===== BOUTON VOIR ARTICLE =====
-    Button voirArticleBtn = new Button("Voir Article");
+    // ===== BOUTON Voir Gigs =====
+    
+    Button voirArticleBtn = new Button("Voir Gigs");
+    voirArticleBtn.getStyleClass().add("button-modern");
     voirArticleBtn.setStyle("""
-        -fx-background-color: #6a1b9a;
+             -fx-background-color: linear-gradient(to right, #7c3aed, #6c0df2);
         -fx-text-fill: white;
+        -fx-font-size: 14px;
+        -fx-font-weight: bold;
         -fx-background-radius: 20;
-        -fx-padding: 6 18;
+        -fx-padding: 8 20;
+        -fx-cursor: hand;
+        -fx-effect: dropshadow(gaussian, rgba(108, 13, 242, 0.3), 10, 0, 0, 4);
     """);
+ voirArticleBtn.setOnMouseEntered(e -> voirArticleBtn.setStyle("""
+        -fx-background-color: linear-gradient(to right, #5f0ad6, #5209be);
+        -fx-text-fill: white;
+        -fx-font-size: 14px;
+        -fx-font-weight: bold;
+        -fx-background-radius: 20;
+        -fx-padding: 8 20;
+        -fx-cursor: hand;
+        -fx-effect: dropshadow(gaussian, rgba(108, 13, 242, 0.5), 12, 0, 0, 6);
+    """));
+
+    voirArticleBtn.setOnMouseExited(e -> voirArticleBtn.setStyle("""
+        -fx-background-color: linear-gradient(to right, #7c3aed, #6c0df2);
+        -fx-text-fill: white;
+        -fx-font-size: 14px;
+        -fx-font-weight: bold;
+        -fx-background-radius: 20;
+        -fx-padding: 8 20;
+        -fx-cursor: hand;
+        -fx-effect: dropshadow(gaussian, rgba(108, 13, 242, 0.3), 10, 0, 0, 4);
+    """));
 
     voirArticleBtn.setOnAction(e -> navigateToGigsPage(article));
 
@@ -192,8 +219,21 @@ private VBox createArticleCard(Article article) {
         commentairesBox.setVisible(visible);
         commentairesBox.setManaged(visible);
 
-        if (visible) {
+         if (visible) {
+            card.setStyle("""
+                -fx-background-color: white;
+                -fx-padding: 30;
+                -fx-background-radius: 20;
+                -fx-effect: dropshadow(three-pass-box, rgba(0,0,0,0.08), 15, 0, 0, 5);
+            """);
             chargerCommentaires(article, commentairesBox);
+        } else {
+            card.setStyle("""
+                -fx-background-color: white;
+                -fx-padding: 20;
+                -fx-background-radius: 20;
+                -fx-effect: dropshadow(three-pass-box, rgba(0,0,0,0.08), 15, 0, 0, 5);
+            """);
         }
     });
 

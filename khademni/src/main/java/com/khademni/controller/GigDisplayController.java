@@ -49,7 +49,7 @@ public class GigDisplayController {
         gigsContainer.getChildren().add(noArticleLabel);
         return;
     }
-
+//extractKeywords 
     List<String> keywords = extractKeywords(article);
     List<GigModel> gigs = fetchGigsByKeywords(keywords);
 
