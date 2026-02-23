@@ -16,6 +16,11 @@ import javafx.scene.control.*;
 import javafx.scene.layout.HBox;
 import javafx.util.Callback;
 import javafx.scene.control.cell.PropertyValueFactory;
+import com.khademni.service.ContratService;
+import com.khademni.service.ServiceFactory;
+import com.khademni.exception.ContractCreationException;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import java.io.FileOutputStream;
 import java.io.IOException;
@@ -27,6 +32,8 @@ import java.sql.Statement;
 import java.time.LocalDate;
 
 public class ContratController {
+    private static final Logger logger = LoggerFactory.getLogger(ContratController.class);
+    private final ContratService contratService = ServiceFactory.getContratService();
 
     @FXML
     private TableView<ContratModel> contratTable;
@@ -106,16 +113,17 @@ public class ContratController {
     public void initialize() {
         colId.setCellValueFactory(new PropertyValueFactory<>("idContrat"));
         colTitre.setCellValueFactory(new PropertyValueFactory<>("titre"));
-        colFreelancer.setCellValueFactory(new PropertyValueFactory<>("idFreelancer"));
-        colClient.setCellValueFactory(new PropertyValueFactory<>("idClient"));
+        colFreelancer.setCellValueFactory(new PropertyValueFactory<>("freelancerName"));
+        colClient.setCellValueFactory(new PropertyValueFactory<>("clientName"));
         colPrix.setCellValueFactory(new PropertyValueFactory<>("prix"));
         colStatut.setCellValueFactory(new PropertyValueFactory<>("statut"));
         colDate.setCellValueFactory(new PropertyValueFactory<>("dateContrat"));
         colDesc.setCellValueFactory(new PropertyValueFactory<>("description"));
 
         addActionsButtonsToTable();
-        setupSearch(); // Call this first to set items to the filtered list
-        loadContrats(); // Then load data into the underlying list
+        setupSearch();
+        loadContrats();
+        loadFormData();
 
         // Selection listener for Informations tab
         contratTable.getSelectionModel().selectedItemProperty().addListener((obs, oldSelection, newSelection) -> {
@@ -123,6 +131,10 @@ public class ContratController {
                 showContratDetails(newSelection);
             }
         });
+    }
+
+    private void loadFormData() {
+        // Dropdown loading logic removed for manual TextField entry
     }
 
     private void showContratDetails(ContratModel contrat) {
@@ -161,7 +173,12 @@ public class ContratController {
     private void loadContrats() {
         System.out.println("DEBUG: loadContrats() started.");
         contratList.clear();
-        String query = "SELECT c.*, u.first_name, u.last_name FROM contrats c LEFT JOIN users u ON c.freelancer_id = u.id";
+        String query = "SELECT c.*, " +
+                "u1.first_name as cfname, u1.last_name as clname, u1.unique_id as cuid, " +
+                "u2.first_name as ffname, u2.last_name as flname, u2.unique_id as fuid " +
+                "FROM contrats c " +
+                "LEFT JOIN users u1 ON c.client_id = u1.id " +
+                "LEFT JOIN users u2 ON c.freelancer_id = u2.id";
 
         System.out.println("DEBUG: Executing Query: " + query);
 
@@ -178,9 +195,18 @@ public class ContratController {
                 while (rs.next()) {
                     int id = rs.getInt("id");
                     String titre = rs.getString("titre");
-                    String firstName = rs.getString("first_name");
-                    String lastName = rs.getString("last_name");
-                    String freelancerName = (firstName != null && lastName != null) ? (firstName + " " + lastName)
+                    String cfName = rs.getString("cfname");
+                    String clName = rs.getString("clname");
+                    String ffName = rs.getString("ffname");
+                    String flName = rs.getString("flname");
+                    int clientUniqueId = rs.getInt("cuid");
+                    int freelancerUniqueId = rs.getInt("fuid");
+
+                    String clientName = (cfName != null && clName != null)
+                            ? (cfName + " " + clName + " (ID: " + clientUniqueId + ")")
+                            : "Unknown Client";
+                    String freelancerName = (ffName != null && flName != null)
+                            ? (ffName + " " + flName + " (ID: " + freelancerUniqueId + ")")
                             : "Unknown Freelancer";
 
                     System.out.println("DEBUG: Row found -> ID: " + id + ", Titre: " + titre);
@@ -192,6 +218,9 @@ public class ContratController {
                             id,
                             rs.getInt("client_id"),
                             rs.getInt("freelancer_id"),
+                            clientUniqueId,
+                            freelancerUniqueId,
+                            clientName,
                             freelancerName,
                             titre,
                             rs.getString("description"),
@@ -262,67 +291,64 @@ public class ContratController {
     private void handleEdit(ContratModel contrat) {
         this.contratToEdit = contrat;
         titreField.setText(contrat.getTitre());
-        idFreelancerField.setText(String.valueOf(contrat.getIdFreelancer()));
-        idClientField.setText(String.valueOf(contrat.getIdClient()));
+        idClientField.setText(String.valueOf(contrat.getClientUniqueId()));
+        idFreelancerField.setText(String.valueOf(contrat.getFreelancerUniqueId()));
         prixField.setText(String.valueOf(contrat.getPrix()));
         descriptionField.setText(contrat.getDescription());
         dateContratPicker.setValue(contrat.getDateContrat());
-
-        // Switch to Add/Edit tab
-        mainTabPane.getSelectionModel().select(1);
+        mainTabPane.getSelectionModel().select(1); // Select Add/Edit tab
     }
 
     @FXML
     private void saveContrat() {
         String titre = titreField.getText().trim();
-        String freelancerIdStr = idFreelancerField.getText().trim();
-        String clientIdStr = idClientField.getText().trim();
         String prixStr = prixField.getText().trim();
         String description = descriptionField.getText().trim();
+        String clientBusinessIdStr = idClientField.getText().trim();
+        String freelancerBusinessIdStr = idFreelancerField.getText().trim();
         LocalDate date = dateContratPicker.getValue();
 
         // Clear previous errors
         showError("");
 
         // Control de saisie (Validation)
-        if (clientIdStr.isEmpty()) {
+        if (clientBusinessIdStr.isEmpty()) {
             showError("L'ID Client est requis.");
             return;
         }
 
-        if (clientIdStr.length() < 3 || clientIdStr.length() > 7) {
-            showError("L'ID Client doit contenir entre 3 et 7 caractères.");
-            return;
-        }
-
-        int cId;
-        try {
-            cId = Integer.parseInt(clientIdStr);
-        } catch (NumberFormatException e) {
-            showError("L'ID Client doit être un nombre valide.");
-            return;
-        }
-
-        if (freelancerIdStr.isEmpty()) {
+        if (freelancerBusinessIdStr.isEmpty()) {
             showError("L'ID Freelancer est requis.");
-            return;
-        }
-
-        if (freelancerIdStr.length() < 3 || freelancerIdStr.length() > 7) {
-            showError("L'ID Freelancer doit contenir entre 3 et 7 caractères.");
-            return;
-        }
-
-        int fId;
-        try {
-            fId = Integer.parseInt(freelancerIdStr);
-        } catch (NumberFormatException e) {
-            showError("L'ID Freelancer doit être un nombre valide.");
             return;
         }
 
         if (date == null) {
             showError("La date du contrat est requise.");
+            return;
+        }
+
+        int clientBusinessId, freelancerBusinessId;
+        int clientTechId, freelancerTechId;
+
+        try {
+            clientBusinessId = Integer.parseInt(clientBusinessIdStr);
+            freelancerBusinessId = Integer.parseInt(freelancerBusinessIdStr);
+
+            if (!com.khademni.service.UserIdService.isValid(clientBusinessId) ||
+                    !com.khademni.service.UserIdService.isValid(freelancerBusinessId)) {
+                showError("Les IDs doivent comporter exactement 4 chiffres.");
+                return;
+            }
+
+            // Resolve technical IDs
+            clientTechId = com.khademni.service.UserIdService.resolveTechnicalId(clientBusinessId);
+            freelancerTechId = com.khademni.service.UserIdService.resolveTechnicalId(freelancerBusinessId);
+
+        } catch (NumberFormatException e) {
+            showError("Les IDs doivent être des nombres valides.");
+            return;
+        } catch (java.sql.SQLException e) {
+            showError("Utilisateur introuvable : " + e.getMessage());
             return;
         }
 
@@ -349,41 +375,30 @@ public class ContratController {
         }
 
         try {
-            Connection conn = MyDataBase.getConnection();
-            String query;
-
+            ContratModel contrat = (contratToEdit != null) ? contratToEdit : new ContratModel();
+            contrat.setIdClient(clientTechId);
+            contrat.setIdFreelancer(freelancerTechId);
+            contrat.setClientUniqueId(clientBusinessId);
+            contrat.setFreelancerUniqueId(freelancerBusinessId);
+            contrat.setTitre(titre);
+            contrat.setDescription(description);
+            contrat.setPrix(prix);
+            contrat.setDateContrat(date);
             if (contratToEdit == null) {
-                query = "INSERT INTO contrats (client_id, freelancer_id, titre, description, prix, date_contrat, statut) VALUES (?, ?, ?, ?, ?, ?, ?)";
+                contrat.setStatut("EN_ATTENTE");
+                contratService.createContract(contrat);
             } else {
-                query = "UPDATE contrats SET client_id=?, freelancer_id=?, titre=?, description=?, prix=?, date_contrat=? WHERE id=?";
+                contrat.setStatut(contratToEdit.getStatut()); // Preserve existing status
+                contratService.updateContract(contrat);
             }
 
-            try (PreparedStatement stmt = (contratToEdit == null)
-                    ? conn.prepareStatement(query, Statement.RETURN_GENERATED_KEYS)
-                    : conn.prepareStatement(query)) {
-
-                stmt.setInt(1, cId);
-                stmt.setInt(2, fId);
-                stmt.setString(3, titre);
-                stmt.setString(4, description);
-                stmt.setDouble(5, prix);
-                stmt.setDate(6, java.sql.Date.valueOf(date));
-
-                if (contratToEdit == null) {
-                    stmt.setString(7, "EN_ATTENTE");
-                } else {
-                    stmt.setInt(7, contratToEdit.getIdContrat());
-                }
-
-                stmt.executeUpdate();
-                showAlert(Alert.AlertType.INFORMATION, "Succès", "Contrat enregistré avec succès !");
-                resetForm();
-                loadContrats();
-                mainTabPane.getSelectionModel().select(0); // Back to list
-            }
-        } catch (Exception e) {
-            e.printStackTrace();
-            showError("Erreur lors de l'enregistrement : " + e.getMessage());
+            showAlert(Alert.AlertType.INFORMATION, "Succès", "Contrat enregistré avec succès !");
+            resetForm();
+            loadContrats();
+            mainTabPane.getSelectionModel().select(0); // Back to list
+        } catch (ContractCreationException e) {
+            logger.error("Failed to save contract", e);
+            showError(e.getMessage());
         }
     }
 

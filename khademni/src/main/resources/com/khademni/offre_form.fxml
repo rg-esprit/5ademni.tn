@@ -28,30 +28,35 @@
                 <Label fx:id="errorLabel" text="" styleClass="error-label"
                     visible="false" managed="false" />
 
-                <VBox spacing="10">
-                    <Label text="ID Utilisateur (Client/Freelancer)" style="-fx-font-weight: bold;" />
-                    <TextField fx:id="userIdField" promptText="Entrez votre ID" styleClass="search-field" />
+                <VBox fx:id="userIdContainer" spacing="10">
+                    <Label text="ID Utilisateur (Client/Freelancer) — lecture seule" style="-fx-font-weight: bold;" />
+                    <TextField fx:id="userIdField" promptText="Votre ID unique (4 chiffres)" styleClass="search-field" editable="false" />
                 </VBox>
 
-                <VBox spacing="10">
+                <VBox fx:id="dateCreationContainer" spacing="10">
                     <Label text="Date de Création" style="-fx-font-weight: bold;" />
                     <DatePicker fx:id="dateField" promptText="Choisissez la date" style="-fx-pref-width: 600;" />
                 </VBox>
+                
+                <VBox fx:id="dateLimiteContainer" spacing="10">
+                    <Label text="Date Limite (CDD)" style="-fx-font-weight: bold;" />
+                    <DatePicker fx:id="dateLimiteField" promptText="Ligne rouge / Date de fin" style="-fx-pref-width: 600;" />
+                </VBox>
 
-                <VBox spacing="10">
+                <VBox fx:id="titreContainer" spacing="10">
                     <Label text="Titre" style="-fx-font-weight: bold;" />
                     <TextField fx:id="titreField" promptText="Entrez le titre (min 5 caractères)" styleClass="search-field" />
                 </VBox>
 
-                <VBox spacing="10">
+                <VBox fx:id="descriptionContainer" spacing="10">
                     <Label text="Description" style="-fx-font-weight: bold;" />
                     <TextArea fx:id="descriptionField" promptText="Décrivez votre offre ou besoin (min 10 caractères)" 
                               styleClass="text-area-custom" prefHeight="150" wrapText="true" />
                 </VBox>
 
-                <VBox spacing="10">
+                <VBox fx:id="prixContainer" spacing="10">
                     <Label text="Prix (DT)" style="-fx-font-weight: bold;" />
-                    <TextField fx:id="prixField" promptText="0.00" styleClass="search-field" />
+                    <TextField fx:id="prixField" promptText="0.00 ou ---- pour ne pas afficher" styleClass="search-field" />
                 </VBox>
 
                 <HBox spacing="16" alignment="CENTER_RIGHT">

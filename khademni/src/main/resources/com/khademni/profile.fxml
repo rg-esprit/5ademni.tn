@@ -3,7 +3,9 @@
 <?import javafx.scene.control.*?>
 <?import javafx.scene.layout.*?>
 <?import javafx.scene.shape.*?>
+<?import javafx.scene.image.*?>
 <?import javafx.geometry.Insets?>
+<?import org.kordamp.ikonli.javafx.FontIcon?>
 
 <ScrollPane xmlns="http://javafx.com/javafx/17" xmlns:fx="http://javafx.com/fxml/1"
     fx:controller="com.khademni.controller.UserController"
@@ -13,7 +15,7 @@
     <VBox spacing="0" styleClass="profile-root"
         style="-fx-background-color: #f7f5f8;">
 
-        <!-- Reusable Header -->
+        <!-- Global Header -->
         <fx:include source="header.fxml" />
 
         <!-- Main Content -->
@@ -33,11 +35,18 @@
                 <VBox alignment="CENTER" spacing="16" styleClass="profile-header-section"
                     style="-fx-padding: 40 40 32 40;">
 
-                    <!-- Avatar -->
-                    <StackPane prefWidth="100" prefHeight="100" maxWidth="100" maxHeight="100"
-                        styleClass="avatar-container">
+                    <!-- Avatar (clickable to change photo) -->
+                    <StackPane fx:id="avatarPane" prefWidth="100" prefHeight="100" maxWidth="100" maxHeight="100"
+                        styleClass="avatar-container" onMouseClicked="#onAvatarClick">
                         <Circle radius="50" styleClass="avatar-circle" />
+                        <ImageView fx:id="profileAvatarImage" fitWidth="100" fitHeight="100"
+                            preserveRatio="false" visible="false" />
                         <Label fx:id="profileAvatarInitials" text="JD" styleClass="avatar-initials" />
+                        <!-- Camera overlay icon -->
+                        <StackPane styleClass="avatar-overlay" prefWidth="100" prefHeight="100"
+                            maxWidth="100" maxHeight="100">
+                            <Label text="&#xe3b0;" styleClass="avatar-camera-icon" />
+                        </StackPane>
                     </StackPane>
 
                     <!-- Name & Email Display -->
@@ -48,12 +57,52 @@
                             styleClass="profile-display-email" />
                     </VBox>
 
-                    <!-- Balance Badge -->
+                    <!-- Bio (displayed under name) -->
+                    <Label fx:id="profileBioLabel" text="No bio provided."
+                        styleClass="profile-bio-header" wrapText="true" maxWidth="500"
+                        alignment="CENTER" style="-fx-text-alignment: center;" />
+
+                    <!-- Balance Badge + Deposit -->
                     <HBox alignment="CENTER" spacing="8" styleClass="balance-badge"
                         style="-fx-padding: 8 20 8 20;">
                         <Label text="&#xe850;" styleClass="balance-icon" />
-                        <Label fx:id="profileBalanceLabel" text="0.00" styleClass="balance-amount" />
+                        <Label fx:id="profileBalanceLabel" text="0.00 €" styleClass="balance-amount" />
+                        <Button fx:id="depositButton" text="Deposit" onAction="#onDeposit"
+                            style="-fx-background-color: #10b981; -fx-text-fill: white; -fx-cursor: hand; -fx-padding: 6 14;" />
                     </HBox>
+
+                    <!-- Role Toggle Bar -->
+                    <HBox alignment="CENTER" spacing="0" styleClass="role-toggle-container"
+                        style="-fx-padding: 12 0 0 0;">
+                        <Button fx:id="roleClientBtn" text="Client" styleClass="role-toggle-btn"
+                            onAction="#onSelectClient" />
+                        <Button fx:id="roleFreelancerBtn" text="Freelancer" styleClass="role-toggle-btn"
+                            onAction="#onSelectFreelancer" />
+                    </HBox>
+
+                    <!-- CV Upload Section (visible only for Freelancer) -->
+                    <VBox fx:id="cvSection" alignment="TOP_CENTER" spacing="15" visible="false" managed="false"
+                        style="-fx-padding: 20 0 0 0;">
+                        <Label text="Gestion du CV (PDF)" styleClass="profile-field-label"
+                            style="-fx-text-fill: #6c0df2; -fx-font-weight: bold;" />
+                        
+                        <Button text="Uploader mon CV" styleClass="cv-upload-btn"
+                                onAction="#onUploadCV" style="-fx-background-color: #6c0df2; -fx-text-fill: white; -fx-padding: 8 16; -fx-background-radius: 6;" />
+
+                        <TableView fx:id="cvTableView" prefHeight="100" maxHeight="120" styleClass="cv-table">
+                            <placeholder>
+                                <Label text="Aucun CV déposé" />
+                            </placeholder>
+                            <columns>
+                                <TableColumn fx:id="cvNameColumn" text="Nom du fichier" prefWidth="250" />
+                                <TableColumn fx:id="cvDateColumn" text="Date d'upload" prefWidth="150" />
+                                <TableColumn fx:id="cvActionColumn" text="Actions" prefWidth="120" />
+                            </columns>
+                            <columnResizePolicy>
+                                <TableView fx:constant="CONSTRAINED_RESIZE_POLICY" />
+                            </columnResizePolicy>
+                        </TableView>
+                    </VBox>
                 </VBox>
 
                 <!-- Separator -->
@@ -66,58 +115,79 @@
                     <Label fx:id="profileStatusLabel" text="" styleClass="profile-status-label"
                         visible="false" managed="false" />
 
-                    <!-- First Name & Last Name Row -->
-                    <HBox spacing="20">
-                        <VBox spacing="8" HBox.hgrow="ALWAYS">
-                            <Label text="First Name" styleClass="profile-field-label" />
-                            <TextField fx:id="profileFirstNameField" promptText="First name"
-                                styleClass="profile-input" />
-                        </VBox>
-                        <VBox spacing="8" HBox.hgrow="ALWAYS">
-                            <Label text="Last Name" styleClass="profile-field-label" />
-                            <TextField fx:id="profileLastNameField" promptText="Last name"
-                                styleClass="profile-input" />
-                        </VBox>
-                    </HBox>
+                    <!-- First Name Field -->
+                    <VBox spacing="8">
+                        <Label text="First Name" styleClass="profile-field-label" />
+                        <HBox alignment="CENTER_LEFT" spacing="12">
+                            <Label fx:id="profileFirstNameLabel" text="John" styleClass="profile-value-label" />
+                            <TextField fx:id="profileFirstNameField" styleClass="profile-input" visible="false" managed="false" HBox.hgrow="ALWAYS" />
+                            <Button fx:id="editFirstNameBtn" onAction="#onEditFirstName" styleClass="edit-icon-btn">
+                                <graphic><FontIcon iconLiteral="fas-pencil-alt" iconSize="14" /></graphic>
+                            </Button>
+                            <HBox fx:id="firstNameActionBox" spacing="8" visible="false" managed="false">
+                                <Button text="Save" onAction="#onSaveFirstName" styleClass="save-mini-btn" />
+                                <Button text="Cancel" onAction="#onCancelEditFirstName" styleClass="cancel-mini-btn" />
+                            </HBox>
+                        </HBox>
+                    </VBox>
 
-                    <!-- Email -->
+                    <!-- Last Name Field -->
+                    <VBox spacing="8">
+                        <Label text="Last Name" styleClass="profile-field-label" />
+                        <HBox alignment="CENTER_LEFT" spacing="12">
+                            <Label fx:id="profileLastNameLabel" text="Doe" styleClass="profile-value-label" />
+                            <TextField fx:id="profileLastNameField" styleClass="profile-input" visible="false" managed="false" HBox.hgrow="ALWAYS" />
+                            <Button fx:id="editLastNameBtn" onAction="#onEditLastName" styleClass="edit-icon-btn">
+                                <graphic><FontIcon iconLiteral="fas-pencil-alt" iconSize="14" /></graphic>
+                            </Button>
+                            <HBox fx:id="lastNameActionBox" spacing="8" visible="false" managed="false">
+                                <Button text="Save" onAction="#onSaveLastName" styleClass="save-mini-btn" />
+                                <Button text="Cancel" onAction="#onCancelEditLastName" styleClass="cancel-mini-btn" />
+                            </HBox>
+                        </HBox>
+                    </VBox>
+
+                    <!-- Email Field -->
                     <VBox spacing="8">
                         <Label text="Email" styleClass="profile-field-label" />
-                        <TextField fx:id="profileEmailField" promptText="name@company.com"
-                            styleClass="profile-input" />
+                        <HBox alignment="CENTER_LEFT" spacing="12">
+                            <Label fx:id="profileEmailLabel" text="john@doe.com" styleClass="profile-value-label" />
+                            <TextField fx:id="profileEmailField" styleClass="profile-input" visible="false" managed="false" HBox.hgrow="ALWAYS" />
+                            <Button fx:id="editEmailBtn" onAction="#onEditEmail" styleClass="edit-icon-btn">
+                                <graphic><FontIcon iconLiteral="fas-pencil-alt" iconSize="14" /></graphic>
+                            </Button>
+                            <HBox fx:id="emailActionBox" spacing="8" visible="false" managed="false">
+                                <Button text="Save" onAction="#onSaveEmail" styleClass="save-mini-btn" />
+                                <Button text="Cancel" onAction="#onCancelEditEmail" styleClass="cancel-mini-btn" />
+                            </HBox>
+                        </HBox>
                     </VBox>
 
-                    <!-- Date of Birth -->
-                    <VBox spacing="8">
-                        <Label text="Date of Birth" styleClass="profile-field-label" />
-                        <DatePicker fx:id="profileDobPicker" styleClass="profile-input"
-                            maxWidth="Infinity" />
-                    </VBox>
-
-                    <!-- Bio -->
+                    <!-- Bio Field -->
                     <VBox spacing="8">
                         <Label text="Bio" styleClass="profile-field-label" />
-                        <TextArea fx:id="profileBioField" promptText="Tell us about yourself..."
-                            styleClass="profile-textarea" prefRowCount="4" wrapText="true" />
+                        <VBox spacing="8">
+                            <HBox alignment="CENTER_LEFT" spacing="12">
+                                <Button fx:id="editBioBtn" onAction="#onEditBio" styleClass="edit-icon-btn">
+                                    <graphic><FontIcon iconLiteral="fas-pencil-alt" iconSize="14" /></graphic>
+                                </Button>
+                            </HBox>
+                            <VBox fx:id="bioEditBox" spacing="8" visible="false" managed="false">
+                                <TextArea fx:id="profileBioField" styleClass="profile-input" prefRowCount="3" wrapText="true" />
+                                <HBox spacing="8">
+                                    <Button text="Save" onAction="#onSaveBio" styleClass="save-mini-btn" />
+                                    <Button text="Cancel" onAction="#onCancelEditBio" styleClass="cancel-mini-btn" />
+                                </HBox>
+                            </VBox>
+                        </VBox>
                     </VBox>
 
-                    <!-- Profile Image URL -->
-                    <VBox spacing="8">
-                        <Label text="Profile Image URL" styleClass="profile-field-label" />
-                        <TextField fx:id="profileImgField"
-                            promptText="https://example.com/avatar.png"
-                            styleClass="profile-input" />
-                    </VBox>
 
                     <!-- Action Buttons -->
                     <HBox spacing="16" alignment="CENTER_RIGHT" style="-fx-padding: 12 0 0 0;">
                         <Button text="Sign Out" onAction="#onSignOut"
                             styleClass="profile-signout-btn" />
                         <Region HBox.hgrow="ALWAYS" />
-                        <Button text="Cancel" onAction="#onProfileCancel"
-                            styleClass="profile-cancel-btn" />
-                        <Button text="Save Changes" onAction="#onProfileSave"
-                            styleClass="profile-save-btn" />
                     </HBox>
                 </VBox>
             </VBox>

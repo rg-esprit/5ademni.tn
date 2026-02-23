@@ -40,8 +40,13 @@
 
                 <VBox spacing="8" HBox.hgrow="ALWAYS">
                     <Label text="ID Freelancer" style="-fx-font-weight: bold;"/>
-                    <TextField fx:id="idFreelancerField" promptText="Entrez l'ID du freelancer" 
-                               prefHeight="45" style="-fx-background-color: #f1f3f5; -fx-background-radius: 8; -fx-border-color: #dee2e6; -fx-border-radius: 8;"/>
+                    <ComboBox fx:id="idFreelancerComboBox" promptText="Sélectionner un freelancer" 
+                              prefHeight="45" maxWidth="Infinity" style="-fx-background-color: #f1f3f5; -fx-background-radius: 8; -fx-border-color: #dee2e6; -fx-border-radius: 8;"/>
+                </VBox>
+                <VBox spacing="8" HBox.hgrow="ALWAYS">
+                    <Label text="ID Client" style="-fx-font-weight: bold;"/>
+                    <ComboBox fx:id="idClientComboBox" promptText="Sélectionner un client" 
+                              prefHeight="45" maxWidth="Infinity" style="-fx-background-color: #f1f3f5; -fx-background-radius: 8; -fx-border-color: #dee2e6; -fx-border-radius: 8;"/>
                 </VBox>
             </HBox>
 

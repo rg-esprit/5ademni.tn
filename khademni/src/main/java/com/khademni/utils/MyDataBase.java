@@ -1,5 +1,6 @@
 package com.khademni.utils;
 
+import com.khademni.config.ConfigManager;
 import java.sql.Connection;
 import java.sql.DriverManager;
 import java.sql.ResultSet;
@@ -8,10 +9,9 @@ import java.sql.Statement;
 
 public class MyDataBase {
 
-    // Database credentials
-    private static final String DB_URL = "jdbc:mysql://localhost:3306/appdb";
-    private static final String USER = "root";
-    private static final String PASS = "";
+    private static final String DB_URL = ConfigManager.get("DB_URL", "jdbc:mariadb://localhost:3306/appdb");
+    private static final String USER = ConfigManager.get("DB_USER", "root");
+    private static final String PASS = ConfigManager.get("DB_PASS", "");
 
     private static Connection connection = null;
 
@@ -23,6 +23,11 @@ public class MyDataBase {
             synchronized (MyDataBase.class) {
                 if (connection == null || connection.isClosed()) {
                     try {
+                        // Ensure driver is loaded (fallback for some runtime/module setups)
+                        try {
+                            Class.forName("org.mariadb.jdbc.Driver");
+                        } catch (ClassNotFoundException ignored) {
+                        }
                         connection = DriverManager.getConnection(DB_URL, USER, PASS);
                     } catch (SQLException e) {
                         throw e;

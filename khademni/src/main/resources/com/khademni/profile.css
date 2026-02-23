@@ -59,6 +59,23 @@
   -fx-cursor: hand;
 }
 
+.avatar-overlay {
+  -fx-background-color: rgba(0, 0, 0, 0.0);
+  -fx-background-radius: 50;
+  -fx-opacity: 0;
+}
+
+.avatar-container:hover .avatar-overlay {
+  -fx-background-color: rgba(0, 0, 0, 0.35);
+  -fx-opacity: 1;
+}
+
+.avatar-camera-icon {
+  -fx-font-family: "Material Symbols Outlined";
+  -fx-font-size: 28;
+  -fx-text-fill: white;
+}
+
 .avatar-circle {
   -fx-fill: linear-gradient(to bottom right, #6c0df2, #8b5cf6);
   -fx-stroke: white;
@@ -82,6 +99,15 @@
   -fx-font-size: 14;
   -fx-font-weight: 400;
   -fx-text-fill: #8c8c8c;
+}
+
+/* Bio displayed under name in profile header */
+.profile-bio-header {
+  -fx-font-size: 13;
+  -fx-font-weight: 400;
+  -fx-text-fill: #6b7280;
+  -fx-font-style: italic;
+  -fx-padding: 2 0 0 0;
 }
 
 /* ---- Balance Badge ---- */
@@ -245,4 +271,167 @@
   -fx-background-color: #fef2f2;
   -fx-border-color: #f87171;
   -fx-text-fill: #b91c1c;
+}
+
+/* ---- Role Toggle Bar ---- */
+
+.role-toggle-container {
+  -fx-background-color: #f0f0f0;
+  -fx-background-radius: 10;
+  -fx-padding: 3;
+}
+
+.role-toggle-btn {
+  -fx-background-color: transparent;
+  -fx-text-fill: #666666;
+  -fx-font-size: 14;
+  -fx-font-weight: 600;
+  -fx-padding: 10 32 10 32;
+  -fx-background-radius: 8;
+  -fx-cursor: hand;
+  -fx-border-width: 0;
+}
+
+.role-toggle-btn:hover {
+  -fx-background-color: #e5e5e5;
+}
+
+.role-toggle-btn-active {
+  -fx-background-color: #6c0df2;
+  -fx-text-fill: white;
+  -fx-font-size: 14;
+  -fx-font-weight: 700;
+  -fx-padding: 10 32 10 32;
+  -fx-background-radius: 8;
+  -fx-cursor: hand;
+  -fx-border-width: 0;
+  -fx-effect: dropshadow(gaussian, rgba(108, 13, 242, 0.3), 6, 0, 0, 2);
+}
+
+.role-toggle-btn-active:hover {
+  -fx-background-color: #5a0ac9;
+}
+
+/* ---- CV Upload Section ---- */
+
+.cv-file-label {
+  -fx-font-size: 13;
+  -fx-font-weight: 400;
+  -fx-text-fill: #8c8c8c;
+  -fx-font-style: italic;
+}
+
+.cv-upload-btn {
+  -fx-background-color: #f0e6ff;
+  -fx-text-fill: #6c0df2;
+  -fx-font-size: 13;
+  -fx-font-weight: 600;
+  -fx-padding: 8 20 8 20;
+  -fx-background-radius: 8;
+  -fx-cursor: hand;
+  -fx-border-width: 0;
+}
+
+.cv-upload-btn:hover {
+  -fx-background-color: #e0d0ff;
+  -fx-effect: dropshadow(gaussian, rgba(108, 13, 242, 0.15), 4, 0, 0, 1);
+}
+
+/* ---- Inline Editing Styles ---- */
+
+.profile-value-label {
+  -fx-font-size: 16;
+  -fx-font-weight: 600;
+  -fx-text-fill: #141118;
+  -fx-padding: 4 0 4 0;
+}
+
+.edit-icon-btn {
+  -fx-background-color: transparent;
+  -fx-text-fill: #8c8c8c;
+  -fx-cursor: hand;
+  -fx-padding: 4;
+  -fx-background-radius: 5;
+}
+
+.edit-icon-btn:hover {
+  -fx-background-color: #f3f4f6;
+  -fx-text-fill: #6c0df2;
+}
+
+.save-mini-btn {
+  -fx-background-color: #10b981;
+  -fx-text-fill: white;
+  -fx-font-weight: 700;
+  -fx-font-size: 12;
+  -fx-padding: 6 12 6 12;
+  -fx-background-radius: 6;
+  -fx-cursor: hand;
+}
+
+.save-mini-btn:hover {
+  -fx-background-color: #059669;
+}
+
+.cancel-mini-btn {
+  -fx-background-color: #f3f4f6;
+  -fx-text-fill: #4b5563;
+  -fx-font-weight: 600;
+  -fx-font-size: 12;
+  -fx-padding: 6 12 6 12;
+  -fx-background-radius: 6;
+  -fx-cursor: hand;
+}
+
+.cancel-mini-btn:hover {
+  -fx-background-color: #e5e7eb;
+}
+
+/* ---- CV Table Styles ---- */
+
+.table-view {
+  -fx-background-color: transparent;
+  -fx-border-color: #e5e7eb;
+  -fx-border-radius: 10;
+  -fx-background-radius: 10;
+  -fx-padding: 5;
+}
+
+.table-view .column-header-background {
+  -fx-background-color: #f9fafb;
+  -fx-background-radius: 10 10 0 0;
+  -fx-border-color: #e5e7eb;
+  -fx-border-width: 0 0 1 0;
+}
+
+.table-view .column-header {
+  -fx-background-color: transparent;
+  -fx-padding: 10;
+}
+
+.table-view .column-header .label {
+  -fx-text-fill: #374151;
+  -fx-font-weight: 700;
+  -fx-font-size: 13;
+}
+
+.table-view .table-row-cell {
+  -fx-background-color: white;
+  -fx-border-color: #f3f4f6;
+  -fx-border-width: 0 0 1 0;
+  -fx-padding: 5;
+}
+
+.table-view .table-row-cell:odd {
+  -fx-background-color: #fafafa;
+}
+
+.table-view .table-row-cell:selected {
+  -fx-background-color: #f0e6ff;
+}
+
+.table-view .cell {
+  -fx-text-fill: #4b5563;
+  -fx-font-size: 13;
+  -fx-alignment: center-left;
 }

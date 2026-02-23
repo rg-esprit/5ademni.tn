@@ -3,6 +3,7 @@ package com.khademni.controller;
 import com.khademni.App;
 import com.khademni.model.OffreModel;
 import com.khademni.utils.MyDataBase;
+import com.khademni.utils.PasswordUtil;
 import com.lowagie.text.Document;
 import com.lowagie.text.Paragraph;
 import com.lowagie.text.pdf.PdfWriter;
@@ -19,6 +20,7 @@ import java.io.FileOutputStream;
 import java.io.IOException;
 import java.sql.*;
 import java.time.LocalDateTime;
+import java.time.format.DateTimeFormatter;
 
 public class FreelancerSpaceController {
 
@@ -26,6 +28,8 @@ public class FreelancerSpaceController {
     private TableView<OffreModel> offreTable;
     @FXML
     private TableColumn<OffreModel, Integer> colId;
+    @FXML
+    private TableColumn<OffreModel, Integer> colUserId;
     @FXML
     private TableColumn<OffreModel, String> colTitre;
     @FXML
@@ -35,6 +39,8 @@ public class FreelancerSpaceController {
     @FXML
     private TableColumn<OffreModel, LocalDateTime> colDate;
     @FXML
+    private TableColumn<OffreModel, LocalDateTime> colDateLimite;
+    @FXML
     private TableColumn<OffreModel, Void> colActions;
     @FXML
     private TextField searchField;
@@ -43,15 +49,50 @@ public class FreelancerSpaceController {
 
     @FXML
     public void initialize() {
-        colId.setCellValueFactory(new PropertyValueFactory<>("id"));
+        // Show sequential row number based on original list position (stable after
+        // filtering)
+        colId.setCellFactory(col -> new TableCell<OffreModel, Integer>() {
+            @Override
+            protected void updateItem(Integer item, boolean empty) {
+                super.updateItem(item, empty);
+                if (empty) {
+                    setText("");
+                } else {
+                    OffreModel offre = getTableView().getItems().get(getIndex());
+                    int originalIndex = offreList.indexOf(offre) + 1;
+                    setText(String.valueOf(originalIndex));
+                }
+            }
+        });
+        colUserId.setCellValueFactory(new PropertyValueFactory<>("userUniqueId"));
         colTitre.setCellValueFactory(new PropertyValueFactory<>("titre"));
         colPrix.setCellValueFactory(new PropertyValueFactory<>("prix"));
+        colPrix.setCellFactory(tc -> new TableCell<>() {
+            @Override
+            protected void updateItem(Double item, boolean empty) {
+                super.updateItem(item, empty);
+                if (empty || item == null)
+                    setText("");
+                else
+                    setText(item == 0 ? "----" : String.valueOf(item));
+            }
+        });
         colStatut.setCellValueFactory(new PropertyValueFactory<>("statut"));
         colDate.setCellValueFactory(new PropertyValueFactory<>("dateCreation"));
+        colDateLimite.setCellValueFactory(new PropertyValueFactory<>("dateLimite"));
+        colDateLimite.setCellFactory(tc -> new TableCell<>() {
+            private final DateTimeFormatter formatter = DateTimeFormatter.ofPattern("dd/MM/yyyy");
+
+            @Override
+            protected void updateItem(LocalDateTime item, boolean empty) {
+                super.updateItem(item, empty);
+                setText(empty || item == null ? "" : item.toLocalDate().format(formatter));
+            }
+        });
 
         addActionsButtonsToTable();
-        loadOffres();
         setupSearch();
+        loadOffres();
     }
 
     private void setupSearch() {
@@ -62,7 +103,9 @@ public class FreelancerSpaceController {
                     return true;
                 }
                 String lowerCaseFilter = newValue.toLowerCase();
-                return String.valueOf(offre.getId()).contains(lowerCaseFilter) ||
+                // Match by sequential row number (displayed ID) or titre
+                int rowNumber = offreList.indexOf(offre) + 1;
+                return String.valueOf(rowNumber).contains(lowerCaseFilter) ||
                         offre.getTitre().toLowerCase().contains(lowerCaseFilter);
             });
         });
@@ -71,23 +114,50 @@ public class FreelancerSpaceController {
 
     private void loadOffres() {
         offreList.clear();
-        String query = "SELECT * FROM offres";
+        // Try with unique_id JOIN first, fall back to simple query
+        String queryJoin = "SELECT o.*, u.unique_id FROM offres o LEFT JOIN users u ON o.user_id = u.id";
+        String querySimple = "SELECT * FROM offres";
+        boolean useJoin = true;
+
         try (Connection conn = MyDataBase.getConnection();
-                Statement stmt = conn.createStatement();
-                ResultSet rs = stmt.executeQuery(query)) {
+                Statement stmt = conn.createStatement()) {
+
+            ResultSet rs;
+            try {
+                rs = stmt.executeQuery(queryJoin);
+            } catch (SQLException joinErr) {
+                // unique_id column missing — fall back
+                useJoin = false;
+                rs = stmt.executeQuery(querySimple);
+            }
 
             while (rs.next()) {
-                offreList.add(new OffreModel(
-                        rs.getInt("id"),
-                        rs.getInt("user_id"),
-                        rs.getString("titre"),
-                        rs.getString("description"),
-                        rs.getDouble("prix"),
-                        rs.getTimestamp("date_creation").toLocalDateTime(),
-                        rs.getString("statut"),
-                        "OFFRE"));
+                OffreModel offre = new OffreModel();
+                offre.setId(rs.getInt("id"));
+                offre.setUserId(rs.getInt("user_id"));
+                if (useJoin) {
+                    try {
+                        offre.setUserUniqueId(rs.getInt("unique_id"));
+                    } catch (SQLException ignored) {
+                    }
+                } else {
+                    offre.setUserUniqueId(rs.getInt("user_id"));
+                }
+                offre.setTitre(rs.getString("titre"));
+                offre.setDescription(rs.getString("description"));
+                offre.setPrix(rs.getDouble("prix"));
+                offre.setDateCreation(rs.getTimestamp("date_creation").toLocalDateTime());
+                offre.setStatut(rs.getString("statut"));
+                offre.setType("OFFRE");
+                try {
+                    Timestamp dl = rs.getTimestamp("date_limite");
+                    if (dl != null)
+                        offre.setDateLimite(dl.toLocalDateTime());
+                } catch (SQLException ignored) {
+                    /* column may not exist */ }
+                offreList.add(offre);
             }
-            offreTable.setItems(offreList);
+            rs.close();
         } catch (SQLException e) {
             e.printStackTrace();
         }
@@ -129,6 +199,8 @@ public class FreelancerSpaceController {
     }
 
     private void handleEdit(OffreModel offre) {
+        if (!confirmPassword())
+            return;
         OffreFormController.editMode = true;
         OffreFormController.selectedOffre = offre;
         OffreFormController.creationType = "OFFRE";
@@ -140,6 +212,8 @@ public class FreelancerSpaceController {
     }
 
     private void handleDelete(OffreModel offre) {
+        if (!confirmPassword())
+            return;
         Alert alert = new Alert(Alert.AlertType.CONFIRMATION, "Supprimer cet offre ?", ButtonType.YES, ButtonType.NO);
         if (alert.showAndWait().get() == ButtonType.YES) {
             String query = "DELETE FROM offres WHERE id = ?";
@@ -147,7 +221,7 @@ public class FreelancerSpaceController {
                     PreparedStatement pstmt = conn.prepareStatement(query)) {
                 pstmt.setInt(1, offre.getId());
                 pstmt.executeUpdate();
-                MyDataBase.resetAutoIncrementIfEmpty("offres", 0);
+                MyDataBase.resetAutoIncrementIfEmpty("offres", 1);
                 loadOffres();
             } catch (SQLException e) {
                 e.printStackTrace();
@@ -164,7 +238,7 @@ public class FreelancerSpaceController {
             document.add(new Paragraph("5ademni.tn - Offre de Service"));
             document.add(new Paragraph("--------------------------------------------------"));
             document.add(new Paragraph("ID Offre: " + offre.getId()));
-            document.add(new Paragraph("Freelancer ID: " + offre.getUserId()));
+            document.add(new Paragraph("Freelancer ID: " + offre.getUserUniqueId()));
             document.add(new Paragraph("Titre: " + offre.getTitre()));
             document.add(new Paragraph("Prix: " + offre.getPrix() + " DT"));
             document.add(new Paragraph("Date: " + offre.getDateCreation()));
@@ -193,5 +267,30 @@ public class FreelancerSpaceController {
         alert.setHeaderText(null);
         alert.setContentText(content);
         alert.showAndWait();
+    }
+
+    private boolean confirmPassword() {
+        if (App.getCurrentUser() == null) {
+            new Alert(Alert.AlertType.ERROR, "Aucun utilisateur connecté.").showAndWait();
+            return false;
+        }
+        Dialog<String> dialog = new Dialog<>();
+        dialog.setTitle("Confirmation");
+        dialog.setHeaderText("Entrez votre mot de passe pour continuer");
+        dialog.getDialogPane().getButtonTypes().addAll(ButtonType.OK, ButtonType.CANCEL);
+        javafx.scene.control.PasswordField pwField = new javafx.scene.control.PasswordField();
+        pwField.setPromptText("Mot de passe");
+        dialog.getDialogPane().setContent(pwField);
+        dialog.setResultConverter(btn -> btn == ButtonType.OK ? pwField.getText() : null);
+        java.util.Optional<String> result = dialog.showAndWait();
+        if (result.isEmpty() || result.get().isEmpty())
+            return false;
+        String enteredPassword = result.get();
+        String storedHash = App.getCurrentUser().getPassword();
+        if (!PasswordUtil.checkPassword(enteredPassword, storedHash)) {
+            new Alert(Alert.AlertType.ERROR, "Mot de passe incorrect.").showAndWait();
+            return false;
+        }
+        return true;
     }
 }
