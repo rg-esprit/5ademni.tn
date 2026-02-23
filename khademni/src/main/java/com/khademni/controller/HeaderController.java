@@ -61,7 +61,8 @@ public class HeaderController {
 
     @FXML
     private void goToBlogs() throws IOException {
-        // App.setRoot("blogs");
+         System.out.println("Navigating to Blogs...");
+        App.setRoot("Article/AjouterArticle");
     }
 
     @FXML
@@ -71,6 +72,12 @@ public class HeaderController {
 
     @FXML
     private void goToProfile() throws IOException {
+         System.out.println("Navigating to Profile...");
         App.setRoot("profile");
+    }
+
+    @FXML
+    private void goToArticles() throws IOException {
+        App.setRoot("Article/ArticlesPublications");
     }
 }

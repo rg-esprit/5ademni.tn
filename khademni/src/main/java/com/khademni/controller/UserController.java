@@ -5,9 +5,13 @@ import com.khademni.model.UserModel;
 import com.khademni.utils.MyDataBase;
 import javafx.event.ActionEvent;
 import javafx.fxml.FXML;
+import javafx.fxml.FXMLLoader;
+import javafx.scene.Scene;
 import javafx.scene.control.*;
+import javafx.stage.Stage;
 
 import java.io.IOException;
+import java.net.URL;
 import java.security.MessageDigest;
 import java.security.NoSuchAlgorithmException;
 import java.sql.*;
@@ -645,4 +649,32 @@ public class UserController {
             throw new RuntimeException("Error hashing password", e);
         }
     }
+
+
+
+
+
+@FXML
+private void onShowFavoris() {
+    try {
+        App.setRoot("Article/favoris");
+    } catch (IOException e) {
+        e.printStackTrace();
+        showAlert(Alert.AlertType.ERROR, "Erreur", 
+                  "Impossible d'ouvrir la page des favoris.");
+    }
+}
+
+
+
+private void showAlert(Alert.AlertType type, String title, String message) {
+    Alert alert = new Alert(type);
+    alert.setTitle(title);
+    alert.setHeaderText(null);
+    alert.setContentText(message);
+    alert.showAndWait();
+}
+
+
+
 }

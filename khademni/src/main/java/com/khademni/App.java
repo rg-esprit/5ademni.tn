@@ -9,7 +9,7 @@ import javafx.stage.Stage;
 
 // user model
 import com.khademni.model.UserModel;
-
+import com.khademni.utils.SessionManager;
 
 import java.io.IOException;
 
@@ -70,10 +70,12 @@ public class App extends Application {
 
     public static UserModel getCurrentUser() {
         return currentUser;
+        
     }
 
     public static void setCurrentUser(UserModel user) {
         currentUser = user;
+         SessionManager.setCurrentUser(user); 
     }
 
     public static Stage getPrimaryStage() {
