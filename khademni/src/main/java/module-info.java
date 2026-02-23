@@ -9,6 +9,8 @@ module com.khademni {
     requires org.kordamp.ikonli.javafx;
     requires org.kordamp.ikonli.material2;
     requires org.kordamp.ikonli.fontawesome5;
+    requires javafx.graphics;
+    requires jakarta.mail;
 
     opens com.khademni to javafx.fxml;
     opens com.khademni.controller to javafx.fxml;
