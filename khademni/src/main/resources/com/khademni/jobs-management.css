@@ -1,0 +1,283 @@
+/* ============================================
+   JOBS MANAGEMENT PAGE - Premium Design Upgrade
+   Modern cards, smooth animations, gradient accents
+   ============================================ */
+
+/* Root & Background */
+.jobs-mgmt-root {
+    -fx-background-color: linear-gradient(to bottom, #f8f6fc 0%, #faf9fc 50%, #f5f1fa 100%);
+}
+
+/* Page Titles */
+.jobs-mgmt-page-title {
+    -fx-font-size: 42;
+    -fx-font-weight: 900;
+    -fx-text-fill: #0f0e14;
+    -fx-letter-spacing: 0.5;
+}
+
+.jobs-mgmt-page-subtitle {
+    -fx-font-size: 15;
+    -fx-font-weight: 400;
+    -fx-text-fill: #7a7a8e;
+    -fx-letter-spacing: 0.2;
+}
+
+/* ---- Search/Actions Bar ---- */
+.jobs-mgmt-search-input {
+    -fx-background-color: #fafbff;
+    -fx-background-radius: 14;
+    -fx-padding: 13 18 13 18;
+    -fx-font-size: 14;
+    -fx-font-weight: 500;
+    -fx-border-color: #e8e8f8;
+    -fx-border-width: 1.5;
+    -fx-border-radius: 14;
+    -fx-text-fill: #1a1a2e;
+    -fx-prompt-text-fill: #c0bcc8;
+    -fx-font-family: "Inter", "Segoe UI", sans-serif;
+}
+
+.jobs-mgmt-search-input:focused {
+    -fx-effect: dropshadow(gaussian, rgba(99, 102, 241, 0.15), 18, 0.2, 0, 8);
+    -fx-border-color: #6366f1;
+    -fx-background-color: white;
+}
+
+.jobs-mgmt-search-input:hover {
+    -fx-border-color: #d5d1e8;
+}
+
+/* Search Button */
+.jobs-mgmt-search-btn {
+    -fx-background-color: linear-gradient(to right, #f3f4f6, #e5e7eb);
+    -fx-padding: 11 16 11 16;
+    -fx-border-radius: 12;
+    -fx-cursor: hand;
+    -fx-font-weight: 600;
+    -fx-font-size: 13;
+    -fx-text-fill: #4b5563;
+    -fx-border-width: 1;
+    -fx-border-color: #e5e7eb;
+}
+
+.jobs-mgmt-search-btn:hover {
+    -fx-background-color: linear-gradient(to right, #e5e7eb, #d1d5db);
+    -fx-border-color: #d1d5db;
+}
+
+.jobs-mgmt-search-btn:pressed {
+    -fx-background-color: #d1d5db;
+}
+
+/* Add Button (if placed elsewhere) */
+.jobs-mgmt-add-btn {
+    -fx-background-color: linear-gradient(to right, #10b981, #059669);
+    -fx-text-fill: white;
+    -fx-padding: 12 24 12 24;
+    -fx-background-radius: 12;
+    -fx-font-weight: 700;
+    -fx-font-size: 13;
+    -fx-cursor: hand;
+    -fx-border-width: 0;
+    -fx-effect: dropshadow(gaussian, rgba(16, 185, 129, 0.3), 18, 0.2, 0, 6);
+}
+
+.jobs-mgmt-add-btn:hover {
+    -fx-effect: dropshadow(gaussian, rgba(16, 185, 129, 0.45), 26, 0.25, 0, 10);
+    -fx-scale-x: 1.04;
+    -fx-scale-y: 1.04;
+}
+
+/* ---- Job Row/Card Container ---- */
+.jobs-table-container {
+    -fx-spacing: 18;
+}
+
+/* ---- Individual Job Row ---- */
+.job-row {
+    -fx-background-color: white;
+    -fx-background-radius: 16;
+    -fx-padding: 22 26 22 26;
+    -fx-border-color: rgba(99, 102, 241, 0.08);
+    -fx-border-width: 1;
+    -fx-border-radius: 16;
+    -fx-effect: dropshadow(gaussian, rgba(99, 102, 241, 0.08), 38, 0.2, 0, 10);
+    -fx-cursor: hand;
+    -fx-translate-y: 0;
+}
+
+.job-row:hover {
+    -fx-effect: dropshadow(gaussian, rgba(99, 102, 241, 0.16), 48, 0.28, 0, 16);
+    -fx-translate-y: -7;
+    -fx-border-color: rgba(99, 102, 241, 0.12);
+}
+
+.job-row:focused {
+    -fx-border-color: rgba(99, 102, 241, 0.22);
+    -fx-effect: dropshadow(gaussian, rgba(99, 102, 241, 0.16), 48, 0.28, 0, 16);
+}
+
+/* Row Title */
+.job-row .title {
+    -fx-font-size: 19;
+    -fx-font-weight: 900;
+    -fx-text-fill: #0f0e14;
+}
+
+/* Row Company */
+.job-row .company {
+    -fx-text-fill: #6366f1;
+    -fx-font-weight: 700;
+    -fx-font-size: 14;
+    -fx-letter-spacing: 0.3;
+}
+
+/* Row Info */
+.job-row .info {
+    -fx-text-fill: #5a5a6e;
+    -fx-font-size: 13;
+    -fx-font-weight: 500;
+}
+
+/* ---- Action Buttons ---- */
+
+/* View Button */
+.job-view-btn {
+    -fx-background-color: #f3f4f6;
+    -fx-text-fill: #4b5563;
+    -fx-font-weight: 600;
+    -fx-font-size: 12;
+    -fx-padding: 9 16 9 16;
+    -fx-background-radius: 10;
+    -fx-cursor: hand;
+    -fx-border-width: 1;
+    -fx-border-color: #e5e7eb;
+    -fx-effect: dropshadow(gaussian, rgba(0, 0, 0, 0.04), 6, 0.1, 0, 2);
+}
+
+.job-view-btn:hover {
+    -fx-background-color: #e5e7eb;
+    -fx-border-color: #d1d5db;
+    -fx-scale-x: 1.04;
+    -fx-scale-y: 1.04;
+}
+
+/* Edit Button */
+.job-edit-btn {
+    -fx-background-color: linear-gradient(to right, #6366f1, #8b5cf6);
+    -fx-text-fill: white;
+    -fx-font-weight: 700;
+    -fx-font-size: 12;
+    -fx-padding: 10 18 10 18;
+    -fx-background-radius: 10;
+    -fx-cursor: hand;
+    -fx-border-width: 0;
+    -fx-effect: dropshadow(gaussian, rgba(99, 102, 241, 0.25), 12, 0.2, 0, 4);
+}
+
+.job-edit-btn:hover {
+    -fx-effect: dropshadow(gaussian, rgba(99, 102, 241, 0.4), 20, 0.25, 0, 8);
+    -fx-scale-x: 1.05;
+    -fx-scale-y: 1.05;
+}
+
+/* Delete Button */
+.job-delete-btn {
+    -fx-background-color: linear-gradient(to right, #ef4444, #f87171);
+    -fx-text-fill: white;
+    -fx-font-weight: 700;
+    -fx-font-size: 12;
+    -fx-padding: 10 18 10 18;
+    -fx-background-radius: 10;
+    -fx-cursor: hand;
+    -fx-border-width: 0;
+    -fx-effect: dropshadow(gaussian, rgba(239, 68, 68, 0.25), 12, 0.2, 0, 4);
+}
+
+.job-delete-btn:hover {
+    -fx-effect: dropshadow(gaussian, rgba(239, 68, 68, 0.4), 20, 0.25, 0, 8);
+    -fx-scale-x: 1.05;
+    -fx-scale-y: 1.05;
+}
+
+/* Applications Button */
+.job-applications-btn {
+    -fx-background-color: linear-gradient(to right, #10b981, #059669);
+    -fx-text-fill: white;
+    -fx-font-weight: 700;
+    -fx-font-size: 12;
+    -fx-padding: 10 18 10 18;
+    -fx-background-radius: 10;
+    -fx-cursor: hand;
+    -fx-border-width: 0;
+    -fx-effect: dropshadow(gaussian, rgba(16, 185, 129, 0.25), 12, 0.2, 0, 4);
+}
+
+.job-applications-btn:hover {
+    -fx-effect: dropshadow(gaussian, rgba(16, 185, 129, 0.4), 20, 0.25, 0, 8);
+    -fx-scale-x: 1.05;
+    -fx-scale-y: 1.05;
+}
+
+/* Generic Action Button */
+.job-action-btn {
+    -fx-padding: 10 16 10 16;
+    -fx-background-radius: 10;
+    -fx-cursor: hand;
+    -fx-font-weight: 600;
+    -fx-font-size: 12;
+    -fx-transition: all 0.25s ease-out;
+}
+
+/* ---- Empty State ---- */
+.empty-state-box {
+    -fx-background-color: white;
+    -fx-padding: 80 60 80 60;
+    -fx-background-radius: 18;
+    -fx-effect: dropshadow(gaussian, rgba(99, 102, 241, 0.08), 40, 0.2, 0, 10);
+    -fx-border-color: rgba(99, 102, 241, 0.06);
+    -fx-border-width: 1;
+    -fx-border-radius: 18;
+}
+
+.empty-state-box .title {
+    -fx-font-size: 24;
+    -fx-font-weight: 800;
+    -fx-text-fill: #0f0e14;
+}
+
+.empty-state-box .subtitle {
+    -fx-font-size: 14;
+    -fx-font-weight: 500;
+    -fx-text-fill: #7a7a8e;
+}
+
+/* ============================================
+   GLOBAL ANIMATIONS & TRANSITIONS
+   ============================================ */
+
+.job-row {
+    -fx-transition: transform 0.25s ease-out, box-shadow 0.25s ease-out, -fx-translate-y 0.25s ease-out;
+}
+
+.job-edit-btn,
+.job-delete-btn,
+.job-applications-btn,
+.job-view-btn {
+    -fx-transition: transform 0.2s ease-out, box-shadow 0.2s ease-out;
+}
+
+.jobs-mgmt-search-btn {
+    -fx-transition: background-color 0.2s ease-out, border-color 0.2s ease-out;
+}
+
+/* Focus Ring */
+.job-row:focused {
+    -fx-transition: all 0.3s ease-out;
+}
+
+/* Smooth color transitions */
+* {
+    -fx-text-fill-transition: color 0.15s ease-in;
+}

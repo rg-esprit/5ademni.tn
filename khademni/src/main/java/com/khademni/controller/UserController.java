@@ -557,6 +557,52 @@ public class UserController {
         }
     }
 
+    @FXML
+    private void onDeleteAccount(ActionEvent event) {
+        UserModel currentUser = App.getCurrentUser();
+        if (currentUser == null) {
+            showProfileStatus("No user logged in.", true);
+            return;
+        }
+
+        // Show confirmation dialog
+        Alert alert = new Alert(Alert.AlertType.CONFIRMATION);
+        alert.initOwner(App.getPrimaryStage());
+        alert.setTitle("Delete Account");
+        alert.setHeaderText("Are you sure you want to delete your account?");
+        alert.setContentText("This action cannot be undone. All your data will be permanently deleted.");
+
+        if (alert.showAndWait().orElse(ButtonType.CANCEL) == ButtonType.OK) {
+            try {
+                Connection conn = MyDataBase.getConnection();
+                
+                // First delete all reviews where user is client or freelancer
+                String deleteReviewsQuery = "DELETE FROM reviews WHERE client_id = ? OR freelancer_id = ?";
+                try (PreparedStatement stmt = conn.prepareStatement(deleteReviewsQuery)) {
+                    stmt.setInt(1, currentUser.getId());
+                    stmt.setInt(2, currentUser.getId());
+                    stmt.executeUpdate();
+                }
+                
+                // Then delete the user account
+                String deleteUserQuery = "DELETE FROM users WHERE id = ?";
+                try (PreparedStatement stmt = conn.prepareStatement(deleteUserQuery)) {
+                    stmt.setInt(1, currentUser.getId());
+                    int rowsAffected = stmt.executeUpdate();
+                    if (rowsAffected > 0) {
+                        App.setCurrentUser(null);
+                        App.setRoot("login");
+                    } else {
+                        showProfileStatus("Failed to delete account.", true);
+                    }
+                }
+            } catch (SQLException | IOException e) {
+                showProfileStatus("Error deleting account: " + e.getMessage(), true);
+                e.printStackTrace();
+            }
+        }
+    }
+
     private void showProfileStatus(String message, boolean isError) {
         if (profileStatusLabel == null) return;
         profileStatusLabel.setText(message);

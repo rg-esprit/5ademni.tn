@@ -1,6 +1,9 @@
 module com.khademni {
     requires javafx.controls;
     requires javafx.fxml;
+    requires javafx.web;
+    requires jdk.jsobject;
+    requires java.net.http;
     requires java.sql;
     requires mysql.connector.j;
     requires org.kordamp.ikonli.javafx;
@@ -12,6 +15,7 @@ module com.khademni {
     opens com.khademni to javafx.fxml;
     opens com.khademni.controller to javafx.fxml;
     opens com.khademni.model to javafx.fxml;
+
     exports com.khademni;
     exports com.khademni.controller;
     exports com.khademni.model;
