@@ -20,7 +20,7 @@ public class HeaderController {
 
     @FXML
     private void goToMessages() throws IOException {
-        // App.setRoot("messages"); 
+        App.setRoot("Conversation");
     }
 
     @FXML
@@ -32,4 +32,6 @@ public class HeaderController {
     private void goToProfile() throws IOException {
         App.setRoot("profile");
     }
+
+
 }

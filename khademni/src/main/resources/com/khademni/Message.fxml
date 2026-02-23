@@ -1,0 +1,187 @@
+<?xml version="1.0" encoding="UTF-8"?>
+
+<?import javafx.scene.control.*?>
+<?import javafx.scene.layout.*?>
+<?import javafx.geometry.Insets?>
+<?import javafx.scene.image.ImageView?>
+<?import org.kordamp.ikonli.javafx.FontIcon?>
+
+<BorderPane xmlns="http://javafx.com/javafx/17" xmlns:fx="http://javafx.com/fxml/1"
+            fx:controller="com.khademni.controller.MessageController"
+            style="-fx-background-color: #f0f2f5;">
+
+    <!-- HEADER -->
+    <top>
+        <VBox spacing="0">
+            <fx:include source="header.fxml" />
+
+            <!-- Chat Header avec bouton IA -->
+            <HBox alignment="CENTER_LEFT" spacing="10" style="-fx-background-color: white; -fx-padding: 10 20; -fx-effect: dropshadow(gaussian, rgba(0,0,0,0.05), 5, 0, 0, 2);">
+
+                <Button fx:id="btnRetour" onAction="#handleRetour"
+                        style="-fx-background-color: transparent; -fx-cursor: hand;">
+                    <graphic>
+                        <FontIcon iconLiteral="fas-arrow-left" iconColor="#4b5563" iconSize="20"/>
+                    </graphic>
+                </Button>
+
+                <VBox spacing="2">
+                    <Label fx:id="lblConversationInfo" style="-fx-font-weight: bold; -fx-font-size: 16;"/>
+                    <Label text="En ligne" style="-fx-text-fill: #10b981; -fx-font-size: 12;"/>
+                </VBox>
+
+                <Region HBox.hgrow="ALWAYS" />
+
+                <!-- BOUTON RÉSUMÉ IA (placé ici) -->
+                <Button fx:id="btnSummary" style="-fx-background-color: transparent; -fx-cursor: hand;">
+                    <graphic>
+                        <FontIcon iconLiteral="fas-robot" iconColor="#4b5563" iconSize="18"/>
+                    </graphic>
+                    <tooltip>
+                        <Tooltip text="Résumé IA de la conversation"/>
+                    </tooltip>
+                </Button>
+
+                <!-- Call Buttons -->
+                <Button fx:id="btnVideoCall" style="-fx-background-color: transparent; -fx-cursor: hand;">
+                    <graphic>
+                        <FontIcon iconLiteral="fas-video" iconColor="#4b5563" iconSize="20"/>
+                    </graphic>
+                    <tooltip>
+                        <Tooltip text="Appel vidéo"/>
+                    </tooltip>
+                </Button>
+
+                <Button fx:id="btnAudioCall" style="-fx-background-color: transparent; -fx-cursor: hand;">
+                    <graphic>
+                        <FontIcon iconLiteral="fas-phone" iconColor="#4b5563" iconSize="18"/>
+                    </graphic>
+                    <tooltip>
+                        <Tooltip text="Appel audio"/>
+                    </tooltip>
+                </Button>
+
+                <Button fx:id="btnReunion" style="-fx-background-color: transparent; -fx-cursor: hand;">
+                    <graphic>
+                        <FontIcon iconLiteral="fas-calendar-plus" iconColor="#4b5563" iconSize="18"/>
+                    </graphic>
+                    <tooltip>
+                        <Tooltip text="Planifier réunion"/>
+                    </tooltip>
+                </Button>
+
+                <Button fx:id="btnInfo" style="-fx-background-color: transparent; -fx-cursor: hand;">
+                    <graphic>
+                        <FontIcon iconLiteral="fas-info-circle" iconColor="#4b5563" iconSize="18"/>
+                    </graphic>
+                    <tooltip>
+                        <Tooltip text="Infos conversation"/>
+                    </tooltip>
+                </Button>
+            </HBox>
+        </VBox>
+    </top>
+
+    <!-- CENTER - MESSAGES -->
+    <center>
+        <VBox style="-fx-background-color: #f0f2f5;">
+
+            <!-- Typing Indicator -->
+            <VBox fx:id="typingIndicator" visible="false" managed="false" style="-fx-padding: 5 20;">
+                <Label fx:id="lblTyping" style="-fx-text-fill: #6b7280; -fx-font-style: italic;"/>
+            </VBox>
+
+            <!-- Messages List -->
+            <ListView fx:id="listMessages" VBox.vgrow="ALWAYS"
+                      style="-fx-background-color: transparent; -fx-border-color: transparent;"/>
+        </VBox>
+    </center>
+
+    <!-- BOTTOM - INPUT -->
+    <bottom>
+        <VBox spacing="0" style="-fx-background-color: white; -fx-padding: 15 20; -fx-effect: dropshadow(gaussian, rgba(0,0,0,0.05), 5, 0, -2, 0);">
+
+            <!-- File Preview -->
+            <VBox fx:id="filePreviewContainer" visible="false" managed="false" style="-fx-padding: 0 0 10 0;">
+                <HBox spacing="10" alignment="CENTER_LEFT" style="-fx-background-color: #f3f4f6; -fx-padding: 10; -fx-background-radius: 8;">
+
+                    <ImageView fx:id="filePreviewImage" fitHeight="100" fitWidth="100" preserveRatio="true"
+                               style="-fx-effect: dropshadow(gaussian, rgba(0,0,0,0.2), 5, 0, 0, 2);"/>
+
+                    <VBox spacing="5" HBox.hgrow="ALWAYS">
+                        <Label fx:id="filePreviewName" style="-fx-font-weight: bold;"/>
+                        <ProgressBar fx:id="uploadProgress" prefWidth="200" visible="false"/>
+                    </VBox>
+
+                    <Button fx:id="filePreviewCancel" text="✕"
+                            style="-fx-background-color: transparent; -fx-text-fill: #ef4444; -fx-font-size: 16; -fx-cursor: hand;"/>
+                </HBox>
+            </VBox>
+
+            <!-- Emoji Picker -->
+            <ScrollPane fx:id="emojiPicker" visible="false" managed="false"
+                        style="-fx-background-color: white; -fx-border-color: #e5e7eb; -fx-border-radius: 8;"
+                        maxHeight="200" prefViewportHeight="150">
+                <VBox fx:id="emojiContainer" spacing="5" style="-fx-padding: 10;"/>
+            </ScrollPane>
+
+            <!-- Input Area -->
+            <HBox spacing="10" alignment="CENTER">
+
+                <!-- Action Buttons -->
+                <Button fx:id="btnEmoji" style="-fx-background-color: transparent; -fx-cursor: hand;">
+                    <graphic>
+                        <FontIcon iconLiteral="fas-smile" iconColor="#6b7280" iconSize="20"/>
+                    </graphic>
+                    <tooltip>
+                        <Tooltip text="Émojis"/>
+                    </tooltip>
+                </Button>
+
+                <Button fx:id="btnPieceJointe" style="-fx-background-color: transparent; -fx-cursor: hand;">
+                    <graphic>
+                        <FontIcon iconLiteral="fas-paperclip" iconColor="#6b7280" iconSize="20"/>
+                    </graphic>
+                    <tooltip>
+                        <Tooltip text="Joindre un fichier"/>
+                    </tooltip>
+                </Button>
+
+                <Button fx:id="btnPhoto" style="-fx-background-color: transparent; -fx-cursor: hand;">
+                    <graphic>
+                        <FontIcon iconLiteral="fas-camera" iconColor="#6b7280" iconSize="20"/>
+                    </graphic>
+                    <tooltip>
+                        <Tooltip text="Photo"/>
+                    </tooltip>
+                </Button>
+
+                <Button fx:id="btnMicro" style="-fx-background-color: transparent; -fx-cursor: hand;">
+                    <graphic>
+                        <FontIcon iconLiteral="fas-microphone" iconColor="#6b7280" iconSize="20"/>
+                    </graphic>
+                    <tooltip>
+                        <Tooltip text="Message vocal"/>
+                    </tooltip>
+                </Button>
+
+                <!-- Text Input -->
+                <TextArea fx:id="txtContenu" promptText="Écrivez votre message..."
+                          prefRowCount="1" wrapText="true" HBox.hgrow="ALWAYS"
+                          style="-fx-background-radius: 20; -fx-border-radius: 20; -fx-border-color: #e5e7eb;"/>
+
+                <!-- Send Button -->
+                <Button fx:id="btnEnvoyer" onAction="#handleEnvoyer"
+                        style="-fx-background-color: #2563eb; -fx-background-radius: 50; -fx-min-width: 40; -fx-min-height: 40; -fx-cursor: hand;">
+                    <graphic>
+                        <FontIcon iconLiteral="fas-paper-plane" iconColor="white" iconSize="16"/>
+                    </graphic>
+                </Button>
+            </HBox>
+
+            <!-- Error Label -->
+            <Label fx:id="errorLabel" visible="false" managed="true"
+                   style="-fx-padding: 10 0 0 0; -fx-font-size: 13; -fx-text-fill: #dc2626;"/>
+        </VBox>
+    </bottom>
+</BorderPane>
