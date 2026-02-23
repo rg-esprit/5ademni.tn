@@ -4,27 +4,31 @@ import java.time.LocalDateTime;
 
 public class OffreModel {
     private int id;
-    private int userId; // Creator of the offer or demand
+    private int userId; // Technical Primary Key (FK)
+    private int userUniqueId; // Business ID (4-digit) for display
     private String titre;
     private String description;
     private double prix;
     private LocalDateTime dateCreation;
     private String statut;
     private String type; // "OFFRE" or "DEMANDE"
+    private LocalDateTime dateLimite;
 
     public OffreModel() {
     }
 
-    public OffreModel(int id, int userId, String titre, String description, double prix,
-            LocalDateTime dateCreation, String statut, String type) {
+    public OffreModel(int id, int userId, int userUniqueId, String titre, String description, double prix,
+            LocalDateTime dateCreation, String statut, String type, LocalDateTime dateLimite) {
         this.id = id;
         this.userId = userId;
+        this.userUniqueId = userUniqueId;
         this.titre = titre;
         this.description = description;
         this.prix = prix;
         this.dateCreation = dateCreation;
         this.statut = statut;
         this.type = type;
+        this.dateLimite = dateLimite;
     }
 
     public int getId() {
@@ -41,6 +45,14 @@ public class OffreModel {
 
     public void setUserId(int userId) {
         this.userId = userId;
+    }
+
+    public int getUserUniqueId() {
+        return userUniqueId;
+    }
+
+    public void setUserUniqueId(int userUniqueId) {
+        this.userUniqueId = userUniqueId;
     }
 
     public String getTitre() {
@@ -89,5 +101,13 @@ public class OffreModel {
 
     public void setType(String type) {
         this.type = type;
+    }
+
+    public LocalDateTime getDateLimite() {
+        return dateLimite;
+    }
+
+    public void setDateLimite(LocalDateTime dateLimite) {
+        this.dateLimite = dateLimite;
     }
 }

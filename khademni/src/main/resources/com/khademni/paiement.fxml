@@ -26,7 +26,7 @@
                 <HBox alignment="CENTER" spacing="16">
                     <VBox spacing="4" alignment="CENTER" HBox.hgrow="ALWAYS">
                         <Label text="Finaliser votre Paiement" styleClass="heading" />
-                        <Label text="Utilisez Flouci pour régler vos contrats en toute sécurité" styleClass="subtitle-text" />
+                        <Label text="Utilisez Stripe pour régler vos contrats en toute sécurité" styleClass="subtitle-text" />
                     </VBox>
                 </HBox>
                 
@@ -51,7 +51,7 @@
                 <VBox alignment="CENTER" spacing="20">
                     <Label text="Cliquez ci-dessous pour générer votre lien de paiement" 
                            style="-fx-font-size: 16px; -fx-text-fill: #6b7280;" />
-                    <Button text="Payer avec Flouci" styleClass="button-primary" onAction="#handlePay"
+                        <Button text="Payer avec Stripe" styleClass="button-primary" onAction="#handlePay"
                             style="-fx-padding: 12 40; -fx-font-size: 16px;">
                         <graphic>
                             <Label text="&#xefcc;" styleClass="btn-icon-arrow" />

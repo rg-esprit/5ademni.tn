@@ -51,6 +51,9 @@ public class App extends Application {
         } else if (fxml.equals("contrat")) {
             scene.getStylesheets().add(App.class.getResource("contrat.css").toExternalForm());
             primaryStage.setTitle("5ademni.tn — Gestion Contrats");
+        } else if (fxml.equals("paiement_form")) {
+            scene.getStylesheets().add(App.class.getResource("contrat.css").toExternalForm());
+            primaryStage.setTitle("5ademni.tn — Paiement Manuel");
         } else {
             scene.getStylesheets().add(App.class.getResource("contrat.css").toExternalForm());
         }
@@ -66,6 +69,11 @@ public class App extends Application {
     }
 
     public static void main(String[] args) {
+        try {
+            com.khademni.utils.SqlFixer.main(args);
+        } catch (Exception e) {
+            System.err.println("Database fix failed: " + e.getMessage());
+        }
         launch();
     }
 

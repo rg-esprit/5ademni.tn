@@ -88,11 +88,11 @@
                                         </VBox>
                                         <VBox spacing="5" HBox.hgrow="ALWAYS">
                                             <Label text="ID Freelancer" style="-fx-font-weight: bold;"/>
-                                            <TextField fx:id="idFreelancerField" promptText="ID du freelancer" prefHeight="40" styleClass="form-field"/>
+                                            <TextField fx:id="idFreelancerField" promptText="Ex: 1440" prefHeight="40" maxWidth="Infinity" styleClass="form-field"/>
                                         </VBox>
                                         <VBox spacing="5" HBox.hgrow="ALWAYS">
                                             <Label text="ID Client" style="-fx-font-weight: bold;"/>
-                                            <TextField fx:id="idClientField" promptText="ID du client" prefHeight="40" styleClass="form-field"/>
+                                            <TextField fx:id="idClientField" promptText="Ex: 5680" prefHeight="40" maxWidth="Infinity" styleClass="form-field"/>
                                         </VBox>
                                     </HBox>
                                     <HBox spacing="15">

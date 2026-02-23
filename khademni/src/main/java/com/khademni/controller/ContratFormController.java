@@ -2,16 +2,31 @@ package com.khademni.controller;
 
 import com.khademni.App;
 import com.khademni.model.ContratModel;
-import com.khademni.utils.MyDataBase;
+import com.khademni.model.UserModel;
+import com.khademni.utils.ValidationUtils;
+import com.khademni.utils.SpellCheckDecorator;
 import javafx.event.ActionEvent;
 import javafx.fxml.FXML;
 import javafx.scene.control.*;
+import com.khademni.service.ContratService;
+import com.khademni.service.ServiceFactory;
+import com.khademni.service.UserIdService;
+import com.khademni.service.UserService;
+import com.khademni.model.Client;
+import com.khademni.model.Freelancer;
+import com.khademni.exception.BusinessException;
+import com.khademni.exception.ContractCreationException;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import java.io.IOException;
-import java.sql.*;
 import java.time.LocalDate;
+import java.util.Optional;
 
 public class ContratFormController {
+    private static final Logger logger = LoggerFactory.getLogger(ContratFormController.class);
+    private final ContratService contratService = ServiceFactory.getContratService();
+    private final UserService userService = ServiceFactory.getUserService();
 
     @FXML
     private Label formTitle;
@@ -20,7 +35,9 @@ public class ContratFormController {
     private TextField titreField;
 
     @FXML
-    private TextField idFreelancerField;
+    private ComboBox<Freelancer> idFreelancerComboBox;
+    @FXML
+    private ComboBox<Client> idClientComboBox;
 
     @FXML
     private TextField prixField;
@@ -34,6 +51,51 @@ public class ContratFormController {
     @FXML
     private Label errorLabel;
 
+    @FXML
+    public void initialize() {
+        UserModel currentUser = App.getCurrentUser();
+        if (currentUser != null && !UserIdService.hasValidUniqueId(currentUser)) {
+            promptAndSetUniqueIdOnce(currentUser);
+        }
+        try {
+            idClientComboBox
+                    .setItems(javafx.collections.FXCollections.observableArrayList(contratService.getAllClients()));
+            idFreelancerComboBox
+                    .setItems(javafx.collections.FXCollections.observableArrayList(contratService.getAllFreelancers()));
+        } catch (ContractCreationException e) {
+            logger.error("Error loading dropdown data", e);
+        }
+
+        // Attach live LanguageTool spell-check
+        SpellCheckDecorator.attach(titreField, "fr");
+        SpellCheckDecorator.attach(descriptionField, "fr");
+    }
+
+    private void promptAndSetUniqueIdOnce(UserModel currentUser) {
+        TextInputDialog dialog = new TextInputDialog();
+        dialog.setTitle("ID unique obligatoire");
+        dialog.setHeaderText("Choisissez votre ID unique (4 chiffres)");
+        dialog.setContentText("Cet ID ne pourra plus être modifié après enregistrement :");
+        dialog.getEditor().setPromptText("Ex: 5680");
+        String result = dialog.showAndWait().orElse(null);
+        if (result == null || result.isBlank())
+            return;
+        int uniqueId;
+        try {
+            uniqueId = Integer.parseInt(result.trim());
+        } catch (NumberFormatException e) {
+            showError("L'ID doit être composé uniquement de 4 chiffres (1000–9999).");
+            return;
+        }
+        try {
+            userService.setUniqueIdOnceIfMissing(currentUser.getId(), uniqueId);
+            Optional<UserModel> updated = userService.getUserById(currentUser.getId());
+            updated.ifPresent(App::setCurrentUser);
+        } catch (BusinessException e) {
+            showError(e.getMessage());
+        }
+    }
+
     private ContratModel contratToEdit;
 
     public void setContratToEdit(ContratModel contrat) {
@@ -42,7 +104,17 @@ public class ContratFormController {
             if (formTitle != null)
                 formTitle.setText("Modifier le Contrat");
             titreField.setText(contrat.getTitre());
-            idFreelancerField.setText(String.valueOf(contrat.getIdFreelancer()));
+
+            idClientComboBox.getItems().stream()
+                    .filter(c -> c.getId() == contrat.getIdClient())
+                    .findFirst()
+                    .ifPresent(idClientComboBox::setValue);
+
+            idFreelancerComboBox.getItems().stream()
+                    .filter(f -> f.getId() == contrat.getIdFreelancer())
+                    .findFirst()
+                    .ifPresent(idFreelancerComboBox::setValue);
+
             prixField.setText(String.valueOf(contrat.getPrix()));
             descriptionField.setText(contrat.getDescription());
             dateContratPicker.setValue(contrat.getDateContrat());
@@ -51,28 +123,29 @@ public class ContratFormController {
 
     @FXML
     private void saveContrat(ActionEvent event) {
-        String titre = titreField.getText().trim();
-        String freelancerIdStr = idFreelancerField.getText().trim();
+        // Auto-correct text fields before validation
+        String titre = ValidationUtils.autoCorrect(titreField.getText());
+        String description = ValidationUtils.autoCorrect(descriptionField.getText());
+        // Push corrected values back so the user sees them
+        titreField.setText(titre);
+        descriptionField.setText(description);
+
+        Client selectedClient = idClientComboBox.getValue();
+        Freelancer selectedFreelancer = idFreelancerComboBox.getValue();
         String prixStr = prixField.getText().trim();
-        String description = descriptionField.getText().trim();
         LocalDate date = dateContratPicker.getValue();
 
         // Clear previous errors
         showError("");
 
-        // Robust Validation
-        if (titre.isEmpty() || titre.length() < 5) {
-            showError("Le titre doit contenir au moins 5 caractères.");
+        if (selectedClient == null || selectedFreelancer == null) {
+            showError("Veuillez sélectionner un client et un freelancer.");
             return;
         }
 
-        int fId;
-        try {
-            fId = Integer.parseInt(freelancerIdStr);
-            if (fId <= 0)
-                throw new NumberFormatException();
-        } catch (NumberFormatException e) {
-            showError("L'ID Freelancer doit être un nombre positif.");
+        String titreError = ValidationUtils.validateField(titre, "Le titre", 5);
+        if (titreError != null) {
+            showError(titreError);
             return;
         }
 
@@ -86,8 +159,9 @@ public class ContratFormController {
             return;
         }
 
-        if (description.isEmpty() || description.length() < 10) {
-            showError("La description doit contenir au moins 10 caractères.");
+        String descError = ValidationUtils.validateField(description, "La description", 10);
+        if (descError != null) {
+            showError(descError);
             return;
         }
 
@@ -97,51 +171,22 @@ public class ContratFormController {
         }
 
         try {
-            int clientId = App.getCurrentUser() != null ? App.getCurrentUser().getId() : 1;
-            Connection conn = MyDataBase.getConnection();
-            String query;
+            ContratModel contrat = (contratToEdit != null) ? contratToEdit : new ContratModel();
+            contrat.setIdClient(selectedClient.getId());
+            contrat.setIdFreelancer(selectedFreelancer.getId());
+            contrat.setTitre(titre);
+            contrat.setDescription(description);
+            contrat.setPrix(prix);
+            contrat.setDateContrat(date);
+            contrat.setStatut("EN_ATTENTE");
 
-            if (contratToEdit == null) {
-                query = "INSERT INTO contrats (client_id, freelancer_id, titre, description, prix, date_contrat, statut) VALUES (?, ?, ?, ?, ?, ?, ?)";
-            } else {
-                query = "UPDATE contrats SET client_id=?, freelancer_id=?, titre=?, description=?, prix=?, date_contrat=? WHERE id=?";
-            }
+            contratService.createContract(contrat);
 
-            try (PreparedStatement stmt = (contratToEdit == null)
-                    ? conn.prepareStatement(query, Statement.RETURN_GENERATED_KEYS)
-                    : conn.prepareStatement(query)) {
-
-                stmt.setInt(1, clientId);
-                stmt.setInt(2, fId);
-                stmt.setString(3, titre);
-                stmt.setString(4, description);
-                stmt.setDouble(5, prix);
-                stmt.setDate(6, java.sql.Date.valueOf(date));
-
-                if (contratToEdit == null) {
-                    stmt.setString(7, "EN_ATTENTE");
-                } else {
-                    stmt.setInt(7, contratToEdit.getIdContrat());
-                }
-
-                stmt.executeUpdate();
-
-                String successMsg = "Contrat enregistré avec succès !";
-                if (contratToEdit == null) {
-                    try (ResultSet generatedKeys = stmt.getGeneratedKeys()) {
-                        if (generatedKeys.next()) {
-                            int newId = generatedKeys.getInt(1);
-                            successMsg = "Contrat #" + newId + " créé avec succès !";
-                        }
-                    }
-                }
-
-                showAlert(Alert.AlertType.INFORMATION, "Succès", successMsg);
-                App.setRoot("contrat");
-            }
-        } catch (SQLException | IOException e) {
-            e.printStackTrace();
-            showError("Erreur base de données: " + e.getMessage());
+            showAlert(Alert.AlertType.INFORMATION, "Succès", "Contrat enregistré avec succès !");
+            App.setRoot("contrat");
+        } catch (ContractCreationException | IOException e) {
+            logger.error("Failed to save contract", e);
+            showError("Erreur: " + e.getMessage());
         }
     }
 

@@ -1,55 +1,75 @@
 package com.khademni.controller;
 
-import java.io.IOException;
-
 import com.khademni.App;
-
+import javafx.event.ActionEvent;
 import javafx.fxml.FXML;
+
+import java.io.IOException;
 
 public class HeaderController {
 
     @FXML
-    private void goToJobs() throws IOException {
-        // App.setRoot("primary");
+    private void onLogout(ActionEvent event) {
+        App.setCurrentUser(null);
+        try {
+            App.setRoot("login");
+        } catch (IOException e) {
+            e.printStackTrace();
+        }
     }
 
     @FXML
-    private void goToDashboard() throws IOException {
-        // App.setRoot("secondary");
+    private void onProfile(ActionEvent event) {
+        try {
+            App.setRoot("profile");
+        } catch (IOException e) {
+            e.printStackTrace();
+        }
     }
 
     @FXML
-    private void goToMessages() throws IOException {
-        // App.setRoot("messages");
+    private void onJobsAndServices(ActionEvent event) {
+        try {
+            App.setRoot("offre");
+        } catch (IOException e) {
+            e.printStackTrace();
+        }
     }
 
     @FXML
-    private void goToBlogs() throws IOException {
-        // App.setRoot("blogs");
+    private void onContrat(ActionEvent event) {
+        try {
+            App.setRoot("contrat");
+        } catch (IOException e) {
+            e.printStackTrace();
+        }
     }
 
     @FXML
-    private void goToProfile() throws IOException {
-        App.setRoot("profile");
+    private void onPaiement(ActionEvent event) {
+        try {
+            App.setRoot("paiement");
+        } catch (IOException e) {
+            e.printStackTrace();
+        }
     }
 
     @FXML
-    private void goToContrat() throws IOException {
-        App.setRoot("contrat");
+    private void onFreelancer(ActionEvent event) {
+        try {
+            App.setRoot("freelancer_space");
+        } catch (IOException e) {
+            e.printStackTrace();
+        }
     }
 
     @FXML
-    private void goToFreelancerSpace() throws IOException {
-        App.setRoot("freelancer_space");
+    private void onClient(ActionEvent event) {
+        try {
+            App.setRoot("client_space");
+        } catch (IOException e) {
+            e.printStackTrace();
+        }
     }
 
-    @FXML
-    private void goToClientSpace() throws IOException {
-        App.setRoot("client_space");
-    }
-
-    @FXML
-    private void goToPaiement() throws IOException {
-        App.setRoot("paiement");
-    }
 }

@@ -9,6 +9,7 @@ import javafx.scene.control.DatePicker;
 import javafx.scene.control.Label;
 import javafx.scene.control.TextArea;
 import javafx.scene.control.TextField;
+import javafx.scene.layout.VBox;
 
 import java.io.IOException;
 import java.sql.Connection;
@@ -30,6 +31,8 @@ public class OffreFormController {
     @FXML
     private DatePicker dateField;
     @FXML
+    private DatePicker dateLimiteField;
+    @FXML
     private TextField titreField;
     @FXML
     private TextArea descriptionField;
@@ -40,15 +43,31 @@ public class OffreFormController {
     private Label errorLabel;
 
     @FXML
+    private VBox userIdContainer;
+    @FXML
+    private VBox dateCreationContainer;
+    @FXML
+    private VBox dateLimiteContainer;
+    @FXML
+    private VBox titreContainer;
+    @FXML
+    private VBox descriptionContainer;
+    @FXML
+    private VBox prixContainer;
+
+    @FXML
     public void initialize() {
         if (editMode && selectedOffre != null) {
             formTitle.setText("Modifier " + (selectedOffre.getType().equals("OFFRE") ? "l'Offre" : "la Demande"));
-            userIdField.setText(String.valueOf(selectedOffre.getUserId()));
-            userIdField.setEditable(false); // ID usually shouldn't be changed during edit
+            userIdField.setText(String.valueOf(selectedOffre.getUserUniqueId()));
+            userIdField.setEditable(false);
             dateField.setValue(selectedOffre.getDateCreation().toLocalDate());
+            if (selectedOffre.getDateLimite() != null) {
+                dateLimiteField.setValue(selectedOffre.getDateLimite().toLocalDate());
+            }
             titreField.setText(selectedOffre.getTitre());
             descriptionField.setText(selectedOffre.getDescription());
-            prixField.setText(String.valueOf(selectedOffre.getPrix()));
+            prixField.setText(selectedOffre.getPrix() == 0 ? "----" : String.valueOf(selectedOffre.getPrix()));
         } else {
             if ("DEMANDE".equals(creationType)) {
                 formTitle.setText("Créer une Demande d'Offre");
@@ -56,7 +75,14 @@ public class OffreFormController {
                 formTitle.setText("Créer un Offre de Service");
             }
             dateField.setValue(LocalDate.now());
+            dateLimiteField.setValue(LocalDate.now().plusDays(7));
             userIdField.setEditable(true);
+
+            // Auto-fill user ID if logged in
+            if (App.getCurrentUser() != null && App.getCurrentUser().getUniqueId() >= 1000) {
+                userIdField.setText(String.valueOf(App.getCurrentUser().getUniqueId()));
+                userIdField.setEditable(false);
+            }
         }
     }
 
@@ -64,6 +90,7 @@ public class OffreFormController {
     private void handleSave() {
         String userIdText = userIdField.getText().trim();
         LocalDate creationDate = dateField.getValue();
+        LocalDate deadlineDate = dateLimiteField.getValue();
         String titre = titreField.getText().trim();
         String description = descriptionField.getText().trim();
         String prixText = prixField.getText().trim();
@@ -77,16 +104,28 @@ public class OffreFormController {
             return;
         }
 
-        if (userIdText.length() < 3 || userIdText.length() > 6) {
-            showError("L'ID Utilisateur doit contenir entre 3 et 6 caractères.");
-            return;
-        }
-
         int userId;
         try {
             userId = Integer.parseInt(userIdText);
         } catch (NumberFormatException e) {
             showError("L'ID Utilisateur doit être un nombre valide.");
+            return;
+        }
+
+        // Resolve technical ID from unique_id
+        int technicalUserId = userId;
+        try (Connection conn = MyDataBase.getConnection();
+                PreparedStatement ps = conn.prepareStatement("SELECT id FROM users WHERE unique_id = ?")) {
+            ps.setInt(1, userId);
+            java.sql.ResultSet rs = ps.executeQuery();
+            if (rs.next()) {
+                technicalUserId = rs.getInt("id");
+            } else {
+                showError("Utilisateur introuvable avec l'ID : " + userId);
+                return;
+            }
+        } catch (SQLException e) {
+            showError("Erreur de recherche utilisateur: " + e.getMessage());
             return;
         }
 
@@ -106,29 +145,34 @@ public class OffreFormController {
         }
 
         double prix;
-        try {
-            prix = Double.parseDouble(prixText);
-            if (prix <= 0) {
-                showError("Le prix doit être un nombre positif.");
+        if (prixText.isEmpty() || prixText.equalsIgnoreCase("----")) {
+            prix = 0;
+        } else {
+            try {
+                prix = Double.parseDouble(prixText.replace(",", "."));
+                if (prix < 0) {
+                    showError("Le prix ne peut pas être négatif.");
+                    return;
+                }
+            } catch (NumberFormatException e) {
+                showError("Le prix doit être un nombre valide ou ---- pour ne pas afficher.");
                 return;
             }
-        } catch (NumberFormatException e) {
-            showError("Le prix doit être un nombre valide.");
-            return;
         }
 
         if (editMode && selectedOffre != null) {
-            updateInDatabase(selectedOffre.getId(), userId, creationDate.atStartOfDay(), titre, description, prix);
+            updateInDatabase(selectedOffre.getId(), technicalUserId, creationDate.atStartOfDay(),
+                    deadlineDate, titre, description, prix);
         } else {
-            saveToDatabase(userId, creationDate.atStartOfDay(), titre, description, prix);
+            saveToDatabase(technicalUserId, creationDate.atStartOfDay(), deadlineDate, titre, description, prix);
         }
     }
 
-    private void updateInDatabase(int id, int userId, LocalDateTime dateCreation, String titre, String description,
-            double prix) {
+    private void updateInDatabase(int id, int userId, LocalDateTime dateCreation, LocalDate deadlineDate,
+            String titre, String description, double prix) {
         String table = "DEMANDE".equals(creationType) ? "demandes" : "offres";
         String query = "UPDATE " + table
-                + " SET user_id = ?, titre = ?, description = ?, prix = ?, date_creation = ? WHERE id = ?";
+                + " SET user_id = ?, titre = ?, description = ?, prix = ?, date_creation = ?, date_limite = ? WHERE id = ?";
         try (Connection conn = MyDataBase.getConnection();
                 PreparedStatement pstmt = conn.prepareStatement(query)) {
 
@@ -137,7 +181,9 @@ public class OffreFormController {
             pstmt.setString(3, description);
             pstmt.setDouble(4, prix);
             pstmt.setTimestamp(5, java.sql.Timestamp.valueOf(dateCreation));
-            pstmt.setInt(6, id);
+            pstmt.setTimestamp(6,
+                    deadlineDate != null ? java.sql.Timestamp.valueOf(deadlineDate.atTime(23, 59, 59)) : null);
+            pstmt.setInt(7, id);
 
             pstmt.executeUpdate();
 
@@ -150,10 +196,11 @@ public class OffreFormController {
         }
     }
 
-    private void saveToDatabase(int userId, LocalDateTime dateCreation, String titre, String description, double prix) {
+    private void saveToDatabase(int userId, LocalDateTime dateCreation, LocalDate deadlineDate,
+            String titre, String description, double prix) {
         String table = "DEMANDE".equals(creationType) ? "demandes" : "offres";
         String query = "INSERT INTO " + table
-                + " (user_id, titre, description, prix, date_creation, statut) VALUES (?, ?, ?, ?, ?, ?)";
+                + " (user_id, titre, description, prix, date_creation, date_limite, statut) VALUES (?, ?, ?, ?, ?, ?, ?)";
         try (Connection conn = MyDataBase.getConnection();
                 PreparedStatement pstmt = conn.prepareStatement(query, java.sql.Statement.RETURN_GENERATED_KEYS)) {
 
@@ -162,7 +209,9 @@ public class OffreFormController {
             pstmt.setString(3, description);
             pstmt.setDouble(4, prix);
             pstmt.setTimestamp(5, java.sql.Timestamp.valueOf(dateCreation));
-            pstmt.setString(6, "ACTIF");
+            pstmt.setTimestamp(6,
+                    deadlineDate != null ? java.sql.Timestamp.valueOf(deadlineDate.atTime(23, 59, 59)) : null);
+            pstmt.setString(7, "ACTIF");
 
             pstmt.executeUpdate();
 
@@ -190,13 +239,15 @@ public class OffreFormController {
 
     @FXML
     private void goToOffres() throws IOException {
-        String target = "offre";
+        String target;
         if (editMode && selectedOffre != null) {
             target = selectedOffre.getType().equals("OFFRE") ? "freelancer_space" : "client_space";
         } else if ("DEMANDE".equals(creationType)) {
             target = "client_space";
         } else if ("OFFRE".equals(creationType)) {
             target = "freelancer_space";
+        } else {
+            target = "offre";
         }
         resetEditMode();
         App.setRoot(target);

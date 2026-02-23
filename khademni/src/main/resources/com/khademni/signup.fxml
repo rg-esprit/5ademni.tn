@@ -48,6 +48,18 @@
 
             <!-- Form Section -->
             <VBox spacing="24">
+                <!-- User ID Field: optional at signup (empty = auto), 4 digits, never editable after save -->
+                <VBox spacing="8">
+                    <Label text="ID unique (4 chiffres) — optionnel : laisser vide pour génération auto" styleClass="field-label" />
+                    <StackPane styleClass="input-wrapper">
+                        <HBox alignment="CENTER_LEFT" styleClass="input-container">
+                            <FontIcon iconLiteral="fas-id-card" styleClass="input-icon" />
+                            <TextField fx:id="signupUserIdField" promptText="ex: 1234 (ou vide)"
+                                styleClass="input-field" HBox.hgrow="ALWAYS" />
+                        </HBox>
+                    </StackPane>
+                </VBox>
+
                 <!-- Name Row -->
                 <HBox spacing="16">
                     <VBox spacing="8" HBox.hgrow="ALWAYS">
@@ -144,17 +156,20 @@
                     </StackPane>
                 </VBox>
 
-                <!-- Profile Image URL Field -->
-                <VBox spacing="8">
-                    <Label text="Profile Image URL (optional)" styleClass="field-label" />
-                    <StackPane styleClass="input-wrapper">
-                        <HBox alignment="CENTER_LEFT" styleClass="input-container">
-                            <FontIcon iconLiteral="fas-image" styleClass="input-icon" />
-                            <TextField fx:id="signupProfileImgField"
-                                promptText="https://example.com/avatar.png"
-                                styleClass="input-field" HBox.hgrow="ALWAYS" />
-                        </HBox>
-                    </StackPane>
+                <!-- Profile Image Upload Field -->
+                <VBox spacing="10" alignment="CENTER_LEFT">
+                    <Label text="Profile Picture" styleClass="field-label" />
+                    <HBox spacing="15" alignment="CENTER_LEFT">
+                        <StackPane styleClass="avatar-preview-box" prefWidth="80" prefHeight="80">
+                            <Circle radius="40" fill="#f3f4f6" stroke="#e5e7eb" strokeType="INSIDE" />
+                            <ImageView fx:id="signupAvatarPreview" fitWidth="80" fitHeight="80" preserveRatio="false" visible="false" />
+                            <FontIcon fx:id="signupAvatarPlaceholder" iconLiteral="fas-user" iconSize="32" iconColor="#9ca3af" />
+                        </StackPane>
+                        <VBox spacing="8">
+                            <Button text="Choose Photo" styleClass="button-secondary" onAction="#onSignupChoosePhoto" />
+                            <Label text="JPG, PNG (Max 5MB)" style="-fx-font-size: 11; -fx-text-fill: #6b7280;" />
+                        </VBox>
+                    </HBox>
                 </VBox>
 
                 <!-- Bio Field -->

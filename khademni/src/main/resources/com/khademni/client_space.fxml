@@ -48,10 +48,12 @@
                 <TableView fx:id="offreTable" VBox.vgrow="ALWAYS" minHeight="450">
                     <columns>
                         <TableColumn fx:id="colId" text="ID" prefWidth="50" />
+                        <TableColumn fx:id="colUserId" text="ID Client" prefWidth="80" />
                         <TableColumn fx:id="colTitre" text="Titre" prefWidth="250" />
                         <TableColumn fx:id="colPrix" text="Prix (DT)" prefWidth="100" />
                         <TableColumn fx:id="colStatut" text="Statut" prefWidth="100" />
-                        <TableColumn fx:id="colDate" text="Date Création" prefWidth="150" />
+                        <TableColumn fx:id="colDate" text="Date Création" prefWidth="120" />
+                        <TableColumn fx:id="colDateLimite" text="Date limite CDD" prefWidth="120" />
                         <TableColumn fx:id="colActions" text="Actions" prefWidth="250" />
                     </columns>
                     <columnResizePolicy>
