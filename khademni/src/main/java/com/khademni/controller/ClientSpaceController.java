@@ -11,9 +11,11 @@ import javafx.collections.FXCollections;
 import javafx.collections.ObservableList;
 import javafx.collections.transformation.FilteredList;
 import javafx.fxml.FXML;
+import javafx.scene.Scene;
 import javafx.scene.control.*;
 import javafx.scene.control.cell.PropertyValueFactory;
 import javafx.scene.layout.HBox;
+import javafx.stage.Stage;
 import javafx.util.Callback;
 
 import java.io.FileOutputStream;
@@ -168,12 +170,19 @@ public class ClientSpaceController {
             private final Button editBtn = new Button("Modifier");
             private final Button deleteBtn = new Button("Supprimer");
             private final Button pdfBtn = new Button("PDF");
-            private final HBox pane = new HBox(5, editBtn, deleteBtn, pdfBtn);
+            private final Button maintenirBtn = new Button("Maintenir");
+            private final Button annulerBtn = new Button("Annuler");
+            private final HBox normalPane = new HBox(5, editBtn, deleteBtn, pdfBtn);
+            private final HBox expiredPane = new HBox(5, maintenirBtn, annulerBtn);
 
             {
                 editBtn.setStyle("-fx-background-color: #6c0df2; -fx-text-fill: white; -fx-cursor: hand;");
                 deleteBtn.setStyle("-fx-background-color: #ef4444; -fx-text-fill: white; -fx-cursor: hand;");
                 pdfBtn.setStyle("-fx-background-color: #10b981; -fx-text-fill: white; -fx-cursor: hand;");
+                maintenirBtn.setStyle(
+                        "-fx-background-color: #e67e22; -fx-text-fill: white; -fx-cursor: hand; -fx-font-weight: bold;");
+                annulerBtn.setStyle(
+                        "-fx-background-color: #e74c3c; -fx-text-fill: white; -fx-cursor: hand; -fx-font-weight: bold;");
 
                 editBtn.setOnAction(event -> {
                     OffreModel offre = getTableView().getItems().get(getIndex());
@@ -187,15 +196,77 @@ public class ClientSpaceController {
                     OffreModel offre = getTableView().getItems().get(getIndex());
                     generatePDF(offre);
                 });
+                maintenirBtn.setOnAction(event -> {
+                    OffreModel offre = getTableView().getItems().get(getIndex());
+                    handleMaintenir(offre, "demandes");
+                });
+                annulerBtn.setOnAction(event -> {
+                    OffreModel offre = getTableView().getItems().get(getIndex());
+                    handleAnnuler(offre, "demandes");
+                });
             }
 
             @Override
             protected void updateItem(Void item, boolean empty) {
                 super.updateItem(item, empty);
-                setGraphic(empty ? null : pane);
+                if (empty) {
+                    setGraphic(null);
+                } else {
+                    OffreModel offre = getTableView().getItems().get(getIndex());
+                    if (offre.getDateLimite() != null && offre.getDateLimite().isBefore(LocalDateTime.now())) {
+                        setGraphic(expiredPane);
+                    } else {
+                        setGraphic(normalPane);
+                    }
+                }
             }
         };
         colActions.setCellFactory(cellFactory);
+    }
+
+    private void handleMaintenir(OffreModel offre, String tableName) {
+        javafx.scene.control.DatePicker picker = new javafx.scene.control.DatePicker(
+                java.time.LocalDate.now().plusDays(7));
+        Dialog<java.time.LocalDate> dialog = new Dialog<>();
+        dialog.setTitle("Maintenir l'offre");
+        dialog.setHeaderText("Choisir une nouvelle date limite :");
+        dialog.getDialogPane().setContent(picker);
+        dialog.getDialogPane().getButtonTypes().addAll(ButtonType.OK, ButtonType.CANCEL);
+        dialog.setResultConverter(btn -> btn == ButtonType.OK ? picker.getValue() : null);
+        dialog.showAndWait().ifPresent(newDate -> {
+            if (newDate.isBefore(java.time.LocalDate.now()) || newDate.isEqual(java.time.LocalDate.now())) {
+                Alert a = new Alert(Alert.AlertType.WARNING, "La nouvelle date doit être dans le futur.");
+                a.showAndWait();
+                return;
+            }
+            String sql = "UPDATE " + tableName + " SET date_limite = ? WHERE id = ?";
+            try (Connection conn = MyDataBase.getConnection();
+                    PreparedStatement ps = conn.prepareStatement(sql)) {
+                ps.setTimestamp(1, Timestamp.valueOf(newDate.atStartOfDay()));
+                ps.setInt(2, offre.getId());
+                ps.executeUpdate();
+                loadOffres();
+            } catch (SQLException e) {
+                e.printStackTrace();
+            }
+        });
+    }
+
+    private void handleAnnuler(OffreModel offre, String tableName) {
+        Alert alert = new Alert(Alert.AlertType.CONFIRMATION, "Supprimer cette offre expirée ?", ButtonType.YES,
+                ButtonType.NO);
+        if (alert.showAndWait().get() == ButtonType.YES) {
+            String sql = "DELETE FROM " + tableName + " WHERE id = ?";
+            try (Connection conn = MyDataBase.getConnection();
+                    PreparedStatement ps = conn.prepareStatement(sql)) {
+                ps.setInt(1, offre.getId());
+                ps.executeUpdate();
+                MyDataBase.resetAutoIncrementIfEmpty(tableName, 1);
+                loadOffres();
+            } catch (SQLException e) {
+                e.printStackTrace();
+            }
+        }
     }
 
     private void handleEdit(OffreModel offre) {
@@ -275,23 +346,112 @@ public class ClientSpaceController {
             new Alert(Alert.AlertType.ERROR, "Aucun utilisateur connecté.").showAndWait();
             return false;
         }
-        Dialog<String> dialog = new Dialog<>();
-        dialog.setTitle("Confirmation");
-        dialog.setHeaderText("Entrez votre mot de passe pour continuer");
-        dialog.getDialogPane().getButtonTypes().addAll(ButtonType.OK, ButtonType.CANCEL);
-        javafx.scene.control.PasswordField pwField = new javafx.scene.control.PasswordField();
+
+        // Custom dark-themed dialog
+        Stage dialogStage = new Stage();
+        dialogStage.initModality(javafx.stage.Modality.APPLICATION_MODAL);
+        dialogStage.initStyle(javafx.stage.StageStyle.TRANSPARENT);
+        dialogStage.setTitle("Confirmation");
+
+        // Root container
+        javafx.scene.layout.VBox root = new javafx.scene.layout.VBox(18);
+        root.setAlignment(javafx.geometry.Pos.CENTER);
+        root.setStyle("-fx-background-color: linear-gradient(to bottom right, #1e1e2f, #2a2a40); "
+                + "-fx-background-radius: 20; -fx-padding: 32; -fx-border-radius: 20; "
+                + "-fx-border-color: rgba(255,255,255,0.08); -fx-border-width: 1; "
+                + "-fx-effect: dropshadow(gaussian, rgba(0,0,0,0.5), 30, 0, 0, 8);");
+        root.setPrefWidth(380);
+
+        // Lock icon
+        Label lockIcon = new Label("\uD83D\uDD12");
+        lockIcon.setStyle("-fx-font-size: 36px;");
+
+        // Title
+        Label title = new Label("Confirmation");
+        title.setStyle("-fx-font-size: 22px; -fx-font-weight: bold; -fx-text-fill: white;");
+
+        // Subtitle
+        Label subtitle = new Label("Entrez votre mot de passe pour continuer");
+        subtitle.setStyle("-fx-font-size: 13px; -fx-text-fill: #a0a0b8;");
+
+        // Password field container
+        javafx.scene.layout.HBox pwContainer = new javafx.scene.layout.HBox(8);
+        pwContainer.setAlignment(javafx.geometry.Pos.CENTER_LEFT);
+        pwContainer.setStyle(
+                "-fx-background-color: rgba(255,255,255,0.07); -fx-background-radius: 10; -fx-padding: 4 12 4 12;");
+
+        PasswordField pwField = new PasswordField();
         pwField.setPromptText("Mot de passe");
-        dialog.getDialogPane().setContent(pwField);
-        dialog.setResultConverter(btn -> btn == ButtonType.OK ? pwField.getText() : null);
-        java.util.Optional<String> result = dialog.showAndWait();
-        if (result.isEmpty() || result.get().isEmpty())
-            return false;
-        String enteredPassword = result.get();
-        String storedHash = App.getCurrentUser().getPassword();
-        if (!PasswordUtil.checkPassword(enteredPassword, storedHash)) {
-            new Alert(Alert.AlertType.ERROR, "Mot de passe incorrect.").showAndWait();
-            return false;
-        }
-        return true;
+        pwField.setStyle("-fx-background-color: transparent; -fx-text-fill: white; -fx-prompt-text-fill: #6b6b80; "
+                + "-fx-font-size: 14px; -fx-pref-height: 38;");
+        javafx.scene.layout.HBox.setHgrow(pwField, javafx.scene.layout.Priority.ALWAYS);
+
+        TextField pwVisible = new TextField();
+        pwVisible.setPromptText("Mot de passe");
+        pwVisible.setStyle("-fx-background-color: transparent; -fx-text-fill: white; -fx-prompt-text-fill: #6b6b80; "
+                + "-fx-font-size: 14px; -fx-pref-height: 38;");
+        javafx.scene.layout.HBox.setHgrow(pwVisible, javafx.scene.layout.Priority.ALWAYS);
+        pwVisible.setVisible(false);
+        pwVisible.setManaged(false);
+        pwVisible.textProperty().bindBidirectional(pwField.textProperty());
+
+        Button toggleBtn = new Button("\uD83D\uDC41");
+        toggleBtn.setStyle(
+                "-fx-background-color: transparent; -fx-text-fill: #8b8ba0; -fx-font-size: 16px; -fx-cursor: hand;");
+        toggleBtn.setOnAction(e -> {
+            boolean showing = pwVisible.isVisible();
+            pwVisible.setVisible(!showing);
+            pwVisible.setManaged(!showing);
+            pwField.setVisible(showing);
+            pwField.setManaged(showing);
+        });
+
+        pwContainer.getChildren().addAll(pwField, pwVisible, toggleBtn);
+
+        // Buttons
+        javafx.scene.layout.HBox btnBox = new javafx.scene.layout.HBox(12);
+        btnBox.setAlignment(javafx.geometry.Pos.CENTER);
+
+        Button okBtn = new Button("Confirmer");
+        okBtn.setStyle("-fx-background-color: linear-gradient(to right, #6c5ce7, #a855f7); -fx-text-fill: white; "
+                + "-fx-font-size: 14px; -fx-font-weight: bold; -fx-background-radius: 10; "
+                + "-fx-padding: 10 32; -fx-cursor: hand;");
+
+        Button cancelBtn = new Button("Annuler");
+        cancelBtn.setStyle("-fx-background-color: rgba(255,255,255,0.08); -fx-text-fill: #a0a0b8; "
+                + "-fx-font-size: 14px; -fx-background-radius: 10; -fx-padding: 10 32; -fx-cursor: hand;");
+
+        btnBox.getChildren().addAll(okBtn, cancelBtn);
+
+        root.getChildren().addAll(lockIcon, title, subtitle, pwContainer, btnBox);
+
+        Scene scene = new Scene(root);
+        scene.setFill(javafx.scene.paint.Color.TRANSPARENT);
+        dialogStage.setScene(scene);
+
+        // Result holder
+        final boolean[] confirmed = { false };
+
+        okBtn.setOnAction(e -> {
+            String entered = pwField.getText();
+            if (entered == null || entered.isEmpty())
+                return;
+            String storedHash = App.getCurrentUser().getPassword();
+            if (PasswordUtil.checkPassword(entered, storedHash)) {
+                confirmed[0] = true;
+                dialogStage.close();
+            } else {
+                subtitle.setText("❌ Mot de passe incorrect !");
+                subtitle.setStyle("-fx-font-size: 13px; -fx-text-fill: #ef4444; -fx-font-weight: bold;");
+                pwField.clear();
+            }
+        });
+
+        cancelBtn.setOnAction(e -> dialogStage.close());
+
+        pwField.setOnAction(e -> okBtn.fire());
+
+        dialogStage.showAndWait();
+        return confirmed[0];
     }
 }

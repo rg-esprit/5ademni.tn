@@ -50,7 +50,20 @@ public class PaiementController {
 
     @FXML
     public void initialize() {
-        colId.setCellValueFactory(new PropertyValueFactory<>("idContrat"));
+        // Show sequential row number (1, 2, 3...) instead of database ID
+        colId.setCellFactory(col -> new TableCell<ContratModel, Integer>() {
+            @Override
+            protected void updateItem(Integer item, boolean empty) {
+                super.updateItem(item, empty);
+                if (empty) {
+                    setText("");
+                } else {
+                    ContratModel contrat = getTableView().getItems().get(getIndex());
+                    int originalIndex = contratList.indexOf(contrat) + 1;
+                    setText(String.valueOf(originalIndex));
+                }
+            }
+        });
         colFreelancer.setCellValueFactory(new PropertyValueFactory<>("idFreelancer"));
         colClient.setCellValueFactory(new PropertyValueFactory<>("idClient"));
         colStatut.setCellValueFactory(new PropertyValueFactory<>("statut"));

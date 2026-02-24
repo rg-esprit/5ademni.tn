@@ -1,0 +1,21 @@
+<?xml version="1.0" encoding="UTF-8"?>
+
+<?import javafx.scene.control.*?>
+<?import javafx.scene.layout.*?>
+
+<BorderPane xmlns:fx="http://javafx.com/fxml"
+            fx:controller="com.khademni.controller.ArticleGUIController">
+
+    <center>
+        <TableView fx:id="tableArticles">
+            <columns>
+                <TableColumn fx:id="colId" prefWidth="60" text="ID" />
+                <TableColumn fx:id="colTitle" prefWidth="150" text="Title" />
+                <TableColumn fx:id="colContent" prefWidth="250" text="Content" />
+                <TableColumn fx:id="colStatus" prefWidth="100" text="Status" />
+                <TableColumn fx:id="colDate" prefWidth="150" text="Created At" />
+            </columns>
+        </TableView>
+    </center>
+
+</BorderPane>

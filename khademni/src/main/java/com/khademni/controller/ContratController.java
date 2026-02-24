@@ -104,6 +104,14 @@ public class ContratController {
     private Label selectionPrompt;
     @FXML
     private Label errorLabel;
+    @FXML
+    private Label statTotal;
+    @FXML
+    private Label statEnAttente;
+    @FXML
+    private Label statPaye;
+    @FXML
+    private Label statAnnule;
 
     private ContratModel contratToEdit;
 
@@ -111,7 +119,20 @@ public class ContratController {
 
     @FXML
     public void initialize() {
-        colId.setCellValueFactory(new PropertyValueFactory<>("idContrat"));
+        // Show sequential row number (1, 2, 3...) instead of database ID
+        colId.setCellFactory(col -> new TableCell<ContratModel, Integer>() {
+            @Override
+            protected void updateItem(Integer item, boolean empty) {
+                super.updateItem(item, empty);
+                if (empty) {
+                    setText("");
+                } else {
+                    ContratModel contrat = getTableView().getItems().get(getIndex());
+                    int originalIndex = contratList.indexOf(contrat) + 1;
+                    setText(String.valueOf(originalIndex));
+                }
+            }
+        });
         colTitre.setCellValueFactory(new PropertyValueFactory<>("titre"));
         colFreelancer.setCellValueFactory(new PropertyValueFactory<>("freelancerName"));
         colClient.setCellValueFactory(new PropertyValueFactory<>("clientName"));
@@ -161,7 +182,8 @@ public class ContratController {
                     return true;
                 }
                 String lowerCaseFilter = newValue.toLowerCase();
-                return String.valueOf(contrat.getIdContrat()).contains(lowerCaseFilter) ||
+                int rowNumber = contratList.indexOf(contrat) + 1;
+                return String.valueOf(rowNumber).contains(lowerCaseFilter) ||
                         contrat.getTitre().toLowerCase().contains(lowerCaseFilter) ||
                         contrat.getDescription().toLowerCase().contains(lowerCaseFilter);
             });
@@ -243,6 +265,22 @@ public class ContratController {
             e.printStackTrace();
             showAlert(Alert.AlertType.ERROR, "Erreur", "Impossible de charger les contrats : " + e.getMessage());
         }
+        updateStats();
+    }
+
+    private void updateStats() {
+        int total = contratList.size();
+        long enAttente = contratList.stream().filter(c -> "EN_ATTENTE".equalsIgnoreCase(c.getStatut())).count();
+        long paye = contratList.stream().filter(c -> "PAYE".equalsIgnoreCase(c.getStatut())).count();
+        long annule = contratList.stream().filter(c -> "ANNULE".equalsIgnoreCase(c.getStatut())).count();
+        if (statTotal != null)
+            statTotal.setText(String.valueOf(total));
+        if (statEnAttente != null)
+            statEnAttente.setText(String.valueOf(enAttente));
+        if (statPaye != null)
+            statPaye.setText(String.valueOf(paye));
+        if (statAnnule != null)
+            statAnnule.setText(String.valueOf(annule));
     }
 
     private void addActionsButtonsToTable() {

@@ -56,7 +56,34 @@
                                     </Button>
                                 </HBox>
 
-                                <!-- Table View -->
+                                <!-- Statistics Cards -->
+                                <HBox spacing="16" alignment="CENTER">
+                                    <VBox alignment="CENTER" spacing="4" prefWidth="180"
+                                          style="-fx-background-color: #f0ecff; -fx-background-radius: 12; -fx-padding: 16; -fx-border-color: #d6ceff; -fx-border-radius: 12;">
+                                        <Label text="Total" style="-fx-font-size: 12px; -fx-text-fill: #6c5ce7; -fx-font-weight: bold;" />
+                                        <Label fx:id="statTotal" text="0" style="-fx-font-size: 28px; -fx-font-weight: bold; -fx-text-fill: #6c5ce7;" />
+                                        <Label text="Contrats" style="-fx-font-size: 11px; -fx-text-fill: #8b7fe8;" />
+                                    </VBox>
+                                    <VBox alignment="CENTER" spacing="4" prefWidth="180"
+                                          style="-fx-background-color: #fff7e6; -fx-background-radius: 12; -fx-padding: 16; -fx-border-color: #ffe0a3; -fx-border-radius: 12;">
+                                        <Label text="En Attente" style="-fx-font-size: 12px; -fx-text-fill: #e67e22; -fx-font-weight: bold;" />
+                                        <Label fx:id="statEnAttente" text="0" style="-fx-font-size: 28px; -fx-font-weight: bold; -fx-text-fill: #e67e22;" />
+                                        <Label text="Contrats" style="-fx-font-size: 11px; -fx-text-fill: #d4a24e;" />
+                                    </VBox>
+                                    <VBox alignment="CENTER" spacing="4" prefWidth="180"
+                                          style="-fx-background-color: #e8f8e8; -fx-background-radius: 12; -fx-padding: 16; -fx-border-color: #b5e6b5; -fx-border-radius: 12;">
+                                        <Label text="Payé" style="-fx-font-size: 12px; -fx-text-fill: #27ae60; -fx-font-weight: bold;" />
+                                        <Label fx:id="statPaye" text="0" style="-fx-font-size: 28px; -fx-font-weight: bold; -fx-text-fill: #27ae60;" />
+                                        <Label text="Contrats" style="-fx-font-size: 11px; -fx-text-fill: #5cb85c;" />
+                                    </VBox>
+                                    <VBox alignment="CENTER" spacing="4" prefWidth="180"
+                                          style="-fx-background-color: #fde8e8; -fx-background-radius: 12; -fx-padding: 16; -fx-border-color: #f5b5b5; -fx-border-radius: 12;">
+                                        <Label text="Annulé" style="-fx-font-size: 12px; -fx-text-fill: #e74c3c; -fx-font-weight: bold;" />
+                                        <Label fx:id="statAnnule" text="0" style="-fx-font-size: 28px; -fx-font-weight: bold; -fx-text-fill: #e74c3c;" />
+                                        <Label text="Contrats" style="-fx-font-size: 11px; -fx-text-fill: #d9534f;" />
+                                    </VBox>
+                                </HBox>
+
                                 <TableView fx:id="contratTable" VBox.vgrow="ALWAYS" minHeight="400">
                                     <columns>
                                         <TableColumn fx:id="colId" text="ID" prefWidth="50" />
