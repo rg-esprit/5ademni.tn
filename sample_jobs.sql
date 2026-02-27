@@ -66,3 +66,6 @@ VALUES
     1, 
     DATE_SUB(NOW(), INTERVAL 1 MONTH)
 );
+
+-- Optional: insert some saved jobs for testing (change job_id/user_id as appropriate)
+-- INSERT INTO saved_jobs (user_id, job_id) VALUES (1, 1), (1, 3);

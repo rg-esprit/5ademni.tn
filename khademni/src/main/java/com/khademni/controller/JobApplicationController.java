@@ -3,6 +3,7 @@ package com.khademni.controller;
 import com.khademni.App;
 import com.khademni.model.JobApplicationModel;
 import com.khademni.model.JobModel;
+import com.khademni.utils.AIService;
 import com.khademni.utils.MyDataBase;
 import javafx.collections.FXCollections;
 import javafx.fxml.FXML;
@@ -557,7 +558,14 @@ public class JobApplicationController {
             st.play();
         });
 
-        applyBtn.setOnAction(e -> showApplicationForm(null));
+        applyBtn.setOnAction(e -> {
+            try {
+                showApplicationForm(null);
+            } catch (Exception ex) {
+                ex.printStackTrace();
+                showAlert("Error", "Unable to open application form: " + ex.getMessage());
+            }
+        });
 
         HBox container = new HBox(applyBtn);
         container.setAlignment(Pos.CENTER);
@@ -573,201 +581,240 @@ public class JobApplicationController {
     }
 
     private void showApplicationForm(JobApplicationModel existingApp) {
-        applicationFormContainer.getChildren().clear();
+        try {
+            applicationFormContainer.getChildren().clear();
 
-        VBox form = new VBox(12);
-        form.setStyle("-fx-padding: 10;");
+            VBox form = new VBox(12);
+            form.setStyle("-fx-padding: 10;");
 
-        Label header = new Label(existingApp == null ? "✨ Apply for this Job" : "✏️ Edit Application");
-        header.setStyle("-fx-font-size: 18; -fx-font-weight: bold; -fx-text-fill: #141118;");
+            Label headerLabel = new Label(existingApp == null ? "✨ Apply for this Job" : "✏️ Edit Application");
+            headerLabel.setStyle("-fx-font-size: 18; -fx-font-weight: bold; -fx-text-fill: #141118;");
 
-        TextField titleField = new TextField(existingApp != null ? existingApp.getTitle() : "");
-        titleField.setPromptText("Application Title");
-        titleField.setStyle("-fx-padding: 10; -fx-border-color: #e5e7eb; -fx-border-radius: 6;");
+            TextField titleField = new TextField(existingApp != null ? existingApp.getTitle() : "");
+            titleField.setPromptText("Application Title");
+            titleField.setStyle("-fx-padding: 10; -fx-border-color: #e5e7eb; -fx-border-radius: 6;");
 
-        TextArea descArea = new TextArea(existingApp != null ? existingApp.getDescription() : "");
-        descArea.setPromptText("Why are you a good fit?");
-        descArea.setPrefRowCount(4);
-        descArea.setWrapText(true);
-        descArea.setStyle("-fx-control-inner-background: #fafafa; -fx-border-color: #e5e7eb; -fx-border-radius: 6;");
+            TextArea descArea = new TextArea(existingApp != null ? existingApp.getDescription() : "");
+            descArea.setPromptText("Write your motivation here...");
+            descArea.setPrefRowCount(4);
+            descArea.setWrapText(true);
+            descArea.setStyle(
+                    "-fx-control-inner-background: #fafafa; -fx-border-color: #e5e7eb; -fx-border-radius: 6;");
 
-        // CV Section - Dual Option: File Upload OR URL
-        Label cvSectionLabel = new Label("CV / Resume (Choose one option)");
-        cvSectionLabel.setStyle("-fx-font-weight: 700; -fx-font-size: 13px; -fx-text-fill: #374151;");
+            HBox descLabelRow = new HBox(10);
+            descLabelRow.setAlignment(Pos.CENTER_LEFT);
+            Label motivationLabel = new Label("Why are you a good fit?");
+            motivationLabel.setStyle("-fx-font-weight: bold;");
 
-        // Option 1: File Upload
-        Label cvFileLabel = new Label("No file selected");
-        cvFileLabel.setStyle("-fx-text-fill: #6b7280; -fx-font-size: 12px; -fx-padding: 5 0;");
-        cvFileLabel.setWrapText(true);
-
-        Button uploadCvBtn = new Button("📄 Upload CV File");
-        uploadCvBtn.setStyle(
-                "-fx-background-color: #e0f2fe; -fx-text-fill: #0284c7; -fx-font-weight: 600; -fx-padding: 10 20; -fx-background-radius: 6; -fx-cursor: hand;");
-
-        final String[] selectedCvPath = { "" };
-
-        // Option 2: URL Input
-        TextField cvUrlField = new TextField();
-        cvUrlField.setPromptText("Or paste CV URL (Google Drive, LinkedIn, etc.)");
-        cvUrlField.setStyle("-fx-padding: 10; -fx-border-color: #e5e7eb; -fx-border-radius: 6;");
-
-        // Initialize from existing app
-        if (existingApp != null && existingApp.getCvUrl() != null && !existingApp.getCvUrl().isEmpty()) {
-            if (existingApp.getCvUrl().startsWith("http://") || existingApp.getCvUrl().startsWith("https://")) {
-                cvUrlField.setText(existingApp.getCvUrl());
-            } else {
-                selectedCvPath[0] = existingApp.getCvUrl();
-                cvFileLabel.setText(new java.io.File(existingApp.getCvUrl()).getName());
-                cvFileLabel.setStyle(
-                        "-fx-text-fill: #10b981; -fx-font-size: 12px; -fx-padding: 5 0; -fx-font-weight: 600;");
+            // Create context for AI
+            java.util.Map<String, String> context = new java.util.HashMap<>();
+            context.put("contextType", "Job Application Motivation");
+            if (selectedJob != null) {
+                context.put("Job Title", selectedJob.getTitle());
+                context.put("Company", selectedJob.getCompany());
+                context.put("Category", selectedJob.getCategory());
             }
+
+            Button aiBtn = createAIButton(descArea, context);
+            descLabelRow.getChildren().addAll(motivationLabel, aiBtn);
+
+            // CV Section - Dual Option: File Upload OR URL
+            Label cvSectionLabel = new Label("CV / Resume (Choose one option)");
+            cvSectionLabel.setStyle("-fx-font-weight: 700; -fx-font-size: 13px; -fx-text-fill: #374151;");
+
+            // Option 1: File Upload
+            Label cvFileLabel = new Label("No file selected");
+            cvFileLabel.setStyle("-fx-text-fill: #6b7280; -fx-font-size: 12px; -fx-padding: 5 0;");
+            cvFileLabel.setWrapText(true);
+
+            Button uploadCvBtn = new Button("📄 Upload CV File");
+            uploadCvBtn.setStyle(
+                    "-fx-background-color: #e0f2fe; -fx-text-fill: #0284c7; -fx-font-weight: 600; -fx-padding: 10 20; -fx-background-radius: 6; -fx-cursor: hand;");
+
+            final String[] selectedCvPath = { "" };
+
+            // Option 2: URL Input
+            TextField cvUrlField = new TextField();
+            cvUrlField.setPromptText("Or paste CV URL (Google Drive, LinkedIn, etc.)");
+            cvUrlField.setStyle("-fx-padding: 10; -fx-border-color: #e5e7eb; -fx-border-radius: 6;");
+
+            // Initialize from existing app
+            if (existingApp != null && existingApp.getCvUrl() != null && !existingApp.getCvUrl().isEmpty()) {
+                if (existingApp.getCvUrl().startsWith("http://") || existingApp.getCvUrl().startsWith("https://")) {
+                    cvUrlField.setText(existingApp.getCvUrl());
+                } else {
+                    selectedCvPath[0] = existingApp.getCvUrl();
+                    cvFileLabel.setText(new java.io.File(existingApp.getCvUrl()).getName());
+                    cvFileLabel.setStyle(
+                            "-fx-text-fill: #10b981; -fx-font-size: 12px; -fx-padding: 5 0; -fx-font-weight: 600;");
+                }
+            }
+
+            uploadCvBtn.setOnAction(e -> {
+                javafx.stage.FileChooser fileChooser = new javafx.stage.FileChooser();
+                fileChooser.setTitle("Select CV File");
+                fileChooser.getExtensionFilters().addAll(
+                        new javafx.stage.FileChooser.ExtensionFilter("PDF Files", "*.pdf"),
+                        new javafx.stage.FileChooser.ExtensionFilter("Word Documents", "*.doc", "*.docx"),
+                        new javafx.stage.FileChooser.ExtensionFilter("Text Files", "*.txt"));
+
+                java.io.File file = fileChooser.showOpenDialog(uploadCvBtn.getScene().getWindow());
+                if (file != null) {
+                    // Security validation
+                    String validationError = validateCvFile(file);
+                    if (validationError != null) {
+                        showAlert("Security Error", validationError);
+                        return;
+                    }
+
+                    selectedCvPath[0] = file.getAbsolutePath();
+                    cvFileLabel.setText("✓ " + file.getName() + " (" + formatFileSize(file.length()) + ")");
+                    cvFileLabel.setStyle(
+                            "-fx-text-fill: #10b981; -fx-font-size: 12px; -fx-padding: 5 0; -fx-font-weight: 600;");
+                    cvUrlField.clear(); // Clear URL if file is selected
+                }
+            });
+
+            // Clear file selection when URL is entered
+            cvUrlField.textProperty().addListener((obs, oldVal, newVal) -> {
+                if (newVal != null && !newVal.trim().isEmpty()) {
+                    selectedCvPath[0] = "";
+                    cvFileLabel.setText("No file selected");
+                    cvFileLabel.setStyle("-fx-text-fill: #6b7280; -fx-font-size: 12px; -fx-padding: 5 0;");
+                }
+            });
+
+            VBox cvFileBox = new VBox(5, uploadCvBtn, cvFileLabel);
+            cvFileBox.setStyle("-fx-padding: 5 0;");
+
+            Label orLabel = new Label("OR");
+            orLabel.setStyle("-fx-text-fill: #9ca3af; -fx-font-weight: 600; -fx-padding: 5 0;");
+
+            Label errorLabel = new Label();
+            errorLabel.setStyle("-fx-text-fill: #ef4444;");
+
+            Button submitBtn = new Button(existingApp == null ? "Submit Application" : "Save Changes");
+            submitBtn.setStyle(
+                    "-fx-background-color: #6c0df2; -fx-text-fill: white; -fx-font-weight: 600; -fx-padding: 10 20; -fx-background-radius: 6; -fx-cursor: hand;");
+
+            Button cancelBtn = new Button("Cancel");
+            cancelBtn.setStyle(
+                    "-fx-background-color: #f3f4f6; -fx-text-fill: #374151; -fx-padding: 10 20; -fx-background-radius: 6; -fx-cursor: hand;");
+            cancelBtn.setOnAction(e -> loadFreelancerApplicationState());
+
+            HBox btns = new HBox(10);
+            btns.getChildren().addAll(submitBtn);
+            if (existingApp != null)
+                btns.getChildren().add(cancelBtn);
+
+            submitBtn.setOnAction(e -> {
+                String t = titleField.getText().trim();
+                String d = descArea.getText().trim();
+                String cvFile = selectedCvPath[0];
+                String cvUrl = cvUrlField.getText().trim();
+
+                if (t.length() < 3 || d.length() < 10) {
+                    errorLabel.setText("Title (min 3 chars) and Motivation (min 10 chars) are required.");
+                    return;
+                }
+
+                // Validate that at least one CV option is provided
+                if ((cvFile == null || cvFile.isEmpty()) && (cvUrl == null || cvUrl.isEmpty())) {
+                    errorLabel.setText("Please upload a CV file OR provide a CV URL.");
+                    return;
+                }
+
+                // Validate URL if provided
+                if (cvUrl != null && !cvUrl.isEmpty()) {
+                    String urlValidationError = validateCvUrl(cvUrl);
+                    if (urlValidationError != null) {
+                        errorLabel.setText(urlValidationError);
+                        return;
+                    }
+                }
+
+                // Use file path if available, otherwise use URL
+                String finalCvPath = (cvFile != null && !cvFile.isEmpty()) ? cvFile : cvUrl;
+
+                if (existingApp == null) {
+                    saveApplication(t, d, finalCvPath);
+                } else {
+                    updateApplication(existingApp.getId(), t, d, finalCvPath);
+                }
+            });
+
+            form.getChildren().addAll(headerLabel,
+                    new Label("Title"), titleField,
+                    descLabelRow, descArea,
+                    cvSectionLabel, cvFileBox, orLabel, cvUrlField,
+                    errorLabel, btns);
+            applicationFormContainer.getChildren().add(form);
+
+            // Fade in
+            FadeTransition ft = new FadeTransition(Duration.millis(400), form);
+            ft.setFromValue(0);
+            ft.setToValue(1);
+            ft.play();
+        } catch (Exception ex) {
+            ex.printStackTrace();
+            showAlert("Error", "Failed to build application form: " + ex.getMessage());
         }
-
-        uploadCvBtn.setOnAction(e -> {
-            javafx.stage.FileChooser fileChooser = new javafx.stage.FileChooser();
-            fileChooser.setTitle("Select CV File");
-            fileChooser.getExtensionFilters().addAll(
-                    new javafx.stage.FileChooser.ExtensionFilter("PDF Files", "*.pdf"),
-                    new javafx.stage.FileChooser.ExtensionFilter("Word Documents", "*.doc", "*.docx"),
-                    new javafx.stage.FileChooser.ExtensionFilter("Text Files", "*.txt"));
-
-            java.io.File file = fileChooser.showOpenDialog(uploadCvBtn.getScene().getWindow());
-            if (file != null) {
-                // Security validation
-                String validationError = validateCvFile(file);
-                if (validationError != null) {
-                    showAlert("Security Error", validationError);
-                    return;
-                }
-
-                selectedCvPath[0] = file.getAbsolutePath();
-                cvFileLabel.setText("✓ " + file.getName() + " (" + formatFileSize(file.length()) + ")");
-                cvFileLabel.setStyle(
-                        "-fx-text-fill: #10b981; -fx-font-size: 12px; -fx-padding: 5 0; -fx-font-weight: 600;");
-                cvUrlField.clear(); // Clear URL if file is selected
-            }
-        });
-
-        // Clear file selection when URL is entered
-        cvUrlField.textProperty().addListener((obs, oldVal, newVal) -> {
-            if (newVal != null && !newVal.trim().isEmpty()) {
-                selectedCvPath[0] = "";
-                cvFileLabel.setText("No file selected");
-                cvFileLabel.setStyle("-fx-text-fill: #6b7280; -fx-font-size: 12px; -fx-padding: 5 0;");
-            }
-        });
-
-        VBox cvFileBox = new VBox(5, uploadCvBtn, cvFileLabel);
-        cvFileBox.setStyle("-fx-padding: 5 0;");
-
-        Label orLabel = new Label("OR");
-        orLabel.setStyle("-fx-text-fill: #9ca3af; -fx-font-weight: 600; -fx-padding: 5 0;");
-
-        Label errorLabel = new Label();
-        errorLabel.setStyle("-fx-text-fill: #ef4444;");
-
-        Button submitBtn = new Button(existingApp == null ? "Submit Application" : "Save Changes");
-        submitBtn.setStyle(
-                "-fx-background-color: #6c0df2; -fx-text-fill: white; -fx-font-weight: 600; -fx-padding: 10 20; -fx-background-radius: 6; -fx-cursor: hand;");
-
-        Button cancelBtn = new Button("Cancel");
-        cancelBtn.setStyle(
-                "-fx-background-color: #f3f4f6; -fx-text-fill: #374151; -fx-padding: 10 20; -fx-background-radius: 6; -fx-cursor: hand;");
-        cancelBtn.setOnAction(e -> loadFreelancerApplicationState());
-
-        HBox btns = new HBox(10);
-        btns.getChildren().addAll(submitBtn);
-        if (existingApp != null)
-            btns.getChildren().add(cancelBtn);
-
-        submitBtn.setOnAction(e -> {
-            String t = titleField.getText().trim();
-            String d = descArea.getText().trim();
-            String cvFile = selectedCvPath[0];
-            String cvUrl = cvUrlField.getText().trim();
-
-            if (t.length() < 3 || d.length() < 10) {
-                errorLabel.setText("Title (min 3 chars) and Motivation (min 10 chars) are required.");
-                return;
-            }
-
-            // Validate that at least one CV option is provided
-            if ((cvFile == null || cvFile.isEmpty()) && (cvUrl == null || cvUrl.isEmpty())) {
-                errorLabel.setText("Please upload a CV file OR provide a CV URL.");
-                return;
-            }
-
-            // Validate URL if provided
-            if (cvUrl != null && !cvUrl.isEmpty()) {
-                String urlValidationError = validateCvUrl(cvUrl);
-                if (urlValidationError != null) {
-                    errorLabel.setText(urlValidationError);
-                    return;
-                }
-            }
-
-            // Use file path if available, otherwise use URL
-            String finalCvPath = (cvFile != null && !cvFile.isEmpty()) ? cvFile : cvUrl;
-
-            if (existingApp == null) {
-                saveApplication(t, d, finalCvPath);
-            } else {
-                updateApplication(existingApp.getId(), t, d, finalCvPath);
-            }
-        });
-
-        form.getChildren().addAll(header,
-                new Label("Title"), titleField,
-                new Label("Motivation"), descArea,
-                cvSectionLabel, cvFileBox, orLabel, cvUrlField,
-                errorLabel, btns);
-        applicationFormContainer.getChildren().add(form);
-
-        // Fade in
-        FadeTransition ft = new FadeTransition(Duration.millis(400), form);
-        ft.setFromValue(0);
-        ft.setToValue(1);
-        ft.play();
     }
 
     private void saveApplication(String title, String desc, String cv) {
-        try (Connection conn = MyDataBase.getConnection();
-                PreparedStatement stmt = conn.prepareStatement(
-                        "INSERT INTO job_applications(job_id, user_id, title, description, cv_path, status, application_date) VALUES(?,?,?,?,?,'PENDING',?)")) {
+        if (App.currentUser == null) {
+            showAlert("Error", "You must be logged in to submit an application");
+            return;
+        }
+        if (selectedJob == null) {
+            showAlert("Error", "No job selected");
+            return;
+        }
+        try (Connection conn = MyDataBase.getConnection()) {
+            String sql = "INSERT INTO job_applications(job_id, user_id, title, description, cv_path, status, application_date) VALUES(?,?,?,?,?,'PENDING',?)";
+            try (PreparedStatement stmt = conn.prepareStatement(sql)) {
+                stmt.setInt(1, selectedJob.getId());
+                stmt.setInt(2, App.currentUser.getId());
+                stmt.setString(3, title);
+                stmt.setString(4, desc);
+                stmt.setString(5, cv);
+                stmt.setTimestamp(6, Timestamp.valueOf(LocalDateTime.now()));
 
-            stmt.setInt(1, selectedJob.getId());
-            stmt.setInt(2, App.currentUser.getId());
-            stmt.setString(3, title);
-            stmt.setString(4, desc);
-            stmt.setString(5, cv);
-            stmt.setTimestamp(6, Timestamp.valueOf(LocalDateTime.now()));
-
-            stmt.executeUpdate();
+                stmt.executeUpdate();
+            }
             showAlert("Success", "Application submitted!");
             loadFreelancerApplicationState(); // Refresh
             countTotalApplicants();
 
-        } catch (SQLException e) {
-            showAlert("Error", "Failed to submit: " + e.getMessage());
+        } catch (Throwable ex) {
+            System.err.println("ERROR in saveApplication: " + ex.getMessage());
+            ex.printStackTrace();
+            showAlert("Error", "Failed to submit: " + ex.getMessage());
         }
     }
 
     private void updateApplication(int appId, String title, String desc, String cv) {
-        try (Connection conn = MyDataBase.getConnection();
-                PreparedStatement stmt = conn.prepareStatement(
-                        "UPDATE job_applications SET title=?, description=?, cv_path=? WHERE id=?")) {
+        if (App.currentUser == null) {
+            showAlert("Error", "You must be logged in to update an application");
+            return;
+        }
+        try (Connection conn = MyDataBase.getConnection()) {
+            String sql = "UPDATE job_applications SET title=?, description=?, cv_path=? WHERE id=?";
+            try (PreparedStatement stmt = conn.prepareStatement(sql)) {
+                stmt.setString(1, title);
+                stmt.setString(2, desc);
+                stmt.setString(3, cv);
+                stmt.setInt(4, appId);
 
-            stmt.setString(1, title);
-            stmt.setString(2, desc);
-            stmt.setString(3, cv);
-            stmt.setInt(4, appId);
-
-            stmt.executeUpdate();
+                stmt.executeUpdate();
+            }
             showAlert("Success", "Application updated!");
             loadFreelancerApplicationState(); // Refresh
 
-        } catch (SQLException e) {
-            showAlert("Error", "Failed to update: " + e.getMessage());
+        } catch (Throwable ex) {
+            System.err.println("ERROR in updateApplication: " + ex.getMessage());
+            ex.printStackTrace();
+            showAlert("Error", "Failed to update: " + ex.getMessage());
         }
     }
 
@@ -929,14 +976,6 @@ public class JobApplicationController {
         return String.format("%.1f %sB", bytes / Math.pow(1024, exp), pre);
     }
 
-    private void showAlert(String title, String content) {
-        Alert alert = new Alert(Alert.AlertType.INFORMATION);
-        alert.initOwner(App.getPrimaryStage());
-        alert.setTitle(title);
-        alert.setContentText(content);
-        alert.showAndWait();
-    }
-
     private String getJobPosterName(int userId) {
         String name = "Unknown";
         try (Connection conn = MyDataBase.getConnection();
@@ -951,5 +990,39 @@ public class JobApplicationController {
             e.printStackTrace();
         }
         return name;
+    }
+
+    private Button createAIButton(TextArea target, java.util.Map<String, String> context) {
+        Button aiBtn = new Button("✨ AI Enhance");
+        aiBtn.setStyle(
+                "-fx-background-color: #f5f3ff; -fx-text-fill: #7c3aed; -fx-font-size: 11px; -fx-font-weight: bold; -fx-background-radius: 12; -fx-cursor: hand;");
+        aiBtn.setOnAction(e -> {
+            String original = target.getText();
+            if (original.isEmpty()) {
+                showAlert("Info", "Please type something first so I can improve it!");
+                return;
+            }
+            aiBtn.setDisable(true);
+            aiBtn.setText("⏳ Enhancing...");
+
+            AIService.rewriteProfessionally(original, context).thenAccept(improved -> {
+                javafx.application.Platform.runLater(() -> {
+                    target.setText(improved);
+                    aiBtn.setDisable(false);
+                    aiBtn.setText("✨ AI Enhance");
+                });
+            });
+        });
+        return aiBtn;
+    }
+
+    private void showAlert(String title, String msg) {
+        javafx.application.Platform.runLater(() -> {
+            Alert alert = new Alert(Alert.AlertType.INFORMATION);
+            alert.setTitle(title);
+            alert.setHeaderText(null);
+            alert.setContentText(msg);
+            alert.show();
+        });
     }
 }

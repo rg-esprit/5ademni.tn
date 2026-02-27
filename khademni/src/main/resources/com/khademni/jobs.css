@@ -183,7 +183,7 @@
 
 /* Company Logo Circle */
 .job-company-logo {
-    -fx-background-color: linear-gradient(135deg, #6366f1 0%, #8b5cf6 100%);
+    -fx-background-color: linear-gradient(to bottom right, #6366f1 0%, #8b5cf6 100%);
     -fx-background-radius: 999;
     -fx-min-width: 64;
     -fx-min-height: 64;
@@ -217,7 +217,7 @@
     -fx-padding: 7 14 7 14;
     -fx-font-size: 12;
     -fx-font-weight: 600;
-    -fx-background-color: linear-gradient(135deg, rgba(99, 102, 241, 0.08), rgba(139, 92, 246, 0.08));
+    -fx-background-color: linear-gradient(to bottom right, rgba(99, 102, 241, 0.08), rgba(139, 92, 246, 0.08));
     -fx-text-fill: #6366f1;
     -fx-border-radius: 10;
 }
@@ -303,6 +303,25 @@
     -fx-font-size: 13;
     -fx-padding: 8 18 8 18;
     -fx-cursor: hand;
+}
+
+/* Button that opens the saved jobs tab */
+.jobs-saved-btn {
+    -fx-background-color: #6366f1;
+    -fx-background-radius: 8;
+    -fx-text-fill: white;
+    -fx-font-weight: 600;
+    -fx-font-size: 13;
+    -fx-padding: 8 16 8 16;
+    -fx-cursor: hand;
+}
+
+.jobs-saved-btn:hover {
+    -fx-background-color: #4f46e5;
+}
+
+.jobs-saved-btn:pressed {
+    -fx-background-color: #4338ca;
 }
 
 .job-save-btn:hover {
