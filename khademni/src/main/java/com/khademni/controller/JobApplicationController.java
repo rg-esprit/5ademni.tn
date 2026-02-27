@@ -227,14 +227,21 @@ public class JobApplicationController {
             app.setStatus(newStatus);
             renderApplications(filterApplications(statusFilterCombo.getValue()));
 
-            // Send SMS notification if application was ACCEPTED
-            if ("ACCEPTED".equalsIgnoreCase(newStatus)) {
+            // Send SMS notification if application was ACCEPTED or REJECTED
+            if ("ACCEPTED".equalsIgnoreCase(newStatus) || "REJECTED".equalsIgnoreCase(newStatus)) {
                 String phone = app.getPhoneNumber();
                 if (phone != null && !phone.trim().isEmpty()) {
                     String jobTitle = selectedJob != null ? selectedJob.getTitle() : "the position";
-                    String smsBody = "Félicitations " + app.getApplicantName() + "! "
-                            + "Votre candidature pour '" + jobTitle + "' a été acceptée. "
-                            + "Bienvenue dans l'équipe! - Khademni.tn";
+                    String smsBody;
+                    if ("ACCEPTED".equalsIgnoreCase(newStatus)) {
+                        smsBody = "Félicitations " + app.getApplicantName() + "! "
+                                + "Votre candidature pour '" + jobTitle + "' a été acceptée. "
+                                + "Bienvenue dans l'équipe! - Khademni.tn";
+                    } else {
+                        smsBody = "Bonjour " + app.getApplicantName() + ", "
+                                + "Malheureusement, votre candidature pour '" + jobTitle + "' n'a pas été retenue. "
+                                + "Nous vous souhaitons une bonne continuation. - Khademni.tn";
+                    }
                     new Thread(() -> SMSService.sendSms(phone, smsBody)).start();
                 }
             }
@@ -283,32 +290,22 @@ public class JobApplicationController {
 
         // Check if it's a URL or file path
         try {
-            if (cvPath.startsWith("http://") || cvPath.startsWith("https://")) {
-                // It's a URL - open in default browser
-                String os = System.getProperty("os.name").toLowerCase();
-                if (os.contains("win")) {
-                    new ProcessBuilder("cmd", "/c", "start", cvPath).start();
-                } else if (os.contains("mac")) {
-                    new ProcessBuilder("open", cvPath).start();
+            if (java.awt.Desktop.isDesktopSupported()) {
+                java.awt.Desktop desktop = java.awt.Desktop.getDesktop();
+                if (cvPath.startsWith("http://") || cvPath.startsWith("https://")) {
+                    // It's a URL - open in default browser
+                    desktop.browse(new java.net.URI(cvPath));
                 } else {
-                    new ProcessBuilder("xdg-open", cvPath).start();
+                    // It's a file path - open with default application
+                    java.io.File file = new java.io.File(cvPath);
+                    if (!file.exists()) {
+                        showAlert("File Not Found", "The CV file could not be found at: " + cvPath);
+                        return;
+                    }
+                    desktop.open(file);
                 }
             } else {
-                // It's a file path - open with default application
-                java.io.File file = new java.io.File(cvPath);
-                if (!file.exists()) {
-                    showAlert("File Not Found", "The CV file could not be found at: " + cvPath);
-                    return;
-                }
-
-                String os = System.getProperty("os.name").toLowerCase();
-                if (os.contains("win")) {
-                    new ProcessBuilder("cmd", "/c", "start", "\"\"", file.getAbsolutePath()).start();
-                } else if (os.contains("mac")) {
-                    new ProcessBuilder("open", file.getAbsolutePath()).start();
-                } else {
-                    new ProcessBuilder("xdg-open", file.getAbsolutePath()).start();
-                }
+                showAlert("Error", "Desktop operations are not supported on this system.");
             }
         } catch (Exception e) {
             showAlert("Error", "Could not open CV: " + e.getMessage());
