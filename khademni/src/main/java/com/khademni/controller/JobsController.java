@@ -1193,10 +1193,37 @@ public class JobsController {
         ComboBox<String> categoryCombo = new ComboBox<>();
         categoryCombo.getItems().addAll("Software Development", "Design", "Marketing", "Sales", "Business", "HR",
                 "Finance", "Other");
-        categoryCombo.setValue(editingJob != null ? editingJob.getCategory() : "Software Development");
         categoryCombo.setMaxWidth(Double.MAX_VALUE);
         categoryCombo
                 .setStyle("-fx-padding: 8; -fx-background-radius: 8; -fx-border-radius: 8; -fx-border-color: #e5e7eb;");
+
+        // Custom category field (visible only when "Other" is selected)
+        TextField customCategoryField = createFormField("Enter custom category", "");
+        customCategoryField.setVisible(false);
+        customCategoryField.setManaged(false);
+
+        // Determine initial value
+        java.util.List<String> predefinedCategories = categoryCombo.getItems();
+        String existingCategory = editingJob != null ? editingJob.getCategory() : null;
+        if (existingCategory != null && !predefinedCategories.contains(existingCategory)) {
+            categoryCombo.setValue("Other");
+            customCategoryField.setText(existingCategory);
+            customCategoryField.setVisible(true);
+            customCategoryField.setManaged(true);
+        } else {
+            categoryCombo.setValue(existingCategory != null ? existingCategory : "Software Development");
+        }
+
+        categoryCombo.valueProperty().addListener((obs, oldVal, newVal) -> {
+            boolean isOther = "Other".equals(newVal);
+            customCategoryField.setVisible(isOther);
+            customCategoryField.setManaged(isOther);
+            if (!isOther)
+                customCategoryField.clear();
+        });
+
+        VBox categoryBox = new VBox(6, categoryCombo, customCategoryField);
+        categoryBox.setMaxWidth(Double.MAX_VALUE);
 
         // Salary TextField
         String initialSalaryStr = "";
@@ -1269,13 +1296,13 @@ public class JobsController {
 
         // Store references for extraction
         form.setUserData(new Object[] { titleField, companyField, locationField, categoryCombo, salaryField, typeCombo,
-                descArea, reqArea, progressSlider, statusCombo });
+                descArea, reqArea, progressSlider, statusCombo, customCategoryField });
 
         form.getChildren().addAll(
                 createFormSection("Title", titleField),
                 createFormSection("Company", companyField),
                 createFormSection("Location", locationBox),
-                createFormSection("Category", categoryCombo),
+                createFormSection("Category", categoryBox),
                 createFormSection("Salary (TND)", salaryField),
                 createFormSection("Job Type", typeCombo));
 
@@ -1502,7 +1529,7 @@ public class JobsController {
 
     private JobModel extractJobFormData(VBox form, JobModel original, boolean isEdit) {
         Object[] fields = (Object[]) form.getUserData();
-        if (fields == null || fields.length < 10) { // Updated length to 10 for new fields
+        if (fields == null || fields.length < 11) {
             // Fallback for safety, though standard flow goes through here
             return null;
         }
@@ -1517,6 +1544,12 @@ public class JobsController {
         TextArea reqArea = (TextArea) fields[7];
         Slider progressSlider = (Slider) fields[8];
         ComboBox<String> statusCombo = (ComboBox<String>) fields[9];
+        TextField customCategoryField = (TextField) fields[10];
+
+        // Resolve category: use custom text when "Other" is selected
+        String categoryValue = "Other".equals(categoryCombo.getValue())
+                ? (customCategoryField.getText().trim().isEmpty() ? "Other" : customCategoryField.getText().trim())
+                : categoryCombo.getValue();
 
         String[] requirements = reqArea.getText().split("\n");
 
@@ -1538,7 +1571,7 @@ public class JobsController {
                 companyField.getText(),
                 locationField.getText(),
                 descArea.getText(),
-                categoryCombo.getValue(),
+                categoryValue,
                 salaryValue,
                 typeCombo.getValue(),
                 original != null ? original.getPostedDate() : LocalDateTime.now(),
