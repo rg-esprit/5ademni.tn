@@ -5,6 +5,7 @@ import com.khademni.model.JobApplicationModel;
 import com.khademni.model.JobModel;
 import com.khademni.utils.AIService;
 import com.khademni.utils.MyDataBase;
+import com.khademni.utils.SMSService;
 import javafx.collections.FXCollections;
 import javafx.fxml.FXML;
 import javafx.scene.control.*;
@@ -99,7 +100,7 @@ public class JobApplicationController {
                 PreparedStatement stmt = conn.prepareStatement(
                         "SELECT ja.id, ja.job_id, ja.title, ja.description, ja.cv_path, ja.status, ja.application_date, "
                                 +
-                                "u.first_name, u.last_name, u.email AS applicant_email " +
+                                "ja.phone_number, u.first_name, u.last_name, u.email AS applicant_email " +
                                 "FROM job_applications ja LEFT JOIN users u ON ja.user_id = u.id WHERE ja.job_id = ? ORDER BY ja.application_date DESC, ja.id DESC")) {
             stmt.setInt(1, selectedJob.getId());
             ResultSet rs = stmt.executeQuery();
@@ -226,6 +227,18 @@ public class JobApplicationController {
             app.setStatus(newStatus);
             renderApplications(filterApplications(statusFilterCombo.getValue()));
 
+            // Send SMS notification if application was ACCEPTED
+            if ("ACCEPTED".equalsIgnoreCase(newStatus)) {
+                String phone = app.getPhoneNumber();
+                if (phone != null && !phone.trim().isEmpty()) {
+                    String jobTitle = selectedJob != null ? selectedJob.getTitle() : "the position";
+                    String smsBody = "Félicitations " + app.getApplicantName() + "! "
+                            + "Votre candidature pour '" + jobTitle + "' a été acceptée. "
+                            + "Bienvenue dans l'équipe! - Khademni.tn";
+                    new Thread(() -> SMSService.sendSms(phone, smsBody)).start();
+                }
+            }
+
         } catch (SQLException e) {
             showAlert("Error", e.getMessage());
         }
@@ -313,6 +326,12 @@ public class JobApplicationController {
         if (email == null)
             email = "No Email Provided";
 
+        String phone = null;
+        try {
+            phone = rs.getString("phone_number");
+        } catch (SQLException ignored) {
+        }
+
         return new JobApplicationModel(
                 rs.getInt("id"),
                 rs.getInt("job_id"),
@@ -322,7 +341,8 @@ public class JobApplicationController {
                 rs.getString("description"),
                 rs.getString("cv_path"),
                 rs.getString("status"),
-                applied);
+                applied,
+                phone);
     }
 
     private String formatRelativeDate(LocalDateTime dateTime) {
@@ -464,7 +484,7 @@ public class JobApplicationController {
                 PreparedStatement stmt = conn.prepareStatement(
                         "SELECT ja.id, ja.job_id, ja.title, ja.description, ja.cv_path, ja.status, ja.application_date, "
                                 +
-                                "u.first_name, u.last_name, u.email AS applicant_email " +
+                                "ja.phone_number, u.first_name, u.last_name, u.email AS applicant_email " +
                                 "FROM job_applications ja LEFT JOIN users u ON ja.user_id = u.id " +
                                 "WHERE ja.job_id = ? AND ja.user_id = ?")) {
 
@@ -618,6 +638,36 @@ public class JobApplicationController {
             Button aiBtn = createAIButton(descArea, context);
             descLabelRow.getChildren().addAll(motivationLabel, aiBtn);
 
+            // ---- Phone Number Field (+216 Tunisian) ----
+            Label phoneLabel = new Label("📱 Phone Number (for SMS notifications)");
+            phoneLabel.setStyle("-fx-font-weight: bold; -fx-font-size: 13px;");
+
+            Label prefixLabel = new Label("+216");
+            prefixLabel.setStyle(
+                    "-fx-font-weight: bold; -fx-text-fill: white; -fx-background-color: #6c0df2; "
+                            + "-fx-padding: 9 10; -fx-background-radius: 6 0 0 6;");
+
+            // Extract digits only from existing phone (strip +216)
+            String existingDigits = "";
+            if (existingApp != null && existingApp.getPhoneNumber() != null) {
+                existingDigits = existingApp.getPhoneNumber().replace("+216", "").trim();
+            }
+            TextField phoneDigitsField = new TextField(existingDigits);
+            phoneDigitsField.setPromptText("XXXXXXXX (8 digits)");
+            phoneDigitsField.setStyle(
+                    "-fx-padding: 9; -fx-border-color: #e5e7eb; -fx-border-radius: 0 6 6 0; -fx-background-radius: 0 6 6 0;");
+            // Only allow digits, max 8
+            phoneDigitsField.setTextFormatter(new TextFormatter<>(change -> {
+                String newText = change.getControlNewText();
+                if (newText.matches("\\d{0,8}"))
+                    return change;
+                return null;
+            }));
+
+            HBox phoneRow = new HBox(0, prefixLabel, phoneDigitsField);
+            phoneRow.setAlignment(Pos.CENTER_LEFT);
+            HBox.setHgrow(phoneDigitsField, javafx.scene.layout.Priority.ALWAYS);
+
             // CV Section - Dual Option: File Upload OR URL
             Label cvSectionLabel = new Label("CV / Resume (Choose one option)");
             cvSectionLabel.setStyle("-fx-font-weight: 700; -fx-font-size: 13px; -fx-text-fill: #374151;");
@@ -712,11 +762,23 @@ public class JobApplicationController {
                 String d = descArea.getText().trim();
                 String cvFile = selectedCvPath[0];
                 String cvUrl = cvUrlField.getText().trim();
+                String phoneDigits = phoneDigitsField.getText().trim();
 
                 if (t.length() < 3 || d.length() < 10) {
                     errorLabel.setText("Title (min 3 chars) and Motivation (min 10 chars) are required.");
                     return;
                 }
+
+                // Validate phone number
+                if (phoneDigits.isEmpty()) {
+                    errorLabel.setText("Please enter your phone number (8 digits).");
+                    return;
+                }
+                if (phoneDigits.length() != 8) {
+                    errorLabel.setText("Phone number must be exactly 8 digits (e.g. 98765432).");
+                    return;
+                }
+                String fullPhone = "+216" + phoneDigits;
 
                 // Validate that at least one CV option is provided
                 if ((cvFile == null || cvFile.isEmpty()) && (cvUrl == null || cvUrl.isEmpty())) {
@@ -737,15 +799,16 @@ public class JobApplicationController {
                 String finalCvPath = (cvFile != null && !cvFile.isEmpty()) ? cvFile : cvUrl;
 
                 if (existingApp == null) {
-                    saveApplication(t, d, finalCvPath);
+                    saveApplication(t, d, finalCvPath, fullPhone);
                 } else {
-                    updateApplication(existingApp.getId(), t, d, finalCvPath);
+                    updateApplication(existingApp.getId(), t, d, finalCvPath, fullPhone);
                 }
             });
 
             form.getChildren().addAll(headerLabel,
                     new Label("Title"), titleField,
                     descLabelRow, descArea,
+                    phoneLabel, phoneRow,
                     cvSectionLabel, cvFileBox, orLabel, cvUrlField,
                     errorLabel, btns);
             applicationFormContainer.getChildren().add(form);
@@ -761,7 +824,7 @@ public class JobApplicationController {
         }
     }
 
-    private void saveApplication(String title, String desc, String cv) {
+    private void saveApplication(String title, String desc, String cv, String phone) {
         if (App.currentUser == null) {
             showAlert("Error", "You must be logged in to submit an application");
             return;
@@ -771,7 +834,7 @@ public class JobApplicationController {
             return;
         }
         try (Connection conn = MyDataBase.getConnection()) {
-            String sql = "INSERT INTO job_applications(job_id, user_id, title, description, cv_path, status, application_date) VALUES(?,?,?,?,?,'PENDING',?)";
+            String sql = "INSERT INTO job_applications(job_id, user_id, title, description, cv_path, status, application_date, phone_number) VALUES(?,?,?,?,?,'PENDING',?,?)";
             try (PreparedStatement stmt = conn.prepareStatement(sql)) {
                 stmt.setInt(1, selectedJob.getId());
                 stmt.setInt(2, App.currentUser.getId());
@@ -779,6 +842,7 @@ public class JobApplicationController {
                 stmt.setString(4, desc);
                 stmt.setString(5, cv);
                 stmt.setTimestamp(6, Timestamp.valueOf(LocalDateTime.now()));
+                stmt.setString(7, phone);
 
                 stmt.executeUpdate();
             }
@@ -793,18 +857,19 @@ public class JobApplicationController {
         }
     }
 
-    private void updateApplication(int appId, String title, String desc, String cv) {
+    private void updateApplication(int appId, String title, String desc, String cv, String phone) {
         if (App.currentUser == null) {
             showAlert("Error", "You must be logged in to update an application");
             return;
         }
         try (Connection conn = MyDataBase.getConnection()) {
-            String sql = "UPDATE job_applications SET title=?, description=?, cv_path=? WHERE id=?";
+            String sql = "UPDATE job_applications SET title=?, description=?, cv_path=?, phone_number=? WHERE id=?";
             try (PreparedStatement stmt = conn.prepareStatement(sql)) {
                 stmt.setString(1, title);
                 stmt.setString(2, desc);
                 stmt.setString(3, cv);
-                stmt.setInt(4, appId);
+                stmt.setString(4, phone);
+                stmt.setInt(5, appId);
 
                 stmt.executeUpdate();
             }

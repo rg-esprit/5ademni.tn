@@ -78,6 +78,13 @@ public class MyDataBase {
             } catch (SQLException e) {
                 System.out.println("Note: work_logs table creation failed: " + e.getMessage());
             }
+            // phone number for SMS notifications
+            try {
+                stmt.execute("ALTER TABLE job_applications ADD COLUMN IF NOT EXISTS phone_number VARCHAR(20)");
+                System.out.println("Schema update: ensured phone_number column exists in job_applications.");
+            } catch (SQLException e) {
+                System.out.println("Note: phone_number column already exists or update failed.");
+            }
         } catch (SQLException e) {
             System.err.println("Error during schema check: " + e.getMessage());
         }
