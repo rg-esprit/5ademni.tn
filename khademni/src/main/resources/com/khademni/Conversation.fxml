@@ -21,80 +21,65 @@
             <VBox alignment="CENTER" spacing="8">
                 <Label text="Mes Conversations"
                        style="-fx-font-size: 28px; -fx-font-weight: bold; -fx-text-fill: #1f2937;"/>
-                <Label text="Gérez vos échanges avec les freelances et clients"
+                <Label text="Discutez avec vos clients et freelances en toute simplicité"
                        style="-fx-font-size: 16px; -fx-text-fill: #6b7280;"/>
             </VBox>
 
             <!-- Carte principale -->
             <VBox style="-fx-background-color: white; -fx-background-radius: 16; -fx-effect: dropshadow(gaussian, rgba(0,0,0,0.1), 10, 0, 0, 4); -fx-padding: 32 40 40 40;"
-                  spacing="28" maxWidth="800" prefWidth="800">
+                  spacing="28" maxWidth="900" prefWidth="900">
 
                 <!-- Label d'erreur/succès -->
                 <Label fx:id="errorLabel" visible="false" managed="true"
                        style="-fx-font-size: 14px; -fx-padding: 10; -fx-background-color: #fee2e2; -fx-background-radius: 8; -fx-text-fill: #dc2626;"/>
 
-                <!-- Formulaire d'ajout -->
-                <HBox spacing="20" alignment="BOTTOM_CENTER">
-                    <VBox spacing="8" HBox.hgrow="ALWAYS">
-                        <Label text="ID Client" style="-fx-font-weight: 600; -fx-text-fill: #374151;"/>
-                        <TextField fx:id="txtClientId" promptText="Ex: 12"
-                                   style="-fx-pref-height: 40; -fx-background-radius: 8; -fx-border-radius: 8; -fx-border-color: #e5e7eb; -fx-padding: 0 10;"/>
-                    </VBox>
+                <!-- Formulaire de recherche et filtres -->
+                <HBox spacing="20" alignment="CENTER_LEFT">
+                    <TextField fx:id="txtSearch" promptText="Rechercher une conversation..."
+                               HBox.hgrow="ALWAYS" style="-fx-pref-height: 40; -fx-background-radius: 20; -fx-border-radius: 20; -fx-border-color: #e5e7eb; -fx-padding: 0 15;"/>
 
-                    <VBox spacing="8" HBox.hgrow="ALWAYS">
-                        <Label text="ID Freelance" style="-fx-font-weight: 600; -fx-text-fill: #374151;"/>
-                        <TextField fx:id="txtFreelanceId" promptText="Ex: 45"
-                                   style="-fx-pref-height: 40; -fx-background-radius: 8; -fx-border-radius: 8; -fx-border-color: #e5e7eb; -fx-padding: 0 10;"/>
-                    </VBox>
-
-                    <Button text="Nouvelle Discussion" onAction="#handleAjouter"
-                            style="-fx-background-color: #2563eb; -fx-text-fill: white; -fx-font-weight: 600; -fx-pref-height: 40; -fx-pref-width: 160; -fx-background-radius: 8; -fx-cursor: hand;">
-                        <graphic>
-                            <FontIcon iconLiteral="fas-plus" iconColor="white" iconSize="14"/>
-                        </graphic>
-                    </Button>
+                    <!-- ComboBox SANS items dans le FXML (ils seront chargés dans le code) -->
+                    <ComboBox fx:id="cmbFilter" prefWidth="150" promptText="Filtre"
+                              style="-fx-pref-height: 40; -fx-background-radius: 20; -fx-border-radius: 20;"/>
                 </HBox>
 
-                <Separator style="-fx-background-color: #e5e7eb;"/>
+                <!-- Liste des conversations -->
+                <ListView fx:id="listConversations" prefHeight="500" VBox.vgrow="ALWAYS"
+                          style="-fx-border-color: #e5e7eb; -fx-border-radius: 8; -fx-background-radius: 8;">
+                    <placeholder>
+                        <Label text="Aucune conversation pour le moment" style="-fx-text-fill: #9ca3af;"/>
+                    </placeholder>
+                </ListView>
 
-                <!-- Tableau des conversations -->
-                <TableView fx:id="tableConversations" prefHeight="400"
-                           style="-fx-border-color: #e5e7eb; -fx-border-radius: 8;">
-                    <columns>
-                        <TableColumn fx:id="colId" text="ID" prefWidth="60" />
-                        <TableColumn fx:id="colClient" text="Client" prefWidth="180" />
-                        <TableColumn fx:id="colFreelance" text="Freelance" prefWidth="180" />
-                        <TableColumn fx:id="colStatut" text="Statut" prefWidth="180" />
-                    </columns>
-                    <columnResizePolicy>
-                        <TableView fx:constant="CONSTRAINED_RESIZE_POLICY" />
-                    </columnResizePolicy>
-                </TableView>
-
-                <!-- Section UPDATE - UNIQUEMENT la ComboBox (sans Archiver/Activer) -->
-                <HBox spacing="10" alignment="CENTER_LEFT">
-                    <Label text="Changer statut:" style="-fx-font-weight: 600;"/>
-                    <ComboBox fx:id="cmbStatut" prefWidth="120" />
-                    <Button text="Appliquer" onAction="#handleChangerStatut"
-                            style="-fx-background-color: #f59e0b; -fx-text-fill: white; -fx-background-radius: 8; -fx-cursor: hand;"/>
-                </HBox>
-                <!-- Boutons d'action - avec fx:id même s'ils sont cachés -->
+                <!-- Boutons d'action -->
                 <HBox spacing="10" alignment="CENTER_RIGHT">
-                    <Button fx:id="btnArchiver" text="Archiver" visible="false" managed="false" />  <!-- Caché -->
-                    <Button fx:id="btnActiver" text="Activer" visible="false" managed="false" />    <!-- Caché -->
-                </HBox>
-                <!-- Boutons d'action - UNIQUEMENT Supprimer et Ouvrir -->
-                <HBox spacing="10" alignment="CENTER_RIGHT">
-                    <Button text="Supprimer" onAction="#handleSupprimer"
-                            style="-fx-background-color: #ef4444; -fx-text-fill: white; -fx-background-radius: 8; -fx-cursor: hand;"/>
-                    <Button text="Ouvrir la discussion" onAction="#handleOpenChat"
-                            style="-fx-background-color: #2563eb; -fx-text-fill: white; -fx-background-radius: 8; -fx-cursor: hand;">
+                    <Button text="👥 Gérer les membres" onAction="#handleManageMembers"
+                            style="-fx-background-color: #8b5cf6; -fx-text-fill: white; -fx-background-radius: 8; -fx-cursor: hand; -fx-pref-height: 40; -fx-pref-width: 150;"/>
+                    <Button text="🗑️ Supprimer" onAction="#handleSupprimer"
+                            style="-fx-background-color: #ef4444; -fx-text-fill: white; -fx-background-radius: 8; -fx-cursor: hand; -fx-pref-height: 40; -fx-pref-width: 120;"/>
+                    <Button text="💬 Ouvrir la discussion" onAction="#handleOpenChat"
+                            style="-fx-background-color: #2563eb; -fx-text-fill: white; -fx-background-radius: 8; -fx-cursor: hand; -fx-pref-height: 40; -fx-pref-width: 180;">
                         <graphic>
                             <FontIcon iconLiteral="fas-comments" iconColor="white" iconSize="14"/>
                         </graphic>
                     </Button>
                 </HBox>
+                <!-- Section UPDATE - ComboBox pour le statut -->
+                <HBox spacing="10" alignment="CENTER_LEFT">
+                    <Label text="Changer statut:" style="-fx-font-weight: 600;"/>
+                    <ComboBox fx:id="cmbStatut" prefWidth="120" promptText="Statut"/>
+                    <Button text="Appliquer" onAction="#handleChangerStatut"
+                            style="-fx-background-color: #f59e0b; -fx-text-fill: white; -fx-background-radius: 8; -fx-cursor: hand;"/>
+                </HBox>
 
+                <!-- Boutons d'action -->
+                <HBox spacing="10" alignment="CENTER_RIGHT">
+                    <Button fx:id="btnArchiver" text="Archiver" onAction="#handleArchiver"
+                            style="-fx-background-color: #6b7280; -fx-text-fill: white; -fx-background-radius: 8; -fx-cursor: hand;"/>
+                    <Button fx:id="btnActiver" text="Activer" onAction="#handleActiver"
+                            style="-fx-background-color: #10b981; -fx-text-fill: white; -fx-background-radius: 8; -fx-cursor: hand;"/>
+                    <!-- Vos autres boutons -->
+                </HBox>
             </VBox>
         </VBox>
     </VBox>

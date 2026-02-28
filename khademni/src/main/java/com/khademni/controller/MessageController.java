@@ -4,7 +4,12 @@ import com.khademni.App;
 import com.khademni.model.MessageModel;
 import com.khademni.model.UserModel;
 import com.khademni.utils.MyDataBase;
+import com.khademni.service.IASummaryService;
+import com.khademni.service.ChatWebSocketClient;
+import com.khademni.service.WebSocketServerStarter;
+
 import javafx.animation.PauseTransition;
+import javafx.application.Platform;
 import javafx.collections.FXCollections;
 import javafx.collections.ObservableList;
 import javafx.fxml.FXML;
@@ -22,43 +27,35 @@ import javafx.scene.control.TextArea;
 import javafx.scene.image.Image;
 import javafx.scene.image.ImageView;
 import javafx.scene.input.KeyCode;
+import javafx.scene.layout.BorderPane;
 import javafx.scene.layout.GridPane;
 import javafx.scene.layout.HBox;
 import javafx.scene.layout.VBox;
+import javafx.scene.media.Media;
 import javafx.scene.media.MediaPlayer;
 import javafx.scene.text.Font;
 import javafx.stage.FileChooser;
+import javafx.stage.Modality;
 import javafx.stage.Stage;
+import javafx.stage.StageStyle;
 import javafx.util.Callback;
 import javafx.util.Duration;
-import javafx.stage.Modality;
-import javafx.stage.Window;
+import javafx.concurrent.Task;
+
 import javax.sound.sampled.*;
 import java.awt.*;
-import java.io.ByteArrayInputStream;
-import java.io.ByteArrayOutputStream;
-import java.io.File;
-import java.io.IOException;
+import java.io.*;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.StandardCopyOption;
 import java.sql.*;
 import java.time.LocalDateTime;
 import java.time.format.DateTimeFormatter;
-import java.util.HashMap;
-import java.util.Map;
-import java.util.Optional;
-import java.util.UUID;
-import com.khademni.service.IASummaryService;
-import javafx.concurrent.Task;
-import javafx.stage.Modality;
-import javafx.stage.Stage;
-import javafx.scene.layout.BorderPane;
-import com.khademni.service.IASummaryService;
-import javafx.concurrent.Task;
-import javafx.scene.control.ProgressIndicator;
-import java.util.ArrayList;
+import java.util.*;
 import java.util.List;
+
+import com.fasterxml.jackson.databind.JsonNode;
+import com.fasterxml.jackson.databind.ObjectMapper;
 
 public class MessageController {
 
@@ -86,7 +83,7 @@ public class MessageController {
     @FXML private Label filePreviewName;
     @FXML private Button filePreviewCancel;
     @FXML private ProgressBar uploadProgress;
-    @FXML private Button btnSummary;  // Ajoutez avec les autres @FXML
+    @FXML private Button btnSummary;
 
     private Connection connection;
     private ObservableList<HBox> messageDisplayList = FXCollections.observableArrayList();
@@ -109,6 +106,15 @@ public class MessageController {
     private ByteArrayOutputStream audioOutputStream;
     private Thread recordingThread;
     private boolean isRecording = false;
+
+    // Pour les appels
+    private MediaPlayer ringtonePlayer;
+    private Stage callStage;
+    private boolean isInCall = false;
+
+    // WebSocket
+    private ChatWebSocketClient webSocketClient;
+    private ObjectMapper mapper = new ObjectMapper();
 
     private static final String UPLOAD_DIR = "uploads/";
     private static final String[] EMOJIS = {
@@ -136,6 +142,9 @@ public class MessageController {
             return;
         }
 
+        // Démarrer le serveur WebSocket
+        WebSocketServerStarter.start();
+
         connectedUser = App.getCurrentUser();
 
         Font emojiFont = Font.font("Segoe UI Emoji", 14);
@@ -162,6 +171,192 @@ public class MessageController {
         System.out.println("MessageController initialisé");
     }
 
+    // ==================== MÉTHODES D'APPEL AMÉLIORÉES ====================
+
+    @FXML
+    private void startVideoCall() {
+        if (currentConversationId == -1) {
+            showError("Aucune conversation sélectionnée");
+            return;
+        }
+
+        if (isInCall) {
+            showError("Un appel est déjà en cours");
+            return;
+        }
+
+        String participantName = getOtherParticipantName();
+
+        // Jouer une sonnerie
+        playRingtone();
+
+        // Afficher la fenêtre d'appel
+        showCallWindow(participantName, true);
+    }
+
+    @FXML
+    private void startAudioCall() {
+        if (currentConversationId == -1) {
+            showError("Aucune conversation sélectionnée");
+            return;
+        }
+
+        if (isInCall) {
+            showError("Un appel est déjà en cours");
+            return;
+        }
+
+        String participantName = getOtherParticipantName();
+
+        // Jouer une sonnerie
+        playRingtone();
+
+        // Afficher la fenêtre d'appel
+        showCallWindow(participantName, false);
+    }
+
+    private void playRingtone() {
+        try {
+            // Essayer de charger une sonnerie depuis les ressources
+            String ringtonePath = getClass().getResource("/sounds/ringtone.mp3").toExternalForm();
+            Media ringtone = new Media(ringtonePath);
+            ringtonePlayer = new MediaPlayer(ringtone);
+            ringtonePlayer.setCycleCount(MediaPlayer.INDEFINITE);
+            ringtonePlayer.play();
+        } catch (Exception e) {
+            System.err.println("Sonnerie non trouvée, utilisation de beep système");
+            // Fallback: beep système
+            Toolkit.getDefaultToolkit().beep();
+        }
+    }
+
+    private void stopRingtone() {
+        if (ringtonePlayer != null) {
+            ringtonePlayer.stop();
+        }
+    }
+
+    private void showCallWindow(String participantName, boolean isVideo) {
+        callStage = new Stage();
+        callStage.initStyle(StageStyle.UNDECORATED);
+        callStage.setTitle(isVideo ? "Appel vidéo" : "Appel audio");
+
+        BorderPane root = new BorderPane();
+        root.setStyle("-fx-background-color: linear-gradient(to bottom, #1e293b, #0f172a);");
+        root.setPadding(new Insets(30));
+
+        // Centre: Informations de l'appel
+        VBox centerBox = new VBox(20);
+        centerBox.setAlignment(Pos.CENTER);
+
+        // Icône selon le type d'appel
+        Label iconLabel = new Label(isVideo ? "📹" : "📞");
+        iconLabel.setStyle("-fx-font-size: 64px; -fx-text-fill: white;");
+
+        Label statusLabel = new Label("Appel en cours...");
+        statusLabel.setStyle("-fx-text-fill: #94a3b8; -fx-font-size: 14px;");
+
+        Label nameLabel = new Label(participantName);
+        nameLabel.setStyle("-fx-text-fill: white; -fx-font-size: 24px; -fx-font-weight: bold;");
+
+        // Timer
+        Label timerLabel = new Label("00:00");
+        timerLabel.setStyle("-fx-text-fill: #10b981; -fx-font-size: 18px; -fx-font-family: monospace;");
+
+        // Démarrer le timer
+        startCallTimer(timerLabel);
+
+        centerBox.getChildren().addAll(iconLabel, nameLabel, statusLabel, timerLabel);
+        root.setCenter(centerBox);
+
+        // Bas: Boutons de contrôle
+        HBox buttonBox = new HBox(20);
+        buttonBox.setAlignment(Pos.CENTER);
+        buttonBox.setPadding(new Insets(20, 0, 0, 0));
+
+        // Bouton micro (mute/unmute)
+        Button muteButton = new Button("🎤");
+        muteButton.setStyle("-fx-background-color: #334155; -fx-text-fill: white; -fx-font-size: 18px; -fx-min-width: 50; -fx-min-height: 50; -fx-background-radius: 25;");
+        muteButton.setOnAction(e -> {
+            if (muteButton.getStyle().contains("#334155")) {
+                muteButton.setStyle("-fx-background-color: #ef4444; -fx-text-fill: white; -fx-font-size: 18px; -fx-min-width: 50; -fx-min-height: 50; -fx-background-radius: 25;");
+                showSuccess("Micro coupé");
+            } else {
+                muteButton.setStyle("-fx-background-color: #334155; -fx-text-fill: white; -fx-font-size: 18px; -fx-min-width: 50; -fx-min-height: 50; -fx-background-radius: 25;");
+                showSuccess("Micro activé");
+            }
+        });
+
+        // Bouton fin d'appel
+        Button endButton = new Button("🔴");
+        endButton.setStyle("-fx-background-color: #ef4444; -fx-text-fill: white; -fx-font-size: 18px; -fx-min-width: 60; -fx-min-height: 60; -fx-background-radius: 30;");
+        endButton.setOnAction(e -> endCall());
+
+        // Bouton haut-parleur
+        Button speakerButton = new Button("🔊");
+        speakerButton.setStyle("-fx-background-color: #334155; -fx-text-fill: white; -fx-font-size: 18px; -fx-min-width: 50; -fx-min-height: 50; -fx-background-radius: 25;");
+
+        buttonBox.getChildren().addAll(muteButton, endButton, speakerButton);
+        root.setBottom(buttonBox);
+
+        // Simulation d'appel pour la démo
+        simulateCallConnection();
+
+        Scene scene = new Scene(root, 400, 500);
+        callStage.setScene(scene);
+        callStage.show();
+    }
+
+    private void startCallTimer(Label timerLabel) {
+        Thread timerThread = new Thread(() -> {
+            int seconds = 0;
+            while (isInCall) {
+                try {
+                    Thread.sleep(1000);
+                    seconds++;
+                    int minutes = seconds / 60;
+                    int secs = seconds % 60;
+                    String time = String.format("%02d:%02d", minutes, secs);
+                    Platform.runLater(() -> timerLabel.setText(time));
+                } catch (InterruptedException e) {
+                    break;
+                }
+            }
+        });
+        timerThread.setDaemon(true);
+        timerThread.start();
+    }
+
+    private void simulateCallConnection() {
+        isInCall = true;
+
+        // Simuler la connexion après 2 secondes
+        new Thread(() -> {
+            try {
+                Thread.sleep(2000);
+                Platform.runLater(() -> {
+                    stopRingtone();
+                    showSuccess("✅ Appel connecté !");
+                });
+            } catch (InterruptedException e) {
+                e.printStackTrace();
+            }
+        }).start();
+    }
+
+    private void endCall() {
+        isInCall = false;
+        stopRingtone();
+
+        if (callStage != null) {
+            callStage.close();
+        }
+
+        showError("🔴 Appel terminé");
+    }
+
+    // ==================== FIN MÉTHODES D'APPEL ====================
+
     private void setupMessageList() {
         listMessages.setCellFactory(new Callback<ListView<HBox>, ListCell<HBox>>() {
             @Override
@@ -181,175 +376,6 @@ public class MessageController {
                 };
             }
         });
-    }
-
-    private void generateChatSummary() {
-        if (currentConversationId == -1) {
-            showError("Aucune conversation sélectionnée");
-            return;
-        }
-
-        // Récupérer tous les messages avec format [Heure] Expéditeur: Contenu
-        List<String> messageTexts = new ArrayList<>();
-        for (MessageModel msg : messagesMap.values()) {
-            String sender = msg.getExpediteur();
-            if (sender.contains(":")) {
-                sender = sender.split(":")[1].trim();
-            }
-            String text = msg.getContenu();
-            String time = msg.getDateEnvoi() != null ?
-                    msg.getDateEnvoi().format(DateTimeFormatter.ofPattern("HH:mm")) : "";
-
-            messageTexts.add(String.format("[%s] %s: %s", time, sender, text));
-        }
-
-        if (messageTexts.isEmpty()) {
-            showError("Aucun message à résumer");
-            return;
-        }
-
-        // Créer une nouvelle fenêtre centrée
-        Stage summaryStage = new Stage();
-        summaryStage.setTitle("🤖 Résumé IA - 5ademni.tn");
-        summaryStage.initModality(Modality.APPLICATION_MODAL);
-        summaryStage.setMinWidth(700);
-        summaryStage.setMinHeight(600);
-
-        // Conteneur principal
-        BorderPane root = new BorderPane();
-        root.setStyle("-fx-background-color: white; -fx-background-radius: 10;");
-        root.setPadding(new Insets(25));
-
-        // Centre: Contenu principal
-        VBox centerContent = new VBox(20);
-        centerContent.setAlignment(Pos.TOP_CENTER);
-
-        // Titre avec icône centrée
-        HBox titleBox = new HBox(15);
-        titleBox.setAlignment(Pos.CENTER);
-
-        Label iconLabel = new Label("🤖");
-        iconLabel.setStyle("-fx-font-size: 48px; -fx-font-family: 'Segoe UI Emoji';");
-
-        Label titleLabel = new Label("Génération du résumé...");
-        titleLabel.setStyle("-fx-font-size: 24px; -fx-font-weight: bold; -fx-text-fill: #2563eb;");
-
-        titleBox.getChildren().addAll(iconLabel, titleLabel);
-
-        // Indicateur de progression
-        VBox progressBox = new VBox(20);
-        progressBox.setAlignment(Pos.CENTER);
-        progressBox.setPadding(new Insets(40, 0, 0, 0));
-
-        ProgressIndicator progressIndicator = new ProgressIndicator();
-        progressIndicator.setMaxSize(80, 80);
-        progressIndicator.setStyle("-fx-progress-color: #2563eb;");
-
-        Label statusLabel = new Label("Patience, l'IA analyse la conversation...");
-        statusLabel.setStyle("-fx-font-size: 14px; -fx-text-fill: #4b5563; -fx-font-style: italic;");
-
-        progressBox.getChildren().addAll(progressIndicator, statusLabel);
-
-        centerContent.getChildren().addAll(titleBox, progressBox);
-        root.setCenter(centerContent);
-
-        Scene scene = new Scene(root);
-        summaryStage.setScene(scene);
-        summaryStage.initOwner(btnRetour.getScene().getWindow());
-        summaryStage.show();
-
-        // Tâche asynchrone
-        Task<String> summaryTask = new Task<String>() {
-            @Override
-            protected String call() throws Exception {
-                return IASummaryService.generateSummary(messageTexts);
-            }
-        };
-
-        summaryTask.setOnSucceeded(event -> {
-            String summary = summaryTask.getValue();
-
-            centerContent.getChildren().clear();
-
-            // Titre de succès
-            HBox successBox = new HBox(15);
-            successBox.setAlignment(Pos.CENTER);
-
-            Label successIcon = new Label("✅");
-            successIcon.setStyle("-fx-font-size: 48px;");
-
-            Label successTitle = new Label("Résumé de la conversation");
-            successTitle.setStyle("-fx-font-size: 24px; -fx-font-weight: bold; -fx-text-fill: #10b981;");
-
-            successBox.getChildren().addAll(successIcon, successTitle);
-
-            // Zone de texte avec le résumé
-            TextArea summaryArea = new TextArea(summary);
-            summaryArea.setWrapText(true);
-            summaryArea.setEditable(false);
-            summaryArea.setPrefRowCount(18);
-            summaryArea.setStyle("-fx-font-size: 14px; -fx-font-family: 'Segoe UI'; -fx-background-color: #f9fafb; -fx-background-radius: 8; -fx-border-color: #e5e7eb; -fx-border-radius: 8; -fx-padding: 15;");
-            summaryArea.setMaxWidth(650);
-
-            // Boutons
-            HBox buttonBox = new HBox(15);
-            buttonBox.setAlignment(Pos.CENTER);
-            buttonBox.setPadding(new Insets(10, 0, 0, 0));
-
-            Button copyButton = new Button("📋 Copier le résumé");
-            copyButton.setStyle("-fx-background-color: #2563eb; -fx-text-fill: white; -fx-font-weight: bold; -fx-padding: 12 25; -fx-cursor: hand; -fx-background-radius: 8; -fx-font-size: 14px;");
-            copyButton.setOnAction(copyEvent -> {
-                javafx.scene.input.Clipboard clipboard = javafx.scene.input.Clipboard.getSystemClipboard();
-                javafx.scene.input.ClipboardContent clipboardContent = new javafx.scene.input.ClipboardContent();
-                clipboardContent.putString(summary);
-                clipboard.setContent(clipboardContent);
-                showSuccess("Résumé copié !");
-            });
-
-            Button closeButton = new Button("Fermer");
-            closeButton.setStyle("-fx-background-color: #6b7280; -fx-text-fill: white; -fx-padding: 12 25; -fx-cursor: hand; -fx-background-radius: 8; -fx-font-size: 14px;");
-            closeButton.setOnAction(e -> summaryStage.close());
-
-            buttonBox.getChildren().addAll(copyButton, closeButton);
-
-            centerContent.getChildren().addAll(successBox, summaryArea, buttonBox);
-        });
-
-        summaryTask.setOnFailed(event -> {
-            Throwable error = summaryTask.getException();
-
-            centerContent.getChildren().clear();
-
-            HBox errorBox = new HBox(15);
-            errorBox.setAlignment(Pos.CENTER);
-
-            Label errorIcon = new Label("❌");
-            errorIcon.setStyle("-fx-font-size: 48px;");
-
-            Label errorTitle = new Label("Erreur");
-            errorTitle.setStyle("-fx-font-size: 24px; -fx-font-weight: bold; -fx-text-fill: #dc2626;");
-
-            errorBox.getChildren().addAll(errorIcon, errorTitle);
-
-            TextArea errorArea = new TextArea("Erreur: " + error.getMessage() + "\n\nUtilisation du résumé local...");
-            errorArea.setWrapText(true);
-            errorArea.setEditable(false);
-            errorArea.setPrefRowCount(5);
-            errorArea.setStyle("-fx-font-size: 14px; -fx-background-color: #fee2e2; -fx-background-radius: 8; -fx-border-color: #fecaca; -fx-border-radius: 8; -fx-padding: 15;");
-            errorArea.setMaxWidth(650);
-
-            Button closeButton = new Button("Fermer");
-            closeButton.setStyle("-fx-background-color: #6b7280; -fx-text-fill: white; -fx-padding: 12 25; -fx-cursor: hand; -fx-background-radius: 8; -fx-font-size: 14px;");
-            closeButton.setOnAction(e -> summaryStage.close());
-
-            HBox buttonBox = new HBox();
-            buttonBox.setAlignment(Pos.CENTER);
-            buttonBox.getChildren().add(closeButton);
-
-            centerContent.getChildren().addAll(errorBox, errorArea, buttonBox);
-        });
-
-        new Thread(summaryTask).start();
     }
 
     private void setupEmojiPicker() {
@@ -399,6 +425,7 @@ public class MessageController {
         emojiContainer.getChildren().add(emojiGrid);
         emojiPicker.setVisible(false);
     }
+
 
     private void setupTypingIndicator() {
         txtContenu.textProperty().addListener((obs, old, newVal) -> {
@@ -669,6 +696,107 @@ public class MessageController {
         }
     }
 
+    // ==================== WEBSOCKET ====================
+
+    private void initWebSocket() {
+        if (currentConversationId == -1 || connectedUser == null) return;
+
+        // Fermer ancienne connexion
+        if (webSocketClient != null) {
+            webSocketClient.close();
+        }
+
+        String expediteur = userRole + ": " + connectedUser.getFirstName();
+
+        webSocketClient = new ChatWebSocketClient(
+                String.valueOf(currentConversationId),
+                clientId,
+                freelanceId,
+                expediteur,
+                new ChatWebSocketClient.MessageListener() {
+
+                    @Override
+                    public void onMessage(JsonNode message) {
+                        Platform.runLater(() -> {
+                            try {
+                                // Vérifier si c'est un message système
+                                if (message.has("type") && "SYSTEM".equals(message.get("type").asText())) {
+                                    // Message système - on l'ignore ou on affiche une notification
+                                    System.out.println("ℹ️ " + (message.has("content") ? message.get("content").asText() : ""));
+                                    return;
+                                }
+
+                                // Message normal de conversation
+                                int id = message.get("id").asInt();
+                                String contenu = message.get("contenu").asText();
+                                String expediteur = message.get("expediteur").asText();
+                                String dateStr = message.get("date").asText();
+
+                                LocalDateTime date = LocalDateTime.parse(dateStr);
+
+                                MessageModel newMsg = new MessageModel();
+                                newMsg.setId(id);
+                                newMsg.setContenu(contenu);
+                                newMsg.setDateEnvoi(date);
+                                newMsg.setExpediteur(expediteur);
+                                newMsg.setConversationId(currentConversationId);
+                                newMsg.setTypeMessage("TEXTE");
+
+                                addWebSocketMessage(newMsg);
+
+                            } catch (Exception e) {
+                                System.err.println("❌ Erreur parsing message: " + e.getMessage());
+                            }
+                        });
+                    }
+
+                    @Override
+                    public void onError(String error) {
+                        Platform.runLater(() -> showError("WebSocket: " + error));
+                    }
+
+                    @Override
+                    public void onClose() {
+                        System.out.println("WebSocket fermé");
+                    }
+
+                    @Override
+                    public void onConnectionStatus(boolean connected) {
+                        Platform.runLater(() -> {
+                            if (connected) {
+                                showSuccess("✅ Connecté (temps réel)");
+                            } else {
+                                showError("⚠️ Mode dégradé (polling)");
+                            }
+                        });
+                    }
+                }
+        );
+    }
+
+    private void addWebSocketMessage(MessageModel newMsg) {
+        if (messagesMap.containsKey(newMsg.getId())) return;
+
+        boolean isMe = connectedUser != null &&
+                newMsg.getExpediteur() != null &&
+                newMsg.getExpediteur().contains(connectedUser.getFirstName());
+
+        HBox messageBox = createMessageBubble(
+                newMsg.getExpediteur(),
+                newMsg.getContenu(),
+                newMsg.getDateEnvoi().format(DateTimeFormatter.ofPattern("HH:mm")),
+                newMsg.getPieceJointeUrl(),
+                newMsg.getTypeMessage(),
+                isMe
+        );
+
+        messageDisplayList.add(messageBox);
+        messageIdMap.put(messageBox, newMsg.getId());
+        messagesMap.put(newMsg.getId(), newMsg);
+
+        listMessages.scrollTo(messageDisplayList.size() - 1);
+    }
+
     @FXML
     private void handleEnvoyer() {
         String contenu = txtContenu.getText().trim();
@@ -678,6 +806,17 @@ public class MessageController {
             return;
         }
 
+        if (webSocketClient != null && webSocketClient.isConnected()) {
+            // Envoi via WebSocket
+            webSocketClient.sendMessage(contenu);
+            txtContenu.clear();
+        } else {
+            // Fallback: envoi HTTP classique
+            envoyerMessageHttp(contenu);
+        }
+    }
+
+    private void envoyerMessageHttp(String contenu) {
         UserModel user = App.getCurrentUser();
         String expediteur = userRole + ": " + user.getFirstName();
 
@@ -697,6 +836,173 @@ public class MessageController {
         } catch (SQLException e) {
             showError("Erreur envoi: " + e.getMessage());
         }
+    }
+
+    // ==================== MÉTHODES EXISTANTES ====================
+
+    private void generateChatSummary() {
+        if (currentConversationId == -1) {
+            showError("Aucune conversation sélectionnée");
+            return;
+        }
+
+        List<String> messageTexts = new ArrayList<>();
+        for (MessageModel msg : messagesMap.values()) {
+            String sender = msg.getExpediteur();
+            if (sender.contains(":")) {
+                sender = sender.split(":")[1].trim();
+            }
+            String text = msg.getContenu();
+            String time = msg.getDateEnvoi() != null ?
+                    msg.getDateEnvoi().format(DateTimeFormatter.ofPattern("HH:mm")) : "";
+
+            messageTexts.add(String.format("[%s] %s: %s", time, sender, text));
+        }
+
+        if (messageTexts.isEmpty()) {
+            showError("Aucun message à résumer");
+            return;
+        }
+
+        Stage summaryStage = new Stage();
+        summaryStage.setTitle("🤖 Résumé IA - 5ademni.tn");
+        summaryStage.initModality(Modality.APPLICATION_MODAL);
+        summaryStage.setMinWidth(700);
+        summaryStage.setMinHeight(600);
+
+        BorderPane root = new BorderPane();
+        root.setStyle("-fx-background-color: white; -fx-background-radius: 10;");
+        root.setPadding(new Insets(25));
+
+        VBox centerContent = new VBox(20);
+        centerContent.setAlignment(Pos.TOP_CENTER);
+
+        HBox titleBox = new HBox(15);
+        titleBox.setAlignment(Pos.CENTER);
+
+        Label iconLabel = new Label("🤖");
+        iconLabel.setStyle("-fx-font-size: 48px; -fx-font-family: 'Segoe UI Emoji';");
+
+        Label titleLabel = new Label("Génération du résumé...");
+        titleLabel.setStyle("-fx-font-size: 24px; -fx-font-weight: bold; -fx-text-fill: #2563eb;");
+
+        titleBox.getChildren().addAll(iconLabel, titleLabel);
+
+        VBox progressBox = new VBox(20);
+        progressBox.setAlignment(Pos.CENTER);
+        progressBox.setPadding(new Insets(40, 0, 0, 0));
+
+        ProgressIndicator progressIndicator = new ProgressIndicator();
+        progressIndicator.setMaxSize(80, 80);
+        progressIndicator.setStyle("-fx-progress-color: #2563eb;");
+
+        Label statusLabel = new Label("Patience, l'IA analyse la conversation...");
+        statusLabel.setStyle("-fx-font-size: 14px; -fx-text-fill: #4b5563; -fx-font-style: italic;");
+
+        progressBox.getChildren().addAll(progressIndicator, statusLabel);
+
+        centerContent.getChildren().addAll(titleBox, progressBox);
+        root.setCenter(centerContent);
+
+        Scene scene = new Scene(root);
+        summaryStage.setScene(scene);
+        summaryStage.initOwner(btnRetour.getScene().getWindow());
+        summaryStage.show();
+
+        Task<String> summaryTask = new Task<String>() {
+            @Override
+            protected String call() throws Exception {
+                return IASummaryService.generateSummary(messageTexts);
+            }
+        };
+
+        summaryTask.setOnSucceeded(event -> {
+            String summary = summaryTask.getValue();
+            displaySummaryResult(centerContent, summary, summaryStage);
+        });
+
+        summaryTask.setOnFailed(event -> {
+            Throwable error = summaryTask.getException();
+            displaySummaryError(centerContent, error, summaryStage);
+        });
+
+        new Thread(summaryTask).start();
+    }
+
+    private void displaySummaryResult(VBox centerContent, String summary, Stage stage) {
+        centerContent.getChildren().clear();
+
+        HBox successBox = new HBox(15);
+        successBox.setAlignment(Pos.CENTER);
+
+        Label successIcon = new Label("✅");
+        successIcon.setStyle("-fx-font-size: 48px;");
+
+        Label successTitle = new Label("Résumé de la conversation");
+        successTitle.setStyle("-fx-font-size: 24px; -fx-font-weight: bold; -fx-text-fill: #10b981;");
+
+        successBox.getChildren().addAll(successIcon, successTitle);
+
+        TextArea summaryArea = new TextArea(summary);
+        summaryArea.setWrapText(true);
+        summaryArea.setEditable(false);
+        summaryArea.setPrefRowCount(18);
+        summaryArea.setStyle("-fx-font-size: 14px; -fx-font-family: 'Segoe UI'; -fx-background-color: #f9fafb; -fx-background-radius: 8; -fx-border-color: #e5e7eb; -fx-border-radius: 8; -fx-padding: 15;");
+        summaryArea.setMaxWidth(650);
+
+        HBox buttonBox = new HBox(15);
+        buttonBox.setAlignment(Pos.CENTER);
+        buttonBox.setPadding(new Insets(10, 0, 0, 0));
+
+        Button copyButton = new Button("📋 Copier le résumé");
+        copyButton.setStyle("-fx-background-color: #2563eb; -fx-text-fill: white; -fx-font-weight: bold; -fx-padding: 12 25; -fx-cursor: hand; -fx-background-radius: 8; -fx-font-size: 14px;");
+        copyButton.setOnAction(copyEvent -> {
+            javafx.scene.input.Clipboard clipboard = javafx.scene.input.Clipboard.getSystemClipboard();
+            javafx.scene.input.ClipboardContent clipboardContent = new javafx.scene.input.ClipboardContent();
+            clipboardContent.putString(summary);
+            clipboard.setContent(clipboardContent);
+            showSuccess("Résumé copié !");
+        });
+
+        Button closeButton = new Button("Fermer");
+        closeButton.setStyle("-fx-background-color: #6b7280; -fx-text-fill: white; -fx-padding: 12 25; -fx-cursor: hand; -fx-background-radius: 8; -fx-font-size: 14px;");
+        closeButton.setOnAction(e -> stage.close());
+
+        buttonBox.getChildren().addAll(copyButton, closeButton);
+
+        centerContent.getChildren().addAll(successBox, summaryArea, buttonBox);
+    }
+
+    private void displaySummaryError(VBox centerContent, Throwable error, Stage stage) {
+        centerContent.getChildren().clear();
+
+        HBox errorBox = new HBox(15);
+        errorBox.setAlignment(Pos.CENTER);
+
+        Label errorIcon = new Label("❌");
+        errorIcon.setStyle("-fx-font-size: 48px;");
+
+        Label errorTitle = new Label("Erreur");
+        errorTitle.setStyle("-fx-font-size: 24px; -fx-font-weight: bold; -fx-text-fill: #dc2626;");
+
+        errorBox.getChildren().addAll(errorIcon, errorTitle);
+
+        TextArea errorArea = new TextArea("Erreur: " + error.getMessage() + "\n\nUtilisation du résumé local...");
+        errorArea.setWrapText(true);
+        errorArea.setEditable(false);
+        errorArea.setPrefRowCount(5);
+        errorArea.setStyle("-fx-font-size: 14px; -fx-background-color: #fee2e2; -fx-background-radius: 8; -fx-border-color: #fecaca; -fx-border-radius: 8; -fx-padding: 15;");
+        errorArea.setMaxWidth(650);
+
+        Button closeButton = new Button("Fermer");
+        closeButton.setStyle("-fx-background-color: #6b7280; -fx-text-fill: white; -fx-padding: 12 25; -fx-cursor: hand; -fx-background-radius: 8; -fx-font-size: 14px;");
+        closeButton.setOnAction(e -> stage.close());
+
+        HBox buttonBox = new HBox();
+        buttonBox.setAlignment(Pos.CENTER);
+        buttonBox.getChildren().add(closeButton);
+
+        centerContent.getChildren().addAll(errorBox, errorArea, buttonBox);
     }
 
     private void refreshChat() {
@@ -1108,41 +1414,6 @@ public class MessageController {
             }
         }
     }
-
-    @FXML
-    private void startVideoCall() {
-        if (currentConversationId != -1) {
-            Alert alert = new Alert(Alert.AlertType.INFORMATION);
-            alert.setTitle("Appel vidéo");
-            alert.setHeaderText("Démarrage d'un appel vidéo");
-            alert.setContentText("Appel vidéo avec " + getOtherParticipantName());
-
-            ButtonType startCall = new ButtonType("Démarrer", ButtonBar.ButtonData.OK_DONE);
-            ButtonType cancel = new ButtonType("Annuler", ButtonBar.ButtonData.CANCEL_CLOSE);
-            alert.getButtonTypes().setAll(startCall, cancel);
-
-            Optional<ButtonType> result = alert.showAndWait();
-            if (result.isPresent() && result.get() == startCall) {
-                showSuccess("Appel vidéo démarré ! (Simulation)");
-            }
-        }
-    }
-
-    @FXML
-    private void startAudioCall() {
-        if (currentConversationId != -1) {
-            Alert alert = new Alert(Alert.AlertType.INFORMATION);
-            alert.setTitle("Appel audio");
-            alert.setHeaderText("Démarrage d'un appel audio");
-            alert.setContentText("Appel audio avec " + getOtherParticipantName());
-
-            Optional<ButtonType> result = alert.showAndWait();
-            if (result.isPresent() && result.get() == ButtonType.OK) {
-                showSuccess("Appel audio en cours...");
-            }
-        }
-    }
-
     @FXML
     private void scheduleMeeting() {
         if (currentConversationId != -1) {
@@ -1206,6 +1477,7 @@ public class MessageController {
         this.currentConversationId = id;
         disableButtons(false);
         refreshChat();
+        initWebSocket(); // Initialiser WebSocket
     }
 
     public void setConversationInfo(int clientId, int freelanceId) {
@@ -1237,6 +1509,9 @@ public class MessageController {
 
     @FXML
     private void handleRetour() {
+        if (webSocketClient != null) {
+            webSocketClient.close();
+        }
         try {
             FXMLLoader loader = new FXMLLoader(getClass().getResource("/com/khademni/Conversation.fxml"));
             Parent root = loader.load();
