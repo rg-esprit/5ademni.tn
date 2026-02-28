@@ -4,13 +4,15 @@ import com.khademni.model.Article;
 import com.khademni.model.GigModel;
 import com.khademni.interfaces.IArticle;
 import com.khademni.utils.MyDataBase;
-
+import com.khademni.service.*;
 import java.sql.*;
 import java.time.LocalDateTime;
 import java.util.ArrayList;
 import java.util.List;
 
 public class ArticleController implements IArticle {
+	private final FavoriController favoriService = new FavoriController();
+private final CommentaireController commentaireService = new CommentaireController();
 
 	private final Connection connection;
 
@@ -22,89 +24,115 @@ public ArticleController() {
     }
 }
 
+
+public int getFavoriCount(Article article) throws SQLException {
+    return favoriService.countByArticle(article.getId());
+}
+
+public int getCommentCount(Article article) throws SQLException {
+    return commentaireService.countByArticle(article.getId());
+}
+
 @Override
-	public Article create(Article article) throws SQLException {
-		String sql = "INSERT INTO article (title, content, status, created_at, image_path) VALUES (?, ?, ?, ?, ?)";
+public Article create(Article article) throws SQLException {
+    String sql = "INSERT INTO article (title, content, status, created_at, image_path) VALUES (?, ?, ?, ?, ?)";
 
+    try (Connection conn = MyDataBase.getConnection();
+         PreparedStatement stmt = conn.prepareStatement(sql, Statement.RETURN_GENERATED_KEYS)) {
 
-		try (PreparedStatement stmt = connection.prepareStatement(
-				sql, Statement.RETURN_GENERATED_KEYS)) {
+        stmt.setString(1, article.getTitle());
+        stmt.setString(2, article.getContent());
+        stmt.setString(3, article.getStatus());
+        stmt.setTimestamp(4, java.sql.Timestamp.valueOf(article.getCreatedAt()));
+        stmt.setString(5, article.getImagePath());
 
-			stmt.setString(1, article.getTitle());
-			stmt.setString(2, article.getContent());
-			stmt.setString(3, article.getStatus());
-			stmt.setTimestamp(4, Timestamp.valueOf(article.getCreatedAt()));
-stmt.setString(5, article.getImagePath());
+        int rowsAffected = stmt.executeUpdate();
+        if (rowsAffected == 0) {
+            throw new SQLException("L'insertion de l'article a échoué, aucune ligne affectée.");
+        }
 
-			stmt.executeUpdate();
+        try (ResultSet rs = stmt.getGeneratedKeys()) {
+            if (rs.next()) {
+                article.setId(rs.getLong(1));
+            }
+        }
+    } catch (SQLException e) {
+        System.err.println("Erreur lors de l'insertion de l'article : " + e.getMessage());
+        throw e;
+    }
 
-			try (ResultSet rs = stmt.getGeneratedKeys()) {
-				if (rs.next()) {
-					article.setId(rs.getLong(1));
-				}
-			}
-		}
-
-		return article;
-	}
-
+    return article;
+}
 	@Override
-	public boolean update(Article article) throws SQLException {
-		String sql = "UPDATE article SET title = ?, content = ?, status = ?, image_path = ? WHERE id = ?";
+public boolean update(Article article) throws SQLException {
+    String sql = "UPDATE article SET title = ?, content = ?, status = ?, image_path = ? WHERE id = ?";
 
+    try (Connection conn = MyDataBase.getConnection();
+         PreparedStatement stmt = conn.prepareStatement(sql)) {
 
-		try (PreparedStatement stmt = connection.prepareStatement(sql)) {
-			stmt.setString(1, article.getTitle());
-			stmt.setString(2, article.getContent());
-			stmt.setString(3, article.getStatus());
-			stmt.setLong(4, article.getId());
-stmt.setString(4, article.getImagePath());
-stmt.setLong(5, article.getId());
-			return stmt.executeUpdate() > 0;
-		}
-	}
+        stmt.setString(1, article.getTitle());
+        stmt.setString(2, article.getContent());
+        stmt.setString(3, article.getStatus());
+        stmt.setString(4, article.getImagePath());
+        stmt.setLong(5, article.getId());
 
-	@Override
-	public boolean delete(Long id) throws SQLException {
-		String sql = "DELETE FROM article WHERE id = ?";
+        int rowsAffected = stmt.executeUpdate();
+        return rowsAffected > 0;
+    } catch (SQLException e) {
+        System.err.println("Erreur lors de la mise à jour de l'article : " + e.getMessage());
+        throw e;
+    }
+}
 
-		try (PreparedStatement stmt = connection.prepareStatement(sql)) {
-			stmt.setLong(1, id);
-			return stmt.executeUpdate() > 0;
-		}
-	}
+@Override
+public boolean delete(Long id) throws SQLException {
+    String sql = "DELETE FROM article WHERE id = ?";
 
-	@Override
-	public Article findById(Long id) throws SQLException {
-		String sql = "SELECT * FROM article WHERE id = ?";
+    try (Connection conn = MyDataBase.getConnection();
+         PreparedStatement stmt = conn.prepareStatement(sql)) {
 
-		try (PreparedStatement stmt = connection.prepareStatement(sql)) {
-			stmt.setLong(1, id);
+        stmt.setLong(1, id);
 
-			try (ResultSet rs = stmt.executeQuery()) {
-				if (rs.next()) {
-					return mapArticle(rs);
-				}
-			}
-		}
-		return null;
-	}
+        int rowsAffected = stmt.executeUpdate();
+        return rowsAffected > 0;
+    } catch (SQLException e) {
+        System.err.println("Erreur lors de la suppression de l'article : " + e.getMessage());
+        throw e;
+    }
+}
+
+@Override
+public Article findById(Long id) throws SQLException {
+    String sql = "SELECT * FROM article WHERE id = ?";
+    try (Connection conn = MyDataBase.getConnection();
+         PreparedStatement stmt = conn.prepareStatement(sql)) {
+        stmt.setLong(1, id);
+        try (ResultSet rs = stmt.executeQuery()) {
+            if (rs.next()) {
+                return mapArticle(rs);
+            }
+        }
+    }
+    return null;
+}
 //change avec executeUpdate
 	// le query dans affichage
-	@Override
-	public List<Article> findAll() throws SQLException {
-		String sql = "SELECT * FROM article ORDER BY created_at DESC";
-		List<Article> articles = new ArrayList<>();
+@Override
+public List<Article> findAll() throws SQLException {
+    String sql = "SELECT * FROM article ORDER BY created_at DESC";
+    List<Article> articles = new ArrayList<>();
 
-		try (PreparedStatement stmt = connection.prepareStatement(sql);
-			 ResultSet rs = stmt.executeQuery()) {
+    try (Connection conn = MyDataBase.getConnection();
+         PreparedStatement stmt = conn.prepareStatement(sql);
+         ResultSet rs = stmt.executeQuery()) {
 
-			while (rs.next()) {
-				articles.add(mapArticle(rs));
-			}
-		}
-		return articles;
-	}
+        while (rs.next()) {
+            articles.add(mapArticle(rs));
+        }
+    }
+
+    return articles;
+}
 
 
 	private Article mapArticle(ResultSet rs) throws SQLException {

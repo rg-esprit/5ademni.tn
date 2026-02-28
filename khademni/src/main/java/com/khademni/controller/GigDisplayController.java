@@ -78,59 +78,20 @@ public class GigDisplayController {
             e.printStackTrace();
         }
     }
-    private List<GigModel> fetchGigsByArticle(Article article) {
-        List<GigModel> gigs = new ArrayList<>();
-
-        String query = """
-            SELECT g.id, g.title, g.description, g.price, g.delivery_time, g.image, g.status
-            FROM gig g
-            WHERE g.article_id = ?
-        """;
-
-        try (Connection conn = MyDataBase.getConnection();
-             PreparedStatement ps = conn.prepareStatement(query)) {
-
-            ps.setLong(1, article.getId());
-            ResultSet rs = ps.executeQuery();
-
-            while (rs.next()) {
-                GigModel gig = new GigModel(
-                        rs.getInt("id"),
-                        rs.getString("title"),
-                        rs.getString("description"),
-                        rs.getDouble("price"),
-                        rs.getTimestamp("delivery_time").toLocalDateTime(),
-                        rs.getString("image"),
-                        rs.getString("status")
-                );
-                gigs.add(gig);
-            }
-
-        } catch (SQLException e) {
-            e.printStackTrace();
-        }
-
-        return gigs;
-    }
+    
 private List<GigModel> fetchGigsByKeywords(List<String> keywords) {
     List<GigModel> gigs = new ArrayList<>();
     String query = """
         SELECT g.id, g.title, g.description, g.price, g.delivery_time, g.image, g.status
         FROM gig g
-        WHERE """ + String.join(" OR ", keywords.stream().map(k -> "(g.title LIKE ? OR g.description LIKE ?)").toList());
+    """;
 
     try (Connection conn = MyDataBase.getConnection();
          PreparedStatement stmt = conn.prepareStatement(query)) {
 
-        int index = 1;
-        for (String keyword : keywords) {
-            stmt.setString(index++, "%" + keyword + "%");
-            stmt.setString(index++, "%" + keyword + "%");
-        }
-
         ResultSet rs = stmt.executeQuery();
         while (rs.next()) {
-            gigs.add(new GigModel(
+            GigModel gig = new GigModel(
                 rs.getInt("id"),
                 rs.getString("title"),
                 rs.getString("description"),
@@ -138,7 +99,12 @@ private List<GigModel> fetchGigsByKeywords(List<String> keywords) {
                 rs.getTimestamp("delivery_time").toLocalDateTime(),
                 rs.getString("image"),
                 rs.getString("status")
-            ));
+            );
+
+            // Vérifiez si au moins deux mots correspondent
+            if (hasAtLeastTwoMatchingWords(keywords, gig)) {
+                gigs.add(gig);
+            }
         }
     } catch (SQLException e) {
         e.printStackTrace();
@@ -146,7 +112,24 @@ private List<GigModel> fetchGigsByKeywords(List<String> keywords) {
 
     return gigs;
 }
+private boolean hasAtLeastTwoMatchingWords(List<String> keywords, GigModel gig) {
+    // Combine le titre et la description du Gig
+    String gigContent = (gig.getTitle() + " " + gig.getDescription()).toLowerCase();
 
+    int matchCount = 0;
+
+    // Comptez les mots correspondants
+    for (String keyword : keywords) {
+        if (gigContent.contains(keyword.toLowerCase())) {
+            matchCount++;
+        }
+        if (matchCount >= 2) {
+            return true; // Au moins deux mots correspondent
+        }
+    }
+
+    return false; // Moins de deux mots correspondent
+}
 
 private List<String> extractKeywords(Article article) {
     String content = article.getTitle() + " " + article.getContent();

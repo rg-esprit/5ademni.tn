@@ -2,18 +2,21 @@ package com.khademni.controller;
 
 import com.khademni.model.*;
 
+import javafx.animation.ScaleTransition;
 import javafx.fxml.FXML;
 import javafx.scene.chart.*;
 import javafx.scene.control.*;
 import javafx.scene.control.cell.PropertyValueFactory;
 import javafx.scene.control.cell.TextFieldTableCell;
 import javafx.scene.layout.HBox;
+import javafx.scene.layout.StackPane;
 import javafx.scene.layout.VBox;
 import javafx.stage.FileChooser;
-
+import javafx.util.Duration;
 import org.kordamp.ikonli.javafx.FontIcon;
-import org.kordamp.ikonli.fontawesome5.FontAwesomeSolid;
 import com.khademni.service.*;
+import com.khademni.utils.EmailService;
+import com.khademni.utils.SessionManager;
 
 import java.io.File;
 import java.sql.SQLException;
@@ -28,13 +31,27 @@ public class ArticleGUIController {
     @FXML private TableColumn<Article, LocalDateTime> colDate;
     @FXML private TableColumn<Article, Void> colActions;
 
+    @FXML
+private PieChart pieChartFavoris;
+
+@FXML
+private PieChart pieChartCommentaires;
+
     @FXML private TextField txtTitle;
     @FXML private TextArea txtContent;
     @FXML private ComboBox<String> cmbStatus;
     @FXML private Label errorTitle;
     @FXML private Label errorContent;
     @FXML private Label errorStatus;
-    @FXML
+
+    @FXML private BarChart<String, Number> barChartFavoris;
+@FXML private CategoryAxis xAxisFavoris;
+@FXML private NumberAxis yAxisFavoris;
+
+@FXML private BarChart<String, Number> barChartCommentaires;
+@FXML private CategoryAxis xAxisCommentaires;
+@FXML private NumberAxis yAxisCommentaires;
+  @FXML
     private javafx.scene.chart.PieChart pieChart;
 @FXML
 private Label lblTotal;
@@ -50,17 +67,22 @@ private Label lblMasque;
 @FXML
 private TextField searchField;
 @FXML private TextField txtImagePath;
+@FXML
+private VBox totalArticlesCard, visibleArticlesCard, hiddenArticlesCard;
 
     private final ArticleController articleController = new ArticleController();
     private Article articleSelectionne; // ✅ IMPORTANT
-private Article editingArticle = null;
+
+private final FavoriController favoriService = new FavoriController();
+private final CommentaireController commentaireService = new CommentaireController();
+
 
     // ==================================================
     // INITIALIZE
     // ==================================================
     @FXML
     public void initialize() {
-
+   
         // ComboBox
         cmbStatus.getItems().addAll("VISIBLE", "MASQUE");
 
@@ -229,6 +251,27 @@ private void supprimerArticle(Article article) {
                 loadStatistics();
                 clearForm();
 
+                // Envoi de l'email après la suppression de l'article
+                try {
+                    UserModel currentUser = SessionManager.getCurrentUser();
+                    if (currentUser != null) {
+                        String userEmail = currentUser.getEmail();
+                        EmailService.sendEmail(
+                                userEmail,
+                                "Article supprimé : " + article.getTitle(),
+                                "L'article suivant a été supprimé :\n\n" +
+                                "Titre : " + article.getTitle() + "\n" +
+                                "Contenu : " + article.getContent()
+                        );
+                        System.out.println("Email envoyé à : " + userEmail);
+                    } else {
+                        System.out.println("Aucun utilisateur connecté. Impossible d'envoyer l'email.");
+                    }
+                } catch (Exception e) {
+                    e.printStackTrace();
+                    showAlert(Alert.AlertType.ERROR, "Erreur", "Impossible d'envoyer l'email !");
+                }
+
                 showAlert(Alert.AlertType.INFORMATION,
                         "Succès",
                         "Article supprimé avec succès !");
@@ -241,9 +284,22 @@ private void supprimerArticle(Article article) {
     });
 }
 
-    private void loadStatistics() {
+private void loadStatistics() {
     try {
         var articles = articleController.findAll();
+
+        System.out.println("Articles trouvés : " + articles.size());
+        for (Article article : articles) {
+            int favorisCount = favoriService.countByArticle(article.getId());
+            int commentairesCount = commentaireService.countByArticle(article.getId());
+            System.out.println("Article : " + article.getTitle() + ", Favoris : " + favorisCount + ", Commentaires : " + commentairesCount);
+        }
+
+        // Vérifiez si les données sont bien récupérées
+        if (articles.isEmpty()) {
+            System.out.println("Aucun article trouvé !");
+            return;
+        }
 
         long visibleCount = articles.stream()
                 .filter(a -> "VISIBLE".equalsIgnoreCase(a.getStatus()))
@@ -272,20 +328,57 @@ private void supprimerArticle(Article article) {
             masqueSlice.getNode().setStyle("-fx-pie-color: #c4b5fd;");
         }
 
-        // ===== BARCHART =====
-        // barChart.getData().clear();
-        // XYChart.Series<String, Number> series = new XYChart.Series<>();
-        // series.getData().add(new XYChart.Data<>("VISIBLE", visibleCount));
-        // series.getData().add(new XYChart.Data<>("MASQUE", masqueCount));
+        // ===== BAR CHART FAVORIS =====
+        barChartFavoris.getData().clear();
+        xAxisFavoris.getCategories().clear();
+        yAxisFavoris.setLabel("Nombre de Favoris");
 
-        // barChart.getData().add(series);
+        XYChart.Series<String, Number> favorisSeries = new XYChart.Series<>();
+        favorisSeries.setName("Favoris");
 
+        for (Article article : articles) {
+            int favorisCount = favoriService.countByArticle(article.getId());
+            if (favorisCount > 0) {
+                favorisSeries.getData().add(new XYChart.Data<>(article.getTitle(), favorisCount));
+            }
+        }
+
+        barChartFavoris.getData().add(favorisSeries);
+
+        // ===== BAR CHART COMMENTAIRES =====
+        barChartCommentaires.getData().clear();
+        xAxisCommentaires.getCategories().clear();
+        yAxisCommentaires.setLabel("Nombre de Commentaires");
+yAxisCommentaires.setAutoRanging(true);
+yAxisCommentaires.setForceZeroInRange(true);
+        XYChart.Series<String, Number> commentairesSeries = new XYChart.Series<>();
+        commentairesSeries.setName("Commentaires");
+
+        for (Article article : articles) {
+            int commentairesCount = commentaireService.countByArticle(article.getId());
+            if (commentairesCount > 0) {
+                XYChart.Data<String, Number> data = new XYChart.Data<>(article.getTitle(), commentairesCount);
+                commentairesSeries.getData().add(data);
+
+                // Ajouter une étiquette sur chaque barre après que le nœud soit créé
+                data.nodeProperty().addListener((obs, oldNode, newNode) -> {
+                    if (newNode != null) {
+                        Label label = new Label(data.getYValue().toString());
+                        label.setStyle("-fx-font-size: 12px; -fx-text-fill: #6c0df2; -fx-font-weight: bold;");
+                        StackPane stackPane = (StackPane) newNode;
+                        stackPane.getChildren().add(label);
+                    }
+                });
+            }
+        }
+
+        barChartCommentaires.getData().add(commentairesSeries);
+        xAxisCommentaires.setTickLabelRotation(20); // Rotation des étiquettes pour une meilleure lisibilité
+  
     } catch (Exception e) {
         e.printStackTrace();
     }
 }
-
-
 
     // ==================================================
     // ACTIONS COLUMN
@@ -362,9 +455,8 @@ public void loadArticles() {
     // ==================================================
     // CRUD
     // ==================================================
-    @FXML
+  @FXML
 public void ajouterArticle() {
-
     if (!validateForm()) return;
 
     try {
@@ -376,13 +468,37 @@ public void ajouterArticle() {
                     txtContent.getText(),
                     cmbStatus.getValue(),
                     LocalDateTime.now(),
-    txtImagePath.getText()
+                    txtImagePath.getText()
             );
+
+            System.out.println("Tentative d'ajout de l'article : " + article);
+
             articleController.create(article);
 
-            showAlert(Alert.AlertType.INFORMATION,
-                    "Succès",
-                    "Article ajouté avec succès !");
+            System.out.println("Article ajouté avec succès dans la base de données.");
+
+            showAlert(Alert.AlertType.INFORMATION, "Succès", "Article ajouté avec succès !");
+                 // Envoi de l'email après l'ajout de l'article
+            try {
+                UserModel currentUser = SessionManager.getCurrentUser();
+                if (currentUser != null) {
+                    String userEmail = currentUser.getEmail();
+                    EmailService.sendArticleCreationEmail(
+                            userEmail,
+                            article.getTitle(),
+                            article.getContent(),
+                            article.getCreatedAt().toString()
+                    );
+                    System.out.println("Email envoyé à : " + userEmail);
+                } else {
+                    System.out.println("Aucun utilisateur connecté. Impossible d'envoyer l'email.");
+                }
+            } catch (Exception e) {
+                e.printStackTrace();
+                showAlert(Alert.AlertType.ERROR, "Erreur", "Impossible d'envoyer l'email !");
+            }
+
+            showAlert(Alert.AlertType.INFORMATION, "Succès", "Article ajouté avec succès !");
         } else {
             // ===== MODIFICATION =====
             articleSelectionne.setTitle(txtTitle.getText());
@@ -392,51 +508,70 @@ public void ajouterArticle() {
 
             articleController.update(articleSelectionne);
 
-            showAlert(Alert.AlertType.INFORMATION,
-                    "Succès",
-                    "Article modifié avec succès !");
+            showAlert(Alert.AlertType.INFORMATION, "Succès", "Article modifié avec succès !");
         }
 
         loadArticles();
         loadStatistics();
         hideForm();
 
-        // 🔥 Réinitialise la sélection
         articleSelectionne = null;
 
     } catch (Exception e) {
-        showAlert(Alert.AlertType.ERROR,
-                "Erreur",
-                "Erreur lors de l'opération !");
+        e.printStackTrace();
+        showAlert(Alert.AlertType.ERROR, "Erreur", "Erreur lors de l'opération !");
+    }
+}
+
+
+   @FXML
+public void modifierArticle() {
+
+    if (articleSelectionne == null) return;
+    if (!validateForm()) return;
+
+    try {
+        articleSelectionne.setTitle(txtTitle.getText());
+        articleSelectionne.setContent(txtContent.getText());
+        articleSelectionne.setStatus(cmbStatus.getValue());
+        articleSelectionne.setImagePath(txtImagePath.getText());
+
+        articleController.update(articleSelectionne);
+
+        // Envoi de l'email après la modification de l'article
+        try {
+            UserModel currentUser = SessionManager.getCurrentUser();
+            if (currentUser != null) {
+                String userEmail = currentUser.getEmail();
+                EmailService.sendEmail(
+                        userEmail,
+                        "Article modifié : " + articleSelectionne.getTitle(),
+                        "L'article suivant a été modifié :\n\n" +
+                        "Titre : " + articleSelectionne.getTitle() + "\n" +
+                        "Contenu : " + articleSelectionne.getContent() + "\n" +
+                        "Statut : " + articleSelectionne.getStatus()
+                );
+                System.out.println("Email envoyé à : " + userEmail);
+            } else {
+                System.out.println("Aucun utilisateur connecté. Impossible d'envoyer l'email.");
+            }
+        } catch (Exception e) {
+            e.printStackTrace();
+            showAlert(Alert.AlertType.ERROR, "Erreur", "Impossible d'envoyer l'email !");
+        }
+
+        loadArticles();
+        loadStatistics();
+        clearForm();
+        showAlert(Alert.AlertType.INFORMATION, "Succès", "Article modifié avec succès !");
+
+    } catch (Exception e) {
+        showAlert(Alert.AlertType.ERROR, "Erreur", "Erreur lors de la modification !");
     }
 }
 
 
     @FXML
-    public void modifierArticle() {
-
-        if (articleSelectionne == null) return;
-        if (!validateForm()) return;
-
-        try {
-            articleSelectionne.setTitle(txtTitle.getText());
-            articleSelectionne.setContent(txtContent.getText());
-            articleSelectionne.setStatus(cmbStatus.getValue());
-articleSelectionne.setImagePath(txtImagePath.getText());
-
-            articleController.update(articleSelectionne);
-            loadArticles();
-            loadStatistics();
-            clearForm();
-            showAlert(Alert.AlertType.INFORMATION, "Succès", "Article modifié avec succès !");
-
-        } catch (Exception e) {
-            showAlert(Alert.AlertType.ERROR, "Erreur", "Erreur lors de la modification !");
-        }
-    }
-
-
-@FXML
 public void supprimerArticle() {
 
     if (articleSelectionne == null) return;
@@ -529,6 +664,9 @@ public void supprimerArticle() {
                 isValid = false;
             }
         }
+    }
+     if (!isValid) {
+        System.out.println("Validation échouée. Vérifiez les champs du formulaire.");
     }
         return isValid;
     }

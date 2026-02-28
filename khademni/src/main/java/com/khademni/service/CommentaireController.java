@@ -29,18 +29,20 @@ public class CommentaireController implements ICommentaire {
 	// ==============================
 	@Override
 public Commentaire create(Commentaire commentaire) throws SQLException {
-	if (commentaire.getUser() == null || commentaire.getUser().getId() <= 0) {
-		throw new IllegalArgumentException("User must be set and have a valid ID.");
-	}
+    if (commentaire.getUser() == null || commentaire.getUser().getId() <= 0) {
+        throw new IllegalArgumentException("User must be set and have a valid ID.");
+    }
 
     String sql = "INSERT INTO commentaire (content, status, created_at, article_id, user_id) VALUES (?, ?, ?, ?, ?)";
 
-    try (PreparedStatement stmt = connection.prepareStatement(sql, Statement.RETURN_GENERATED_KEYS)) {
+    try (Connection conn = MyDataBase.getConnection(); // Use a fresh connection
+         PreparedStatement stmt = conn.prepareStatement(sql, Statement.RETURN_GENERATED_KEYS)) {
+
         stmt.setString(1, commentaire.getContent());
         stmt.setString(2, commentaire.getStatus());
         stmt.setTimestamp(3, Timestamp.valueOf(commentaire.getCreatedAt()));
-        stmt.setLong(4, commentaire.getArticleId());
-        stmt.setInt(5, commentaire.getUser().getId()); // Ensure user ID is valid
+        stmt.setLong(4, commentaire.getArticle().getId());
+        stmt.setInt(5, commentaire.getUser().getId());
 
         stmt.executeUpdate();
 
@@ -53,6 +55,21 @@ public Commentaire create(Commentaire commentaire) throws SQLException {
 
     return commentaire;
 }
+
+
+
+public int countByArticle(Long articleId) throws SQLException {
+    String query = "SELECT COUNT(*) FROM commentaire WHERE article_id = ?";
+    try (Connection conn = MyDataBase.getConnection();
+         PreparedStatement ps = conn.prepareStatement(query)) {
+        ps.setLong(1, articleId);
+        ResultSet rs = ps.executeQuery();
+        if (rs.next()) {
+            return rs.getInt(1);
+        }
+    }
+    return 0;
+}
 	// ==============================
 	// UPDATE COMPLET
 	// ==============================
@@ -60,7 +77,8 @@ public Commentaire create(Commentaire commentaire) throws SQLException {
 	public boolean update(Commentaire commentaire) throws SQLException {
 
 		 String sql = "UPDATE commentaire SET content = ? WHERE id = ? AND user_id = ?";
-    try (PreparedStatement stmt = connection.prepareStatement(sql)) {
+    try (Connection conn = MyDataBase.getConnection(); // Use a fresh connection
+         PreparedStatement stmt = conn.prepareStatement(sql)) {
         stmt.setString(1, commentaire.getContent());
         stmt.setLong(2, commentaire.getId());
         stmt.setInt(3, SessionManager.getCurrentUser().getId()); // Ensure only the author can update
@@ -89,10 +107,14 @@ public Commentaire create(Commentaire commentaire) throws SQLException {
 	// ==============================
 @Override
 public boolean delete(Long id) throws SQLException {
-    String sql = "DELETE FROM commentaire WHERE id = ? AND user_id = ?";
-    try (PreparedStatement stmt = connection.prepareStatement(sql)) {
+    if (id == null) {
+        throw new IllegalArgumentException("L'ID du commentaire ne peut pas être null.");
+    }
+
+    String sql = "DELETE FROM commentaire WHERE id = ?";
+    try (Connection conn = MyDataBase.getConnection();
+         PreparedStatement stmt = conn.prepareStatement(sql)) {
         stmt.setLong(1, id);
-        stmt.setInt(2, SessionManager.getCurrentUser().getId()); // Validate ownership
         return stmt.executeUpdate() > 0;
     }
 }
@@ -144,24 +166,26 @@ public boolean delete(Long id) throws SQLException {
 	// FIND BY ARTICLE (IMPORTANT 🔥)
 	// ==============================
 	public List<Commentaire> findByArticleId(Long articleId) throws SQLException {
+    String sql = "SELECT * FROM commentaire WHERE article_id = ? ORDER BY created_at DESC";
+    List<Commentaire> commentaires = new ArrayList<>();
 
-		String sql = "SELECT * FROM commentaire WHERE article_id = ? ORDER BY created_at DESC";
-		List<Commentaire> commentaires = new ArrayList<>();
+    try (Connection conn = MyDataBase.getConnection(); // Use a fresh connection
+         PreparedStatement stmt = conn.prepareStatement(sql)) {
 
-		try (PreparedStatement stmt = connection.prepareStatement(sql)) {
+        stmt.setLong(1, articleId);
 
-			stmt.setLong(1, articleId);
+        try (ResultSet rs = stmt.executeQuery()) {
+            while (rs.next()) {
+                commentaires.add(map(rs));
+            }
+        }
+    } catch (SQLException e) {
+        e.printStackTrace();
+        throw e;
+    }
 
-			try (ResultSet rs = stmt.executeQuery()) {
-
-				while (rs.next()) {
-					commentaires.add(map(rs));
-				}
-			}
-		}
-
-		return commentaires;
-	}
+    return commentaires;
+}
 
 	// ==============================
 	// MAPPING RESULTSET → OBJECT

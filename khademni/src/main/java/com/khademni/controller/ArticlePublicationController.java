@@ -1,5 +1,8 @@
 package com.khademni.controller;
 
+import javafx.animation.Interpolator;
+import javafx.animation.ScaleTransition;
+import javafx.animation.TranslateTransition;
 import javafx.fxml.FXML;
 import javafx.fxml.FXMLLoader;
 import javafx.geometry.Insets;
@@ -11,10 +14,13 @@ import javafx.scene.image.Image;
 import javafx.scene.image.ImageView;
 import javafx.scene.layout.*;
 import javafx.stage.Stage;
+import javafx.util.Duration;
 
+import org.json.JSONArray;
+import org.json.JSONObject;
 import com.khademni.App;
 import com.khademni.model.*;
-
+import com.khademni.utils.ContentModeration;
 import com.khademni.service.ArticleController;
 import com.khademni.service.CommentaireController;
 import com.khademni.service.FavoriController;
@@ -23,6 +29,7 @@ import com.khademni.utils.SessionManager;
 
 import org.kordamp.ikonli.javafx.FontIcon;
 
+import java.io.File;
 import java.io.IOException;
 import java.sql.Connection;
 import java.sql.PreparedStatement;
@@ -39,6 +46,13 @@ import org.kordamp.ikonli.fontawesome5.FontAwesomeSolid;
 
 public class ArticlePublicationController {
 
+@FXML
+private VBox commentCard;
+
+@FXML
+private VBox commentContainer;
+@FXML
+private TilePane gigsContainer;
     @FXML private ListView<Article> listArticles;
 
     private final ArticleController articleService = new ArticleController();
@@ -47,12 +61,64 @@ public class ArticlePublicationController {
 @FXML
 private TilePane articlesContainer;
 @FXML
-private TilePane gigsContainer;
+private HBox mainContainer;
+@FXML
+private StackPane rootPane;
+
+@FXML
+private VBox mainContent;
     @FXML
     public void initialize() {
       loadArticles();
     }
+    @FXML
+private VBox gigsCard;
 
+@FXML
+private void showGigsCard() {
+    gigsCard.setVisible(true);
+    gigsCard.setManaged(true);
+
+    // Animation de translation depuis la droite
+    TranslateTransition translateTransition = new TranslateTransition(Duration.millis(300), gigsCard);
+    translateTransition.setFromX(500); // Position initiale (en dehors de l'écran)
+    translateTransition.setToX(0); // Position finale (visible à l'écran)
+    translateTransition.setInterpolator(Interpolator.EASE_OUT);
+    translateTransition.play();
+}
+
+@FXML
+private void showCommentCard(Article article) {
+    commentCard.setVisible(true);
+    commentCard.setManaged(true);
+    mainContainer.setDisable(true); // Disable the main content
+    mainContainer.setStyle("-fx-opacity: 0.3;"); // Dim the main content
+    chargerCommentaires(article, commentContainer); // Load comments for the selected article
+ // Center the comment card
+    StackPane.setAlignment(commentCard, Pos.CENTER);
+}
+
+@FXML
+private void hideCommentCard() {
+    commentCard.setVisible(false);
+    commentCard.setManaged(false);
+    mainContainer.setDisable(false); // Re-enable the main content
+    mainContainer.setStyle("-fx-opacity: 1;"); // Restore the main content opacity
+}
+@FXML
+private void showGigsCard(Article article) {
+    gigsCard.setVisible(true);
+    gigsCard.setManaged(true);
+    mainContainer.getStyleClass().add("gigs-visible"); // Add the class to align left
+    loadGigsByArticle(article); // Load Gigs for the selected article
+}
+
+@FXML
+private void hideGigsCard() {
+    gigsCard.setVisible(false);
+    gigsCard.setManaged(false);
+    mainContainer.getStyleClass().remove("gigs-visible"); // Retirer la classe pour centrer
+}
 
     private void showAlert(Alert.AlertType type, String title, String message) {
         Alert alert = new Alert(type);
@@ -62,24 +128,65 @@ private TilePane gigsContainer;
         alert.showAndWait();
     }
 private void loadArticles() {
-        try {
-            // Charger uniquement les articles avec le statut "VISIBLE"
-            var articlesVisibles = articleService.findAll().stream()
-                    .filter(a -> "VISIBLE".equalsIgnoreCase(a.getStatus()))
-                    .toList();
+    try {
+        // Charger uniquement les articles avec le statut "VISIBLE"
+        var articlesVisibles = articleService.findAll().stream()
+                .filter(a -> "VISIBLE".equalsIgnoreCase(a.getStatus()))
+                .toList();
 
-            articlesContainer.getChildren().clear();
+        // Appliquer le tri en fonction du filtre sélectionné
+        var articlesTries = articlesVisibles.stream()
+                .sorted((a1, a2) -> {
+                    if ("favoris".equals(currentFilter)) {
+                        return Integer.compare(getFavoriCount(a2), getFavoriCount(a1)); // Trier par favoris
+                    } else if ("commentaires".equals(currentFilter)) {
+                        return Integer.compare(getCommentCount(a2), getCommentCount(a1)); // Trier par commentaires
+                    }
+                    return 0; // Aucun tri par défaut
+                })
+                .toList();
 
-            for (Article article : articlesVisibles) {
-                VBox card = createArticleCard(article);
-                articlesContainer.getChildren().add(card);
-            }
+        articlesContainer.getChildren().clear();
 
-        } catch (Exception e) {
-            e.printStackTrace();
-            showAlert(Alert.AlertType.ERROR, "Erreur", "Impossible de charger les articles.");
+        for (Article article : articlesTries) {
+            VBox card = createArticleCard(article);
+            articlesContainer.getChildren().add(card);
         }
+
+    } catch (Exception e) {
+        e.printStackTrace();
+        showAlert(Alert.AlertType.ERROR, "Erreur", "Impossible de charger les articles.");
     }
+
+    }
+
+
+    
+@FXML
+private Button filterButton;
+
+private String currentFilter = "favoris";
+
+    @FXML
+private void showFilterOptions() {
+    ContextMenu filterMenu = new ContextMenu();
+
+    MenuItem filterByFavoris = new MenuItem("Filtrer par Favoris");
+    filterByFavoris.setOnAction(e -> {
+        currentFilter = "favoris";
+        loadArticles(); // Recharger les articles avec le filtre sélectionné
+    });
+
+    MenuItem filterByCommentaires = new MenuItem("Filtrer par Commentaires");
+    filterByCommentaires.setOnAction(e -> {
+        currentFilter = "commentaires";
+        loadArticles(); // Recharger les articles avec le filtre sélectionné
+    });
+
+    filterMenu.getItems().addAll(filterByFavoris, filterByCommentaires);
+    filterMenu.show(filterButton, filterButton.getLayoutX(), filterButton.getLayoutY() + filterButton.getHeight());
+}
+private VBox commentairesBox = new VBox(10); 
 private VBox createArticleCard(Article article) {
 
     // ===== CARTE PRINCIPALE =====
@@ -188,23 +295,35 @@ private VBox createArticleCard(Article article) {
         -fx-effect: dropshadow(gaussian, rgba(108, 13, 242, 0.3), 10, 0, 0, 4);
     """));
 
-    voirArticleBtn.setOnAction(e -> navigateToGigsPage(article));
+ voirArticleBtn.setOnAction(e -> showGigsCard(article));
 
     // ===== COMMENTAIRE =====
     FontIcon commentIcon = new FontIcon(FontAwesomeSolid.COMMENT);
     commentIcon.setIconSize(20);
 
+  // Fetch the comment count for the article
     Label commentCount = new Label(String.valueOf(getCommentCount(article)));
+    commentCount.setStyle("-fx-font-size: 14px; -fx-text-fill: #555;"); // Optional styling for the count
 
     Button commentBtn = new Button();
     commentBtn.setGraphic(commentIcon);
     commentBtn.setStyle("-fx-background-color: transparent;");
 
+    // Add the comment icon and count to an HBox
     HBox commentBox = new HBox(5, commentBtn, commentCount);
     commentBox.setAlignment(Pos.CENTER);
 
+
+    // Set the action for the comment button
+commentBtn.setOnAction(e -> showCommentCard(article));
+
+    // Add the commentBox to the actionsBox
     actionsBox.getChildren().addAll(favoriBox, voirArticleBtn, commentBox);
 
+
+
+
+    
     // ================= LAYOUT PRINCIPAL =================
     HBox mainRow = new HBox(30, imageView, contentBox, actionsBox);
     mainRow.setAlignment(Pos.CENTER_LEFT);
@@ -214,43 +333,58 @@ private VBox createArticleCard(Article article) {
     commentairesBox.setVisible(false);
     commentairesBox.setManaged(false);
 
-    commentBtn.setOnAction(e -> {
-        boolean visible = !commentairesBox.isVisible();
-        commentairesBox.setVisible(visible);
-        commentairesBox.setManaged(visible);
-
-         if (visible) {
-            card.setStyle("""
-                -fx-background-color: white;
-                -fx-padding: 30;
-                -fx-background-radius: 20;
-                -fx-effect: dropshadow(three-pass-box, rgba(0,0,0,0.08), 15, 0, 0, 5);
-            """);
-            chargerCommentaires(article, commentairesBox);
-        } else {
-            card.setStyle("""
-                -fx-background-color: white;
-                -fx-padding: 20;
-                -fx-background-radius: 20;
-                -fx-effect: dropshadow(three-pass-box, rgba(0,0,0,0.08), 15, 0, 0, 5);
-            """);
-        }
-    });
+// Set the action for the comment button
+commentBtn.setOnAction(e -> showCommentCard(article));
 
     card.getChildren().addAll(mainRow, commentairesBox);
 
     return card;
 }
+@FXML
+private void ajouterCommentaire(String contenuCommentaire, Article article) {
 
+    if (contenuCommentaire == null || contenuCommentaire.isBlank()) {
+        showAlert(Alert.AlertType.WARNING,
+                "Erreur",
+                "Le commentaire ne peut pas être vide.");
+        return;
+    }
 
+    // 🔎 Vérification avec HuggingFace
+    if (!ContentModeration.isCommentAcceptable(contenuCommentaire)) {
+        showAlert(Alert.AlertType.ERROR,
+                "Commentaire rejeté",
+                "Votre commentaire contient des propos inappropriés.");
+        return;
+    }
 
+    try {
+        Commentaire newComment = new Commentaire(
+                null,
+                contenuCommentaire,
+                "VISIBLE",
+                LocalDateTime.now(),
+                article,
+                SessionManager.getCurrentUser()
+        );
+
+        commentaireService.create(newComment);
+
+        showAlert(Alert.AlertType.INFORMATION,
+                "Succès",
+                "Commentaire ajouté avec succès.");
+
+    } catch (Exception e) {
+        e.printStackTrace();
+        showAlert(Alert.AlertType.ERROR,
+                "Erreur",
+                "Impossible d'ajouter le commentaire.");
+    }
+}
 
 private int getCommentCount(Article article) {
     try {
-        return (int) commentaireService.findAll()
-                .stream()
-                .filter(comment -> comment.getArticle().getId().equals(article.getId()))
-                .count();
+        return commentaireService.countByArticle(article.getId());
     } catch (SQLException e) {
         e.printStackTrace();
         return 0;
@@ -275,134 +409,88 @@ private void navigateToGigsPage(Article article) {
         showAlert(Alert.AlertType.ERROR, "Erreur", "Impossible de charger la page des gigs.");
     }
 }
+private void loadGigsByArticle(Article article) {
+    gigsContainer.getChildren().clear();
 
-public void loadGigsByArticle(Article article) {
-    try {
-        // Extraire les mots-clés de l'article
-        List<String> keywords = extractKeywords(article);
-
-        // Rechercher les Gigs correspondants dans la base de données
-        List<GigModel> gigs = findGigsByKeywords(keywords);
-
-        // Vider le conteneur avant d'ajouter les nouveaux Gigs
-        gigsContainer.getChildren().clear();
-
-        if (gigs.isEmpty()) {
-            Label noGigsLabel = new Label("Aucun Gig trouvé pour cet article.");
-            noGigsLabel.setStyle("-fx-font-size: 16px; -fx-text-fill: gray;");
-            gigsContainer.getChildren().add(noGigsLabel);
-        } else {
-            for (GigModel gig : gigs) {
-                VBox gigCard = createGigCard(gig);
-                gigsContainer.getChildren().add(gigCard);
-            }
-        }
-    } catch (Exception e) {
-        e.printStackTrace();
-        showAlert(Alert.AlertType.ERROR, "Erreur", "Impossible de charger les Gigs.");
+    if (article == null) {
+        Label noArticleLabel = new Label("Aucun article sélectionné.");
+        noArticleLabel.setStyle("-fx-font-size: 16px; -fx-text-fill: gray;");
+        gigsContainer.getChildren().add(noArticleLabel);
+        return;
     }
-}
 
-private void loadGigsForArticle(Article article) {
-    try {
-        // Extraire les mots-clés de l'article
-        List<String> keywords = extractKeywords(article);
-
-        // Rechercher les Gigs correspondants dans la base de données
-        List<GigModel> gigs = findGigsByKeywords(keywords);
-
-        // Créer une nouvelle fenêtre pour afficher les Gigs
-        Stage stage = new Stage();
-        VBox gigsContainer = new VBox(10);
-        gigsContainer.setPadding(new Insets(10));
-
-        if (gigs.isEmpty()) {
-            Label noGigsLabel = new Label("Aucun Gig trouvé pour cet article.");
-            noGigsLabel.setStyle("-fx-font-size: 16px; -fx-text-fill: gray;");
-            gigsContainer.getChildren().add(noGigsLabel);
-
-            // Suggérer des Gigs populaires
-            List<GigModel> popularGigs = findPopularGigs();
-            if (!popularGigs.isEmpty()) {
-                Label suggestionLabel = new Label("Suggestions de Gigs populaires :");
-                suggestionLabel.setStyle("-fx-font-size: 14px; -fx-font-weight: bold;");
-                gigsContainer.getChildren().add(suggestionLabel);
-
-                for (GigModel gig : popularGigs) {
-                    VBox gigCard = createGigCard(gig);
-                    gigsContainer.getChildren().add(gigCard);
-                }
-            }
-        } else {
-            for (GigModel gig : gigs) {
-                VBox gigCard = createGigCard(gig);
-                gigsContainer.getChildren().add(gigCard);
-            }
-        }
-
-        ScrollPane scrollPane = new ScrollPane(gigsContainer);
-        scrollPane.setFitToWidth(true);
-
-        Scene scene = new Scene(scrollPane, 400, 600);
-        stage.setScene(scene);
-        stage.setTitle("Liste des Gigs");
-        stage.show();
-    } catch (Exception e) {
-        showAlert(Alert.AlertType.ERROR, "Erreur", "Impossible de charger les Gigs : " + e.getMessage());
-    }
-}
-
-private List<GigModel> findPopularGigs() throws SQLException {
+    List<String> keywords = extractKeywords(article);
     List<GigModel> gigs = new ArrayList<>();
 
-    String query = """
-        SELECT g.id, g.title, g.description, g.price, g.delivery_time, g.image, g.status
-        FROM gig g
-        ORDER BY g.delivery_time DESC
-        LIMIT 5
-    """;
-
-    try (Connection conn = MyDataBase.getConnection();
-         PreparedStatement ps = conn.prepareStatement(query)) {
-
-        ResultSet rs = ps.executeQuery();
-
-        while (rs.next()) {
-            GigModel gig = new GigModel(
-                rs.getInt("id"),
-                rs.getString("title"),
-                rs.getString("description"),
-                rs.getDouble("price"),
-                rs.getTimestamp("delivery_time").toLocalDateTime(),
-                rs.getString("image"),
-                rs.getString("status")
-            );
-            gigs.add(gig);
-        }
+    try {
+        gigs = findGigsByKeywords(keywords);
+    } catch (SQLException e) {
+        e.printStackTrace();
     }
 
-    return gigs;
+    if (gigs.isEmpty()) {
+        Label noGigsLabel = new Label("Aucun Gig trouvé pour cet article.");
+        noGigsLabel.setStyle("-fx-font-size: 16px; -fx-text-fill: gray;");
+        gigsContainer.getChildren().add(noGigsLabel);
+    } else {
+        for (GigModel gig : gigs) {
+            VBox gigCard = createGigCard(gig);
+            gigsContainer.getChildren().add(gigCard);
+        }
+    }
 }
+
 
 private VBox createGigCard(GigModel gig) {
     VBox card = new VBox(10);
-    card.setStyle("-fx-border-color: #ddd; -fx-border-radius: 10; -fx-padding: 10;");
+    card.setAlignment(Pos.CENTER);
+    card.setStyle("""
+        -fx-border-color: #ddd;
+        -fx-border-radius: 10;
+        -fx-background-radius: 10;
+        -fx-background-color: white;
+        -fx-padding: 15;
+        -fx-effect: dropshadow(gaussian, rgba(0, 0, 0, 0.2), 10, 0, 0, 4);
+        -fx-max-width: 250px;
+        -fx-min-width: 250px;
+    """);
+
+    // Image du Gig
+    ImageView gigImage;
+    try {
+        String imagePath = gig.getImage(); // Chemin de l'image
+        if (imagePath != null && !imagePath.isEmpty()) {
+            Image image = new Image(new File(imagePath).toURI().toString(), 200, 120, true, true);
+            gigImage = new ImageView(image);
+        } else {
+            // Si l'image est introuvable, utiliser une image par défaut
+            gigImage = new ImageView(new Image(getClass().getResource("/com/khademni/default-image.png").toExternalForm()));
+        }
+    } catch (Exception e) {
+        // En cas d'erreur, utiliser une image par défaut
+        gigImage = new ImageView(new Image(getClass().getResource("/com/khademni/default-image.png").toExternalForm()));
+    }
+    gigImage.setFitWidth(200);
+    gigImage.setFitHeight(120);
+    gigImage.setPreserveRatio(true);
+    gigImage.setStyle("-fx-border-radius: 10; -fx-background-radius: 10;");
 
     // Titre du Gig
     Label gigTitle = new Label(gig.getTitle());
-    gigTitle.setStyle("-fx-font-size: 16px; -fx-font-weight: bold;");
+    gigTitle.setStyle("-fx-font-size: 16px; -fx-font-weight: bold; -fx-text-fill: #333;");
+    gigTitle.setWrapText(true);
 
     // Description du Gig
     Label gigDescription = new Label(gig.getDescription());
+    gigDescription.setStyle("-fx-font-size: 14px; -fx-text-fill: #666;");
     gigDescription.setWrapText(true);
-    gigDescription.setStyle("-fx-font-size: 14px;");
 
     // Prix du Gig
     Label gigPrice = new Label(String.format("Prix : %.2f TND", gig.getPrice()));
-    gigPrice.setStyle("-fx-font-size: 14px; -fx-text-fill: #4caf50;");
+    gigPrice.setStyle("-fx-font-size: 14px; -fx-font-weight: bold; -fx-text-fill: #4caf50;");
 
     // Ajouter les éléments à la carte
-    card.getChildren().addAll(gigTitle, gigDescription, gigPrice);
+    card.getChildren().addAll(gigImage, gigTitle, gigDescription, gigPrice);
 
     return card;
 }
@@ -485,58 +573,50 @@ private double calculateRelevanceScore(GigModel gig, List<String> keywords) {
 
 
 private List<String> extractKeywords(Article article) {
+    String content = article.getTitle() + " " + article.getContent();
+    String[] words = content.split("\\W+"); // Sépare les mots par des caractères non alphabétiques
     List<String> keywords = new ArrayList<>();
 
-    // Ajouter les mots du titre
-    if (article.getTitle() != null) {
-        String[] titleWords = article.getTitle().toLowerCase().split("\\s+");
-        keywords.addAll(List.of(titleWords));
+    for (String word : words) {
+        if (word.length() > 3) { // Inclure uniquement les mots de plus de 3 caractères
+            keywords.add(word.toLowerCase());
+        }
     }
 
-    // Ajouter les mots de la description
-    if (article.getContent() != null) {
-        String[] contentWords = article.getContent().toLowerCase().split("\\s+");
-        keywords.addAll(List.of(contentWords));
-    }
-
-    // Supprimer les doublons
-    return keywords.stream().distinct().toList();
+    return keywords;
 }
 private UserModel getCurrentUser() {
     // Replace with the actual logic to retrieve the logged-in user
     return SessionManager.getCurrentUser(); // Example: Using a SessionManager class
 }
 
-
-
 private void chargerCommentaires(Article article, VBox commentairesBox) {
     commentairesBox.getChildren().clear();
 
     try {
+        // Récupérer les commentaires pour l'article donné
         var commentaires = commentaireService.findByArticleId(article.getId());
         UserModel currentUser = SessionManager.getCurrentUser();
 
         for (Commentaire c : commentaires) {
-            // Author and time
+            // Afficher l'auteur et la date
             Label authorLabel = new Label(c.getUser().getFirstName() + " " + c.getUser().getLastName());
-            authorLabel.setStyle("-fx-font-weight: bold; -fx-font-size: 12px; -fx-text-fill: #6a1b9a;");
+            authorLabel.getStyleClass().add("author");
 
             Label timeLabel = new Label(formatTimeAgo(c.getCreatedAt()));
-            timeLabel.setStyle("-fx-font-size: 10px; -fx-text-fill: gray;");
+            timeLabel.getStyleClass().add("time");
 
             HBox authorTimeBox = new HBox(10, authorLabel, timeLabel);
             authorTimeBox.setAlignment(Pos.CENTER_LEFT);
 
-            // Comment content
+            // Contenu du commentaire
             Label contentLabel = new Label(c.getContent());
-            contentLabel.setWrapText(true);
-            contentLabel.setStyle("-fx-font-size: 14px; -fx-text-fill: #4a148c;");
+           contentLabel.getStyleClass().add("content");
 
             VBox commentContentBox = new VBox(5, authorTimeBox, contentLabel);
-            commentContentBox.setPadding(new Insets(5, 10, 5, 10));
-            commentContentBox.setStyle("-fx-background-color: #f3e5f5; -fx-border-color: #ce93d8; -fx-border-radius: 5; -fx-background-radius: 5;");
+          commentContentBox.getStyleClass().add("comment-box");
 
-            // Editable area for editing comments
+            // Zone d'édition pour modifier le commentaire
             TextArea editArea = new TextArea(c.getContent());
             editArea.setWrapText(true);
             editArea.setVisible(false);
@@ -553,14 +633,14 @@ private void chargerCommentaires(Article article, VBox commentairesBox) {
             cancelBtn.setVisible(false);
             cancelBtn.setManaged(false);
 
-            // Buttons for editing and deleting
+            // Boutons pour modifier et supprimer
             Button editBtn = new Button("Edit");
-            editBtn.setStyle("-fx-background-color: #6a1b9a; -fx-text-fill: white; -fx-font-size: 12px; -fx-border-radius: 5; -fx-background-radius: 5;");
+           editBtn.getStyleClass().add("edit-btn");
 
             Button deleteBtn = new Button("Delete");
-            deleteBtn.setStyle("-fx-background-color: #d32f2f; -fx-text-fill: white; -fx-font-size: 12px; -fx-border-radius: 5; -fx-background-radius: 5;");
+            deleteBtn.getStyleClass().add("delete-btn");
 
-            // Show buttons only if the current user is the owner
+            // Afficher les boutons uniquement si l'utilisateur est le propriétaire du commentaire
             if (currentUser != null && c.getUser().getId() == currentUser.getId()) {
                 editBtn.setOnAction(ev -> {
                     contentLabel.setVisible(false);
@@ -586,8 +666,8 @@ private void chargerCommentaires(Article article, VBox commentairesBox) {
 
                     try {
                         c.setContent(newContent);
-                        commentaireService.update(c);
-                        chargerCommentaires(article, commentairesBox);
+                        commentaireService.update(c); // Mettre à jour le commentaire dans la base de données
+                        chargerCommentaires(article, commentairesBox); // Recharger les commentaires
                         showAlert(Alert.AlertType.INFORMATION, "Success", "Comment updated successfully!");
                     } catch (SQLException e) {
                         e.printStackTrace();
@@ -613,8 +693,9 @@ private void chargerCommentaires(Article article, VBox commentairesBox) {
                     confirm.showAndWait().ifPresent(response -> {
                         if (response == ButtonType.YES) {
                             try {
-                                commentaireService.delete(c.getId());
-                                chargerCommentaires(article, commentairesBox);
+                                commentaireService.delete(c.getId()); // Supprimer le commentaire de la base de données
+                                chargerCommentaires(article, commentairesBox); // Recharger les commentaires
+                                showAlert(Alert.AlertType.INFORMATION, "Success", "Comment deleted successfully!");
                             } catch (SQLException e) {
                                 e.printStackTrace();
                                 showAlert(Alert.AlertType.ERROR, "Error", "Failed to delete comment.");
@@ -631,7 +712,7 @@ private void chargerCommentaires(Article article, VBox commentairesBox) {
             commentairesBox.getChildren().add(commentContentBox);
         }
 
-        // ===== Input Field for Adding Comments =====
+        // ===== Champ pour ajouter un nouveau commentaire =====
         TextArea newCommentArea = new TextArea();
         newCommentArea.setPromptText("Write a comment...");
         newCommentArea.setWrapText(true);
@@ -664,9 +745,9 @@ private void chargerCommentaires(Article article, VBox commentairesBox) {
                         currentUser
                 );
 
-                commentaireService.create(newComment);
+                commentaireService.create(newComment); // Ajouter le nouveau commentaire dans la base de données
                 newCommentArea.clear();
-                chargerCommentaires(article, commentairesBox);
+                chargerCommentaires(article, commentairesBox); // Recharger les commentaires
                 showAlert(Alert.AlertType.INFORMATION, "Success", "Comment added successfully!");
             } catch (Exception ex) {
                 ex.printStackTrace();
@@ -685,6 +766,8 @@ private void chargerCommentaires(Article article, VBox commentairesBox) {
         showAlert(Alert.AlertType.ERROR, "Error", "Failed to load comments.");
     }
 }
+
+       
 
 
 
@@ -787,18 +870,27 @@ private void toggleFavori(Article article) {
             return;
         }
 
+        // Créer un objet Favori
         Favori favori = new Favori(currentUser.getId(), article.getId());
+
+        // Vérifier si le favori existe
         if (favoriService.isFavori(favori)) {
-            favoriService.delete(favori.getId());
+            // Supprimer le favori
+            Favori existingFavori = favoriService.findByUserAndArticle(currentUser.getId(), article.getId());
+            if (existingFavori != null) {
+                favoriService.delete(existingFavori.getId());
+            }
         } else {
+            // Ajouter le favori
             favoriService.create(favori);
         }
     } catch (SQLException e) {
         e.printStackTrace();
-       showAlert(Alert.AlertType.WARNING, "Erreur", "Une erreur s'est produite.");
+        showAlert(Alert.AlertType.WARNING, "Erreur", "Une erreur s'est produite.");
     } catch (Exception e) {
         e.printStackTrace();
-       showAlert(Alert.AlertType.WARNING, "Erreur", "Une erreur s'est produite.");   }
+        showAlert(Alert.AlertType.WARNING, "Erreur", "Une erreur s'est produite.");
+    }
 }
 
 }

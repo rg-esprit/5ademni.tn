@@ -20,7 +20,9 @@ private String imagePath;
     public Article() {
 
     }
-
+public Article(Long id) {
+    this.id = id;
+}
 public Article(Long id, String title, String content, String status, LocalDateTime createdAt, String imagePath) {
     this.id = id;
     this.title = title;
