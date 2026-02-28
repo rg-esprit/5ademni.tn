@@ -34,7 +34,7 @@ public class OffreController {
     @FXML
     private TableColumn<OffreModel, Integer> colId;
     @FXML
-    private TableColumn<OffreModel, Integer> colUserId;
+    private TableColumn<OffreModel, String> colPubliePar;
     @FXML
     private TableColumn<OffreModel, String> colTitre;
     @FXML
@@ -45,8 +45,15 @@ public class OffreController {
     private TableColumn<OffreModel, String> colType;
     @FXML
     private TableColumn<OffreModel, LocalDateTime> colDate;
+    // colActions removed
     @FXML
-    private TableColumn<OffreModel, Void> colActions;
+    private HBox floatingActionBar;
+    @FXML
+    private Button fabEditBtn;
+    @FXML
+    private Button fabDeleteBtn;
+    @FXML
+    private Button fabPdfBtn;
     @FXML
     private TextField searchField;
 
@@ -56,8 +63,21 @@ public class OffreController {
 
     @FXML
     public void initialize() {
-        colId.setCellValueFactory(new PropertyValueFactory<>("id"));
-        colUserId.setCellValueFactory(new PropertyValueFactory<>("userId"));
+        // Show sequential row number (1, 2, 3...) instead of database ID
+        colId.setCellFactory(col -> new TableCell<OffreModel, Integer>() {
+            @Override
+            protected void updateItem(Integer item, boolean empty) {
+                super.updateItem(item, empty);
+                if (empty) {
+                    setText("");
+                } else {
+                    OffreModel offre = getTableView().getItems().get(getIndex());
+                    int originalIndex = offreList.indexOf(offre) + 1;
+                    setText(String.valueOf(originalIndex));
+                }
+            }
+        });
+        colPubliePar.setCellValueFactory(new PropertyValueFactory<>("userName"));
         colTitre.setCellValueFactory(new PropertyValueFactory<>("titre"));
         colPrix.setCellValueFactory(new PropertyValueFactory<>("prix"));
         colPrix.setCellFactory(tc -> new TableCell<>() {
@@ -74,7 +94,7 @@ public class OffreController {
         colType.setCellValueFactory(new PropertyValueFactory<>("type"));
         colDate.setCellValueFactory(new PropertyValueFactory<>("dateCreation"));
 
-        addActionsButtonsToTable();
+        setupFloatingActionBar();
         loadOffres();
         setupSearch();
     }
@@ -96,6 +116,8 @@ public class OffreController {
                     return true;
                 } else if (offre.getType().toLowerCase().contains(lowerCaseFilter)) {
                     return true;
+                } else if (offre.getUserName() != null && offre.getUserName().toLowerCase().contains(lowerCaseFilter)) {
+                    return true;
                 }
                 return false;
             });
@@ -106,13 +128,14 @@ public class OffreController {
 
     private void loadOffres() {
         offreList.clear();
-        String query = "SELECT t.id, t.user_id, u.unique_id, t.titre, t.description, t.prix, t.date_creation, t.date_limite, t.statut, 'OFFRE' as type "
+        String query = "SELECT t.id, t.user_id, u.unique_id, CONCAT(u.first_name, ' ', u.last_name) AS user_name, t.titre, t.description, t.prix, t.date_creation, t.date_limite, t.statut, 'OFFRE' as type "
                 +
                 "FROM offres t LEFT JOIN users u ON t.user_id = u.id " +
                 "UNION ALL " +
-                "SELECT t.id, t.user_id, u.unique_id, t.titre, t.description, t.prix, t.date_creation, t.date_limite, t.statut, 'DEMANDE' as type "
+                "SELECT t.id, t.user_id, u.unique_id, CONCAT(u.first_name, ' ', u.last_name) AS user_name, t.titre, t.description, t.prix, t.date_creation, t.date_limite, t.statut, 'DEMANDE' as type "
                 +
-                "FROM demandes t LEFT JOIN users u ON t.user_id = u.id";
+                "FROM demandes t LEFT JOIN users u ON t.user_id = u.id " +
+                "ORDER BY date_creation DESC";
         try (Connection conn = MyDataBase.getConnection();
                 Statement stmt = conn.createStatement();
                 ResultSet rs = stmt.executeQuery(query)) {
@@ -129,7 +152,8 @@ public class OffreController {
                         rs.getString("statut"),
                         rs.getString("type"),
                         rs.getTimestamp("date_limite") != null ? rs.getTimestamp("date_limite").toLocalDateTime()
-                                : null));
+                                : null,
+                        rs.getString("user_name")));
             }
             offreTable.setItems(offreList);
         } catch (SQLException e) {
@@ -152,43 +176,50 @@ public class OffreController {
         App.setRoot("offre_form");
     }
 
-    private void addActionsButtonsToTable() {
-        Callback<TableColumn<OffreModel, Void>, TableCell<OffreModel, Void>> cellFactory = param -> new TableCell<>() {
-            private final Button editBtn = new Button("Modifier");
-            private final Button deleteBtn = new Button("Supprimer");
-            private final Button pdfBtn = new Button("PDF");
-            private final HBox pane = new HBox(5, editBtn, deleteBtn, pdfBtn);
+    private void setupFloatingActionBar() {
+        offreTable.getSelectionModel().selectedItemProperty().addListener((obs, oldSelection, newSelection) -> {
+            if (newSelection != null) {
+                boolean isOwner = App.getCurrentUser() != null
+                        && newSelection.getUserId() == App.getCurrentUser().getId();
+                fabEditBtn.setVisible(isOwner);
+                fabEditBtn.setManaged(isOwner);
+                fabDeleteBtn.setVisible(isOwner);
+                fabDeleteBtn.setManaged(isOwner);
+                // Everyone can export to PDF
+                fabPdfBtn.setVisible(true);
+                fabPdfBtn.setManaged(true);
 
-            {
-                editBtn.setStyle("-fx-background-color: #6c0df2; -fx-text-fill: white; -fx-cursor: hand;");
-                deleteBtn.setStyle("-fx-background-color: #ef4444; -fx-text-fill: white; -fx-cursor: hand;");
-                pdfBtn.setStyle("-fx-background-color: #10b981; -fx-text-fill: white; -fx-cursor: hand;");
-
-                editBtn.setOnAction(event -> {
-                    OffreModel offre = getTableView().getItems().get(getIndex());
-                    handleEdit(offre);
-                });
-                deleteBtn.setOnAction(event -> {
-                    OffreModel offre = getTableView().getItems().get(getIndex());
-                    handleDelete(offre);
-                });
-                pdfBtn.setOnAction(event -> {
-                    OffreModel offre = getTableView().getItems().get(getIndex());
-                    generatePDF(offre);
-                });
+                floatingActionBar.setVisible(true);
+                floatingActionBar.setManaged(true);
+            } else {
+                floatingActionBar.setVisible(false);
+                floatingActionBar.setManaged(false);
             }
+        });
+    }
 
-            @Override
-            protected void updateItem(Void item, boolean empty) {
-                super.updateItem(item, empty);
-                if (empty) {
-                    setGraphic(null);
-                } else {
-                    setGraphic(pane);
-                }
-            }
-        };
-        colActions.setCellFactory(cellFactory);
+    @FXML
+    private void onFabEdit() {
+        OffreModel selected = offreTable.getSelectionModel().getSelectedItem();
+        if (selected != null) {
+            handleEdit(selected);
+        }
+    }
+
+    @FXML
+    private void onFabDelete() {
+        OffreModel selected = offreTable.getSelectionModel().getSelectedItem();
+        if (selected != null) {
+            handleDelete(selected);
+        }
+    }
+
+    @FXML
+    private void onFabPdf() {
+        OffreModel selected = offreTable.getSelectionModel().getSelectedItem();
+        if (selected != null) {
+            generatePDF(selected);
+        }
     }
 
     private void handleEdit(OffreModel offre) {
@@ -231,7 +262,8 @@ public class OffreController {
             document.add(new Paragraph("5ademni.tn - " + offre.getType()));
             document.add(new Paragraph("--------------------------------------------------"));
             document.add(new Paragraph("ID: " + offre.getId()));
-            document.add(new Paragraph("User ID: " + offre.getUserUniqueId()));
+            document.add(
+                    new Paragraph("Publié par: " + (offre.getUserName() != null ? offre.getUserName() : "Inconnu")));
             document.add(new Paragraph("Titre: " + offre.getTitre()));
             document.add(new Paragraph("Prix: " + (offre.getPrix() == 0 ? "----" : offre.getPrix() + " DT")));
             document.add(new Paragraph("Date: " + offre.getDateCreation()));

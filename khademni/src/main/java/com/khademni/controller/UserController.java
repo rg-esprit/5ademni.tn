@@ -366,6 +366,7 @@ public class UserController {
 
     @FXML
     private void onCreateAccount(ActionEvent event) {
+        App.setCurrentUser(null); // Clear any residual state
         try {
             App.setRoot("signup");
         } catch (IOException e) {
@@ -455,7 +456,7 @@ public class UserController {
         } catch (BusinessException e) {
             showError(e.getMessage(), signupErrorLabel);
         } catch (Exception e) {
-            showError("Échec de l'inscription.", signupErrorLabel);
+            showError("Erreur: " + e.getClass().getSimpleName() + " - " + e.getMessage(), signupErrorLabel);
             e.printStackTrace();
         }
     }
@@ -788,8 +789,6 @@ public class UserController {
             }
         }
     }
-
-    
 
     private void loadAvatarImage(String imgPath) {
         if (profileAvatarImage == null)

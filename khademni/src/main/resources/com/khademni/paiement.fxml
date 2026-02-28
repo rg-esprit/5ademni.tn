@@ -36,15 +36,27 @@
                     <TableView fx:id="contratStatusTable" minHeight="250" prefHeight="300">
                         <columns>
                             <TableColumn fx:id="colId" text="ID Contrat" prefWidth="100" />
-                            <TableColumn fx:id="colFreelancer" text="ID Freelancer" prefWidth="120" />
-                            <TableColumn fx:id="colClient" text="ID Client" prefWidth="120" />
+                            <TableColumn fx:id="colFreelancer" text="Nom Freelancer" prefWidth="120" />
+                            <TableColumn fx:id="colClient" text="Nom Client" prefWidth="120" />
                             <TableColumn fx:id="colStatut" text="Statut" prefWidth="120" />
-                            <TableColumn fx:id="colActions" text="Actions (Modifier Statut)" prefWidth="350" />
                         </columns>
                         <columnResizePolicy>
                             <TableView fx:constant="CONSTRAINED_RESIZE_POLICY" />
                         </columnResizePolicy>
                     </TableView>
+
+                    <!-- Floating Action Bar (Hidden by default) -->
+                    <HBox fx:id="floatingActionBar" alignment="CENTER" spacing="16" visible="false" managed="false"
+                          style="-fx-background-color: #ffffff; -fx-padding: 12 24; -fx-background-radius: 50; 
+                                 -fx-effect: dropshadow(gaussian, rgba(0,0,0,0.15), 10, 0, 0, 4); 
+                                 -fx-border-color: #e5e7eb; -fx-border-radius: 50; -fx-border-width: 1;">
+                        <Button fx:id="fabPayeBtn" text="Payé" styleClass="button-primary" onAction="#onFabPaye" 
+                                style="-fx-background-color: #6c5ce7; -fx-text-fill: white;" />
+                        <Button fx:id="fabAttenteBtn" text="En Attente" styleClass="button-primary" onAction="#onFabAttente" 
+                                style="-fx-background-color: #a29bfe; -fx-text-fill: white;" />
+                        <Button fx:id="fabAnnulerBtn" text="Annuler" styleClass="button-secondary" onAction="#onFabAnnuler" 
+                                style="-fx-background-color: white; -fx-text-fill: #6c5ce7; -fx-border-color: #6c5ce7;" />
+                    </HBox>
                 </VBox>
 
                 <!-- Action Button -->

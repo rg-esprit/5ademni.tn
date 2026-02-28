@@ -1,9 +1,12 @@
 package com.khademni.utils;
 
+import com.khademni.service.GrammarCorrectionService;
+import com.khademni.service.GrammarCorrectionService.CorrectionMatch;
 import javafx.application.Platform;
 import javafx.scene.control.Label;
 import javafx.scene.control.TextInputControl;
 
+import java.util.Comparator;
 import java.util.List;
 import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledExecutorService;
@@ -15,7 +18,7 @@ import java.util.concurrent.TimeUnit;
  * {@link TextInputControl} (TextField or TextArea).
  *
  * <p>
- * A debounce of 1.5 s is applied so the API is only called once the user
+ * A debounce of 500 ms is applied so the API is only called once the user
  * pauses typing — this keeps us well within the free-tier rate limit.
  * </p>
  *
@@ -34,7 +37,10 @@ public class SpellCheckDecorator {
     });
 
     /** Millis to wait after the last keystroke before calling the API. */
-    private static final long DEBOUNCE_MS = 1500;
+    private static final long DEBOUNCE_MS = 500;
+
+    /** Shared service instance. */
+    private static final GrammarCorrectionService CORRECTION_SERVICE = GrammarCorrectionService.getInstance();
 
     /**
      * Attaches a live spell-check listener to a text field.
@@ -55,13 +61,14 @@ public class SpellCheckDecorator {
                 pending[0].cancel(false);
             }
 
-            // Schedule a new check 1.5 s from now
+            // Schedule a new check after the debounce delay
             pending[0] = SCHEDULER.schedule(() -> {
                 String current = newText;
                 if (current == null || current.isBlank())
                     return;
 
-                List<LanguageToolService.Match> matches = LanguageToolService.check(current, language);
+                // Use GrammarCorrectionService.check() for granular match info
+                List<CorrectionMatch> matches = CORRECTION_SERVICE.check(current, language);
 
                 if (matches.isEmpty()) {
                     // Nothing to fix — optionally clear the status
@@ -76,15 +83,14 @@ public class SpellCheckDecorator {
                 }
 
                 // Build the corrected text by applying suggestions in reverse
-                // order (so earlier offsets are not shifted by replacements).
+                // offset order (so earlier offsets are not shifted).
+                matches.sort(Comparator.comparingInt(CorrectionMatch::offset).reversed());
                 StringBuilder sb = new StringBuilder(current);
-                // Sort matches by offset descending
-                matches.sort((a, b) -> Integer.compare(b.offset, a.offset));
                 int fixCount = 0;
-                for (LanguageToolService.Match m : matches) {
-                    if (m.offset < 0 || m.offset + m.length > sb.length())
+                for (CorrectionMatch m : matches) {
+                    if (m.offset() < 0 || m.offset() + m.length() > sb.length())
                         continue;
-                    sb.replace(m.offset, m.offset + m.length, m.replacements.get(0));
+                    sb.replace(m.offset(), m.offset() + m.length(), m.replacements().get(0));
                     fixCount++;
                 }
 
@@ -93,9 +99,10 @@ public class SpellCheckDecorator {
                 Platform.runLater(() -> {
                     // Only update if the text actually changed
                     if (!corrected.equals(field.getText())) {
-                        // Preserve caret at end to avoid jarring jumps
+                        // Preserve caret position as best we can
+                        int caretPos = field.getCaretPosition();
                         field.setText(corrected);
-                        field.positionCaret(corrected.length());
+                        field.positionCaret(Math.min(caretPos, corrected.length()));
                     }
                     if (statusLabel != null && fc > 0) {
                         statusLabel.setText("✔ " + fc + " correction(s) appliquée(s)");

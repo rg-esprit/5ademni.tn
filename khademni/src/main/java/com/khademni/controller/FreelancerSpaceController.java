@@ -2,6 +2,7 @@ package com.khademni.controller;
 
 import com.khademni.App;
 import com.khademni.model.OffreModel;
+import com.khademni.model.UserModel;
 import com.khademni.utils.MyDataBase;
 import com.khademni.utils.PasswordUtil;
 import com.lowagie.text.Document;
@@ -15,8 +16,10 @@ import javafx.scene.Scene;
 import javafx.scene.control.*;
 import javafx.scene.control.cell.PropertyValueFactory;
 import javafx.scene.layout.HBox;
+import javafx.scene.layout.VBox;
 import javafx.stage.Stage;
 import javafx.util.Callback;
+import com.khademni.service.ZenQuoteService;
 
 import java.io.FileOutputStream;
 import java.io.IOException;
@@ -46,8 +49,17 @@ public class FreelancerSpaceController {
     private TableColumn<OffreModel, Void> colActions;
     @FXML
     private TextField searchField;
+    @FXML
+    private Label quoteLabel;
+    @FXML
+    private Label quoteAuthor;
+    @FXML
+    private VBox quoteContainer;
+    @FXML
+    private Button refreshQuoteBtn;
 
     private ObservableList<OffreModel> offreList = FXCollections.observableArrayList();
+    private final ZenQuoteService zenQuoteService = new ZenQuoteService();
 
     @FXML
     public void initialize() {
@@ -95,6 +107,35 @@ public class FreelancerSpaceController {
         addActionsButtonsToTable();
         setupSearch();
         loadOffres();
+        loadMotivationalQuote();
+    }
+
+    private void loadMotivationalQuote() {
+        updateQuoteUI(zenQuoteService.getCurrentQuote(), zenQuoteService.getCurrentAuthor());
+        zenQuoteService.fetchNewQuote((quote, author) -> updateQuoteUI(quote, author));
+    }
+
+    private void updateQuoteUI(String quote, String author) {
+        if (quoteLabel != null && quote != null) {
+            quoteLabel.setText("\"" + quote + "\"");
+        }
+        if (quoteAuthor != null && author != null) {
+            quoteAuthor.setText("— " + author);
+        }
+        if (refreshQuoteBtn != null) {
+            refreshQuoteBtn.setDisable(false);
+        }
+    }
+
+    @FXML
+    private void refreshQuote() {
+        if (refreshQuoteBtn != null)
+            refreshQuoteBtn.setDisable(true);
+        if (quoteLabel != null)
+            quoteLabel.setText("Chargement d'une nouvelle inspiration...");
+        if (quoteAuthor != null)
+            quoteAuthor.setText("");
+        zenQuoteService.fetchNewQuote((quote, author) -> updateQuoteUI(quote, author));
     }
 
     private void setupSearch() {
@@ -116,21 +157,30 @@ public class FreelancerSpaceController {
 
     private void loadOffres() {
         offreList.clear();
+        UserModel currentUser = App.getCurrentUser();
+        if (currentUser == null)
+            return;
+        int currentUserId = currentUser.getId();
+
         // Try with unique_id JOIN first, fall back to simple query
-        String queryJoin = "SELECT o.*, u.unique_id FROM offres o LEFT JOIN users u ON o.user_id = u.id";
-        String querySimple = "SELECT * FROM offres";
+        String queryJoin = "SELECT o.*, u.unique_id FROM offres o LEFT JOIN users u ON o.user_id = u.id WHERE o.user_id = ?";
+        String querySimple = "SELECT * FROM offres WHERE user_id = ?";
         boolean useJoin = true;
 
         try (Connection conn = MyDataBase.getConnection();
-                Statement stmt = conn.createStatement()) {
+                PreparedStatement pstmtJoin = conn.prepareStatement(queryJoin);
+                PreparedStatement pstmtSimple = conn.prepareStatement(querySimple)) {
+
+            pstmtJoin.setInt(1, currentUserId);
+            pstmtSimple.setInt(1, currentUserId);
 
             ResultSet rs;
             try {
-                rs = stmt.executeQuery(queryJoin);
+                rs = pstmtJoin.executeQuery();
             } catch (SQLException joinErr) {
                 // unique_id column missing — fall back
                 useJoin = false;
-                rs = stmt.executeQuery(querySimple);
+                rs = pstmtSimple.executeQuery();
             }
 
             while (rs.next()) {
@@ -225,18 +275,57 @@ public class FreelancerSpaceController {
     }
 
     private void handleMaintenir(OffreModel offre, String tableName) {
-        javafx.scene.control.DatePicker picker = new javafx.scene.control.DatePicker(
-                java.time.LocalDate.now().plusDays(7));
-        Dialog<java.time.LocalDate> dialog = new Dialog<>();
-        dialog.setTitle("Maintenir l'offre");
-        dialog.setHeaderText("Choisir une nouvelle date limite :");
-        dialog.getDialogPane().setContent(picker);
-        dialog.getDialogPane().getButtonTypes().addAll(ButtonType.OK, ButtonType.CANCEL);
-        dialog.setResultConverter(btn -> btn == ButtonType.OK ? picker.getValue() : null);
-        dialog.showAndWait().ifPresent(newDate -> {
-            if (newDate.isBefore(java.time.LocalDate.now()) || newDate.isEqual(java.time.LocalDate.now())) {
-                Alert a = new Alert(Alert.AlertType.WARNING, "La nouvelle date doit être dans le futur.");
-                a.showAndWait();
+        Stage dialogStage = new Stage();
+        dialogStage.initModality(javafx.stage.Modality.APPLICATION_MODAL);
+        dialogStage.initStyle(javafx.stage.StageStyle.TRANSPARENT);
+        dialogStage.setTitle("Maintenir l'offre");
+
+        javafx.scene.layout.VBox root = new javafx.scene.layout.VBox(18);
+        root.setAlignment(javafx.geometry.Pos.CENTER);
+        root.setStyle("-fx-background-color: linear-gradient(to bottom right, #1e1e2f, #2a2a40); "
+                + "-fx-background-radius: 20; -fx-padding: 32; -fx-border-radius: 20; "
+                + "-fx-border-color: rgba(255,255,255,0.08); -fx-border-width: 1; "
+                + "-fx-effect: dropshadow(gaussian, rgba(0,0,0,0.5), 30, 0, 0, 8);");
+        root.setPrefWidth(380);
+
+        Label icon = new Label("\uD83D\uDCC5");
+        icon.setStyle("-fx-font-size: 36px;");
+
+        Label title = new Label("Maintenir l'offre");
+        title.setStyle("-fx-font-size: 22px; -fx-font-weight: bold; -fx-text-fill: white;");
+
+        Label subtitle = new Label("Choisir une nouvelle date limite :");
+        subtitle.setStyle("-fx-font-size: 13px; -fx-text-fill: #a0a0b8;");
+
+        DatePicker picker = new DatePicker(java.time.LocalDate.now().plusDays(7));
+        picker.setStyle("-fx-background-color: rgba(255,255,255,0.07); -fx-background-radius: 10; "
+                + "-fx-text-fill: white; -fx-pref-height: 40; -fx-pref-width: 300;");
+
+        javafx.scene.layout.HBox btnBox = new javafx.scene.layout.HBox(12);
+        btnBox.setAlignment(javafx.geometry.Pos.CENTER);
+
+        Button okBtn = new Button("Confirmer");
+        okBtn.setStyle("-fx-background-color: linear-gradient(to right, #6c5ce7, #a855f7); -fx-text-fill: white; "
+                + "-fx-font-size: 14px; -fx-font-weight: bold; -fx-background-radius: 10; "
+                + "-fx-padding: 10 32; -fx-cursor: hand;");
+
+        Button cancelBtn = new Button("Annuler");
+        cancelBtn.setStyle("-fx-background-color: rgba(255,255,255,0.08); -fx-text-fill: #a0a0b8; "
+                + "-fx-font-size: 14px; -fx-background-radius: 10; -fx-padding: 10 32; -fx-cursor: hand;");
+
+        btnBox.getChildren().addAll(okBtn, cancelBtn);
+        root.getChildren().addAll(icon, title, subtitle, picker, btnBox);
+
+        Scene scene = new Scene(root);
+        scene.setFill(javafx.scene.paint.Color.TRANSPARENT);
+        dialogStage.setScene(scene);
+
+        okBtn.setOnAction(e -> {
+            java.time.LocalDate newDate = picker.getValue();
+            if (newDate == null || newDate.isBefore(java.time.LocalDate.now())
+                    || newDate.isEqual(java.time.LocalDate.now())) {
+                subtitle.setText("❌ La date doit être dans le futur !");
+                subtitle.setStyle("-fx-font-size: 13px; -fx-text-fill: #ef4444; -fx-font-weight: bold;");
                 return;
             }
             String sql = "UPDATE " + tableName + " SET date_limite = ? WHERE id = ?";
@@ -246,10 +335,14 @@ public class FreelancerSpaceController {
                 ps.setInt(2, offre.getId());
                 ps.executeUpdate();
                 loadOffres();
-            } catch (SQLException e) {
-                e.printStackTrace();
+            } catch (SQLException ex) {
+                ex.printStackTrace();
             }
+            dialogStage.close();
         });
+
+        cancelBtn.setOnAction(e -> dialogStage.close());
+        dialogStage.showAndWait();
     }
 
     private void handleAnnuler(OffreModel offre, String tableName) {

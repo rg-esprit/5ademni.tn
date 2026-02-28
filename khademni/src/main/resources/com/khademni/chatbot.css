@@ -1,0 +1,207 @@
+/* ============================================
+   5ademni.tn — Chatbot Widget Styles
+   Glassmorphism floating chat interface
+   ============================================ */
+
+/* ── Chat Panel ─────────────────────────────── */
+
+.chatbot-panel {
+    -fx-background-color: rgba(255, 255, 255, 0.92);
+    -fx-background-radius: 24;
+    -fx-border-radius: 24;
+    -fx-border-color: rgba(108, 13, 242, 0.12);
+    -fx-border-width: 1;
+    -fx-effect: dropshadow(gaussian, rgba(108, 13, 242, 0.18), 40, 0, 0, 12);
+}
+
+/* ── Header ─────────────────────────────────── */
+
+.chatbot-header {
+    -fx-background-color: linear-gradient(to right, #6c0df2, #a855f7);
+    -fx-background-radius: 24 24 0 0;
+    -fx-padding: 16 20 16 20;
+}
+
+.chatbot-title {
+    -fx-font-size: 15px;
+    -fx-font-weight: bold;
+    -fx-text-fill: white;
+}
+
+.chatbot-status {
+    -fx-font-size: 11px;
+    -fx-text-fill: rgba(255, 255, 255, 0.75);
+}
+
+.chatbot-close-btn {
+    -fx-background-color: rgba(255, 255, 255, 0.15);
+    -fx-text-fill: white;
+    -fx-font-size: 14px;
+    -fx-font-weight: bold;
+    -fx-background-radius: 20;
+    -fx-padding: 4 10 4 10;
+    -fx-cursor: hand;
+    -fx-min-width: 32;
+    -fx-min-height: 32;
+}
+
+.chatbot-close-btn:hover {
+    -fx-background-color: rgba(255, 255, 255, 0.28);
+}
+
+/* ── Messages Area ──────────────────────────── */
+
+.chatbot-scroll {
+    -fx-background-color: transparent;
+    -fx-background: transparent;
+}
+
+.chatbot-scroll>.viewport {
+    -fx-background-color: transparent;
+}
+
+.chatbot-scroll .scroll-bar:vertical {
+    -fx-pref-width: 6;
+    -fx-background-color: transparent;
+}
+
+.chatbot-scroll .scroll-bar:vertical .thumb {
+    -fx-background-color: rgba(108, 13, 242, 0.2);
+    -fx-background-radius: 3;
+}
+
+.chatbot-scroll .scroll-bar:vertical .track {
+    -fx-background-color: transparent;
+}
+
+.chatbot-scroll .scroll-bar:vertical .increment-button,
+.chatbot-scroll .scroll-bar:vertical .decrement-button {
+    -fx-pref-height: 0;
+    -fx-padding: 0;
+}
+
+.chatbot-scroll .scroll-bar:vertical .increment-arrow,
+.chatbot-scroll .scroll-bar:vertical .decrement-arrow {
+    -fx-shape: "";
+    -fx-padding: 0;
+}
+
+.chatbot-scroll .scroll-bar:horizontal {
+    -fx-pref-height: 0;
+    -fx-opacity: 0;
+}
+
+.chatbot-messages {
+    -fx-background-color: transparent;
+}
+
+/* ── Bot Bubble ─────────────────────────────── */
+
+.chatbot-bot-bubble {
+    -fx-background-color: #f3f0ff;
+    -fx-background-radius: 4 16 16 16;
+}
+
+.chatbot-bot-text {
+    -fx-text-fill: #333333;
+    -fx-font-size: 12.5px;
+    -fx-line-spacing: 2;
+}
+
+.chatbot-time-bot {
+    -fx-text-fill: #9ca3af;
+    -fx-font-size: 10px;
+}
+
+/* ── User Bubble ────────────────────────────── */
+
+.chatbot-user-bubble {
+    -fx-background-color: linear-gradient(to bottom right, #6c0df2, #a855f7);
+    -fx-background-radius: 16 4 16 16;
+}
+
+.chatbot-user-text {
+    -fx-text-fill: white;
+    -fx-font-size: 12.5px;
+    -fx-line-spacing: 2;
+}
+
+.chatbot-time-user {
+    -fx-text-fill: rgba(255, 255, 255, 0.6);
+    -fx-font-size: 10px;
+}
+
+/* ── Quick Actions ──────────────────────────── */
+
+.chatbot-quick-btn {
+    -fx-background-color: white;
+    -fx-border-color: #e5e7eb;
+    -fx-border-width: 1;
+    -fx-border-radius: 20;
+    -fx-background-radius: 20;
+    -fx-text-fill: #4b5563;
+    -fx-font-size: 10.5px;
+    -fx-padding: 5 10 5 10;
+    -fx-cursor: hand;
+}
+
+.chatbot-quick-btn:hover {
+    -fx-background-color: #f3f0ff;
+    -fx-border-color: #6c0df2;
+    -fx-text-fill: #6c0df2;
+}
+
+/* ── Input Bar ──────────────────────────────── */
+
+.chatbot-input-bar {
+    -fx-background-color: #fafafa;
+    -fx-border-color: rgba(108, 13, 242, 0.08);
+    -fx-border-width: 1 0 0 0;
+}
+
+.chatbot-input {
+    -fx-background-color: white;
+    -fx-border-color: #e5e7eb;
+    -fx-border-width: 1;
+    -fx-border-radius: 20;
+    -fx-background-radius: 20;
+    -fx-padding: 10 16 10 16;
+    -fx-font-size: 13px;
+    -fx-prompt-text-fill: #9ca3af;
+    -fx-text-fill: #333333;
+}
+
+.chatbot-input:focused {
+    -fx-border-color: #6c0df2;
+    -fx-effect: dropshadow(gaussian, rgba(108, 13, 242, 0.08), 8, 0, 0, 0);
+    -fx-faint-focus-color: transparent;
+    -fx-focus-color: transparent;
+}
+
+.chatbot-send-btn {
+    -fx-background-color: linear-gradient(to right, #6c0df2, #a855f7);
+    -fx-text-fill: white;
+    -fx-font-size: 16px;
+    -fx-background-radius: 20;
+    -fx-min-width: 42;
+    -fx-min-height: 42;
+    -fx-max-width: 42;
+    -fx-max-height: 42;
+    -fx-cursor: hand;
+    -fx-effect: dropshadow(gaussian, rgba(108, 13, 242, 0.25), 8, 0, 0, 3);
+}
+
+.chatbot-send-btn:hover {
+    -fx-background-color: linear-gradient(to right, #5f0ad6, #9333ea);
+}
+
+.chatbot-send-btn:pressed {
+    -fx-scale-x: 0.94;
+    -fx-scale-y: 0.94;
+}
+
+/* ── FAB Button ─────────────────────────────── */
+
+.chatbot-fab {
+    -fx-cursor: hand;
+}

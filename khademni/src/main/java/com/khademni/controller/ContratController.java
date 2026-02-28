@@ -2,6 +2,7 @@ package com.khademni.controller;
 
 import com.khademni.App;
 import com.khademni.model.ContratModel;
+import com.khademni.model.UserModel;
 import com.khademni.utils.MyDataBase;
 import com.lowagie.text.Document;
 import com.lowagie.text.FontFactory;
@@ -14,9 +15,12 @@ import javafx.collections.transformation.FilteredList;
 import javafx.fxml.FXML;
 import javafx.scene.control.*;
 import javafx.scene.layout.HBox;
+import javafx.scene.layout.VBox;
+import javafx.geometry.Pos;
 import javafx.util.Callback;
 import javafx.scene.control.cell.PropertyValueFactory;
 import com.khademni.service.ContratService;
+import com.khademni.service.ExchangeRateService;
 import com.khademni.service.ServiceFactory;
 import com.khademni.exception.ContractCreationException;
 import org.slf4j.Logger;
@@ -53,9 +57,16 @@ public class ContratController {
     private TableColumn<ContratModel, LocalDate> colDate;
     @FXML
     private TableColumn<ContratModel, String> colDesc;
-    @FXML
-    private TableColumn<ContratModel, Void> colActions;
+    // colActions removed
 
+    @FXML
+    private HBox floatingActionBar;
+    @FXML
+    private Button fabEditBtn;
+    @FXML
+    private Button fabDeleteBtn;
+    @FXML
+    private Button fabPdfBtn;
     @FXML
     private TextField searchField;
     @FXML
@@ -119,6 +130,9 @@ public class ContratController {
 
     @FXML
     public void initialize() {
+        // Initialize exchange rate service (fetches rates in background)
+        ExchangeRateService.getInstance();
+
         // Show sequential row number (1, 2, 3...) instead of database ID
         colId.setCellFactory(col -> new TableCell<ContratModel, Integer>() {
             @Override
@@ -137,11 +151,38 @@ public class ContratController {
         colFreelancer.setCellValueFactory(new PropertyValueFactory<>("freelancerName"));
         colClient.setCellValueFactory(new PropertyValueFactory<>("clientName"));
         colPrix.setCellValueFactory(new PropertyValueFactory<>("prix"));
+
+        // Custom cell factory for prix column: shows TND bold + EUR/USD conversion
+        colPrix.setCellFactory(col -> new TableCell<ContratModel, Double>() {
+            @Override
+            protected void updateItem(Double item, boolean empty) {
+                super.updateItem(item, empty);
+                if (empty || item == null) {
+                    setGraphic(null);
+                    setText(null);
+                } else {
+                    VBox box = new VBox(2);
+                    box.setAlignment(Pos.CENTER_LEFT);
+
+                    Label prixLabel = new Label(String.format("%.2f DT", item));
+                    prixLabel.setStyle("-fx-font-weight: bold; -fx-font-size: 13px;");
+
+                    ExchangeRateService exchangeService = ExchangeRateService.getInstance();
+                    Label convLabel = new Label(exchangeService.formatConversions(item));
+                    convLabel.setStyle("-fx-text-fill: #888; -fx-font-size: 11px;");
+
+                    box.getChildren().addAll(prixLabel, convLabel);
+                    setGraphic(box);
+                    setText(null);
+                }
+            }
+        });
+
         colStatut.setCellValueFactory(new PropertyValueFactory<>("statut"));
         colDate.setCellValueFactory(new PropertyValueFactory<>("dateContrat"));
         colDesc.setCellValueFactory(new PropertyValueFactory<>("description"));
 
-        addActionsButtonsToTable();
+        setupFloatingActionBar();
         setupSearch();
         loadContrats();
         loadFormData();
@@ -164,7 +205,8 @@ public class ContratController {
         infoIdFreelancer.setText(String.valueOf(contrat.getIdFreelancer()));
         infoFreelancerName.setText(contrat.getFreelancerName());
         infoTitre.setText(contrat.getTitre());
-        infoPrix.setText(String.format("%.2f DT", contrat.getPrix()));
+        infoPrix.setText(String.format("%.2f DT  —  %s", contrat.getPrix(),
+                ExchangeRateService.getInstance().formatConversions(contrat.getPrix())));
         infoDate.setText(contrat.getDateContrat().toString());
         infoStatut.setText(contrat.getStatut());
         infoDescription.setText(contrat.getDescription());
@@ -195,12 +237,18 @@ public class ContratController {
     private void loadContrats() {
         System.out.println("DEBUG: loadContrats() started.");
         contratList.clear();
+        UserModel currentUser = App.getCurrentUser();
+        if (currentUser == null)
+            return;
+        int currentUserId = currentUser.getId();
+
         String query = "SELECT c.*, " +
                 "u1.first_name as cfname, u1.last_name as clname, u1.unique_id as cuid, " +
                 "u2.first_name as ffname, u2.last_name as flname, u2.unique_id as fuid " +
                 "FROM contrats c " +
                 "LEFT JOIN users u1 ON c.client_id = u1.id " +
-                "LEFT JOIN users u2 ON c.freelancer_id = u2.id";
+                "LEFT JOIN users u2 ON c.freelancer_id = u2.id " +
+                "WHERE c.client_id = ? OR c.freelancer_id = ?";
 
         System.out.println("DEBUG: Executing Query: " + query);
 
@@ -211,46 +259,49 @@ public class ContratController {
             }
             System.out.println("DEBUG: Database connection is open.");
 
-            try (Statement stmt = conn.createStatement();
-                    ResultSet rs = stmt.executeQuery(query)) {
+            try (PreparedStatement pstmt = conn.prepareStatement(query)) {
+                pstmt.setInt(1, currentUserId);
+                pstmt.setInt(2, currentUserId);
+                try (ResultSet rs = pstmt.executeQuery()) {
 
-                while (rs.next()) {
-                    int id = rs.getInt("id");
-                    String titre = rs.getString("titre");
-                    String cfName = rs.getString("cfname");
-                    String clName = rs.getString("clname");
-                    String ffName = rs.getString("ffname");
-                    String flName = rs.getString("flname");
-                    int clientUniqueId = rs.getInt("cuid");
-                    int freelancerUniqueId = rs.getInt("fuid");
+                    while (rs.next()) {
+                        int id = rs.getInt("id");
+                        String titre = rs.getString("titre");
+                        String cfName = rs.getString("cfname");
+                        String clName = rs.getString("clname");
+                        String ffName = rs.getString("ffname");
+                        String flName = rs.getString("flname");
+                        int clientUniqueId = rs.getInt("cuid");
+                        int freelancerUniqueId = rs.getInt("fuid");
 
-                    String clientName = (cfName != null && clName != null)
-                            ? (cfName + " " + clName + " (ID: " + clientUniqueId + ")")
-                            : "Unknown Client";
-                    String freelancerName = (ffName != null && flName != null)
-                            ? (ffName + " " + flName + " (ID: " + freelancerUniqueId + ")")
-                            : "Unknown Freelancer";
+                        String clientName = (cfName != null && clName != null)
+                                ? (cfName + " " + clName + " (ID: " + clientUniqueId + ")")
+                                : "Unknown Client";
+                        String freelancerName = (ffName != null && flName != null)
+                                ? (ffName + " " + flName + " (ID: " + freelancerUniqueId + ")")
+                                : "Unknown Freelancer";
 
-                    System.out.println("DEBUG: Row found -> ID: " + id + ", Titre: " + titre);
+                        System.out.println("DEBUG: Row found -> ID: " + id + ", Titre: " + titre);
 
-                    java.sql.Date sqlDate = rs.getDate("date_contrat");
-                    LocalDate date = (sqlDate != null) ? sqlDate.toLocalDate() : LocalDate.now();
+                        java.sql.Date sqlDate = rs.getDate("date_contrat");
+                        LocalDate date = (sqlDate != null) ? sqlDate.toLocalDate() : LocalDate.now();
 
-                    ContratModel contrat = new ContratModel(
-                            id,
-                            rs.getInt("client_id"),
-                            rs.getInt("freelancer_id"),
-                            clientUniqueId,
-                            freelancerUniqueId,
-                            clientName,
-                            freelancerName,
-                            titre,
-                            rs.getString("description"),
-                            rs.getDouble("prix"),
-                            date,
-                            rs.getString("statut"));
-                    contratList.add(contrat);
-                }
+                        ContratModel contrat = new ContratModel(
+                                id,
+                                rs.getInt("client_id"),
+                                rs.getInt("freelancer_id"),
+                                clientUniqueId,
+                                freelancerUniqueId,
+                                clientName,
+                                freelancerName,
+                                titre,
+                                rs.getString("description"),
+                                rs.getDouble("prix"),
+                                date,
+                                rs.getString("statut"));
+                        contratList.add(contrat);
+                    }
+                } // Close inner ResultSet try
                 System.out.println("DEBUG: Total Contrats added to list: " + contratList.size());
             }
 
@@ -283,47 +334,44 @@ public class ContratController {
             statAnnule.setText(String.valueOf(annule));
     }
 
-    private void addActionsButtonsToTable() {
-        Callback<TableColumn<ContratModel, Void>, TableCell<ContratModel, Void>> cellFactory = new Callback<>() {
-            @Override
-            public TableCell<ContratModel, Void> call(final TableColumn<ContratModel, Void> param) {
-                final TableCell<ContratModel, Void> cell = new TableCell<>() {
-                    private final Button editBtn = new Button("Modifier");
-                    private final Button deleteBtn = new Button("Supprimer");
-                    private final HBox pane = new HBox(editBtn, deleteBtn);
+    private void setupFloatingActionBar() {
+        contratTable.getSelectionModel().selectedItemProperty().addListener((obs, oldSelection, newSelection) -> {
+            if (newSelection != null) {
+                // Determine if user has rights to edit/delete
+                // Assuming all users can do it here, or apply restrictions based on
+                // App.getCurrentUser()
 
-                    {
-                        pane.setSpacing(10);
-                        editBtn.setStyle(
-                                "-fx-background-color: #6c5ce7; -fx-text-fill: white; -fx-font-weight: bold; -fx-background-radius: 5;");
-                        deleteBtn.setStyle(
-                                "-fx-background-color: white; -fx-text-fill: #6c5ce7; -fx-border-color: #6c5ce7; -fx-border-radius: 5; -fx-background-radius: 5;");
-
-                        editBtn.setOnAction(event -> {
-                            ContratModel contrat = getTableView().getItems().get(getIndex());
-                            handleEdit(contrat);
-                        });
-
-                        deleteBtn.setOnAction(event -> {
-                            ContratModel contrat = getTableView().getItems().get(getIndex());
-                            handleDelete(contrat);
-                        });
-                    }
-
-                    @Override
-                    protected void updateItem(Void item, boolean empty) {
-                        super.updateItem(item, empty);
-                        if (empty) {
-                            setGraphic(null);
-                        } else {
-                            setGraphic(pane);
-                        }
-                    }
-                };
-                return cell;
+                floatingActionBar.setVisible(true);
+                floatingActionBar.setManaged(true);
+            } else {
+                floatingActionBar.setVisible(false);
+                floatingActionBar.setManaged(false);
             }
-        };
-        colActions.setCellFactory(cellFactory);
+        });
+    }
+
+    @FXML
+    private void onFabEdit() {
+        ContratModel selected = contratTable.getSelectionModel().getSelectedItem();
+        if (selected != null) {
+            handleEdit(selected);
+        }
+    }
+
+    @FXML
+    private void onFabDelete() {
+        ContratModel selected = contratTable.getSelectionModel().getSelectedItem();
+        if (selected != null) {
+            handleDelete(selected);
+        }
+    }
+
+    @FXML
+    private void onFabPdf() {
+        ContratModel selected = contratTable.getSelectionModel().getSelectedItem();
+        if (selected != null) {
+            generatePDF(selected);
+        }
     }
 
     private void handleEdit(ContratModel contrat) {
@@ -508,6 +556,40 @@ public class ContratController {
 
             showAlert(Alert.AlertType.INFORMATION, "PDF Created", "PDF exported successfully to " + path);
 
+        } catch (Exception e) {
+            e.printStackTrace();
+            showAlert(Alert.AlertType.ERROR, "Error", "Could not generate PDF: " + e.getMessage());
+        }
+    }
+
+    private void generatePDF(ContratModel contrat) {
+        Document document = new Document();
+        try {
+            String userHome = System.getProperty("user.home");
+            String path = userHome + "/Downloads/contrat_" + contrat.getIdContrat() + "_" + System.currentTimeMillis()
+                    + ".pdf";
+            PdfWriter.getInstance(document, new FileOutputStream(path));
+            document.open();
+
+            document.add(new Paragraph("Détails du Contrat", FontFactory.getFont(FontFactory.HELVETICA_BOLD, 20)));
+            document.add(new Paragraph("Generated on: " + LocalDate.now()));
+            document.add(new Paragraph(" "));
+
+            document.add(new Paragraph("ID Contrat: " + contrat.getIdContrat()));
+            document.add(new Paragraph("Titre: " + contrat.getTitre()));
+            document.add(new Paragraph("Client: " + contrat.getClientName() + " (ID: " + contrat.getIdClient() + ")"));
+            document.add(new Paragraph(
+                    "Freelancer: " + contrat.getFreelancerName() + " (ID: " + contrat.getIdFreelancer() + ")"));
+            document.add(new Paragraph("Prix: " + contrat.getPrix() + " DT"));
+            document.add(new Paragraph("Date: " + contrat.getDateContrat()));
+            document.add(new Paragraph("Statut: " + contrat.getStatut()));
+            document.add(new Paragraph(" "));
+            document.add(new Paragraph("Description:"));
+            document.add(new Paragraph(contrat.getDescription()));
+
+            document.close();
+
+            showAlert(Alert.AlertType.INFORMATION, "PDF Created", "PDF exporté avec succès vers " + path);
         } catch (Exception e) {
             e.printStackTrace();
             showAlert(Alert.AlertType.ERROR, "Error", "Could not generate PDF: " + e.getMessage());

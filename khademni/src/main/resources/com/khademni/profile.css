@@ -103,10 +103,9 @@
 
 /* Bio displayed under name in profile header */
 .profile-bio-header {
-  -fx-font-size: 13;
-  -fx-font-weight: 400;
-  -fx-text-fill: #6b7280;
-  -fx-font-style: italic;
+  -fx-font-size: 15;
+  -fx-font-weight: 600;
+  -fx-text-fill: #141118;
   -fx-padding: 2 0 0 0;
 }
 
