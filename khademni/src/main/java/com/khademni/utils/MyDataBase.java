@@ -33,5 +33,9 @@ public class MyDataBase {
         }
         return connection;
     }
-
+ public static void closeConnection() throws SQLException {
+        if (connection != null && !connection.isClosed()) {
+            connection.close();
+        }
+    }
 }

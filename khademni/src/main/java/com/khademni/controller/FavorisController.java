@@ -22,6 +22,9 @@ import com.khademni.model.UserModel;
 import java.sql.SQLException;
 import java.util.List;
 
+import org.kordamp.ikonli.fontawesome5.FontAwesomeSolid;
+import org.kordamp.ikonli.javafx.FontIcon;
+
 public class FavorisController {
 
     @FXML
@@ -40,7 +43,7 @@ public class FavorisController {
         loadFavoris();
     }
 
-   private void loadFavoris() {
+private void loadFavoris() {
     try {
         favorisContainer.getChildren().clear();
 
@@ -115,50 +118,24 @@ public class FavorisController {
     contentBox.getChildren().addAll(title, description, date);
 
     // ================= ACTIONS =================
-    Button removeBtn = new Button("Retirer");
-    removeBtn.setStyle("""
-        -fx-background-color: #f87171;
-        -fx-text-fill: white;
-        -fx-font-size: 14px;
-        -fx-font-weight: bold;
-        -fx-background-radius: 20;
-        -fx-padding: 8 20;
-        -fx-cursor: hand;
-        -fx-effect: dropshadow(gaussian, rgba(248, 113, 113, 0.3), 10, 0, 0, 4);
-    """);
+      FontIcon heartIcon = new FontIcon(FontAwesomeSolid.HEART);
+    heartIcon.setIconSize(22);
+    heartIcon.setIconColor(javafx.scene.paint.Color.RED); // Icône rouge pour indiquer qu'il est en favori
 
-    removeBtn.setOnMouseEntered(e -> removeBtn.setStyle("""
-        -fx-background-color: #ef4444;
-        -fx-text-fill: white;
-        -fx-font-size: 14px;
-        -fx-font-weight: bold;
-        -fx-background-radius: 20;
-        -fx-padding: 8 20;
-        -fx-cursor: hand;
-        -fx-effect: dropshadow(gaussian, rgba(239, 68, 68, 0.5), 12, 0, 0, 6);
-    """));
+    Button likeBtn = new Button();
+    likeBtn.setGraphic(heartIcon);
+    likeBtn.setStyle("-fx-background-color: transparent;");
 
-    removeBtn.setOnMouseExited(e -> removeBtn.setStyle("""
-        -fx-background-color: #f87171;
-        -fx-text-fill: white;
-        -fx-font-size: 14px;
-        -fx-font-weight: bold;
-        -fx-background-radius: 20;
-        -fx-padding: 8 20;
-        -fx-cursor: hand;
-        -fx-effect: dropshadow(gaussian, rgba(248, 113, 113, 0.3), 10, 0, 0, 4);
-    """));
-
-    removeBtn.setOnAction(e -> {
+    likeBtn.setOnAction(e -> {
         try {
-            favoriService.delete(favoriId);
-            loadFavoris();
+            favoriService.delete(favoriId); // Supprimer le favori
+            loadFavoris(); // Recharger les favoris
         } catch (SQLException ex) {
             ex.printStackTrace();
         }
     });
 
-    HBox actionsBox = new HBox(removeBtn);
+    HBox actionsBox = new HBox(likeBtn);
     actionsBox.setAlignment(Pos.CENTER_RIGHT);
 
     // ================= LAYOUT PRINCIPAL =================

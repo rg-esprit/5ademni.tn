@@ -1,13 +1,13 @@
 .root {
     -fx-font-family: "Segoe UI";
-    -fx-background-color: #f3f4f9;
+    -fx-background-color: #f9f9f9;
 }
 
 /* TITLE */
 .profile-page-title {
     -fx-font-size: 28px;
-    -fx-font-weight: 800;
-    -fx-text-fill: #1e1b4b;
+    -fx-font-weight: bold;
+    -fx-text-fill: #6c0df2;
 }
 
 /* CARDS */
@@ -18,25 +18,34 @@
     -fx-effect: dropshadow(gaussian, rgba(0,0,0,0.05), 25, 0, 0, 8);
 }
 
-/* STAT CARDS MODERN */
+/* Stat Card Style */
 .stat-card {
-    -fx-background-color: #ffffff; /* Replacing gradient with solid color */
-    -fx-background-radius: 20;
-    -fx-padding: 25;
-    -fx-pref-width: 280;
-    -fx-effect: dropshadow(gaussian, rgba(124,58,237,0.15), 30, 0, 0, 8);
-    -fx-border-color: #ede9fe;
-    -fx-border-radius: 20;
+    -fx-background-color: #f3f4f6; /* Couleur de fond */
+    -fx-background-radius: 15;
+    -fx-padding: 20;
+    -fx-effect: dropshadow(gaussian, rgba(108, 13, 242, 0.3), 10, 0.5, 0, 0);
+    -fx-alignment: center;
+    -fx-border-color: #6c0df2;
+    -fx-border-width: 2;
+    -fx-border-radius: 15;
+    -fx-cursor: hand;
+    -fx-transition: all 0.3s ease-in-out;
+}
+
+.stat-card:hover {
+    -fx-background-color: #e9d5ff; /* Couleur de survol */
+    -fx-effect: dropshadow(gaussian, rgba(108, 13, 242, 0.5), 15, 0.5, 0, 0);
 }
 
 .stat-title {
-    -fx-font-size: 14px;
-    -fx-text-fill: #6b7280;
+    -fx-font-size: 16px;
+    -fx-font-weight: bold;
+    -fx-text-fill: #6c0df2;
 }
 
 .stat-value {
-    -fx-font-size: 32px;
-    -fx-font-weight: 800;
+    -fx-font-size: 36px;
+    -fx-font-weight: bold;
     -fx-text-fill: #6c0df2;
 }
 
@@ -94,24 +103,93 @@
     -fx-stroke: #eeeeee;
 }
 
-.chart-horizontal-grid-lines {
-    -fx-stroke: #eeeeee;
+.chart-horizontal-grid-lines, .chart-vertical-grid-lines {
+    -fx-stroke: #d1d5db; /* Gris clair */
+    -fx-stroke-width: 1;
 }
 
-.axis {
-    -fx-tick-label-fill: #9ca3af;
+.axis .axis-label {
+    -fx-padding: 10 0 0 0; /* Ajouter un espace entre les étiquettes et les axes */
+    -fx-text-fill: #6b7280;
+    -fx-font-size: 12px;
+    -fx-font-weight: bold;
 }
 
 /* BAR STYLE */
+
+
+
+/* Style pour le PieChart */
+/* Style pour les graphiques */
+.pie-chart, .bar-chart {
+    -fx-background-color: transparent;
+    -fx-padding: 10;
+    -fx-border-color: #e5e7eb;
+    -fx-border-radius: 15;
+    -fx-background-radius: 15;
+    -fx-effect: dropshadow(gaussian, rgba(0, 0, 0, 0.1), 10, 0, 0, 4);
+}
+
+.pie-chart .chart-pie-label, .bar-chart .chart-bar {
+    -fx-font-size: 14px;
+    -fx-text-fill: #374151;
+    -fx-font-weight: bold;
+}
+
+.pie-chart .data0.chart-pie {
+    -fx-pie-color: #4caf50; /* Vert */
+}
+
+.pie-chart .data1.chart-pie {
+    -fx-pie-color: #f44336; /* Rouge */
+}
+
+.bar-chart .chart-bar {
+    -fx-bar-fill: #6c0df2; /* Couleur violette */
+    -fx-background-radius: 5;
+}
+
+/* Style pour les BarCharts */
+.bar-chart {
+    -fx-background-color: transparent;
+    -fx-padding: 10;
+}
+
+.bar-chart .chart-bar {
+    -fx-bar-fill: #6c0df2; /* Couleur violette unie */
+    -fx-background-radius: 5;
+}
 .default-color0.chart-bar {
-    -fx-bar-fill: #8b5cf6; /* Replacing gradient with solid color */
-    -fx-background-radius: 8px 8px 0 0;
+    -fx-bar-fill: #6c0df2; /* Couleur violette */
 }
 
 .default-color1.chart-bar {
-    -fx-bar-fill: #a78bfa; /* Replacing gradient with solid color */
-    -fx-background-radius: 8px 8px 0 0;
+    -fx-bar-fill: #7c3aed; /* Couleur violette claire */
 }
+
+.default-color2.chart-bar {
+    -fx-bar-fill: #a78bfa; /* Couleur lavande */
+}
+.default-color3.chart-bar {
+    -fx-bar-fill: #4c1d95; /* Couleur foncée */
+}
+.bar-chart .chart-legend {
+    -fx-background-color: transparent;
+    -fx-text-fill: #374151;
+    -fx-font-size: 12px;
+    -fx-font-weight: bold;
+}
+
+.bar-chart .axis-label {
+    -fx-text-fill: #6b7280;
+    -fx-font-size: 12px;
+    -fx-font-weight: bold;
+}
+
+.bar-chart .axis-tick-mark {
+    -fx-stroke: #e5e7eb;
+}
+
 
 /* Updated CSS with both -fx- and standard properties */
 
@@ -188,13 +266,22 @@
     -fx-effect: dropshadow(gaussian, rgba(108, 13, 242, 0.1), 20, 0, 0, 6);
     -fx-border-color: #e5e7eb;
     -fx-border-radius: 16;
+    -fx-pref-width: 800px; 
 }
 
 .article-card:hover {
     -fx-background-color: #f9f9ff;
     -fx-effect: dropshadow(gaussian, rgba(108, 13, 242, 0.2), 25, 0, 0, 8);
 }
+/* Conteneur principal */
+.main-container {
+    -fx-alignment: CENTER; /* Centrer les articles */
+}
 
+/* Lorsque la carte des Gigs est visible */
+.main-container.gigs-visible {
+    -fx-alignment: TOP_LEFT; /* Aligner les articles à gauche */
+}
 /* ================= SEARCH ================= */
 .search-container {
     -fx-background-color: #f3f4f6;
@@ -332,6 +419,126 @@
     -fx-scale-x: 0.98;
     -fx-scale-y: 0.98;
 }
+
+.filter-button {
+    -fx-background-color: linear-gradient(to right, #4c1d95, #7c3aed);
+    -fx-text-fill: white;
+    -fx-font-size: 14px;
+    -fx-font-weight: bold;
+    -fx-background-radius: 30;
+    -fx-padding: 10 20;
+    -fx-cursor: hand;
+    -fx-effect: dropshadow(gaussian, rgba(76, 29, 149, 0.3), 10, 0, 0, 4);
+}
+
+.filter-button:hover {
+    -fx-background-color: linear-gradient(to right, #6d28d9, #8b5cf6);
+    -fx-effect: dropshadow(gaussian, rgba(76, 29, 149, 0.5), 12, 0, 0, 6);
+    -fx-scale-x: 1.05;
+    -fx-scale-y: 1.05;
+}
+
+.filter-button:pressed {
+    -fx-background-color: #4c1d95;
+    -fx-scale-x: 0.98;
+    -fx-scale-y: 0.98;
+}
+
+/* Carte des commentaires */
+/* Center the comment card in the middle of the screen */
+.comment-card {
+    -fx-alignment: center;
+    -fx-background-color: white;
+    -fx-background-radius: 15;
+    -fx-padding: 15;
+    -fx-effect: dropshadow(gaussian, rgba(0, 0, 0, 0.2), 10, 0, 0, 4);
+    -fx-border-color: #e5e7eb;
+    -fx-border-radius: 15;
+    -fx-max-width: 600px;
+    -fx-min-width: 400px;
+    -fx-max-height: 400px;
+    -fx-min-height: 300px;
+    -fx-translate-y: -100; /* Center vertically */
+    -fx-translate-x: 0; /* Center horizontally */
+}
+
+
+.comment-box {
+    -fx-background-color: #f3f4f6; /* Light gray */
+    -fx-border-color: #6c0df2; /* Violet border */
+    -fx-border-radius: 10;
+    -fx-background-radius: 10;
+    -fx-padding: 10;
+    -fx-spacing: 10;
+}
+
+.comment-box .author {
+    -fx-font-size: 14px;
+    -fx-font-weight: bold;
+    -fx-text-fill: #6c0df2; /* Violet */
+}
+
+.comment-box .content {
+    -fx-font-size: 14px;
+    -fx-text-fill: #333333; /* Dark gray */
+    -fx-wrap-text: true;
+}
+
+.comment-box .time {
+    -fx-font-size: 12px;
+    -fx-text-fill: #9e9e9e; /* Light gray */
+}
+
+.comment-box .edit-btn {
+    -fx-background-color: #6c0df2;
+    -fx-text-fill: white;
+    -fx-font-size: 12px;
+    -fx-border-radius: 5;
+    -fx-background-radius: 5;
+}
+
+.comment-box .delete-btn {
+    -fx-background-color: #d32f2f;
+    -fx-text-fill: white;
+    -fx-font-size: 12px;
+    -fx-border-radius: 5;
+    -fx-background-radius: 5;
+}
+
+
+.comment-card .close-button {
+    -fx-background-color: #d32f2f;
+    -fx-text-fill: white;
+    -fx-font-size: 14px;
+    -fx-font-weight: bold;
+    -fx-background-radius: 20;
+    -fx-padding: 8 20;
+    -fx-cursor: hand;
+}
+
+.comment-card .close-button:hover {
+    -fx-background-color: #b71c1c;
+    -fx-effect: dropshadow(gaussian, rgba(211, 47, 47, 0.5), 12, 0, 0, 6);
+}
+
+.comment-card .author {
+    -fx-font-size: 14px;
+    -fx-font-weight: bold;
+    -fx-text-fill: #6a1b9a;
+}
+
+.comment-card .content {
+    -fx-font-size: 14px;
+    -fx-text-fill: #333333;
+    -fx-wrap-text: true;
+}
+
+.comment-card .time {
+    -fx-font-size: 12px;
+    -fx-text-fill: #9e9e9e;
+}
+
+
 /* ================= ARTICLE TEXT ================= */
 .card-title {
     -fx-font-size: 18px;
@@ -384,19 +591,29 @@
     -fx-background-color: #f3f4f6;
     -fx-border-radius: 50%;
 }
+/* Carte des articles */
 .article-card {
     -fx-background-color: white;
-    -fx-background-radius: 15;
-    -fx-padding: 15;
-    -fx-effect: dropshadow(gaussian, rgba(0,0,0,0.08), 10, 0, 0, 4);
+    -fx-background-radius: 16;
+    -fx-padding: 20;
+    -fx-effect: dropshadow(gaussian, rgba(0, 0, 0, 0.1), 10, 0, 0, 4);
+    -fx-border-color: #e5e7eb;
+    -fx-border-radius: 16;
 }
+
+.article-card:hover {
+    -fx-background-color: #f9f9ff;
+    -fx-effect: dropshadow(gaussian, rgba(108, 13, 242, 0.2), 25, 0, 0, 8);
+}
+
 .heart-button {
     -fx-cursor: hand;
     -fx-background-color: transparent;
 }
 
 .heart-button:hover {
-    -fx-text-fill: #6c0df2; /* Primary purple */
+    -fx-scale-x: 1.2;
+    -fx-scale-y: 1.2; 
 }
 .article-card:hover {
     -fx-background-color: #f9f9f9;
@@ -414,4 +631,33 @@
 
 .article-card .heart-button {
     -fx-cursor: hand;
+}
+/* Carte des Gigs */
+.gigs-card {
+    -fx-background-color: white;
+    -fx-background-radius: 20;
+    -fx-padding: 20;
+    -fx-effect: dropshadow(gaussian, rgba(0, 0, 0, 0.2), 10, 0, 0, 4);
+}
+
+.gigs-card .profile-page-title {
+    -fx-font-size: 20px;
+    -fx-font-weight: bold;
+    -fx-text-fill: #333;
+}
+
+.gigs-card .gig-card {
+    -fx-background-color: white;
+    -fx-background-radius: 10;
+    -fx-padding: 15;
+    -fx-effect: dropshadow(gaussian, rgba(0, 0, 0, 0.1), 10, 0, 0, 4);
+    -fx-border-color: #ddd;
+    -fx-border-radius: 10;
+    -fx-max-width: 250px;
+    -fx-min-width: 250px;
+}
+
+.gigs-card .gig-card:hover {
+    -fx-background-color: #f9f9ff;
+    -fx-effect: dropshadow(gaussian, rgba(108, 13, 242, 0.2), 25, 0, 0, 8);
 }
