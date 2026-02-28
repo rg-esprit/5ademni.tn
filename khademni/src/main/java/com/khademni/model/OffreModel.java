@@ -13,12 +13,13 @@ public class OffreModel {
     private String statut;
     private String type; // "OFFRE" or "DEMANDE"
     private LocalDateTime dateLimite;
+    private String userName; // Full name of the author (for Global Feed display)
 
     public OffreModel() {
     }
 
     public OffreModel(int id, int userId, int userUniqueId, String titre, String description, double prix,
-            LocalDateTime dateCreation, String statut, String type, LocalDateTime dateLimite) {
+            LocalDateTime dateCreation, String statut, String type, LocalDateTime dateLimite, String userName) {
         this.id = id;
         this.userId = userId;
         this.userUniqueId = userUniqueId;
@@ -29,6 +30,7 @@ public class OffreModel {
         this.statut = statut;
         this.type = type;
         this.dateLimite = dateLimite;
+        this.userName = userName;
     }
 
     public int getId() {
@@ -109,5 +111,13 @@ public class OffreModel {
 
     public void setDateLimite(LocalDateTime dateLimite) {
         this.dateLimite = dateLimite;
+    }
+
+    public String getUserName() {
+        return userName;
+    }
+
+    public void setUserName(String userName) {
+        this.userName = userName;
     }
 }

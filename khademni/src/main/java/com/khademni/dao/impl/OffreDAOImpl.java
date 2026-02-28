@@ -126,6 +126,7 @@ public class OffreDAOImpl implements OffreDAO {
                 rs.getTimestamp("date_creation").toLocalDateTime(),
                 rs.getString("statut"),
                 type,
-                deadline);
+                deadline,
+                null); // userName is resolved in OffreController's loadOffres()
     }
 }

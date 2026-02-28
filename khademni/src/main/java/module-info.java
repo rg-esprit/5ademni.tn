@@ -3,7 +3,9 @@ module com.khademni {
     requires javafx.fxml;
     requires transitive javafx.graphics;
     requires java.sql;
+    requires java.desktop;
     requires java.net.http;
+    requires java.prefs;
     requires javafx.web;
     requires com.fasterxml.jackson.databind;
     requires org.mariadb.jdbc;
@@ -15,6 +17,8 @@ module com.khademni {
     requires bcrypt;
     requires org.slf4j;
     requires io.github.cdimascio.dotenv.java;
+    requires jdk.jsobject;
+    requires jakarta.mail;
 
     opens com.khademni to javafx.fxml;
     opens com.khademni.controller to javafx.fxml;
@@ -30,4 +34,5 @@ module com.khademni {
     exports com.khademni.dao;
     exports com.khademni.exception;
     exports com.khademni.config;
+    exports com.khademni.utils;
 }

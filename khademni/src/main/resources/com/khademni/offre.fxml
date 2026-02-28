@@ -25,8 +25,8 @@
                 <!-- Header Section with Actions -->
                 <HBox alignment="CENTER_LEFT" spacing="16">
                     <VBox spacing="4" HBox.hgrow="ALWAYS">
-                        <Label text="Espace Offres &amp; Demandes" styleClass="heading" />
-                        <Label text="Gérez vos offres de service et vos demandes de travail" styleClass="subtitle-text" />
+                        <Label text="Global Feed — Offres &amp; Demandes" styleClass="heading" />
+                        <Label text="Consultez toutes les offres et demandes de la communauté" styleClass="subtitle-text" />
                     </VBox>
                     
                     <!-- Search Bar -->
@@ -35,37 +35,35 @@
                         <TextField fx:id="searchField" promptText="Rechercher par Titre ou Type..." 
                                    styleClass="search-field" HBox.hgrow="ALWAYS" />
                     </HBox>
-
-                    <Button text="Nouvel Offre" styleClass="button-primary"
-                        onAction="#goToAddOffer">
-                        <graphic>
-                            <Label text="&#xe145;" styleClass="btn-icon-arrow" />
-                        </graphic>
-                    </Button>
-                    <Button text="Nouvelle Demande" styleClass="button-secondary"
-                        onAction="#goToAddDemand">
-                        <graphic>
-                            <Label text="&#xe145;" styleClass="btn-icon-arrow" />
-                        </graphic>
-                    </Button>
                 </HBox>
 
                 <!-- Table View -->
                 <TableView fx:id="offreTable" VBox.vgrow="ALWAYS" minHeight="400">
                     <columns>
                         <TableColumn fx:id="colId" text="ID" prefWidth="50" />
-                        <TableColumn fx:id="colUserId" text="User ID" prefWidth="80" />
+                        <TableColumn fx:id="colPubliePar" text="Publié par" prefWidth="140" />
                         <TableColumn fx:id="colTitre" text="Titre" prefWidth="200" />
                         <TableColumn fx:id="colPrix" text="Prix" prefWidth="100" />
                         <TableColumn fx:id="colType" text="Type" prefWidth="100" />
                         <TableColumn fx:id="colStatut" text="Statut" prefWidth="100" />
                         <TableColumn fx:id="colDate" text="Date Création" prefWidth="150" />
-                        <TableColumn fx:id="colActions" text="Actions" prefWidth="180" />
                     </columns>
                     <columnResizePolicy>
                         <TableView fx:constant="CONSTRAINED_RESIZE_POLICY" />
                     </columnResizePolicy>
                 </TableView>
+
+                <!-- Floating Action Bar (Hidden by default) -->
+                <HBox fx:id="floatingActionBar" alignment="CENTER" spacing="16" visible="false" managed="false"
+                      style="-fx-background-color: #ffffff; -fx-padding: 12 24; -fx-background-radius: 50; 
+                             -fx-effect: dropshadow(gaussian, rgba(0,0,0,0.15), 10, 0, 0, 4); 
+                             -fx-border-color: #e5e7eb; -fx-border-radius: 50; -fx-border-width: 1;">
+                    <Button fx:id="fabEditBtn" text="Modifier" styleClass="button-primary" onAction="#onFabEdit" />
+                    <Button fx:id="fabDeleteBtn" text="Supprimer" styleClass="button-secondary" onAction="#onFabDelete" 
+                            style="-fx-background-color: #fef2f2; -fx-text-fill: #dc2626; -fx-border-color: #fecaca;" />
+                    <Button fx:id="fabPdfBtn" text="Exporter PDF" styleClass="button-secondary" onAction="#onFabPdf" 
+                            style="-fx-background-color: #ecfdf5; -fx-text-fill: #059669; -fx-border-color: #a7f3d0;" />
+                </HBox>
 
             </VBox>
 

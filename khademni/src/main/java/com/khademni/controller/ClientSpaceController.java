@@ -2,6 +2,7 @@ package com.khademni.controller;
 
 import com.khademni.App;
 import com.khademni.model.OffreModel;
+import com.khademni.model.UserModel;
 import com.khademni.utils.MyDataBase;
 import com.khademni.utils.PasswordUtil;
 import com.lowagie.text.Document;
@@ -116,21 +117,30 @@ public class ClientSpaceController {
 
     private void loadOffres() {
         offreList.clear();
+        UserModel currentUser = App.getCurrentUser();
+        if (currentUser == null)
+            return;
+        int currentUserId = currentUser.getId();
+
         // Try with unique_id JOIN first, fall back to simple query
-        String queryJoin = "SELECT d.*, u.unique_id FROM demandes d LEFT JOIN users u ON d.user_id = u.id";
-        String querySimple = "SELECT * FROM demandes";
+        String queryJoin = "SELECT d.*, u.unique_id FROM demandes d LEFT JOIN users u ON d.user_id = u.id WHERE d.user_id = ?";
+        String querySimple = "SELECT * FROM demandes WHERE user_id = ?";
         boolean useJoin = true;
 
         try (Connection conn = MyDataBase.getConnection();
-                Statement stmt = conn.createStatement()) {
+                PreparedStatement pstmtJoin = conn.prepareStatement(queryJoin);
+                PreparedStatement pstmtSimple = conn.prepareStatement(querySimple)) {
+
+            pstmtJoin.setInt(1, currentUserId);
+            pstmtSimple.setInt(1, currentUserId);
 
             ResultSet rs;
             try {
-                rs = stmt.executeQuery(queryJoin);
+                rs = pstmtJoin.executeQuery();
             } catch (SQLException joinErr) {
                 // unique_id column missing — fall back
                 useJoin = false;
-                rs = stmt.executeQuery(querySimple);
+                rs = pstmtSimple.executeQuery();
             }
 
             while (rs.next()) {
@@ -170,19 +180,12 @@ public class ClientSpaceController {
             private final Button editBtn = new Button("Modifier");
             private final Button deleteBtn = new Button("Supprimer");
             private final Button pdfBtn = new Button("PDF");
-            private final Button maintenirBtn = new Button("Maintenir");
-            private final Button annulerBtn = new Button("Annuler");
-            private final HBox normalPane = new HBox(5, editBtn, deleteBtn, pdfBtn);
-            private final HBox expiredPane = new HBox(5, maintenirBtn, annulerBtn);
+            private final HBox btnPane = new HBox(5, editBtn, deleteBtn, pdfBtn);
 
             {
                 editBtn.setStyle("-fx-background-color: #6c0df2; -fx-text-fill: white; -fx-cursor: hand;");
                 deleteBtn.setStyle("-fx-background-color: #ef4444; -fx-text-fill: white; -fx-cursor: hand;");
                 pdfBtn.setStyle("-fx-background-color: #10b981; -fx-text-fill: white; -fx-cursor: hand;");
-                maintenirBtn.setStyle(
-                        "-fx-background-color: #e67e22; -fx-text-fill: white; -fx-cursor: hand; -fx-font-weight: bold;");
-                annulerBtn.setStyle(
-                        "-fx-background-color: #e74c3c; -fx-text-fill: white; -fx-cursor: hand; -fx-font-weight: bold;");
 
                 editBtn.setOnAction(event -> {
                     OffreModel offre = getTableView().getItems().get(getIndex());
@@ -196,14 +199,6 @@ public class ClientSpaceController {
                     OffreModel offre = getTableView().getItems().get(getIndex());
                     generatePDF(offre);
                 });
-                maintenirBtn.setOnAction(event -> {
-                    OffreModel offre = getTableView().getItems().get(getIndex());
-                    handleMaintenir(offre, "demandes");
-                });
-                annulerBtn.setOnAction(event -> {
-                    OffreModel offre = getTableView().getItems().get(getIndex());
-                    handleAnnuler(offre, "demandes");
-                });
             }
 
             @Override
@@ -212,61 +207,11 @@ public class ClientSpaceController {
                 if (empty) {
                     setGraphic(null);
                 } else {
-                    OffreModel offre = getTableView().getItems().get(getIndex());
-                    if (offre.getDateLimite() != null && offre.getDateLimite().isBefore(LocalDateTime.now())) {
-                        setGraphic(expiredPane);
-                    } else {
-                        setGraphic(normalPane);
-                    }
+                    setGraphic(btnPane);
                 }
             }
         };
         colActions.setCellFactory(cellFactory);
-    }
-
-    private void handleMaintenir(OffreModel offre, String tableName) {
-        javafx.scene.control.DatePicker picker = new javafx.scene.control.DatePicker(
-                java.time.LocalDate.now().plusDays(7));
-        Dialog<java.time.LocalDate> dialog = new Dialog<>();
-        dialog.setTitle("Maintenir l'offre");
-        dialog.setHeaderText("Choisir une nouvelle date limite :");
-        dialog.getDialogPane().setContent(picker);
-        dialog.getDialogPane().getButtonTypes().addAll(ButtonType.OK, ButtonType.CANCEL);
-        dialog.setResultConverter(btn -> btn == ButtonType.OK ? picker.getValue() : null);
-        dialog.showAndWait().ifPresent(newDate -> {
-            if (newDate.isBefore(java.time.LocalDate.now()) || newDate.isEqual(java.time.LocalDate.now())) {
-                Alert a = new Alert(Alert.AlertType.WARNING, "La nouvelle date doit être dans le futur.");
-                a.showAndWait();
-                return;
-            }
-            String sql = "UPDATE " + tableName + " SET date_limite = ? WHERE id = ?";
-            try (Connection conn = MyDataBase.getConnection();
-                    PreparedStatement ps = conn.prepareStatement(sql)) {
-                ps.setTimestamp(1, Timestamp.valueOf(newDate.atStartOfDay()));
-                ps.setInt(2, offre.getId());
-                ps.executeUpdate();
-                loadOffres();
-            } catch (SQLException e) {
-                e.printStackTrace();
-            }
-        });
-    }
-
-    private void handleAnnuler(OffreModel offre, String tableName) {
-        Alert alert = new Alert(Alert.AlertType.CONFIRMATION, "Supprimer cette offre expirée ?", ButtonType.YES,
-                ButtonType.NO);
-        if (alert.showAndWait().get() == ButtonType.YES) {
-            String sql = "DELETE FROM " + tableName + " WHERE id = ?";
-            try (Connection conn = MyDataBase.getConnection();
-                    PreparedStatement ps = conn.prepareStatement(sql)) {
-                ps.setInt(1, offre.getId());
-                ps.executeUpdate();
-                MyDataBase.resetAutoIncrementIfEmpty(tableName, 1);
-                loadOffres();
-            } catch (SQLException e) {
-                e.printStackTrace();
-            }
-        }
     }
 
     private void handleEdit(OffreModel offre) {

@@ -2,6 +2,7 @@ package com.khademni.controller;
 
 import com.khademni.App;
 import com.khademni.model.ContratModel;
+import com.khademni.model.UserModel;
 import com.khademni.service.StripeService;
 import com.khademni.utils.MyDataBase;
 import javafx.collections.FXCollections;
@@ -37,13 +38,20 @@ public class PaiementController {
     @FXML
     private TableColumn<ContratModel, Integer> colId;
     @FXML
-    private TableColumn<ContratModel, Integer> colFreelancer;
+    private TableColumn<ContratModel, String> colFreelancer;
     @FXML
-    private TableColumn<ContratModel, Integer> colClient;
+    private TableColumn<ContratModel, String> colClient;
     @FXML
     private TableColumn<ContratModel, String> colStatut;
+
     @FXML
-    private TableColumn<ContratModel, Void> colActions;
+    private HBox floatingActionBar;
+    @FXML
+    private Button fabPayeBtn;
+    @FXML
+    private Button fabAttenteBtn;
+    @FXML
+    private Button fabAnnulerBtn;
 
     private ObservableList<ContratModel> contratList = FXCollections.observableArrayList();
     private final StripeService stripeService = new StripeService();
@@ -64,54 +72,65 @@ public class PaiementController {
                 }
             }
         });
-        colFreelancer.setCellValueFactory(new PropertyValueFactory<>("idFreelancer"));
-        colClient.setCellValueFactory(new PropertyValueFactory<>("idClient"));
+        colFreelancer.setCellValueFactory(new PropertyValueFactory<>("freelancerName"));
+        colClient.setCellValueFactory(new PropertyValueFactory<>("clientName"));
         colStatut.setCellValueFactory(new PropertyValueFactory<>("statut"));
 
-        addActionsButtonsToTable();
+        setupFloatingActionBar();
         loadContrats();
     }
 
     private void loadContrats() {
         contratList.clear();
+        UserModel currentUser = App.getCurrentUser();
+        if (currentUser == null)
+            return;
+        int currentUserId = currentUser.getId();
+
         String query = "SELECT c.*, " +
                 "u1.first_name as cfname, u1.last_name as clname, u1.unique_id as cuid, " +
                 "u2.first_name as ffname, u2.last_name as flname, u2.unique_id as fuid " +
                 "FROM contrats c " +
                 "LEFT JOIN users u1 ON c.client_id = u1.id " +
-                "LEFT JOIN users u2 ON c.freelancer_id = u2.id";
+                "LEFT JOIN users u2 ON c.freelancer_id = u2.id " +
+                "WHERE c.client_id = ? OR c.freelancer_id = ?";
 
         try (Connection conn = MyDataBase.getConnection();
-                Statement stmt = conn.createStatement();
-                ResultSet rs = stmt.executeQuery(query)) {
+                PreparedStatement pstmt = conn.prepareStatement(query)) {
 
-            while (rs.next()) {
-                java.sql.Date sqlDate = rs.getDate("date_contrat");
-                java.time.LocalDate localDate = sqlDate == null ? null : sqlDate.toLocalDate();
+            pstmt.setInt(1, currentUserId);
+            pstmt.setInt(2, currentUserId);
 
-                String cfName = rs.getString("cfname");
-                String clName = rs.getString("clname");
-                String ffName = rs.getString("ffname");
-                String flName = rs.getString("flname");
+            try (ResultSet rs = pstmt.executeQuery()) {
 
-                String clientName = (cfName != null && clName != null) ? (cfName + " " + clName) : "Unknown Client";
-                String freelancerName = (ffName != null && flName != null) ? (ffName + " " + flName)
-                        : "Unknown Freelancer";
+                while (rs.next()) {
+                    java.sql.Date sqlDate = rs.getDate("date_contrat");
+                    java.time.LocalDate localDate = sqlDate == null ? null : sqlDate.toLocalDate();
 
-                contratList.add(new ContratModel(
-                        rs.getInt("id"),
-                        rs.getInt("client_id"),
-                        rs.getInt("freelancer_id"),
-                        rs.getInt("cuid"),
-                        rs.getInt("fuid"),
-                        clientName,
-                        freelancerName,
-                        rs.getString("titre"),
-                        rs.getString("description"),
-                        rs.getDouble("prix"),
-                        localDate,
-                        rs.getString("statut")));
-            }
+                    String cfName = rs.getString("cfname");
+                    String clName = rs.getString("clname");
+                    String ffName = rs.getString("ffname");
+                    String flName = rs.getString("flname");
+
+                    String clientName = (cfName != null && clName != null) ? (cfName + " " + clName) : "Unknown Client";
+                    String freelancerName = (ffName != null && flName != null) ? (ffName + " " + flName)
+                            : "Unknown Freelancer";
+
+                    contratList.add(new ContratModel(
+                            rs.getInt("id"),
+                            rs.getInt("client_id"),
+                            rs.getInt("freelancer_id"),
+                            rs.getInt("cuid"),
+                            rs.getInt("fuid"),
+                            clientName,
+                            freelancerName,
+                            rs.getString("titre"),
+                            rs.getString("description"),
+                            rs.getDouble("prix"),
+                            localDate,
+                            rs.getString("statut")));
+                }
+            } // Close inner ResultSet try
             contratStatusTable.setItems(contratList);
         } catch (Exception e) {
             e.printStackTrace();
@@ -119,46 +138,40 @@ public class PaiementController {
         }
     }
 
-    private void addActionsButtonsToTable() {
-        Callback<TableColumn<ContratModel, Void>, TableCell<ContratModel, Void>> cellFactory = new Callback<>() {
-            @Override
-            public TableCell<ContratModel, Void> call(final TableColumn<ContratModel, Void> param) {
-                final TableCell<ContratModel, Void> cell = new TableCell<>() {
-                    private final Button payeBtn = new Button("Payé");
-                    private final Button attenteBtn = new Button("En Attente");
-                    private final Button annulerBtn = new Button("Annuler");
-                    private final HBox pane = new HBox(payeBtn, attenteBtn, annulerBtn);
-
-                    {
-                        pane.setSpacing(5);
-                        payeBtn.setStyle(
-                                "-fx-background-color: #6c5ce7; -fx-text-fill: white; -fx-font-size: 11px; -fx-font-weight: bold; -fx-background-radius: 5;");
-                        attenteBtn.setStyle(
-                                "-fx-background-color: #a29bfe; -fx-text-fill: white; -fx-font-size: 11px; -fx-font-weight: bold; -fx-background-radius: 5;");
-                        annulerBtn.setStyle(
-                                "-fx-background-color: white; -fx-text-fill: #6c5ce7; -fx-border-color: #6c5ce7; -fx-border-radius: 5; -fx-background-radius: 5; -fx-font-size: 11px;");
-
-                        payeBtn.setOnAction(event -> updateStatus(getTableView().getItems().get(getIndex()), "PAYE"));
-                        attenteBtn.setOnAction(
-                                event -> updateStatus(getTableView().getItems().get(getIndex()), "EN_ATTENTE"));
-                        annulerBtn.setOnAction(
-                                event -> updateStatus(getTableView().getItems().get(getIndex()), "ANNULE"));
-                    }
-
-                    @Override
-                    protected void updateItem(Void item, boolean empty) {
-                        super.updateItem(item, empty);
-                        if (empty) {
-                            setGraphic(null);
-                        } else {
-                            setGraphic(pane);
-                        }
-                    }
-                };
-                return cell;
+    private void setupFloatingActionBar() {
+        contratStatusTable.getSelectionModel().selectedItemProperty().addListener((obs, oldSelection, newSelection) -> {
+            if (newSelection != null) {
+                floatingActionBar.setVisible(true);
+                floatingActionBar.setManaged(true);
+            } else {
+                floatingActionBar.setVisible(false);
+                floatingActionBar.setManaged(false);
             }
-        };
-        colActions.setCellFactory(cellFactory);
+        });
+    }
+
+    @FXML
+    private void onFabPaye() {
+        ContratModel selected = contratStatusTable.getSelectionModel().getSelectedItem();
+        if (selected != null) {
+            updateStatus(selected, "PAYE");
+        }
+    }
+
+    @FXML
+    private void onFabAttente() {
+        ContratModel selected = contratStatusTable.getSelectionModel().getSelectedItem();
+        if (selected != null) {
+            updateStatus(selected, "EN_ATTENTE");
+        }
+    }
+
+    @FXML
+    private void onFabAnnuler() {
+        ContratModel selected = contratStatusTable.getSelectionModel().getSelectedItem();
+        if (selected != null) {
+            updateStatus(selected, "ANNULE");
+        }
     }
 
     private void updateStatus(ContratModel contrat, String newStatus) {

@@ -8,7 +8,8 @@
 .nav-link {
     -fx-text-fill: #4b5563;
     -fx-font-size: 14px;
-    -fx-underline: false;
+    -fx-font-weight: bold;
+    -fx-background-color: transparent;
     -fx-border-width: 0;
     -fx-padding: 0;
     -fx-cursor: hand;

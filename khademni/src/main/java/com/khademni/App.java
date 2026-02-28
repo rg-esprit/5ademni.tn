@@ -4,10 +4,12 @@ import javafx.application.Application;
 import javafx.fxml.FXMLLoader;
 import javafx.scene.Parent;
 import javafx.scene.Scene;
+import javafx.scene.layout.StackPane;
 import javafx.stage.Stage;
 
 // user model
 import com.khademni.model.UserModel;
+import com.khademni.controller.ChatbotController;
 
 import java.io.IOException;
 
@@ -20,6 +22,7 @@ public class App extends Application {
     private static Stage primaryStage;
     private static javafx.application.HostServices hostServices;
     public static UserModel currentUser;
+    private static ChatbotController chatbotController;
 
     @Override
     public void start(Stage stage) throws IOException {
@@ -35,28 +38,49 @@ public class App extends Application {
     }
 
     public static void setRoot(String fxml) throws IOException {
-        scene.setRoot(loadFXML(fxml));
+        Parent fxmlRoot = loadFXML(fxml);
 
         // Update title and CSS based on the scene
         scene.getStylesheets().clear();
         if (fxml.equals("login")) {
             scene.getStylesheets().add(App.class.getResource("login.css").toExternalForm());
             primaryStage.setTitle("5ademni.tn — Sign In");
+            scene.setRoot(fxmlRoot);
         } else if (fxml.equals("signup")) {
             scene.getStylesheets().add(App.class.getResource("signup.css").toExternalForm());
             primaryStage.setTitle("5ademni.tn — Create Account");
+            scene.setRoot(fxmlRoot);
         } else if (fxml.equals("profile")) {
             scene.getStylesheets().add(App.class.getResource("profile.css").toExternalForm());
             primaryStage.setTitle("5ademni.tn — My Profile");
+            scene.setRoot(wrapWithChatbot(fxmlRoot));
         } else if (fxml.equals("contrat")) {
             scene.getStylesheets().add(App.class.getResource("contrat.css").toExternalForm());
             primaryStage.setTitle("5ademni.tn — Gestion Contrats");
+            scene.setRoot(wrapWithChatbot(fxmlRoot));
         } else if (fxml.equals("paiement_form")) {
             scene.getStylesheets().add(App.class.getResource("contrat.css").toExternalForm());
             primaryStage.setTitle("5ademni.tn — Paiement Manuel");
+            scene.setRoot(wrapWithChatbot(fxmlRoot));
         } else {
             scene.getStylesheets().add(App.class.getResource("contrat.css").toExternalForm());
+            scene.setRoot(wrapWithChatbot(fxmlRoot));
         }
+    }
+
+    /**
+     * Wraps a page root with the chatbot overlay if the user is logged in.
+     */
+    private static Parent wrapWithChatbot(Parent fxmlRoot) {
+        if (currentUser != null) {
+            if (chatbotController == null) {
+                chatbotController = new ChatbotController();
+            }
+            StackPane wrapper = new StackPane();
+            wrapper.getChildren().addAll(fxmlRoot, chatbotController.getOverlay());
+            return wrapper;
+        }
+        return fxmlRoot;
     }
 
     public static void setRoot(Parent node) {
@@ -83,10 +107,16 @@ public class App extends Application {
 
     public static void setCurrentUser(UserModel user) {
         currentUser = user;
+        // Reset chatbot when user changes (login/logout)
+        chatbotController = null;
     }
 
     public static javafx.application.HostServices getAppHostServices() {
         return hostServices;
+    }
+
+    public static Stage getPrimaryStage() {
+        return primaryStage;
     }
 
 }

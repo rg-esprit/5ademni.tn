@@ -83,10 +83,10 @@
                     <!-- CV Upload Section (visible only for Freelancer) -->
                     <VBox fx:id="cvSection" alignment="TOP_CENTER" spacing="15" visible="false" managed="false"
                         style="-fx-padding: 20 0 0 0;">
-                        <Label text="Gestion du CV (PDF)" styleClass="profile-field-label"
+                        <Label text="Gestion du CV" styleClass="profile-field-label"
                             style="-fx-text-fill: #6c0df2; -fx-font-weight: bold;" />
                         
-                        <Button text="Uploader mon CV" styleClass="cv-upload-btn"
+                        <Button fx:id="cvUploadBtn" text="Uploader mon CV" styleClass="cv-upload-btn"
                                 onAction="#onUploadCV" style="-fx-background-color: #6c0df2; -fx-text-fill: white; -fx-padding: 8 16; -fx-background-radius: 6;" />
 
                         <TableView fx:id="cvTableView" prefHeight="100" maxHeight="120" styleClass="cv-table">

@@ -18,6 +18,18 @@
         <!-- Main Content Area -->
         <VBox alignment="TOP_CENTER" spacing="32" style="-fx-padding: 40 24 60 24;">
 
+            <!-- Motivational Quote Header -->
+            <VBox fx:id="quoteContainer" alignment="CENTER" spacing="12" maxWidth="1000" prefWidth="1000"
+                style="-fx-padding: 28 36; -fx-background-color: linear-gradient(to right, rgba(108,13,242,0.08), rgba(108,92,231,0.12)); -fx-background-radius: 16; -fx-border-color: rgba(108,13,242,0.15); -fx-border-radius: 16; -fx-border-width: 1;">
+                <Label fx:id="quoteLabel" text="Chargement..." wrapText="true"
+                    style="-fx-font-size: 15px; -fx-font-style: italic; -fx-text-fill: #4a3f6b; -fx-text-alignment: center;"
+                    alignment="CENTER" maxWidth="900" />
+                <Label fx:id="quoteAuthor" text=""
+                    style="-fx-font-size: 13px; -fx-font-weight: bold; -fx-text-fill: #6c0df2;" />
+                <Button fx:id="refreshQuoteBtn" text="✨ Nouvelle inspiration" onAction="#refreshQuote"
+                    style="-fx-background-color: transparent; -fx-text-fill: #6c5ce7; -fx-font-size: 12px; -fx-cursor: hand; -fx-border-color: #6c5ce7; -fx-border-radius: 20; -fx-background-radius: 20; -fx-padding: 6 18;" />
+            </VBox>
+
             <!-- Main Card Container -->
             <VBox styleClass="card" spacing="28" maxWidth="1000" prefWidth="1000"
                 style="-fx-padding: 36;">
