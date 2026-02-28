@@ -4,6 +4,9 @@ import com.khademni.model.*;
 
 import javafx.animation.ScaleTransition;
 import javafx.fxml.FXML;
+import javafx.geometry.Insets;
+import javafx.geometry.Pos;
+import javafx.scene.Scene;
 import javafx.scene.chart.*;
 import javafx.scene.control.*;
 import javafx.scene.control.cell.PropertyValueFactory;
@@ -12,6 +15,8 @@ import javafx.scene.layout.HBox;
 import javafx.scene.layout.StackPane;
 import javafx.scene.layout.VBox;
 import javafx.stage.FileChooser;
+import javafx.stage.Modality;
+import javafx.stage.Stage;
 import javafx.util.Duration;
 import org.kordamp.ikonli.javafx.FontIcon;
 import com.khademni.service.*;
@@ -95,14 +100,12 @@ public class ArticleGUIController {
     private VBox totalArticlesCard, visibleArticlesCard, hiddenArticlesCard;
 
     private final ArticleController articleController = new ArticleController();
-    private Article articleSelectionne; // ✅ IMPORTANT
+    private Article articleSelectionne; 
 
     private final FavoriController favoriService = new FavoriController();
     private final CommentaireController commentaireService = new CommentaireController();
 
-    // ==================================================
-    // INITIALIZE
-    // ==================================================
+
     @FXML
     public void initialize() {
 
@@ -239,7 +242,29 @@ public class ArticleGUIController {
         loadStatistics();
 
     }
+private void showModernDialog(String title, String message, String type) {
+    Stage dialog = new Stage();
+    dialog.initModality(Modality.APPLICATION_MODAL);
+    dialog.setTitle(title);
 
+    VBox dialogVBox = new VBox(20);
+    dialogVBox.setAlignment(Pos.CENTER);
+    dialogVBox.setPadding(new Insets(20));
+    dialogVBox.setStyle("-fx-background-color: white; -fx-border-radius: 10; -fx-background-radius: 10;");
+
+    Label lblMessage = new Label(message);
+    lblMessage.setStyle("-fx-font-size: 14px; -fx-text-fill: #374151; -fx-font-weight: bold;");
+
+    Button btnClose = new Button("OK");
+    btnClose.setStyle("-fx-background-color: #6c0df2; -fx-text-fill: white; -fx-font-size: 14px; -fx-font-weight: bold; -fx-background-radius: 20;");
+    btnClose.setOnAction(e -> dialog.close());
+
+    dialogVBox.getChildren().addAll(lblMessage, btnClose);
+
+    Scene dialogScene = new Scene(dialogVBox, 300, 150);
+    dialog.setScene(dialogScene);
+    dialog.showAndWait();
+}
     private void supprimerArticle(Article article) {
 
         Alert confirm = new Alert(Alert.AlertType.CONFIRMATION);
@@ -281,9 +306,9 @@ public class ArticleGUIController {
                         showAlert(Alert.AlertType.ERROR, "Erreur", "Impossible d'envoyer l'email !");
                     }
 
-                    showAlert(Alert.AlertType.INFORMATION,
+                    showModernDialog(
                             "Succès",
-                            "Article supprimé avec succès !");
+                            "Article supprimé avec succès !","success");
                 } catch (Exception e) {
                     showAlert(Alert.AlertType.ERROR,
                             "Erreur",
@@ -485,7 +510,7 @@ public class ArticleGUIController {
 
                 System.out.println("Article ajouté avec succès dans la base de données.");
 
-                showAlert(Alert.AlertType.INFORMATION, "Succès", "Article ajouté avec succès !");
+                showModernDialog( "Succès", "Article ajouté avec succès !", "success");
                 // Envoi de l'email après l'ajout de l'article
                 try {
                     UserModel currentUser = SessionManager.getCurrentUser();
@@ -505,7 +530,7 @@ public class ArticleGUIController {
                     showAlert(Alert.AlertType.ERROR, "Erreur", "Impossible d'envoyer l'email !");
                 }
 
-                showAlert(Alert.AlertType.INFORMATION, "Succès", "Article ajouté avec succès !");
+                showModernDialog( "Succès", "Article ajouté avec succès !", "success");
             } else {
                 // ===== MODIFICATION =====
                 articleSelectionne.setTitle(txtTitle.getText());
@@ -515,7 +540,7 @@ public class ArticleGUIController {
 
                 articleController.update(articleSelectionne);
 
-                showAlert(Alert.AlertType.INFORMATION, "Succès", "Article modifié avec succès !");
+                showModernDialog( "Succès", "Article modifié avec succès !", "success");
             }
 
             loadArticles();
@@ -570,7 +595,7 @@ public class ArticleGUIController {
             loadArticles();
             loadStatistics();
             clearForm();
-            showAlert(Alert.AlertType.INFORMATION, "Succès", "Article modifié avec succès !");
+            showModernDialog( "Succès", "Article modifié avec succès !", "success");
 
         } catch (Exception e) {
             showAlert(Alert.AlertType.ERROR, "Erreur", "Erreur lors de la modification !");

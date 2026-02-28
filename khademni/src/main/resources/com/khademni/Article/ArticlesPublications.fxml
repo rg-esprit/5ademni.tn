@@ -47,6 +47,7 @@
                                                  prefColumns="1"
                                                  alignment="CENTER"
                                                  tileAlignment="CENTER" />
+                                                 
                                    </VBox>
                             </HBox>
                      </VBox>
@@ -59,7 +60,8 @@
                             managed="false"
                             styleClass="comment-card"
                             maxWidth="600"
-                            maxHeight="400">
+                            maxHeight="400"
+                            translateY="-1500">
                             <Button text="Masquer"
                                    style="-fx-background-color: #d32f2f; -fx-text-fill: white; -fx-background-radius: 15; -fx-padding: 5 15; -fx-cursor: hand;"
                                    onAction="#hideCommentCard" />
@@ -84,8 +86,9 @@
              -fx-effect: dropshadow(gaussian, rgba(0, 0, 0, 0.2), 8, 0, 0, 4);"
                             visible="false"
                             managed="false"
-                            translateX="500"
-                            maxWidth="700"
+                            translateX="600"
+                             translateY="-1500"
+                            maxWidth="500"
                             maxHeight="1500">
                             <Button text="Masquer"
                                    style="-fx-background-color: #d32f2f; 
