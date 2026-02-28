@@ -30,9 +30,11 @@ public class FavoriControllerGUI {
                 }
 
                 Label title = new Label(f.getArticle().getTitle());
-                Label date = new Label("Ajouté le " + LocalDateTime.now().format(DateTimeFormatter.ofPattern("dd/MM/yyyy HH:mm")));
+                Label date = new Label(
+                        "Ajouté le " + LocalDateTime.now().format(DateTimeFormatter.ofPattern("dd/MM/yyyy HH:mm")));
                 VBox box = new VBox(5, title, date);
-                box.setStyle("-fx-padding: 10; -fx-background-color: white; -fx-background-radius: 10; -fx-effect: dropshadow(gaussian, rgba(0,0,0,0.05), 5, 0, 0, 2);");
+                box.setStyle(
+                        "-fx-padding: 10; -fx-background-color: white; -fx-background-radius: 10; -fx-effect: dropshadow(gaussian, rgba(0,0,0,0.05), 5, 0, 0, 2);");
 
                 setGraphic(box);
             }

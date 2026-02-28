@@ -12,7 +12,8 @@ public class EmailService {
     private static final String SMTP_HOST = "smtp.gmail.com"; // Serveur SMTP
     private static final String SMTP_PORT = "587"; // Port pour TLS
     private static final String EMAIL_USERNAME = "noreply@khademni.tn"; // Remplacez par votre email
-    private static final String EMAIL_PASSWORD = "your_mail_password_here"; // Remplacez par votre mot de passe ou mot de passe d'application
+    private static final String EMAIL_PASSWORD = "your_mail_password_here"; // Remplacez par votre mot de passe ou mot de passe
+                                                                     // d'application
 
     /**
      * Envoie un email à un destinataire.
@@ -60,14 +61,15 @@ public class EmailService {
      * @param date    La date de création de l'article.
      * @throws MessagingException En cas d'erreur lors de l'envoi.
      */
-    public static void sendArticleCreationEmail(String to, String title, String content, String date) throws MessagingException {
+    public static void sendArticleCreationEmail(String to, String title, String content, String date)
+            throws MessagingException {
         String subject = "Nouvel Article Créé : " + title;
         String body = "Bonjour,\n\n" +
-                      "Un nouvel article a été créé avec les détails suivants :\n" +
-                      "Titre : " + title + "\n" +
-                      "Contenu : " + content + "\n" +
-                      "Date de création : " + date + "\n\n" +
-                      "Cordialement,\nL'équipe 5ademni.tn";
+                "Un nouvel article a été créé avec les détails suivants :\n" +
+                "Titre : " + title + "\n" +
+                "Contenu : " + content + "\n" +
+                "Date de création : " + date + "\n\n" +
+                "Cordialement,\nL'équipe 5ademni.tn";
 
         sendEmail(to, subject, body);
     }
