@@ -37,15 +37,30 @@ public class FileStorageService {
         return targetPath.toAbsolutePath().toString();
     }
 
-    public static String storeCV(File file) throws IOException {
-        return storeCV(file, generateSecureFileName(file.getName()));
-    }
+    public static String storeCV(File file, int userId) throws IOException {
+        validateCV(file);
 
-    public static String storeCV(File file, String fileName) throws IOException {
-        validatePDF(file);
+        // Find existing CV for the user and delete it to prevent orphaned files
+        deleteExistingCV(userId);
+
+        String extension = getFileExtension(file.getName());
+        String fileName = "cv_user_" + userId + extension;
         Path targetPath = Paths.get(CV_DIR).resolve(fileName);
         Files.copy(file.toPath(), targetPath, StandardCopyOption.REPLACE_EXISTING);
         return targetPath.toAbsolutePath().toString();
+    }
+
+    private static void deleteExistingCV(int userId) {
+        String baseName = "cv_user_" + userId;
+        File dir = new File(CV_DIR);
+        if (dir.exists() && dir.isDirectory()) {
+            File[] files = dir.listFiles((d, name) -> name.startsWith(baseName + "."));
+            if (files != null) {
+                for (File f : files) {
+                    f.delete();
+                }
+            }
+        }
     }
 
     private static void validateImage(File file) throws IOException {
@@ -58,22 +73,31 @@ public class FileStorageService {
         }
     }
 
-    private static void validatePDF(File file) throws IOException {
-        if (file.length() > MAX_FILE_SIZE) {
-            throw new IOException("File is too large (max 5MB)");
+    private static void validateCV(File file) throws IOException {
+        long sizeBytes = file.length();
+        System.out.println("Processing file: " + file.getName() + ", Size: " + sizeBytes + " bytes");
+
+        if (sizeBytes > MAX_FILE_SIZE) {
+            double sizeInMB = sizeBytes / (1024.0 * 1024.0);
+            throw new IOException(String.format("File is too large (%.2f MB). Maximum allowed size is 5MB.", sizeInMB));
         }
-        if (!file.getName().toLowerCase().endsWith(".pdf")) {
-            throw new IOException("Invalid CV format (only PDF allowed)");
+
+        String name = file.getName().toLowerCase();
+        if (!(name.endsWith(".pdf") || name.endsWith(".doc") || name.endsWith(".docx"))) {
+            throw new IOException("Invalid CV format (only PDF, DOC, DOCX allowed)");
         }
     }
 
-    private static String generateSecureFileName(String originalName) {
-        String extension = "";
-        int i = originalName.lastIndexOf('.');
+    private static String getFileExtension(String fileName) {
+        int i = fileName.lastIndexOf('.');
         if (i > 0) {
-            extension = originalName.substring(i);
+            return fileName.substring(i);
         }
-        return UUID.randomUUID().toString() + extension;
+        return "";
+    }
+
+    private static String generateSecureFileName(String originalName) {
+        return UUID.randomUUID().toString() + getFileExtension(originalName);
     }
 
     public static String getProfileDir() {

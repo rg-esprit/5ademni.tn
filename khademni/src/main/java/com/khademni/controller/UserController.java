@@ -111,6 +111,8 @@ public class UserController {
     private Label cvFileLabel;
 
     @FXML
+    private Button cvUploadBtn;
+    @FXML
     private TableView<CVRecord> cvTableView;
     @FXML
     private TableColumn<CVRecord, String> cvNameColumn;
@@ -604,6 +606,14 @@ public class UserController {
                     ? user.getCvUploadedAt().format(DateTimeFormatter.ofPattern("dd/MM/yyyy HH:mm"))
                     : "N/A";
             cvData.add(new CVRecord(cvFile.getName(), dateStr, selectedCvPath));
+
+            if (cvUploadBtn != null) {
+                cvUploadBtn.setText("Mettre à jour le CV");
+            }
+        } else {
+            if (cvUploadBtn != null) {
+                cvUploadBtn.setText("Uploader mon CV");
+            }
         }
         cvTableView.setItems(cvData);
     }
@@ -854,8 +864,9 @@ public class UserController {
     @FXML
     private void onUploadCV(ActionEvent event) {
         FileChooser fileChooser = new FileChooser();
-        fileChooser.setTitle("Sélectionner votre CV");
-        fileChooser.getExtensionFilters().add(new FileChooser.ExtensionFilter("Fichiers PDF", "*.pdf"));
+        fileChooser.setTitle("Sélectionner votre CV (PDF, DOC, DOCX)");
+        fileChooser.getExtensionFilters().addAll(
+                new FileChooser.ExtensionFilter("Documents", "*.pdf", "*.doc", "*.docx"));
 
         Stage stage = (Stage) cvTableView.getScene().getWindow();
         File file = fileChooser.showOpenDialog(stage);
@@ -868,12 +879,11 @@ public class UserController {
             }
 
             try {
-                // Store with UUID
-                String extension = file.getName().substring(file.getName().lastIndexOf("."));
-                String uuidName = UUID.randomUUID().toString() + extension;
-                String destPath = FileStorageService.storeCV(file, uuidName);
-
                 UserModel user = App.getCurrentUser();
+
+                // Store CV securely with user ID
+                String destPath = FileStorageService.storeCV(file, user.getId());
+
                 user.setCvPath(destPath);
                 user.setCvUploadedAt(LocalDateTime.now());
                 userService.updateProfile(user);
