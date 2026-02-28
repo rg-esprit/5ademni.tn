@@ -3,15 +3,21 @@ package com.khademni.controller;
 import com.khademni.App;
 import com.khademni.model.UserModel;
 import com.khademni.utils.MyDataBase;
+import com.khademni.utils.VercelBlobUploader;
 import javafx.event.ActionEvent;
 import javafx.fxml.FXML;
 import javafx.fxml.FXMLLoader;
 import javafx.scene.Parent;
 import javafx.scene.Scene;
 import javafx.scene.control.*;
+import javafx.scene.image.Image;
+import javafx.scene.image.ImageView;
+import javafx.scene.shape.Circle;
+import javafx.stage.FileChooser;
 import javafx.stage.Modality;
 import javafx.stage.Stage;
 
+import java.io.File;
 import java.io.IOException;
 import java.security.MessageDigest;
 import java.security.NoSuchAlgorithmException;
@@ -53,6 +59,12 @@ public class UserController {
 
     @FXML
     private TextField profileImgField;
+
+    @FXML
+    private Label profileImgStatusLabel;
+
+    @FXML
+    private ImageView profileAvatarImage;
 
     // Login fields
     @FXML
@@ -100,6 +112,9 @@ public class UserController {
 
     @FXML
     private TextField signupProfileImgField;
+
+    @FXML
+    private Label signupImgStatusLabel;
 
     @FXML
     private TextArea signupBioField;
@@ -459,6 +474,92 @@ public class UserController {
         // TODO: Implement Apple Sign In
     }
 
+    // ============ IMAGE UPLOAD METHODS ============
+
+    @FXML
+    private void onSignupChooseImage(ActionEvent event) {
+        File file = openImageFileChooser();
+        if (file == null) return;
+        uploadImageAsync(file, signupProfileImgField, signupImgStatusLabel, null);
+    }
+
+    @FXML
+    private void onProfileChooseImage(ActionEvent event) {
+        File file = openImageFileChooser();
+        if (file == null) return;
+        uploadImageAsync(file, profileImgField, profileImgStatusLabel, profileAvatarImage);
+    }
+
+    private File openImageFileChooser() {
+        FileChooser chooser = new FileChooser();
+        chooser.setTitle("Select Profile Image");
+        chooser.getExtensionFilters().addAll(
+                new FileChooser.ExtensionFilter("Image Files", "*.png", "*.jpg", "*.jpeg", "*.gif", "*.webp"),
+                new FileChooser.ExtensionFilter("All Files", "*.*")
+        );
+        return chooser.showOpenDialog(App.getPrimaryStage());
+    }
+
+    private void uploadImageAsync(File file, TextField urlField, Label statusLabel, ImageView avatarImage) {
+        if (statusLabel != null) {
+            statusLabel.setText("Uploading " + file.getName() + "...");
+            statusLabel.setStyle("-fx-text-fill: #6c63ff; -fx-font-size: 13;");
+        }
+
+        Thread uploadThread = new Thread(() -> {
+            try {
+                String url = VercelBlobUploader.upload(file);
+                javafx.application.Platform.runLater(() -> {
+                    urlField.setText(url);
+                    if (statusLabel != null) {
+                        statusLabel.setText("Uploaded \u2713");
+                        statusLabel.setStyle("-fx-text-fill: #059669; -fx-font-size: 13; -fx-font-weight: 600;");
+                    }
+                    if (avatarImage != null) {
+                        showAvatarImage(avatarImage, url);
+                    }
+                });
+            } catch (Exception e) {
+                e.printStackTrace();
+                javafx.application.Platform.runLater(() -> {
+                    if (statusLabel != null) {
+                        statusLabel.setText("Upload failed: " + e.getMessage());
+                        statusLabel.setStyle("-fx-text-fill: #dc2626; -fx-font-size: 13;");
+                    }
+                });
+            }
+        }, "vercel-blob-upload");
+        uploadThread.setDaemon(true);
+        uploadThread.start();
+    }
+
+    private void showAvatarImage(ImageView imageView, String url) {
+        if (url == null || url.isBlank()) {
+            imageView.setVisible(false);
+            imageView.setManaged(false);
+            return;
+        }
+        // Private blob URLs need authenticated download via the Vercel API
+        Thread loader = new Thread(() -> {
+            try {
+                java.io.InputStream is = VercelBlobUploader.downloadAsStream(url);
+                javafx.application.Platform.runLater(() -> {
+                    Image img = new Image(is, 100, 100, true, true);
+                    imageView.setImage(img);
+                    Circle clip = new Circle(50, 50, 50);
+                    imageView.setClip(clip);
+                    imageView.setVisible(true);
+                    imageView.setManaged(true);
+                });
+            } catch (Exception e) {
+                System.err.println("Failed to load avatar from blob: " + e.getMessage());
+                e.printStackTrace();
+            }
+        }, "blob-avatar-loader");
+        loader.setDaemon(true);
+        loader.start();
+    }
+
     // ============ FACE RECOGNITION METHODS ============
 
     /**
@@ -536,6 +637,32 @@ public class UserController {
         profileDobPicker.setValue(user.getDateOfBirth());
         profileBioField.setText(user.getBio() != null ? user.getBio() : "");
         profileImgField.setText(user.getProfileImg() != null ? user.getProfileImg() : "");
+
+        // Show profile image if URL exists
+        if (profileImgStatusLabel != null) {
+            String imgUrl = user.getProfileImg();
+            if (imgUrl != null && !imgUrl.isBlank()) {
+                profileImgStatusLabel.setText("Image loaded");
+                profileImgStatusLabel.setStyle("-fx-text-fill: #059669; -fx-font-size: 13;");
+            } else {
+                profileImgStatusLabel.setText("No image selected");
+                profileImgStatusLabel.setStyle("-fx-text-fill: #a0a0a0; -fx-font-size: 13;");
+            }
+        }
+        if (profileAvatarImage != null) {
+            String imgUrl = user.getProfileImg();
+            if (imgUrl != null && !imgUrl.isBlank()) {
+                showAvatarImage(profileAvatarImage, imgUrl);
+                // Hide initials when image is shown
+                profileAvatarInitials.setVisible(false);
+                profileAvatarInitials.setManaged(false);
+            } else {
+                profileAvatarImage.setVisible(false);
+                profileAvatarImage.setManaged(false);
+                profileAvatarInitials.setVisible(true);
+                profileAvatarInitials.setManaged(true);
+            }
+        }
 
         // Display section
         String fullName = user.getFirstName() + " " + user.getLastName();
