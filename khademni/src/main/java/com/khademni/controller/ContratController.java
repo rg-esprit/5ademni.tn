@@ -17,7 +17,6 @@ import javafx.scene.control.*;
 import javafx.scene.layout.HBox;
 import javafx.scene.layout.VBox;
 import javafx.geometry.Pos;
-import javafx.util.Callback;
 import javafx.scene.control.cell.PropertyValueFactory;
 import com.khademni.service.ContratService;
 import com.khademni.service.ExchangeRateService;
@@ -32,7 +31,6 @@ import java.sql.Connection;
 import java.sql.PreparedStatement;
 import java.sql.ResultSet;
 import java.sql.SQLException;
-import java.sql.Statement;
 import java.time.LocalDate;
 
 public class ContratController {
@@ -46,9 +44,9 @@ public class ContratController {
     @FXML
     private TableColumn<ContratModel, String> colTitre;
     @FXML
-    private TableColumn<ContratModel, Integer> colFreelancer;
+    private TableColumn<ContratModel, String> colFreelancer;
     @FXML
-    private TableColumn<ContratModel, Integer> colClient;
+    private TableColumn<ContratModel, String> colClient;
     @FXML
     private TableColumn<ContratModel, Double> colPrix;
     @FXML
