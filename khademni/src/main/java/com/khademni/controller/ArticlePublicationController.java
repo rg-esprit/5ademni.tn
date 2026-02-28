@@ -13,6 +13,7 @@ import javafx.scene.control.*;
 import javafx.scene.image.Image;
 import javafx.scene.image.ImageView;
 import javafx.scene.layout.*;
+import javafx.stage.Modality;
 import javafx.stage.Stage;
 import javafx.util.Duration;
 
@@ -82,7 +83,7 @@ public class ArticlePublicationController {
 
         // Animation de translation depuis la droite
         TranslateTransition translateTransition = new TranslateTransition(Duration.millis(300), gigsCard);
-        translateTransition.setFromX(500); // Position initiale (en dehors de l'écran)
+        translateTransition.setFromX(300); // Position initiale (en dehors de l'écran)
         translateTransition.setToX(0); // Position finale (visible à l'écran)
         translateTransition.setInterpolator(Interpolator.EASE_OUT);
         translateTransition.play();
@@ -128,6 +129,31 @@ public class ArticlePublicationController {
         alert.setHeaderText(null);
         alert.setContentText(message);
         alert.showAndWait();
+    }
+
+    private void showModernDialog(String title, String message, String type) {
+        Stage dialog = new Stage();
+        dialog.initModality(Modality.APPLICATION_MODAL);
+        dialog.setTitle(title);
+
+        VBox dialogVBox = new VBox(20);
+        dialogVBox.setAlignment(Pos.CENTER);
+        dialogVBox.setPadding(new Insets(20));
+        dialogVBox.setStyle("-fx-background-color: white; -fx-border-radius: 10; -fx-background-radius: 10;");
+
+        Label lblMessage = new Label(message);
+        lblMessage.setStyle("-fx-font-size: 14px; -fx-text-fill: #374151; -fx-font-weight: bold;");
+
+        Button btnClose = new Button("OK");
+        btnClose.setStyle(
+                "-fx-background-color: #6c0df2; -fx-text-fill: white; -fx-font-size: 14px; -fx-font-weight: bold; -fx-background-radius: 20;");
+        btnClose.setOnAction(e -> dialog.close());
+
+        dialogVBox.getChildren().addAll(lblMessage, btnClose);
+
+        Scene dialogScene = new Scene(dialogVBox, 300, 150);
+        dialog.setScene(dialogScene);
+        dialog.showAndWait();
     }
 
     private void loadArticles() {
@@ -338,47 +364,64 @@ public class ArticlePublicationController {
 
         return card;
     }
+@FXML
+private TextArea commentTextArea; // Ensure this is defined in your FXML file
 
-    @FXML
-    private void ajouterCommentaire(String contenuCommentaire, Article article) {
+  
+@FXML
+private void ajouterCommentaire() {
+    System.out.println("Debug: Entered ajouterCommentaire method");
 
-        if (contenuCommentaire == null || contenuCommentaire.isBlank()) {
-            showAlert(Alert.AlertType.WARNING,
-                    "Erreur",
-                    "Le commentaire ne peut pas être vide.");
-            return;
-        }
+    // Récupérer le contenu du commentaire depuis le TextArea
+    String contenuCommentaire = commentTextArea.getText();
+    System.out.println("Debug: Comment content: " + contenuCommentaire);
 
-        // 🔎 Vérification avec HuggingFace
-        if (!ContentModeration.isCommentAcceptable(contenuCommentaire)) {
-            showAlert(Alert.AlertType.ERROR,
-                    "Commentaire rejeté",
-                    "Votre commentaire contient des propos inappropriés.");
-            return;
-        }
-
-        try {
-            Commentaire newComment = new Commentaire(
-                    null,
-                    contenuCommentaire,
-                    "VISIBLE",
-                    LocalDateTime.now(),
-                    article,
-                    SessionManager.getCurrentUser());
-
-            commentaireService.create(newComment);
-
-            showAlert(Alert.AlertType.INFORMATION,
-                    "Succès",
-                    "Commentaire ajouté avec succès.");
-
-        } catch (Exception e) {
-            e.printStackTrace();
-            showAlert(Alert.AlertType.ERROR,
-                    "Erreur",
-                    "Impossible d'ajouter le commentaire.");
-        }
+    if (contenuCommentaire == null || contenuCommentaire.isBlank()) {
+        System.out.println("Debug: Comment is empty or blank.");
+        showAlert(Alert.AlertType.WARNING, "Erreur", "Le commentaire ne peut pas être vide.");
+        return;
     }
+
+    // Récupérer l'article sélectionné
+    Article article = listArticles.getSelectionModel().getSelectedItem();
+    if (article == null) {
+        System.out.println("Debug: No article selected.");
+        showAlert(Alert.AlertType.WARNING, "Erreur", "Aucun article sélectionné.");
+        return;
+    }
+
+    System.out.println("Debug: Checking if comment is acceptable...");
+    boolean isAcceptable = ContentModeration.isCommentAcceptable(contenuCommentaire);
+
+    if (!isAcceptable) {
+        System.out.println("Debug: Comment is not acceptable.");
+        showAlert(Alert.AlertType.ERROR, "Commentaire rejeté", "Votre commentaire contient des propos inappropriés.");
+        return;
+    }
+
+    System.out.println("Debug: Comment is acceptable. Proceeding to add comment...");
+    try {
+        Commentaire newComment = new Commentaire(
+                null,
+                contenuCommentaire,
+                "VISIBLE",
+                LocalDateTime.now(),
+                article,
+                SessionManager.getCurrentUser());
+
+        commentaireService.create(newComment);
+
+        System.out.println("Commentaire ajouté avec succès : " + contenuCommentaire);
+
+        // Recharger les commentaires après l'ajout
+        chargerCommentaires(article, commentContainer);
+
+        showAlert(Alert.AlertType.INFORMATION, "Succès", "Commentaire ajouté avec succès.");
+    } catch (Exception e) {
+        e.printStackTrace();
+        showAlert(Alert.AlertType.ERROR, "Erreur", "Impossible d'ajouter le commentaire.");
+    }
+}
 
     private int getCommentCount(Article article) {
         try {
@@ -589,210 +632,136 @@ public class ArticlePublicationController {
     }
 
     private void chargerCommentaires(Article article, VBox commentairesBox) {
-        commentairesBox.getChildren().clear();
+    commentairesBox.getChildren().clear();
 
-        try {
-            // Récupérer les commentaires pour l'article donné
-            var commentaires = commentaireService.findByArticleId(article.getId());
-            UserModel currentUser = SessionManager.getCurrentUser();
+    try {
+        // Récupérer les commentaires pour l'article donné
+        var commentaires = commentaireService.findByArticleId(article.getId());
+        UserModel currentUser = SessionManager.getCurrentUser();
 
-            for (Commentaire c : commentaires) {
-                // Afficher l'auteur et la date
-                Label authorLabel = new Label(c.getUser().getFirstName() + " " + c.getUser().getLastName());
-                authorLabel.getStyleClass().add("author");
+        for (Commentaire c : commentaires) {
+            // Afficher l'auteur et la date
+            Label authorLabel = new Label(c.getUser().getFirstName() + " " + c.getUser().getLastName());
+            authorLabel.getStyleClass().add("author");
 
-                Label timeLabel = new Label(formatTimeAgo(c.getCreatedAt()));
-                timeLabel.getStyleClass().add("time");
+            Label timeLabel = new Label(formatTimeAgo(c.getCreatedAt()));
+            timeLabel.getStyleClass().add("time");
 
-                HBox authorTimeBox = new HBox(10, authorLabel, timeLabel);
-                authorTimeBox.setAlignment(Pos.CENTER_LEFT);
+            HBox authorTimeBox = new HBox(10, authorLabel, timeLabel);
+            authorTimeBox.setAlignment(Pos.CENTER_LEFT);
 
-                // Contenu du commentaire
-                Label contentLabel = new Label(c.getContent());
-                contentLabel.getStyleClass().add("content");
+            // Contenu du commentaire
+            Label contentLabel = new Label(c.getContent());
+            contentLabel.getStyleClass().add("content");
 
-                VBox commentContentBox = new VBox(5, authorTimeBox, contentLabel);
-                commentContentBox.getStyleClass().add("comment-box");
+            VBox commentContentBox = new VBox(5, authorTimeBox, contentLabel);
+            commentContentBox.getStyleClass().add("comment-box");
 
-                // Zone d'édition pour modifier le commentaire
-                TextArea editArea = new TextArea(c.getContent());
-                editArea.setWrapText(true);
-                editArea.setVisible(false);
-                editArea.setManaged(false);
-                editArea.setStyle("-fx-border-color: #ce93d8; -fx-border-radius: 5; -fx-background-radius: 5;");
-
-                Button saveBtn = new Button("Save");
-                saveBtn.setStyle(
-                        "-fx-background-color: #6a1b9a; -fx-text-fill: white; -fx-font-size: 12px; -fx-border-radius: 5; -fx-background-radius: 5;");
-                saveBtn.setVisible(false);
-                saveBtn.setManaged(false);
-
-                Button cancelBtn = new Button("Cancel");
-                cancelBtn.setStyle(
-                        "-fx-background-color: #9c27b0; -fx-text-fill: white; -fx-font-size: 12px; -fx-border-radius: 5; -fx-background-radius: 5;");
-                cancelBtn.setVisible(false);
-                cancelBtn.setManaged(false);
-
-                // Boutons pour modifier et supprimer
+            // Boutons pour modifier et supprimer (si l'utilisateur est le propriétaire)
+            if (currentUser != null && c.getUser().getId() == currentUser.getId()) {
                 Button editBtn = new Button("Edit");
                 editBtn.getStyleClass().add("edit-btn");
 
                 Button deleteBtn = new Button("Delete");
                 deleteBtn.getStyleClass().add("delete-btn");
 
-                // Afficher les boutons uniquement si l'utilisateur est le propriétaire du
-                // commentaire
-                if (currentUser != null && c.getUser().getId() == currentUser.getId()) {
-                    editBtn.setOnAction(ev -> {
-                        contentLabel.setVisible(false);
-                        contentLabel.setManaged(false);
-                        editArea.setVisible(true);
-                        editArea.setManaged(true);
-                        saveBtn.setVisible(true);
-                        saveBtn.setManaged(true);
-                        cancelBtn.setVisible(true);
-                        cancelBtn.setManaged(true);
-                        editBtn.setVisible(false);
-                        editBtn.setManaged(false);
-                    });
+                editBtn.setOnAction(ev -> editComment(c));
+                deleteBtn.setOnAction(ev -> deleteComment(c, commentairesBox));
 
-                    saveBtn.setOnAction(ev -> {
-                        String newContent = editArea.getText().trim();
-                        int wordCount = newContent.isEmpty() ? 0 : newContent.split("\\s+").length;
-
-                        if (wordCount < 3 || wordCount > 30) {
-                            showAlert(Alert.AlertType.WARNING, "Error",
-                                    "The comment must contain between 3 and 30 words.");
-                            return;
-                        }
-
-                        try {
-                            c.setContent(newContent);
-                            commentaireService.update(c); // Mettre à jour le commentaire dans la base de données
-                            chargerCommentaires(article, commentairesBox); // Recharger les commentaires
-                            showAlert(Alert.AlertType.INFORMATION, "Success", "Comment updated successfully!");
-                        } catch (SQLException e) {
-                            e.printStackTrace();
-                            showAlert(Alert.AlertType.ERROR, "Error", "Failed to update comment.");
-                        }
-                    });
-
-                    cancelBtn.setOnAction(ev -> {
-                        editArea.setVisible(false);
-                        editArea.setManaged(false);
-                        saveBtn.setVisible(false);
-                        saveBtn.setManaged(false);
-                        cancelBtn.setVisible(false);
-                        cancelBtn.setManaged(false);
-                        contentLabel.setVisible(true);
-                        contentLabel.setManaged(true);
-                        editBtn.setVisible(true);
-                        editBtn.setManaged(true);
-                    });
-
-                    deleteBtn.setOnAction(ev -> {
-                        Alert confirm = new Alert(Alert.AlertType.CONFIRMATION,
-                                "Are you sure you want to delete this comment?", ButtonType.YES, ButtonType.NO);
-                        confirm.showAndWait().ifPresent(response -> {
-                            if (response == ButtonType.YES) {
-                                try {
-                                    commentaireService.delete(c.getId()); // Supprimer le commentaire de la base de
-                                                                          // données
-                                    chargerCommentaires(article, commentairesBox); // Recharger les commentaires
-                                    showAlert(Alert.AlertType.INFORMATION, "Success", "Comment deleted successfully!");
-                                } catch (SQLException e) {
-                                    e.printStackTrace();
-                                    showAlert(Alert.AlertType.ERROR, "Error", "Failed to delete comment.");
-                                }
-                            }
-                        });
-                    });
-
-                    HBox buttonBox = new HBox(10, editBtn, deleteBtn, saveBtn, cancelBtn);
-                    buttonBox.setAlignment(Pos.CENTER_RIGHT);
-                    commentContentBox.getChildren().addAll(editArea, buttonBox);
-                }
-
-                commentairesBox.getChildren().add(commentContentBox);
+                HBox buttonBox = new HBox(10, editBtn, deleteBtn);
+                buttonBox.setAlignment(Pos.CENTER_RIGHT);
+                commentContentBox.getChildren().add(buttonBox);
             }
 
-            // ===== Champ pour ajouter un nouveau commentaire =====
-            TextArea newCommentArea = new TextArea();
-            newCommentArea.setPromptText("Write a comment...");
-            newCommentArea.setWrapText(true);
-            newCommentArea.setPrefRowCount(2);
-            newCommentArea.setStyle("-fx-border-color: #ce93d8; -fx-border-radius: 5; -fx-background-radius: 5;");
+            commentairesBox.getChildren().add(commentContentBox);
+        }
 
-            Button addCommentBtn = new Button("Add Comment");
-            addCommentBtn.setStyle(
-                    "-fx-background-color: #6a1b9a; -fx-text-fill: white; -fx-font-size: 14px; -fx-border-radius: 5; -fx-background-radius: 5;");
+        // ===== Champ pour ajouter un nouveau commentaire =====
+        TextArea newCommentArea = new TextArea();
+        newCommentArea.setPromptText("Write a comment...");
+        newCommentArea.setWrapText(true);
+        newCommentArea.setPrefRowCount(2);
+        newCommentArea.setStyle("-fx-border-color: #ce93d8; -fx-border-radius: 5; -fx-background-radius: 5;");
 
-            addCommentBtn.setOnAction(ev -> {
-                String content = newCommentArea.getText().trim();
-                int wordCount = content.isEmpty() ? 0 : content.split("\\s+").length;
+        Button addCommentBtn = new Button("Add Comment");
+        addCommentBtn.setStyle(
+                "-fx-background-color: #6a1b9a; -fx-text-fill: white; -fx-font-size: 14px; -fx-border-radius: 5; -fx-background-radius: 5;");
 
-                if (wordCount < 3 || wordCount > 30) {
-                    showAlert(Alert.AlertType.WARNING, "Error", "The comment must contain between 3 and 30 words.");
-                    return;
+        addCommentBtn.setOnAction(ev -> {
+            String content = newCommentArea.getText().trim();
+            if (content.isEmpty()) {
+                showAlert(Alert.AlertType.WARNING, "Erreur", "Le commentaire ne peut pas être vide.");
+                return;
+            }
+
+            System.out.println("Debug: Checking if comment is acceptable...");
+            boolean isAcceptable = ContentModeration.isCommentAcceptable(content);
+
+            if (!isAcceptable) {
+                System.out.println("Debug: Comment is not acceptable.");
+                showAlert(Alert.AlertType.ERROR, "Commentaire rejeté", "Votre commentaire contient des propos inappropriés.");
+                return;
+            }
+
+            try {
+                if (currentUser == null) {
+                    throw new IllegalStateException("No user is currently logged in.");
                 }
 
-                try {
-                    if (currentUser == null) {
-                        throw new IllegalStateException("No user is currently logged in.");
-                    }
+                Commentaire newComment = new Commentaire(
+                        null,
+                        content,
+                        "VISIBLE",
+                        LocalDateTime.now(),
+                        article,
+                        currentUser);
 
-                    Commentaire newComment = new Commentaire(
-                            null,
-                            content,
-                            "VISIBLE",
-                            LocalDateTime.now(),
-                            article,
-                            currentUser);
+                commentaireService.create(newComment); // Ajouter le nouveau commentaire dans la base de données
+                newCommentArea.clear();
+                chargerCommentaires(article, commentairesBox); // Recharger les commentaires
+                showAlert(Alert.AlertType.INFORMATION, "Succès", "Commentaire ajouté avec succès !");
+            } catch (Exception ex) {
+                ex.printStackTrace();
+                showAlert(Alert.AlertType.ERROR, "Erreur", "Impossible d'ajouter le commentaire.");
+            }
+        });
 
-                    commentaireService.create(newComment); // Ajouter le nouveau commentaire dans la base de données
-                    newCommentArea.clear();
-                    chargerCommentaires(article, commentairesBox); // Recharger les commentaires
-                    showAlert(Alert.AlertType.INFORMATION, "Success", "Comment added successfully!");
-                } catch (Exception ex) {
-                    ex.printStackTrace();
-                    showAlert(Alert.AlertType.ERROR, "Error", "Failed to add comment.");
+        HBox inputBox = new HBox(10, newCommentArea, addCommentBtn);
+        inputBox.setAlignment(Pos.CENTER_LEFT);
+        inputBox.setPadding(new Insets(10, 0, 0, 0));
+
+        commentairesBox.getChildren().add(inputBox);
+
+    } catch (SQLException e) {
+        e.printStackTrace();
+        showAlert(Alert.AlertType.ERROR, "Erreur", "Impossible de charger les commentaires.");
+    }
+}
+    private void deleteComment(Commentaire commentaire, VBox commentairesBox) {
+    Alert alert = new Alert(Alert.AlertType.CONFIRMATION);
+    alert.setTitle("Delete Comment");
+    alert.setHeaderText("Are you sure you want to delete this comment?");
+    alert.setContentText("This action cannot be undone.");
+
+    Optional<ButtonType> result = alert.showAndWait();
+    if (result.isPresent() && result.get() == ButtonType.OK) {
+        try {
+            commentaireService.delete(commentaire.getId());
+            commentairesBox.getChildren().removeIf(node -> {
+                if (node instanceof VBox) { // Ensure the node is a VBox
+                    VBox commentBox = (VBox) node;
+                    Label contentLabel = (Label) commentBox.getChildren().get(1); // Get the content label
+                    return contentLabel.getText().equals(commentaire.getContent());
                 }
+                return false;
             });
-
-            HBox inputBox = new HBox(10, newCommentArea, addCommentBtn);
-            inputBox.setAlignment(Pos.CENTER_LEFT);
-            inputBox.setPadding(new Insets(10, 0, 0, 0));
-
-            commentairesBox.getChildren().add(inputBox);
-
+            showAlert(Alert.AlertType.INFORMATION, "Success", "Comment deleted successfully!");
         } catch (SQLException e) {
             e.printStackTrace();
-            showAlert(Alert.AlertType.ERROR, "Error", "Failed to load comments.");
+            showAlert(Alert.AlertType.ERROR, "Error", "Failed to delete comment.");
         }
     }
-
-    private void deleteComment(Commentaire commentaire, VBox commentairesBox) {
-        Alert alert = new Alert(Alert.AlertType.CONFIRMATION);
-        alert.setTitle("Delete Comment");
-        alert.setHeaderText("Are you sure you want to delete this comment?");
-        alert.setContentText("This action cannot be undone.");
-
-        Optional<ButtonType> result = alert.showAndWait();
-        if (result.isPresent() && result.get() == ButtonType.OK) {
-            try {
-                commentaireService.delete(commentaire.getId());
-                commentairesBox.getChildren().removeIf(node -> {
-                    HBox commentBox = (HBox) node;
-                    Label contentLabel = (Label) commentBox.getChildren().get(0);
-                    return contentLabel.getText().equals(commentaire.getContent());
-                });
-                showAlert(Alert.AlertType.INFORMATION, "Success", "Comment deleted successfully!");
-            } catch (SQLException e) {
-                e.printStackTrace();
-                showAlert(Alert.AlertType.ERROR, "Error", "Failed to delete comment.");
-            }
-        }
-    }
+}
 
     private void editComment(Commentaire commentaire) {
         TextInputDialog dialog = new TextInputDialog(commentaire.getContent());

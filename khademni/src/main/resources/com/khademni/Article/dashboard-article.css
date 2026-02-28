@@ -275,7 +275,9 @@
 }
 /* Conteneur principal */
 .main-container {
-    -fx-alignment: CENTER; /* Centrer les articles */
+    -fx-alignment: TOP_LEFT; /* Aligner les articles et la carte des gigs côte à côte */
+    -fx-spacing: 20; /* Espacement entre les éléments */
+    -fx-padding: 20;
 }
 
 /* Lorsque la carte des Gigs est visible */
@@ -458,7 +460,7 @@
     -fx-min-width: 400px;
     -fx-max-height: 400px;
     -fx-min-height: 300px;
-    -fx-translate-y: -100; /* Center vertically */
+    
     -fx-translate-x: 0; /* Center horizontally */
 }
 
@@ -599,13 +601,21 @@
     -fx-effect: dropshadow(gaussian, rgba(0, 0, 0, 0.1), 10, 0, 0, 4);
     -fx-border-color: #e5e7eb;
     -fx-border-radius: 16;
+    -fx-pref-width: 600px; 
 }
 
 .article-card:hover {
     -fx-background-color: #f9f9ff;
     -fx-effect: dropshadow(gaussian, rgba(108, 13, 242, 0.2), 25, 0, 0, 8);
 }
-
+/* Carte des Gigs */
+.gigs-card {
+    -fx-background-color: white;
+    -fx-background-radius: 20;
+    -fx-padding: 20;
+    -fx-effect: dropshadow(gaussian, rgba(0, 0, 0, 0.2), 10, 0, 0, 4);
+    -fx-pref-width: 300px; /* Largeur de la carte des Gigs */
+}
 .heart-button {
     -fx-cursor: hand;
     -fx-background-color: transparent;
