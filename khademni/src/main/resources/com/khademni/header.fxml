@@ -26,14 +26,14 @@
 
     <!-- Navigation Links -->
     <HBox spacing="25" alignment="CENTER">
-        <Hyperlink text="Jobs &amp; Services" onAction="#onJobsAndServices" styleClass="nav-link" />
-        <Hyperlink text="Contrat" onAction="#onContrat" styleClass="nav-link" />
-        <Hyperlink text="Paiement" onAction="#onPaiement" styleClass="nav-link" />
-        <Hyperlink text="Freelancer" onAction="#onFreelancer" styleClass="nav-link" />
-        <Hyperlink text="Client" onAction="#onClient" styleClass="nav-link" />
-        <Hyperlink text="Dashboard" styleClass="nav-link" />
-        <Hyperlink text="Messages" styleClass="nav-link" />
-        <Hyperlink text="Blogs" styleClass="nav-link" />
+        <Button text="Jobs &amp; Services" onAction="#onJobsAndServices" styleClass="nav-link" style="-fx-background-color: transparent; -fx-cursor: hand;" />
+        <Button text="Contrat" onAction="#onContrat" styleClass="nav-link" style="-fx-background-color: transparent; -fx-cursor: hand;" />
+        <Button text="Paiement" onAction="#onPaiement" styleClass="nav-link" style="-fx-background-color: transparent; -fx-cursor: hand;" />
+        <Button text="Freelancer" onAction="#onFreelancer" styleClass="nav-link" style="-fx-background-color: transparent; -fx-cursor: hand;" />
+        <Button text="Client" onAction="#onClient" styleClass="nav-link" style="-fx-background-color: transparent; -fx-cursor: hand;" />
+        <Button text="Dashboard" styleClass="nav-link" style="-fx-background-color: transparent; -fx-cursor: hand;" />
+        <Button text="Messages" styleClass="nav-link" style="-fx-background-color: transparent; -fx-cursor: hand;" />
+        <Button text="Blogs" styleClass="nav-link" style="-fx-background-color: transparent; -fx-cursor: hand;" />
     </HBox>
 
     <Region HBox.hgrow="ALWAYS" />

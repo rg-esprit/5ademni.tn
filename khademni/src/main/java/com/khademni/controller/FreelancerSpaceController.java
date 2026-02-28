@@ -220,19 +220,12 @@ public class FreelancerSpaceController {
             private final Button editBtn = new Button("Modifier");
             private final Button deleteBtn = new Button("Supprimer");
             private final Button pdfBtn = new Button("PDF");
-            private final Button maintenirBtn = new Button("Maintenir");
-            private final Button annulerBtn = new Button("Annuler");
-            private final HBox normalPane = new HBox(5, editBtn, deleteBtn, pdfBtn);
-            private final HBox expiredPane = new HBox(5, maintenirBtn, annulerBtn);
+            private final HBox btnPane = new HBox(5, editBtn, deleteBtn, pdfBtn);
 
             {
                 editBtn.setStyle("-fx-background-color: #6c0df2; -fx-text-fill: white; -fx-cursor: hand;");
                 deleteBtn.setStyle("-fx-background-color: #ef4444; -fx-text-fill: white; -fx-cursor: hand;");
                 pdfBtn.setStyle("-fx-background-color: #10b981; -fx-text-fill: white; -fx-cursor: hand;");
-                maintenirBtn.setStyle(
-                        "-fx-background-color: #e67e22; -fx-text-fill: white; -fx-cursor: hand; -fx-font-weight: bold;");
-                annulerBtn.setStyle(
-                        "-fx-background-color: #e74c3c; -fx-text-fill: white; -fx-cursor: hand; -fx-font-weight: bold;");
 
                 editBtn.setOnAction(event -> {
                     OffreModel offre = getTableView().getItems().get(getIndex());
@@ -246,14 +239,6 @@ public class FreelancerSpaceController {
                     OffreModel offre = getTableView().getItems().get(getIndex());
                     generatePDF(offre);
                 });
-                maintenirBtn.setOnAction(event -> {
-                    OffreModel offre = getTableView().getItems().get(getIndex());
-                    handleMaintenir(offre, "offres");
-                });
-                annulerBtn.setOnAction(event -> {
-                    OffreModel offre = getTableView().getItems().get(getIndex());
-                    handleAnnuler(offre, "offres");
-                });
             }
 
             @Override
@@ -262,104 +247,11 @@ public class FreelancerSpaceController {
                 if (empty) {
                     setGraphic(null);
                 } else {
-                    OffreModel offre = getTableView().getItems().get(getIndex());
-                    if (offre.getDateLimite() != null && offre.getDateLimite().isBefore(LocalDateTime.now())) {
-                        setGraphic(expiredPane);
-                    } else {
-                        setGraphic(normalPane);
-                    }
+                    setGraphic(btnPane);
                 }
             }
         };
         colActions.setCellFactory(cellFactory);
-    }
-
-    private void handleMaintenir(OffreModel offre, String tableName) {
-        Stage dialogStage = new Stage();
-        dialogStage.initModality(javafx.stage.Modality.APPLICATION_MODAL);
-        dialogStage.initStyle(javafx.stage.StageStyle.TRANSPARENT);
-        dialogStage.setTitle("Maintenir l'offre");
-
-        javafx.scene.layout.VBox root = new javafx.scene.layout.VBox(18);
-        root.setAlignment(javafx.geometry.Pos.CENTER);
-        root.setStyle("-fx-background-color: linear-gradient(to bottom right, #1e1e2f, #2a2a40); "
-                + "-fx-background-radius: 20; -fx-padding: 32; -fx-border-radius: 20; "
-                + "-fx-border-color: rgba(255,255,255,0.08); -fx-border-width: 1; "
-                + "-fx-effect: dropshadow(gaussian, rgba(0,0,0,0.5), 30, 0, 0, 8);");
-        root.setPrefWidth(380);
-
-        Label icon = new Label("\uD83D\uDCC5");
-        icon.setStyle("-fx-font-size: 36px;");
-
-        Label title = new Label("Maintenir l'offre");
-        title.setStyle("-fx-font-size: 22px; -fx-font-weight: bold; -fx-text-fill: white;");
-
-        Label subtitle = new Label("Choisir une nouvelle date limite :");
-        subtitle.setStyle("-fx-font-size: 13px; -fx-text-fill: #a0a0b8;");
-
-        DatePicker picker = new DatePicker(java.time.LocalDate.now().plusDays(7));
-        picker.setStyle("-fx-background-color: rgba(255,255,255,0.07); -fx-background-radius: 10; "
-                + "-fx-text-fill: white; -fx-pref-height: 40; -fx-pref-width: 300;");
-
-        javafx.scene.layout.HBox btnBox = new javafx.scene.layout.HBox(12);
-        btnBox.setAlignment(javafx.geometry.Pos.CENTER);
-
-        Button okBtn = new Button("Confirmer");
-        okBtn.setStyle("-fx-background-color: linear-gradient(to right, #6c5ce7, #a855f7); -fx-text-fill: white; "
-                + "-fx-font-size: 14px; -fx-font-weight: bold; -fx-background-radius: 10; "
-                + "-fx-padding: 10 32; -fx-cursor: hand;");
-
-        Button cancelBtn = new Button("Annuler");
-        cancelBtn.setStyle("-fx-background-color: rgba(255,255,255,0.08); -fx-text-fill: #a0a0b8; "
-                + "-fx-font-size: 14px; -fx-background-radius: 10; -fx-padding: 10 32; -fx-cursor: hand;");
-
-        btnBox.getChildren().addAll(okBtn, cancelBtn);
-        root.getChildren().addAll(icon, title, subtitle, picker, btnBox);
-
-        Scene scene = new Scene(root);
-        scene.setFill(javafx.scene.paint.Color.TRANSPARENT);
-        dialogStage.setScene(scene);
-
-        okBtn.setOnAction(e -> {
-            java.time.LocalDate newDate = picker.getValue();
-            if (newDate == null || newDate.isBefore(java.time.LocalDate.now())
-                    || newDate.isEqual(java.time.LocalDate.now())) {
-                subtitle.setText("❌ La date doit être dans le futur !");
-                subtitle.setStyle("-fx-font-size: 13px; -fx-text-fill: #ef4444; -fx-font-weight: bold;");
-                return;
-            }
-            String sql = "UPDATE " + tableName + " SET date_limite = ? WHERE id = ?";
-            try (Connection conn = MyDataBase.getConnection();
-                    PreparedStatement ps = conn.prepareStatement(sql)) {
-                ps.setTimestamp(1, Timestamp.valueOf(newDate.atStartOfDay()));
-                ps.setInt(2, offre.getId());
-                ps.executeUpdate();
-                loadOffres();
-            } catch (SQLException ex) {
-                ex.printStackTrace();
-            }
-            dialogStage.close();
-        });
-
-        cancelBtn.setOnAction(e -> dialogStage.close());
-        dialogStage.showAndWait();
-    }
-
-    private void handleAnnuler(OffreModel offre, String tableName) {
-        Alert alert = new Alert(Alert.AlertType.CONFIRMATION, "Supprimer cette offre expirée ?", ButtonType.YES,
-                ButtonType.NO);
-        if (alert.showAndWait().get() == ButtonType.YES) {
-            String sql = "DELETE FROM " + tableName + " WHERE id = ?";
-            try (Connection conn = MyDataBase.getConnection();
-                    PreparedStatement ps = conn.prepareStatement(sql)) {
-                ps.setInt(1, offre.getId());
-                ps.executeUpdate();
-                MyDataBase.resetAutoIncrementIfEmpty(tableName, 1);
-                loadOffres();
-            } catch (SQLException e) {
-                e.printStackTrace();
-            }
-        }
     }
 
     private void handleEdit(OffreModel offre) {
