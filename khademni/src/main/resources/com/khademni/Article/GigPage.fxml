@@ -4,39 +4,39 @@
 <?import javafx.scene.image.*?>
 
 <ScrollPane xmlns="http://javafx.com/javafx/22"
-            xmlns:fx="http://javafx.com/fxml/1"
-            fx:controller="com.khademni.controller.GigDisplayController"
-            fitToWidth="true"
-            styleClass="profile-scroll"
-            stylesheets="@dashboard-article.css"
-            minWidth="800" minHeight="600"
-            prefWidth="800" prefHeight="600"
-            maxWidth="800" maxHeight="600">
+        xmlns:fx="http://javafx.com/fxml/1"
+        fx:controller="com.khademni.controller.GigDisplayController"
+        fitToWidth="true"
+        styleClass="profile-scroll"
+        stylesheets="@dashboard-article.css"
+        minWidth="800" minHeight="600"
+        prefWidth="800" prefHeight="600"
+        maxWidth="800" maxHeight="600">
 
-    <VBox styleClass="profile-root"
-          alignment="CENTER"
-          spacing="20"
-          style="-fx-padding: 20;">
+        <VBox styleClass="profile-root"
+                alignment="CENTER"
+                spacing="20"
+                style="-fx-padding: 20;">
 
-        <!-- Header -->
-        <fx:include source="../header.fxml" />
+                <!-- Header -->
+                <fx:include source="../header.fxml" />
 
-        <!-- Retour Button -->
-        <Button text="Retour"
-                style="-fx-background-color: #6a1b9a; -fx-text-fill: white; -fx-background-radius: 20; -fx-padding: 8 20;"
-                onAction="#goBackToArticles" />
+                <!-- Retour Button -->
+                <Button text="Retour"
+                        style="-fx-background-color: #6a1b9a; -fx-text-fill: white; -fx-background-radius: 20; -fx-padding: 8 20;"
+                        onAction="#goBackToArticles" />
 
-        <!-- Title -->
-        <Label text="Liste des Gigs"
-               styleClass="profile-page-title"
-               style="-fx-font-size: 24px; -fx-font-weight: bold; -fx-text-fill: #333;" />
+                <!-- Title -->
+                <Label text="Liste des Gigs"
+                        styleClass="profile-page-title"
+                        style="-fx-font-size: 24px; -fx-font-weight: bold; -fx-text-fill: #333;" />
 
-        <!-- Gigs Container -->
-        <TilePane fx:id="gigsContainer"
-                  hgap="20"
-                  vgap="20"
-                  alignment="CENTER"
-                  prefColumns="3"
-                  style="-fx-padding: 20;" />
-    </VBox>
+                <!-- Gigs Container -->
+                <TilePane fx:id="gigsContainer"
+                        hgap="20"
+                        vgap="20"
+                        alignment="CENTER"
+                        prefColumns="3"
+                        style="-fx-padding: 20;" />
+        </VBox>
 </ScrollPane>
