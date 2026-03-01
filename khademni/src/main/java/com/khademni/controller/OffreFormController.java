@@ -10,6 +10,7 @@ import javafx.scene.control.Label;
 import javafx.scene.control.TextArea;
 import javafx.scene.control.TextField;
 import javafx.scene.layout.VBox;
+import com.khademni.utils.SpellCheckDecorator;
 
 import java.io.IOException;
 import java.sql.Connection;
@@ -84,6 +85,11 @@ public class OffreFormController {
                 userIdField.setEditable(false);
             }
         }
+
+        // Intégration de l'API LanguageTool en arrière-plan pour corriger Titre et
+        // Description
+        SpellCheckDecorator.attach(titreField, "fr");
+        SpellCheckDecorator.attach(descriptionField, "fr");
     }
 
     @FXML

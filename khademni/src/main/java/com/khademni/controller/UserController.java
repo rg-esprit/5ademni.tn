@@ -130,6 +130,9 @@ public class UserController {
     @FXML
     private VBox bioEditBox;
 
+    @FXML
+    private CheckBox languageToolAutoCorrectCheckbox;
+
     private UserRole selectedMode = UserRole.CLIENT;
     private String selectedCvPath = null;
 
@@ -238,6 +241,11 @@ public class UserController {
         // Load profile data if on the profile page
         if (profileFirstNameField != null) {
             loadProfileData();
+
+            if (languageToolAutoCorrectCheckbox != null) {
+                languageToolAutoCorrectCheckbox.setSelected(SpellCheckDecorator.isEnabled());
+            }
+
             // Attach live LanguageTool spell-check to profile text fields
             SpellCheckDecorator.attach(profileFirstNameField, profileStatusLabel, "fr");
             SpellCheckDecorator.attach(profileLastNameField, profileStatusLabel, "fr");
@@ -769,6 +777,15 @@ public class UserController {
         } else {
             profileStatusLabel.setStyle(
                     "-fx-text-fill: #059669; -fx-background-color: #ecfdf5; -fx-border-color: #a7f3d0; -fx-border-radius: 10; -fx-background-radius: 10; -fx-padding: 12 20 12 20; -fx-font-weight: 600;");
+        }
+    }
+
+    @FXML
+    private void onToggleLanguageTool(ActionEvent event) {
+        if (languageToolAutoCorrectCheckbox != null) {
+            boolean enabled = languageToolAutoCorrectCheckbox.isSelected();
+            SpellCheckDecorator.setEnabled(enabled);
+            showProfileStatus("Correction automatique " + (enabled ? "activée" : "désactivée"), false);
         }
     }
 

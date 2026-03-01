@@ -183,6 +183,17 @@
                     </VBox>
 
 
+                    <!-- Preferences Field -->
+                    <VBox spacing="8">
+                        <Label text="Préférences" styleClass="profile-field-label" />
+                        <HBox alignment="CENTER_LEFT" spacing="12">
+                            <CheckBox fx:id="languageToolAutoCorrectCheckbox" 
+                                      text="Activer la correction automatique (LanguageTool)" 
+                                      style="-fx-text-fill: #1f2937; -fx-font-size: 14px; -fx-cursor: hand;" 
+                                      onAction="#onToggleLanguageTool" />
+                        </HBox>
+                    </VBox>
+
                     <!-- Action Buttons -->
                     <HBox spacing="16" alignment="CENTER_RIGHT" style="-fx-padding: 12 0 0 0;">
                         <Button text="Sign Out" onAction="#onSignOut"

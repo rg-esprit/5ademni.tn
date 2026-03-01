@@ -37,6 +37,56 @@ public class OffreServiceImpl implements OffreService {
     }
 
     @Override
+    public List<OffreModel> getGlobalFeed() throws BusinessException {
+        try {
+            return offreDAO.findAllCombined();
+        } catch (Exception e) {
+            logger.error("Error fetching global feed", e);
+            throw new BusinessException("Erreur de récupération du Global Feed");
+        }
+    }
+
+    @Override
+    public List<OffreModel> searchPaginated(String query, int offset, int limit) throws BusinessException {
+        try {
+            return offreDAO.searchPaginated(query, offset, limit);
+        } catch (SQLException e) {
+            logger.error("Error fetching paginated feed", e);
+            throw new BusinessException("Erreur lors de la pagination des offres.");
+        }
+    }
+
+    @Override
+    public int countSearchResults(String query) throws BusinessException {
+        try {
+            return offreDAO.countSearchResults(query);
+        } catch (SQLException e) {
+            logger.error("Error counting search results", e);
+            throw new BusinessException("Erreur lors du comptage des offres.");
+        }
+    }
+
+    @Override
+    public List<OffreModel> getUserOffres(int userId) throws BusinessException {
+        try {
+            return offreDAO.findByUserId(userId, "OFFRE");
+        } catch (Exception e) {
+            logger.error("Error fetching user offres", e);
+            throw new BusinessException("Erreur de récupération des offres utilisateur");
+        }
+    }
+
+    @Override
+    public List<OffreModel> getUserDemandes(int userId) throws BusinessException {
+        try {
+            return offreDAO.findByUserId(userId, "DEMANDE");
+        } catch (Exception e) {
+            logger.error("Error fetching user demandes", e);
+            throw new BusinessException("Erreur de récupération des demandes utilisateur");
+        }
+    }
+
+    @Override
     public void createOffre(OffreModel offre) throws BusinessException {
         validateOffre(offre);
         try {
@@ -61,7 +111,7 @@ public class OffreServiceImpl implements OffreService {
     @Override
     public void deleteOffre(int id, String type) throws BusinessException {
         try {
-            ((OffreDAOImpl) offreDAO).deleteWithType(id, type);
+            offreDAO.deleteWithType(id, type);
         } catch (SQLException e) {
             logger.error("Error deleting offre", e);
             throw new BusinessException("Erreur lors de la suppression.");

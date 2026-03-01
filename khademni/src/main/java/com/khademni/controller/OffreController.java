@@ -2,7 +2,7 @@ package com.khademni.controller;
 
 import com.khademni.App;
 import com.khademni.model.OffreModel;
-import com.khademni.utils.MyDataBase;
+
 import java.time.LocalDateTime;
 import javafx.collections.FXCollections;
 import javafx.collections.ObservableList;
@@ -22,10 +22,6 @@ import com.lowagie.text.pdf.PdfWriter;
 import java.io.FileOutputStream;
 
 import java.io.IOException;
-import java.sql.Connection;
-import java.sql.ResultSet;
-import java.sql.SQLException;
-import java.sql.Statement;
 
 public class OffreController {
 
@@ -56,10 +52,22 @@ public class OffreController {
     private Button fabPdfBtn;
     @FXML
     private TextField searchField;
+    @FXML
+    private Button btnPrevPage;
+    @FXML
+    private Button btnNextPage;
+    @FXML
+    private Label lblPageInfo;
 
     private final OffreService offreService = ServiceFactory.getOffreService();
 
     private ObservableList<OffreModel> offreList = FXCollections.observableArrayList();
+
+    // Pagination Variables
+    private int currentPage = 1;
+    private int rowsPerPage = 10;
+    private int totalRecords = 0;
+    private String currentSearchQuery = "";
 
     @FXML
     public void initialize() {
@@ -100,65 +108,57 @@ public class OffreController {
     }
 
     private void setupSearch() {
-        FilteredList<OffreModel> filteredData = new FilteredList<>(offreList, p -> true);
-
         searchField.textProperty().addListener((observable, oldValue, newValue) -> {
-            filteredData.setPredicate(offre -> {
-                if (newValue == null || newValue.isEmpty()) {
-                    return true;
-                }
-
-                String lowerCaseFilter = newValue.toLowerCase();
-
-                if (String.valueOf(offre.getId()).contains(lowerCaseFilter)) {
-                    return true;
-                } else if (offre.getTitre().toLowerCase().contains(lowerCaseFilter)) {
-                    return true;
-                } else if (offre.getType().toLowerCase().contains(lowerCaseFilter)) {
-                    return true;
-                } else if (offre.getUserName() != null && offre.getUserName().toLowerCase().contains(lowerCaseFilter)) {
-                    return true;
-                }
-                return false;
-            });
+            currentSearchQuery = newValue == null ? "" : newValue.trim();
+            currentPage = 1; // Reset to first page on new search
+            loadOffres();
         });
-
-        offreTable.setItems(filteredData);
     }
 
     private void loadOffres() {
         offreList.clear();
-        String query = "SELECT t.id, t.user_id, u.unique_id, CONCAT(u.first_name, ' ', u.last_name) AS user_name, t.titre, t.description, t.prix, t.date_creation, t.date_limite, t.statut, 'OFFRE' as type "
-                +
-                "FROM offres t LEFT JOIN users u ON t.user_id = u.id " +
-                "UNION ALL " +
-                "SELECT t.id, t.user_id, u.unique_id, CONCAT(u.first_name, ' ', u.last_name) AS user_name, t.titre, t.description, t.prix, t.date_creation, t.date_limite, t.statut, 'DEMANDE' as type "
-                +
-                "FROM demandes t LEFT JOIN users u ON t.user_id = u.id " +
-                "ORDER BY date_creation DESC";
-        try (Connection conn = MyDataBase.getConnection();
-                Statement stmt = conn.createStatement();
-                ResultSet rs = stmt.executeQuery(query)) {
+        try {
+            int offset = (currentPage - 1) * rowsPerPage;
 
-            while (rs.next()) {
-                offreList.add(new OffreModel(
-                        rs.getInt("id"),
-                        rs.getInt("user_id"),
-                        rs.getInt("unique_id"),
-                        rs.getString("titre"),
-                        rs.getString("description"),
-                        rs.getDouble("prix"),
-                        rs.getTimestamp("date_creation").toLocalDateTime(),
-                        rs.getString("statut"),
-                        rs.getString("type"),
-                        rs.getTimestamp("date_limite") != null ? rs.getTimestamp("date_limite").toLocalDateTime()
-                                : null,
-                        rs.getString("user_name")));
-            }
+            // 1. Get total count for the current search query
+            totalRecords = offreService.countSearchResults(currentSearchQuery);
+
+            // 2. Fetch the specific page
+            offreList.addAll(offreService.searchPaginated(currentSearchQuery, offset, rowsPerPage));
             offreTable.setItems(offreList);
-        } catch (SQLException e) {
+
+            updatePaginationUI();
+
+        } catch (BusinessException e) {
             e.printStackTrace();
             showAlert(Alert.AlertType.ERROR, "Erreur", "Impossible de charger les offres : " + e.getMessage());
+        }
+    }
+
+    private void updatePaginationUI() {
+        int totalPages = (int) Math.ceil((double) totalRecords / rowsPerPage);
+        if (totalPages == 0)
+            totalPages = 1;
+
+        lblPageInfo.setText("Page " + currentPage + " sur " + totalPages);
+        btnPrevPage.setDisable(currentPage == 1);
+        btnNextPage.setDisable(currentPage >= totalPages);
+    }
+
+    @FXML
+    private void onPrevPage() {
+        if (currentPage > 1) {
+            currentPage--;
+            loadOffres();
+        }
+    }
+
+    @FXML
+    private void onNextPage() {
+        int totalPages = (int) Math.ceil((double) totalRecords / rowsPerPage);
+        if (currentPage < totalPages) {
+            currentPage++;
+            loadOffres();
         }
     }
 
@@ -244,8 +244,6 @@ public class OffreController {
         if (alert.showAndWait().get() == ButtonType.YES) {
             try {
                 offreService.deleteOffre(offre.getId(), offre.getType());
-                MyDataBase.resetAutoIncrementIfEmpty(offre.getType().equalsIgnoreCase("OFFRE") ? "offres" : "demandes",
-                        0);
                 loadOffres();
             } catch (BusinessException e) {
                 showAlert(Alert.AlertType.ERROR, "Erreur", e.getMessage());

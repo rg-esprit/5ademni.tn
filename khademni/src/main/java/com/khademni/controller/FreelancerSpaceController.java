@@ -3,7 +3,9 @@ package com.khademni.controller;
 import com.khademni.App;
 import com.khademni.model.OffreModel;
 import com.khademni.model.UserModel;
-import com.khademni.utils.MyDataBase;
+import com.khademni.service.OffreService;
+import com.khademni.service.ServiceFactory;
+import com.khademni.exception.BusinessException;
 import com.khademni.utils.PasswordUtil;
 import com.lowagie.text.Document;
 import com.lowagie.text.Paragraph;
@@ -18,12 +20,11 @@ import javafx.scene.control.cell.PropertyValueFactory;
 import javafx.scene.layout.HBox;
 import javafx.scene.layout.VBox;
 import javafx.stage.Stage;
-import javafx.util.Callback;
 import com.khademni.service.ZenQuoteService;
 
 import java.io.FileOutputStream;
 import java.io.IOException;
-import java.sql.*;
+
 import java.time.LocalDateTime;
 import java.time.format.DateTimeFormatter;
 
@@ -46,7 +47,14 @@ public class FreelancerSpaceController {
     @FXML
     private TableColumn<OffreModel, LocalDateTime> colDateLimite;
     @FXML
-    private TableColumn<OffreModel, Void> colActions;
+    private HBox floatingActionBar;
+    @FXML
+    private Button fabEditBtn;
+    @FXML
+    private Button fabDeleteBtn;
+    @FXML
+    private Button fabPdfBtn;
+
     @FXML
     private TextField searchField;
     @FXML
@@ -60,6 +68,7 @@ public class FreelancerSpaceController {
 
     private ObservableList<OffreModel> offreList = FXCollections.observableArrayList();
     private final ZenQuoteService zenQuoteService = new ZenQuoteService();
+    private final OffreService offreService = ServiceFactory.getOffreService();
 
     @FXML
     public void initialize() {
@@ -104,7 +113,7 @@ public class FreelancerSpaceController {
             }
         });
 
-        addActionsButtonsToTable();
+        setupFloatingActionBar();
         setupSearch();
         loadOffres();
         loadMotivationalQuote();
@@ -160,98 +169,49 @@ public class FreelancerSpaceController {
         UserModel currentUser = App.getCurrentUser();
         if (currentUser == null)
             return;
-        int currentUserId = currentUser.getId();
 
-        // Try with unique_id JOIN first, fall back to simple query
-        String queryJoin = "SELECT o.*, u.unique_id FROM offres o LEFT JOIN users u ON o.user_id = u.id WHERE o.user_id = ?";
-        String querySimple = "SELECT * FROM offres WHERE user_id = ?";
-        boolean useJoin = true;
-
-        try (Connection conn = MyDataBase.getConnection();
-                PreparedStatement pstmtJoin = conn.prepareStatement(queryJoin);
-                PreparedStatement pstmtSimple = conn.prepareStatement(querySimple)) {
-
-            pstmtJoin.setInt(1, currentUserId);
-            pstmtSimple.setInt(1, currentUserId);
-
-            ResultSet rs;
-            try {
-                rs = pstmtJoin.executeQuery();
-            } catch (SQLException joinErr) {
-                // unique_id column missing — fall back
-                useJoin = false;
-                rs = pstmtSimple.executeQuery();
-            }
-
-            while (rs.next()) {
-                OffreModel offre = new OffreModel();
-                offre.setId(rs.getInt("id"));
-                offre.setUserId(rs.getInt("user_id"));
-                if (useJoin) {
-                    try {
-                        offre.setUserUniqueId(rs.getInt("unique_id"));
-                    } catch (SQLException ignored) {
-                    }
-                } else {
-                    offre.setUserUniqueId(rs.getInt("user_id"));
-                }
-                offre.setTitre(rs.getString("titre"));
-                offre.setDescription(rs.getString("description"));
-                offre.setPrix(rs.getDouble("prix"));
-                offre.setDateCreation(rs.getTimestamp("date_creation").toLocalDateTime());
-                offre.setStatut(rs.getString("statut"));
-                offre.setType("OFFRE");
-                try {
-                    Timestamp dl = rs.getTimestamp("date_limite");
-                    if (dl != null)
-                        offre.setDateLimite(dl.toLocalDateTime());
-                } catch (SQLException ignored) {
-                    /* column may not exist */ }
-                offreList.add(offre);
-            }
-            rs.close();
-        } catch (SQLException e) {
+        try {
+            offreList.addAll(offreService.getUserOffres(currentUser.getId()));
+        } catch (BusinessException e) {
             e.printStackTrace();
+            showAlert(Alert.AlertType.ERROR, "Erreur", e.getMessage());
         }
     }
 
-    private void addActionsButtonsToTable() {
-        Callback<TableColumn<OffreModel, Void>, TableCell<OffreModel, Void>> cellFactory = param -> new TableCell<>() {
-            private final Button editBtn = new Button("Modifier");
-            private final Button deleteBtn = new Button("Supprimer");
-            private final Button pdfBtn = new Button("PDF");
-            private final HBox btnPane = new HBox(5, editBtn, deleteBtn, pdfBtn);
-
-            {
-                editBtn.setStyle("-fx-background-color: #6c0df2; -fx-text-fill: white; -fx-cursor: hand;");
-                deleteBtn.setStyle("-fx-background-color: #ef4444; -fx-text-fill: white; -fx-cursor: hand;");
-                pdfBtn.setStyle("-fx-background-color: #10b981; -fx-text-fill: white; -fx-cursor: hand;");
-
-                editBtn.setOnAction(event -> {
-                    OffreModel offre = getTableView().getItems().get(getIndex());
-                    handleEdit(offre);
-                });
-                deleteBtn.setOnAction(event -> {
-                    OffreModel offre = getTableView().getItems().get(getIndex());
-                    handleDelete(offre);
-                });
-                pdfBtn.setOnAction(event -> {
-                    OffreModel offre = getTableView().getItems().get(getIndex());
-                    generatePDF(offre);
-                });
+    private void setupFloatingActionBar() {
+        offreTable.getSelectionModel().selectedItemProperty().addListener((obs, oldSelection, newSelection) -> {
+            if (newSelection != null) {
+                floatingActionBar.setVisible(true);
+                floatingActionBar.setManaged(true);
+            } else {
+                floatingActionBar.setVisible(false);
+                floatingActionBar.setManaged(false);
             }
+        });
+    }
 
-            @Override
-            protected void updateItem(Void item, boolean empty) {
-                super.updateItem(item, empty);
-                if (empty) {
-                    setGraphic(null);
-                } else {
-                    setGraphic(btnPane);
-                }
-            }
-        };
-        colActions.setCellFactory(cellFactory);
+    @FXML
+    private void onFabEdit() {
+        OffreModel selected = offreTable.getSelectionModel().getSelectedItem();
+        if (selected != null) {
+            handleEdit(selected);
+        }
+    }
+
+    @FXML
+    private void onFabDelete() {
+        OffreModel selected = offreTable.getSelectionModel().getSelectedItem();
+        if (selected != null) {
+            handleDelete(selected);
+        }
+    }
+
+    @FXML
+    private void onFabPdf() {
+        OffreModel selected = offreTable.getSelectionModel().getSelectedItem();
+        if (selected != null) {
+            generatePDF(selected);
+        }
     }
 
     private void handleEdit(OffreModel offre) {
@@ -272,15 +232,12 @@ public class FreelancerSpaceController {
             return;
         Alert alert = new Alert(Alert.AlertType.CONFIRMATION, "Supprimer cet offre ?", ButtonType.YES, ButtonType.NO);
         if (alert.showAndWait().get() == ButtonType.YES) {
-            String query = "DELETE FROM offres WHERE id = ?";
-            try (Connection conn = MyDataBase.getConnection();
-                    PreparedStatement pstmt = conn.prepareStatement(query)) {
-                pstmt.setInt(1, offre.getId());
-                pstmt.executeUpdate();
-                MyDataBase.resetAutoIncrementIfEmpty("offres", 1);
+            try {
+                offreService.deleteOffre(offre.getId(), "OFFRE");
                 loadOffres();
-            } catch (SQLException e) {
+            } catch (BusinessException e) {
                 e.printStackTrace();
+                showAlert(Alert.AlertType.ERROR, "Erreur", e.getMessage());
             }
         }
     }

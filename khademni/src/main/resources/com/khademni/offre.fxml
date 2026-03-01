@@ -53,6 +53,17 @@
                     </columnResizePolicy>
                 </TableView>
 
+                <!-- Pagination Controls -->
+                <HBox alignment="CENTER" spacing="16" style="-fx-padding: 8 0;">
+                    <Button fx:id="btnPrevPage" text="&lt; Précédent" onAction="#onPrevPage"
+                            style="-fx-background-color: transparent; -fx-border-color: #d1d5db; -fx-border-radius: 6; -fx-cursor: hand;" />
+                            
+                    <Label fx:id="lblPageInfo" text="Page 1" style="-fx-font-weight: bold; -fx-text-fill: #374151;" />
+                    
+                    <Button fx:id="btnNextPage" text="Suivant &gt;" onAction="#onNextPage"
+                            style="-fx-background-color: transparent; -fx-border-color: #d1d5db; -fx-border-radius: 6; -fx-cursor: hand;" />
+                </HBox>
+
                 <!-- Floating Action Bar (Hidden by default) -->
                 <HBox fx:id="floatingActionBar" alignment="CENTER" spacing="16" visible="false" managed="false"
                       style="-fx-background-color: #ffffff; -fx-padding: 12 24; -fx-background-radius: 50; 

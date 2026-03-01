@@ -54,12 +54,23 @@
                         <TableColumn fx:id="colStatut" text="Statut" prefWidth="100" />
                         <TableColumn fx:id="colDate" text="Date Création" prefWidth="120" />
                         <TableColumn fx:id="colDateLimite" text="Date limite CDD" prefWidth="120" />
-                        <TableColumn fx:id="colActions" text="Actions" prefWidth="250" />
                     </columns>
                     <columnResizePolicy>
                         <TableView fx:constant="CONSTRAINED_RESIZE_POLICY" />
                     </columnResizePolicy>
                 </TableView>
+
+                <!-- Floating Action Bar (Hidden by default) -->
+                <HBox fx:id="floatingActionBar" alignment="CENTER" spacing="16" visible="false" managed="false"
+                      style="-fx-background-color: #ffffff; -fx-padding: 12 24; -fx-background-radius: 50; 
+                             -fx-effect: dropshadow(gaussian, rgba(0,0,0,0.15), 10, 0, 0, 4); 
+                             -fx-border-color: #e5e7eb; -fx-border-radius: 50; -fx-border-width: 1;">
+                    <Button fx:id="fabEditBtn" text="Modifier" styleClass="button-primary" onAction="#onFabEdit" />
+                    <Button fx:id="fabDeleteBtn" text="Supprimer" styleClass="button-secondary" onAction="#onFabDelete" 
+                            style="-fx-background-color: #fef2f2; -fx-text-fill: #dc2626; -fx-border-color: #fecaca;" />
+                    <Button fx:id="fabPdfBtn" text="Exporter PDF" styleClass="button-secondary" onAction="#onFabPdf" 
+                            style="-fx-background-color: #ecfdf5; -fx-text-fill: #059669; -fx-border-color: #a7f3d0;" />
+                </HBox>
 
             </VBox>
 

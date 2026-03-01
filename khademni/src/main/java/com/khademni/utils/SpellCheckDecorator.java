@@ -12,6 +12,7 @@ import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.ScheduledFuture;
 import java.util.concurrent.TimeUnit;
+import java.util.prefs.Preferences;
 
 /**
  * Attaches a real-time LanguageTool spell/grammar check to any JavaFX
@@ -42,6 +43,18 @@ public class SpellCheckDecorator {
     /** Shared service instance. */
     private static final GrammarCorrectionService CORRECTION_SERVICE = GrammarCorrectionService.getInstance();
 
+    private static final Preferences PREFS = Preferences.userNodeForPackage(SpellCheckDecorator.class);
+    private static boolean enabled = PREFS.getBoolean("languagetool_enabled", true);
+
+    public static boolean isEnabled() {
+        return enabled;
+    }
+
+    public static void setEnabled(boolean value) {
+        enabled = value;
+        PREFS.putBoolean("languagetool_enabled", value);
+    }
+
     /**
      * Attaches a live spell-check listener to a text field.
      *
@@ -63,6 +76,8 @@ public class SpellCheckDecorator {
 
             // Schedule a new check after the debounce delay
             pending[0] = SCHEDULER.schedule(() -> {
+                if (!enabled)
+                    return;
                 String current = newText;
                 if (current == null || current.isBlank())
                     return;

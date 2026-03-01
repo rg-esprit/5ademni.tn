@@ -20,9 +20,6 @@ public class OffreDAOImpl implements OffreDAO {
     @Override
     public List<OffreModel> findByType(String type) throws SQLException {
         String table = "OFFRE".equalsIgnoreCase(type) ? "offres" : "demandes";
-        // Join with users to get the 4-digit unique_id
-        // Use LEFT JOIN on unique_id to handle both cases if needed, but primarily
-        // unique_id
         String query = "SELECT t.*, u.unique_id FROM " + table
                 + " t LEFT JOIN users u ON t.user_id = u.id WHERE t.statut != 'ANNULE'";
         List<OffreModel> list = new ArrayList<>();
@@ -38,11 +35,43 @@ public class OffreDAOImpl implements OffreDAO {
     }
 
     @Override
+    public List<OffreModel> findAllCombined() throws SQLException {
+        String query = "SELECT t.id, t.user_id, u.unique_id, CONCAT(u.first_name, ' ', u.last_name) AS user_name, t.titre, t.description, t.prix, t.date_creation, t.date_limite, t.statut, 'OFFRE' as type "
+                + "FROM offres t LEFT JOIN users u ON t.user_id = u.id " +
+                "UNION ALL " +
+                "SELECT t.id, t.user_id, u.unique_id, CONCAT(u.first_name, ' ', u.last_name) AS user_name, t.titre, t.description, t.prix, t.date_creation, t.date_limite, t.statut, 'DEMANDE' as type "
+                + "FROM demandes t LEFT JOIN users u ON t.user_id = u.id " +
+                "ORDER BY date_creation DESC";
+        List<OffreModel> list = new ArrayList<>();
+        try (Connection conn = MyDataBase.getConnection();
+                Statement stmt = conn.createStatement();
+                ResultSet rs = stmt.executeQuery(query)) {
+            while (rs.next()) {
+                OffreModel offre = new OffreModel(
+                        rs.getInt("id"),
+                        rs.getInt("user_id"),
+                        rs.getInt("unique_id"),
+                        rs.getString("titre"),
+                        rs.getString("description"),
+                        rs.getDouble("prix"),
+                        rs.getTimestamp("date_creation").toLocalDateTime(),
+                        rs.getString("statut"),
+                        rs.getString("type"),
+                        rs.getTimestamp("date_limite") != null ? rs.getTimestamp("date_limite").toLocalDateTime()
+                                : null,
+                        rs.getString("user_name"));
+                list.add(offre);
+            }
+        }
+        return list;
+    }
+
+    @Override
     public List<OffreModel> findByUserId(int userId, String type) throws SQLException {
         String table = "OFFRE".equalsIgnoreCase(type) ? "offres" : "demandes";
         // Join with users to get the 4-digit unique_id
         String query = "SELECT t.*, u.unique_id FROM " + table
-                + " t LEFT JOIN users u ON t.user_id = u.id WHERE t.user_id = ? AND t.statut != 'ANNULE'";
+                + " t LEFT JOIN users u ON t.user_id = u.id WHERE t.user_id = ?";
         List<OffreModel> list = new ArrayList<>();
 
         try (Connection conn = MyDataBase.getConnection();
@@ -102,6 +131,7 @@ public class OffreDAOImpl implements OffreDAO {
         // service
     }
 
+    @Override
     public void deleteWithType(int id, String type) throws SQLException {
         String table = "OFFRE".equalsIgnoreCase(type) ? "offres" : "demandes";
         String query = "DELETE FROM " + table + " WHERE id = ?";
@@ -109,6 +139,7 @@ public class OffreDAOImpl implements OffreDAO {
                 PreparedStatement stmt = conn.prepareStatement(query)) {
             stmt.setInt(1, id);
             stmt.executeUpdate();
+            MyDataBase.resetAutoIncrementIfEmpty(table, 0);
         }
     }
 
@@ -116,10 +147,17 @@ public class OffreDAOImpl implements OffreDAO {
         Timestamp deadlineTs = rs.getTimestamp("date_limite");
         LocalDateTime deadline = deadlineTs != null ? deadlineTs.toLocalDateTime() : null;
 
+        int uniqueId = rs.getInt("user_id"); // Fallback
+        try {
+            uniqueId = rs.getInt("unique_id");
+        } catch (SQLException e) {
+            // Ignored, fallback stands
+        }
+
         return new OffreModel(
                 rs.getInt("id"),
                 rs.getInt("user_id"), // Technical ID
-                rs.getInt("unique_id"), // Business ID (4-digit)
+                uniqueId, // Business ID (4-digit)
                 rs.getString("titre"),
                 rs.getString("description"),
                 rs.getDouble("prix"),
@@ -128,5 +166,88 @@ public class OffreDAOImpl implements OffreDAO {
                 type,
                 deadline,
                 null); // userName is resolved in OffreController's loadOffres()
+    }
+
+    @Override
+    public List<OffreModel> searchPaginated(String query, int offset, int limit) throws SQLException {
+        String baseQuery = "SELECT t.id, t.user_id, u.unique_id, CONCAT(u.first_name, ' ', u.last_name) AS user_name, t.titre, t.description, t.prix, t.date_creation, t.date_limite, t.statut, 'OFFRE' as type "
+                + "FROM offres t LEFT JOIN users u ON t.user_id = u.id " +
+                "UNION ALL " +
+                "SELECT t.id, t.user_id, u.unique_id, CONCAT(u.first_name, ' ', u.last_name) AS user_name, t.titre, t.description, t.prix, t.date_creation, t.date_limite, t.statut, 'DEMANDE' as type "
+                + "FROM demandes t LEFT JOIN users u ON t.user_id = u.id";
+
+        boolean hasFilter = query != null && !query.trim().isEmpty();
+        if (hasFilter) {
+            baseQuery = "SELECT * FROM (" + baseQuery
+                    + ") AS combined WHERE combined.titre LIKE ? OR combined.description LIKE ? OR combined.statut LIKE ? ORDER BY date_creation DESC LIMIT ? OFFSET ?";
+        } else {
+            baseQuery = baseQuery + " ORDER BY date_creation DESC LIMIT ? OFFSET ?";
+        }
+
+        List<OffreModel> list = new ArrayList<>();
+        try (Connection conn = MyDataBase.getConnection();
+                PreparedStatement stmt = conn.prepareStatement(baseQuery)) {
+
+            int paramIndex = 1;
+            if (hasFilter) {
+                String likePattern = "%" + query.trim() + "%";
+                stmt.setString(paramIndex++, likePattern);
+                stmt.setString(paramIndex++, likePattern);
+                stmt.setString(paramIndex++, likePattern);
+            }
+            stmt.setInt(paramIndex++, limit);
+            stmt.setInt(paramIndex, offset);
+
+            try (ResultSet rs = stmt.executeQuery()) {
+                while (rs.next()) {
+                    OffreModel offre = new OffreModel(
+                            rs.getInt("id"),
+                            rs.getInt("user_id"),
+                            rs.getInt("unique_id"),
+                            rs.getString("titre"),
+                            rs.getString("description"),
+                            rs.getDouble("prix"),
+                            rs.getTimestamp("date_creation").toLocalDateTime(),
+                            rs.getString("statut"),
+                            rs.getString("type"),
+                            rs.getTimestamp("date_limite") != null ? rs.getTimestamp("date_limite").toLocalDateTime()
+                                    : null,
+                            rs.getString("user_name"));
+                    list.add(offre);
+                }
+            }
+        }
+        return list;
+    }
+
+    @Override
+    public int countSearchResults(String query) throws SQLException {
+        String baseQuery = "SELECT COUNT(*) FROM (" +
+                "SELECT titre, description, statut FROM offres " +
+                "UNION ALL " +
+                "SELECT titre, description, statut FROM demandes) AS combined";
+
+        boolean hasFilter = query != null && !query.trim().isEmpty();
+        if (hasFilter) {
+            baseQuery += " WHERE titre LIKE ? OR description LIKE ? OR statut LIKE ?";
+        }
+
+        try (Connection conn = MyDataBase.getConnection();
+                PreparedStatement stmt = conn.prepareStatement(baseQuery)) {
+
+            if (hasFilter) {
+                String likePattern = "%" + query.trim() + "%";
+                stmt.setString(1, likePattern);
+                stmt.setString(2, likePattern);
+                stmt.setString(3, likePattern);
+            }
+
+            try (ResultSet rs = stmt.executeQuery()) {
+                if (rs.next()) {
+                    return rs.getInt(1);
+                }
+            }
+        }
+        return 0;
     }
 }
