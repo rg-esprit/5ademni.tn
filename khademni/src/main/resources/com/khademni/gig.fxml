@@ -41,6 +41,17 @@
                                    -fx-cursor: hand;
                                    -fx-effect: dropshadow(gaussian, rgba(99,102,241,0.3), 8, 0, 0, 2);" />
 
+                    <Button text="&#x1F916; AI Generate"
+                            onAction="#showAIGenerateDialog"
+                            style="-fx-background-color: linear-gradient(to right, #8b5cf6, #6366f1);
+                                   -fx-text-fill: white;
+                                   -fx-font-size: 14;
+                                   -fx-font-weight: 700;
+                                   -fx-padding: 12 24;
+                                   -fx-background-radius: 10;
+                                   -fx-cursor: hand;
+                                   -fx-effect: dropshadow(gaussian, rgba(139,92,246,0.3), 8, 0, 0, 2);" />
+
                     <Button text="⟳"
                             onAction="#onRefresh"
                             style="-fx-background-color: #f3f4f6;
