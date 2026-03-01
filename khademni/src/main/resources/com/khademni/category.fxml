@@ -14,7 +14,7 @@
     <fx:include source="header.fxml" />
 
     <!-- Main Content -->
-    <ScrollPane fitToWidth="true" fitToHeight="true"
+    <ScrollPane fitToWidth="true" VBox.vgrow="ALWAYS"
                 style="-fx-background-color: #f8fafc; -fx-background: #f8fafc;">
         <VBox spacing="32" style="-fx-padding: 40 48 48 48;">
 
@@ -69,7 +69,39 @@
                     <Label fx:id="inactiveCategoriesLabel" text="0"
                            style="-fx-font-size: 36; -fx-font-weight: 700; -fx-text-fill: #ef4444;" />
                 </VBox>
+
+                <VBox spacing="8" style="-fx-background-color: white; -fx-padding: 24;
+                                         -fx-background-radius: 16; -fx-effect: dropshadow(gaussian, rgba(0,0,0,0.06), 16, 0, 0, 4);"
+                      HBox.hgrow="ALWAYS">
+                    <Label text="TOTAL GIGS" style="-fx-font-size: 12; -fx-font-weight: 600; -fx-text-fill: #94a3b8;" />
+                    <Label fx:id="totalGigsLabel" text="0"
+                           style="-fx-font-size: 36; -fx-font-weight: 700; -fx-text-fill: #6366f1;" />
+                </VBox>
+
+                <VBox spacing="8" style="-fx-background-color: white; -fx-padding: 24;
+                                         -fx-background-radius: 16; -fx-effect: dropshadow(gaussian, rgba(0,0,0,0.06), 16, 0, 0, 4);"
+                      HBox.hgrow="ALWAYS">
+                    <Label text="MOST ACTIVE" style="-fx-font-size: 12; -fx-font-weight: 600; -fx-text-fill: #94a3b8;" />
+                    <Label fx:id="mostActiveCategoryLabel" text="-"
+                           style="-fx-font-size: 18; -fx-font-weight: 700; -fx-text-fill: #f59e0b;" />
+                </VBox>
             </HBox>
+
+            <!-- Gigs per Category Statistics -->
+            <VBox spacing="0" style="-fx-background-color: white; -fx-background-radius: 16;
+                                     -fx-effect: dropshadow(gaussian, rgba(0,0,0,0.06), 16, 0, 0, 4);">
+                <HBox alignment="CENTER_LEFT" spacing="16"
+                      style="-fx-background-color: #f8fafc; -fx-padding: 20 28;
+                             -fx-background-radius: 16 16 0 0; -fx-border-color: #e2e8f0;
+                             -fx-border-width: 0 0 1 0;">
+                    <Label text="Gigs per Category"
+                           style="-fx-font-size: 18; -fx-font-weight: 700; -fx-text-fill: #1e293b;" />
+                    <Region HBox.hgrow="ALWAYS" />
+                    <Label text="Category | Status | Gigs | Distribution | %"
+                           style="-fx-font-size: 12; -fx-text-fill: #94a3b8; -fx-font-weight: 500;" />
+                </HBox>
+                <VBox fx:id="statsContainer" spacing="0" style="-fx-background-color: white;" />
+            </VBox>
 
             <!-- Search and Filters -->
             <HBox spacing="16" alignment="CENTER_LEFT"
@@ -110,12 +142,10 @@
                 </HBox>
 
                 <!-- Categories Container -->
-                <ScrollPane fitToWidth="true" style="-fx-background-color: transparent; -fx-background: transparent;">
-                    <FlowPane fx:id="categoriesContainer"
-                              hgap="20" vgap="20"
-                              alignment="TOP_LEFT"
-                              style="-fx-padding: 28; -fx-background-color: white;" />
-                </ScrollPane>
+                <FlowPane fx:id="categoriesContainer"
+                          hgap="20" vgap="20"
+                          alignment="TOP_LEFT"
+                          style="-fx-padding: 28; -fx-background-color: white;" />
 
                 <!-- Empty State -->
                 <VBox fx:id="emptyState" alignment="CENTER" spacing="16"

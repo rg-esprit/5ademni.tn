@@ -5,6 +5,7 @@ import com.khademni.model.CategoryModel;
 import com.khademni.model.GigModel;
 import com.khademni.utils.MyDataBase;
 import com.khademni.utils.FreeAIService;
+import com.khademni.utils.FlaskAPIClient;
 import javafx.fxml.FXML;
 import javafx.fxml.Initializable;
 import javafx.geometry.Insets;
@@ -86,17 +87,17 @@ public class GigController implements Initializable {
         // Real-time search
         searchField.textProperty().addListener((obs, oldVal, newVal) -> applyFilters());
 
-        // Price fields listeners
-        minPriceField.textProperty().addListener((obs, oldVal, newVal) -> {
-            if (!newVal.matches("\\d*\\.?\\d*")) {
-                minPriceField.setText(oldVal);
-            }
-        });
-        maxPriceField.textProperty().addListener((obs, oldVal, newVal) -> {
-            if (!newVal.matches("\\d*\\.?\\d*")) {
-                maxPriceField.setText(oldVal);
-            }
-        });
+        // Price fields - use TextFormatter instead of setText in listener to avoid IndexOutOfBoundsException
+        minPriceField.setTextFormatter(new TextFormatter<>(change -> {
+            String newText = change.getControlNewText();
+            if (newText.isEmpty() || newText.matches("\\d*\\.?\\d*")) return change;
+            return null;
+        }));
+        maxPriceField.setTextFormatter(new TextFormatter<>(change -> {
+            String newText = change.getControlNewText();
+            if (newText.isEmpty() || newText.matches("\\d*\\.?\\d*")) return change;
+            return null;
+        }));
     }
 
     private void loadCategories() {
@@ -132,6 +133,16 @@ public class GigController implements Initializable {
             if (filterCategoryComboBox != null) {
                 filterCategoryComboBox.getItems().setAll(categories);
                 filterCategoryComboBox.setValue(categories.get(0));
+                // cellFactory: affiche seulement le nom
+                javafx.util.Callback<javafx.scene.control.ListView<CategoryModel>, ListCell<CategoryModel>> catCellFact =
+                    lv -> new ListCell<CategoryModel>() {
+                        @Override protected void updateItem(CategoryModel item, boolean empty) {
+                            super.updateItem(item, empty);
+                            setText(empty || item == null ? null : item.getName());
+                        }
+                    };
+                filterCategoryComboBox.setCellFactory(catCellFact);
+                filterCategoryComboBox.setButtonCell(catCellFact.call(null));
                 System.out.println("Categories set in ComboBox");
             }
 
@@ -488,8 +499,9 @@ public class GigController implements Initializable {
         formBox.setAlignment(Pos.TOP_LEFT);
         formBox.setFillWidth(true);
 
-        // Create reference for categoryCombo (will be initialized below)
+        // Create references for components (will be initialized below)
         final ComboBox<CategoryModel>[] categoryComboRef = new ComboBox[1];
+        final TextField[] priceFieldRef = new TextField[1]; // ← Pour accès dans autoPredictPrice
 
         // Title Field
         VBox titleBox = new VBox(8);
@@ -610,24 +622,42 @@ public class GigController implements Initializable {
         priceFieldLabel.setStyle("-fx-font-size: 13; -fx-font-weight: 600; -fx-text-fill: #374151;");
 
         TextField priceField = new TextField(gigToEdit != null ? String.valueOf(gigToEdit.getPrice()) : "");
+        priceFieldRef[0] = priceField; // ← Stocker la référence pour autoPredictPrice
         priceField.setPromptText("Minimum 10.00 DT");
         priceField.setStyle(
             "-fx-font-size: 14; -fx-padding: 12 16;" +
             "-fx-background-color: #f9fafb; -fx-border-color: #e5e7eb;" +
             "-fx-border-radius: 10; -fx-background-radius: 10; -fx-border-width: 1.5;"
         );
-        priceField.textProperty().addListener((obs, oldVal, newVal) -> {
-            if (!newVal.matches("\\d*\\.?\\d{0,2}")) {
-                priceField.setText(oldVal);
+        // Flag thread-safe pour désactiver le listener pendant l'auto-remplissage par IA
+        final java.util.concurrent.atomic.AtomicBoolean aiSettingPrice = new java.util.concurrent.atomic.AtomicBoolean(false);
+        // Use TextFormatter to safely filter input without recursive setText calls
+        priceField.setTextFormatter(new TextFormatter<>(change -> {
+            if (aiSettingPrice.get()) return change; // Allow AI to set any value
+            String newText = change.getControlNewText();
+            if (newText.isEmpty() || newText.matches("\\d*\\.?\\d*")) {
+                return change; // Accept valid input
             }
-        });
+            return null; // Reject invalid input
+        }));
 
         Label priceError = new Label();
         priceError.setStyle("-fx-text-fill: #ef4444; -fx-font-size: 12;");
         priceError.setVisible(false);
         priceError.setManaged(false);
 
-        priceBox.getChildren().addAll(priceFieldLabel, priceField, priceError);
+        // 🤖 Label hint IA (affiché sous le champ prix quand l'IA suggère un prix)
+        Label aiPriceHint = new Label();
+        aiPriceHint.setStyle(
+            "-fx-text-fill: #16a34a; -fx-font-size: 12; -fx-font-weight: 600;" +
+            "-fx-background-color: #f0fdf4; -fx-padding: 4 8;" +
+            "-fx-background-radius: 6; -fx-border-color: #bbf7d0; -fx-border-radius: 6;"
+        );
+        aiPriceHint.setVisible(false);
+        aiPriceHint.setManaged(false);
+        aiPriceHint.setWrapText(true);
+
+        priceBox.getChildren().addAll(priceFieldLabel, priceField, aiPriceHint, priceError);
 
         // Category Field
         VBox categoryBox = new VBox(8);
@@ -640,9 +670,27 @@ public class GigController implements Initializable {
         categoryComboRef[0] = categoryCombo; // Store reference for generate button
         categoryCombo.setMaxWidth(Double.MAX_VALUE);
         categoryCombo.setPromptText("Select a category");
-        categoryCombo.getItems().setAll(categories.stream().filter(c -> c.getId() != 0).toList());
+        List<CategoryModel> filteredCats = categories.stream().filter(c -> c.getId() != 0).toList();
+        categoryCombo.getItems().setAll(filteredCats);
+
+        // cellFactory: affiche seulement le nom
+        javafx.util.Callback<javafx.scene.control.ListView<CategoryModel>, ListCell<CategoryModel>> cellFactory =
+            lv -> new ListCell<CategoryModel>() {
+                @Override protected void updateItem(CategoryModel item, boolean empty) {
+                    super.updateItem(item, empty);
+                    setText(empty || item == null ? null : item.getName());
+                }
+            };
+        categoryCombo.setCellFactory(cellFactory);
+        categoryCombo.setButtonCell(cellFactory.call(null));
+
+        // Sélection en mode édition: matcher par ID
         if (gigToEdit != null && gigToEdit.getCategory() != null) {
-            categoryCombo.setValue(gigToEdit.getCategory());
+            final int editCatId = gigToEdit.getCategory().getId();
+            filteredCats.stream()
+                .filter(c -> c.getId() == editCatId)
+                .findFirst()
+                .ifPresent(categoryCombo::setValue);
         }
         categoryCombo.setStyle(
             "-fx-background-color: #f9fafb; -fx-border-color: #e5e7eb;" +
@@ -655,6 +703,137 @@ public class GigController implements Initializable {
         categoryError.setManaged(false);
 
         categoryBox.getChildren().addAll(categoryFieldLabel, categoryCombo, categoryError);
+
+        // Référence pour DatePicker (déclaré avant autoPredictPrice car autoPredictPrice en a besoin)
+        final DatePicker[] deliveryDatePickerRef = new DatePicker[1];
+
+        // 💰 AUTO-SUGGESTION DE PRIX: Prédiction basée sur catégorie + description
+        // Définit le Runnable APRÈS l'initialisation de priceField et categoryCombo
+        final Label[] aiPriceHintRef = {aiPriceHint};
+        Runnable autoPredictPrice = () -> {
+            String desc = descField.getText().trim();
+            CategoryModel selectedCategory = categoryComboRef[0].getValue();
+
+            if (selectedCategory != null && desc.length() >= 10) {
+                System.out.println("💰 Prédiction automatique de prix...");
+                System.out.println("   Catégorie DB: " + selectedCategory.getName());
+
+                // Mapper le nom DB -> nom ML model
+                String dbCatName = selectedCategory.getName().toLowerCase();
+                String mlCategory;
+                if (dbCatName.contains("dev") || dbCatName.contains("code") || dbCatName.contains("program")
+                    || dbCatName.contains("web") || dbCatName.contains("app") || dbCatName.contains("software")
+                    || dbCatName.contains("deploy") || dbCatName.contains("automati") || dbCatName.contains("backend")
+                    || dbCatName.contains("frontend") || dbCatName.contains("full")) {
+                    mlCategory = "Development";
+                } else if (dbCatName.contains("design") || dbCatName.contains("graphic") || dbCatName.contains("logo")
+                    || dbCatName.contains("ui") || dbCatName.contains("ux") || dbCatName.contains("photo")) {
+                    mlCategory = "Design";
+                } else if (dbCatName.contains("market") || dbCatName.contains("seo") || dbCatName.contains("social")
+                    || dbCatName.contains("ads") || dbCatName.contains("campaign")) {
+                    mlCategory = "Marketing";
+                } else if (dbCatName.contains("writ") || dbCatName.contains("blog") || dbCatName.contains("content")
+                    || dbCatName.contains("copy") || dbCatName.contains("article")) {
+                    mlCategory = "Writing";
+                } else if (dbCatName.contains("video") || dbCatName.contains("film") || dbCatName.contains("animat")
+                    || dbCatName.contains("motion") || dbCatName.contains("edit")) {
+                    mlCategory = "Video";
+                } else if (dbCatName.contains("game") || dbCatName.contains("unity") || dbCatName.contains("unreal")) {
+                    mlCategory = "Development";
+                } else if (dbCatName.contains("n8n") || dbCatName.contains("workflow") || dbCatName.contains("operation")) {
+                    mlCategory = "Development";
+                } else {
+                    mlCategory = "Development"; // par défaut
+                }
+
+                System.out.println("   Catégorie ML: " + mlCategory);
+                System.out.println("   Description length: " + desc.length());
+
+                // ─── Références capturées (JavaFX thread, pas besoin de Platform.runLater ici) ───
+                final Label hintLabel = aiPriceHintRef[0];
+                final String finalMlCategory = mlCategory;
+                final int descLen = desc.length();
+
+                // Calculer le nombre de jours depuis le DatePicker (sur JavaFX thread)
+                final int deliveryDays;
+                if (deliveryDatePickerRef[0] != null && deliveryDatePickerRef[0].getValue() != null) {
+                    long days = java.time.temporal.ChronoUnit.DAYS.between(
+                        java.time.LocalDate.now(), deliveryDatePickerRef[0].getValue());
+                    deliveryDays = (int) Math.max(1, days);
+                } else {
+                    deliveryDays = 7;
+                }
+                System.out.println("   Delivery days: " + deliveryDays);
+
+                // ─── ÉTAPE 1 : Prix local INSTANTANÉ (JavaFX thread, pas de délai) ─────────────
+                double localPrice = Math.max(computeLocalPrice(finalMlCategory, descLen, deliveryDays), 10.0);
+                System.out.println("💵 Prix local instantané: " + localPrice + " TND → affiché immédiatement");
+                if (priceFieldRef[0] != null) {
+                    aiSettingPrice.set(true);
+                    priceFieldRef[0].setText(String.format(java.util.Locale.US, "%.2f", localPrice));
+                    aiSettingPrice.set(false);
+                    priceFieldRef[0].setStyle(
+                        "-fx-font-size: 14; -fx-padding: 12 16;" +
+                        "-fx-background-color: #f0fdf4; -fx-border-color: #22c55e;" +
+                        "-fx-border-radius: 10; -fx-background-radius: 10; -fx-border-width: 2;"
+                    );
+                }
+                if (hintLabel != null) {
+                    hintLabel.setText(String.format("🤖 AI estimate: %.2f TND (refining...)", localPrice));
+                    hintLabel.setVisible(true);
+                    hintLabel.setManaged(true);
+                }
+
+                // ─── ÉTAPE 2 : Raffiner avec l'API Flask en background ───────────────────────
+                final double localPriceFinal = localPrice;
+                new Thread(() -> {
+                    try {
+                        double apiPrice = FlaskAPIClient.predictPrice(finalMlCategory, descLen, deliveryDays);
+                        // Si le modèle Flask retourne un prix fixe suspect (modèle non entraîné), garder le local
+                        if (Math.abs(apiPrice - 1523.55) < 0.5) {
+                            System.out.println("⚠️  Prix Flask fixe détecté → prix local conservé: " + localPriceFinal);
+                            javafx.application.Platform.runLater(() -> {
+                                if (hintLabel != null) {
+                                    hintLabel.setText(String.format("🤖 AI (local estimate): %.2f TND", localPriceFinal));
+                                    hintLabel.setVisible(true);
+                                    hintLabel.setManaged(true);
+                                }
+                            });
+                        } else {
+                            final double refinedPrice = Math.max(apiPrice, 10.0);
+                            System.out.println("💵 Prix raffiné API Flask: " + refinedPrice + " TND");
+                            javafx.application.Platform.runLater(() -> {
+                                if (priceFieldRef[0] != null) {
+                                    aiSettingPrice.set(true);
+                                    priceFieldRef[0].setText(String.format(java.util.Locale.US, "%.2f", refinedPrice));
+                                    aiSettingPrice.set(false);
+                                    priceFieldRef[0].setStyle(
+                                        "-fx-font-size: 14; -fx-padding: 12 16;" +
+                                        "-fx-background-color: #ecfdf5; -fx-border-color: #10b981;" +
+                                        "-fx-border-radius: 10; -fx-background-radius: 10; -fx-border-width: 2;"
+                                    );
+                                    System.out.println("✅ Prix ML affiché dans l'interface: " + refinedPrice + " TND");
+                                }
+                                if (hintLabel != null) {
+                                    hintLabel.setText(String.format("✅ AI (ML model): %.2f TND", refinedPrice));
+                                    hintLabel.setVisible(true);
+                                    hintLabel.setManaged(true);
+                                }
+                            });
+                        }
+                    } catch (Exception apiEx) {
+                        System.out.println("⚠️  API Flask indisponible → prix local conservé: " + localPriceFinal);
+                        javafx.application.Platform.runLater(() -> {
+                            if (hintLabel != null) {
+                                hintLabel.setText(String.format("🤖 AI (local estimate): %.2f TND", localPriceFinal));
+                                hintLabel.setVisible(true);
+                                hintLabel.setManaged(true);
+                            }
+                        });
+                    }
+                }).start();
+            }
+        };
 
         // 🤖 AUTO-CLASSIFICATION: Prédiction de catégorie basée sur le titre
         // Définit le Runnable APRÈS l'initialisation de categoryComboRef
@@ -765,21 +944,67 @@ public class GigController implements Initializable {
             }
         };
 
-        // Écoute les changements de titre (délai pour éviter trop de requêtes)
-        final javafx.animation.PauseTransition titlePause = new javafx.animation.PauseTransition(javafx.util.Duration.millis(800));
+        // Écoute les changements de titre (délai via Timer, compatible Dialog)
+        final java.util.concurrent.atomic.AtomicReference<java.util.Timer> titleTimerRef =
+            new java.util.concurrent.atomic.AtomicReference<>(null);
         titleField.textProperty().addListener((obs, old, newVal) -> {
             if (newVal != null && newVal.trim().length() >= 5) {
-                titlePause.setOnFinished(event -> autoPredictCategory.run());
-                titlePause.playFromStart();
+                java.util.Timer oldT = titleTimerRef.getAndSet(null);
+                if (oldT != null) oldT.cancel();
+                java.util.Timer t = new java.util.Timer("cat-title", true);
+                titleTimerRef.set(t);
+                t.schedule(new java.util.TimerTask() {
+                    @Override public void run() {
+                        javafx.application.Platform.runLater(autoPredictCategory);
+                    }
+                }, 800L);
             }
         });
 
-        // Écoute les changements de description
-        final javafx.animation.PauseTransition descPause = new javafx.animation.PauseTransition(javafx.util.Duration.millis(800));
+        // Écoute les changements de description (délai via Timer, compatible Dialog)
+        final java.util.concurrent.atomic.AtomicReference<java.util.Timer> descTimerRef =
+            new java.util.concurrent.atomic.AtomicReference<>(null);
+
+        // 💰 Timer Java pour prédiction prix (plus fiable dans Dialog que PauseTransition)
+        final java.util.concurrent.atomic.AtomicReference<java.util.Timer> priceTimerRef =
+            new java.util.concurrent.atomic.AtomicReference<>(null);
+
+        // Helper pour déclencher la prédiction de prix avec délai
+        final Runnable schedulePricePrediction = () -> {
+            java.util.Timer old2 = priceTimerRef.getAndSet(null);
+            if (old2 != null) old2.cancel();
+            java.util.Timer t = new java.util.Timer("price-predict", true);
+            priceTimerRef.set(t);
+            t.schedule(new java.util.TimerTask() {
+                @Override public void run() {
+                    javafx.application.Platform.runLater(autoPredictPrice);
+                }
+            }, 1000L);
+        };
+
         descField.textProperty().addListener((obs, old, newVal) -> {
             if (titleField.getText() != null && titleField.getText().trim().length() >= 5) {
-                descPause.setOnFinished(event -> autoPredictCategory.run());
-                descPause.playFromStart();
+                java.util.Timer oldD = descTimerRef.getAndSet(null);
+                if (oldD != null) oldD.cancel();
+                java.util.Timer dt = new java.util.Timer("cat-desc", true);
+                descTimerRef.set(dt);
+                dt.schedule(new java.util.TimerTask() {
+                    @Override public void run() {
+                        javafx.application.Platform.runLater(autoPredictCategory);
+                    }
+                }, 800L);
+            }
+
+            // 💰 Déclenche aussi la prédiction de prix si conditions remplies
+            if (newVal != null && newVal.trim().length() >= 10 && categoryComboRef[0] != null && categoryComboRef[0].getValue() != null) {
+                schedulePricePrediction.run();
+            }
+        });
+
+        // 💰 Écoute les changements de catégorie pour la prédiction de prix
+        categoryComboRef[0].valueProperty().addListener((obs, oldVal, newVal) -> {
+            if (newVal != null && descField.getText() != null && descField.getText().trim().length() >= 10) {
+                schedulePricePrediction.run();
             }
         });
 
@@ -795,11 +1020,21 @@ public class GigController implements Initializable {
         dateTimeBox.setAlignment(Pos.CENTER_LEFT);
         DatePicker deliveryDatePicker = new DatePicker();
         deliveryDatePicker.setPromptText("Select date");
+        deliveryDatePickerRef[0] = deliveryDatePicker; // Stocker référence pour autoPredictPrice
         if (gigToEdit != null) {
             deliveryDatePicker.setValue(gigToEdit.getDeliveryTime().toLocalDate());
         }
         deliveryDatePicker.setStyle("-fx-background-color: #f9fafb; -fx-border-color: #e5e7eb; -fx-border-radius: 10; -fx-background-radius: 10;");
         HBox.setHgrow(deliveryDatePicker, Priority.ALWAYS);
+        // Listener: re-déclenche la prédiction de prix si desc + catégorie déjà remplis
+        deliveryDatePicker.valueProperty().addListener((obs, oldDate, newDate) -> {
+            if (newDate != null && categoryComboRef[0] != null
+                    && categoryComboRef[0].getValue() != null
+                    && descField.getText() != null
+                    && descField.getText().trim().length() >= 10) {
+                schedulePricePrediction.run();
+            }
+        });
 
         Spinner<Integer> deliveryHourSpinner = new Spinner<>(0, 23, 12);
         deliveryHourSpinner.setPrefWidth(100);
@@ -905,7 +1140,7 @@ public class GigController implements Initializable {
 
             // Price
             try {
-                double price = Double.parseDouble(priceField.getText().trim());
+                double price = Double.parseDouble(priceField.getText().trim().replace(',', '.'));
                 if (price < 10.0) {
                     priceError.setText("✗ Minimum price is 10.00 TND");
                     priceError.setVisible(true);
@@ -954,7 +1189,7 @@ public class GigController implements Initializable {
         titleField.textProperty().addListener((obs, old, newVal) -> validateForm.run());
         descField.textProperty().addListener((obs, old, newVal) -> validateForm.run());
         priceField.textProperty().addListener((obs, old, newVal) -> validateForm.run());
-        categoryCombo.valueProperty().addListener((obs, old, newVal) -> validateForm.run());
+        categoryComboRef[0].valueProperty().addListener((obs, old, newVal) -> validateForm.run());
         deliveryDatePicker.valueProperty().addListener((obs, old, newVal) -> validateForm.run());
 
         // Assemble form (AFTER validation is defined)
@@ -1000,7 +1235,7 @@ public class GigController implements Initializable {
 
             if (!title.isEmpty() && !desc.isEmpty() && category != null && date != null) {
                 try {
-                    double price = Double.parseDouble(priceStr);
+                    double price = Double.parseDouble(priceStr.replace(',', '.'));
                     if (price >= 10.0 && !date.isBefore(java.time.LocalDate.now())) {
                         LocalDateTime deliveryTime = LocalDateTime.of(date, java.time.LocalTime.of(hour, 0));
 
@@ -1033,6 +1268,18 @@ public class GigController implements Initializable {
 
         // Remove default buttons
         dialogPane.getButtonTypes().clear();
+
+        // 🚀 En mode édition : déclencher la prédiction de prix immédiatement
+        // (catégorie + description déjà remplis via gigToEdit)
+        if (gigToEdit != null) {
+            final Runnable spp = schedulePricePrediction;
+            javafx.application.Platform.runLater(() -> {
+                if (descField.getText() != null && descField.getText().trim().length() >= 10
+                        && categoryComboRef[0] != null && categoryComboRef[0].getValue() != null) {
+                    spp.run();
+                }
+            });
+        }
 
         dialog.showAndWait();
     }
@@ -1178,8 +1425,36 @@ public class GigController implements Initializable {
             return defaultValue;
         }
     }
-}
 
+    /**
+     * Calcul local du prix si l'API Flask est indisponible.
+     * Basé sur des règles simples: catégorie + longueur description + jours livraison.
+     */
+    private double computeLocalPrice(String mlCategory, int descLen, int deliveryDays) {
+        // Base price par catégorie (tunisian freelance market)
+        double base;
+        double perChar;
+        double perDay;
+        switch (mlCategory) {
+            case "Development": base = 300; perChar = 2.5; perDay = 40; break;
+            case "Design":      base = 100; perChar = 1.2; perDay = 25; break;
+            case "Marketing":   base = 150; perChar = 1.5; perDay = 30; break;
+            case "Video":       base = 120; perChar = 1.3; perDay = 35; break;
+            case "Writing":     base =  50; perChar = 0.8; perDay = 10; break;
+            default:            base = 200; perChar = 1.5; perDay = 30; break;
+        }
+        // Formule: base + longueur × perChar + jours × perDay
+        double price = base + (perChar * descLen) + (perDay * deliveryDays);
+        // Arrondir à 2 décimales
+        price = Math.round(price * 100.0) / 100.0;
+        System.out.println("   [Local] cat=" + mlCategory
+            + " base=" + base
+            + " descLen=" + descLen + " (+" + String.format("%.0f", perChar * descLen) + ")"
+            + " days=" + deliveryDays + " (+" + String.format("%.0f", perDay * deliveryDays) + ")"
+            + " → prix=" + String.format("%.2f", price) + " TND");
+        return price;
+    }
+}
 
 
 
