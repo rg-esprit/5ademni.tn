@@ -3,6 +3,11 @@ package com.khademni.controller;
 import com.khademni.App;
 import com.khademni.model.CategoryModel;
 import com.khademni.model.GigModel;
+import com.khademni.model.BadWordResult;
+import com.khademni.model.SpamResult;
+import com.khademni.service.BadWordDetectionService;
+import com.khademni.service.GigGenerationService;
+import com.khademni.service.SpamDetectionService;
 import com.khademni.utils.MyDataBase;
 import com.khademni.utils.FreeAIService;
 import com.khademni.utils.FlaskAPIClient;
@@ -49,6 +54,9 @@ public class GigController implements Initializable {
     // ===== Data =====
     private List<GigModel> allGigs = new ArrayList<>();
     private List<CategoryModel> categories = new ArrayList<>();
+    private final SpamDetectionService spamDetectionService = new SpamDetectionService();
+    private final BadWordDetectionService badWordDetectionService = new BadWordDetectionService();
+    private final GigGenerationService gigGenerationService = new GigGenerationService();
 
     @Override
     public void initialize(URL url, ResourceBundle resourceBundle) {
@@ -450,13 +458,301 @@ public class GigController implements Initializable {
         showGigDialog(null);
     }
 
+    /**
+     * Opens the AI Gig Generation dialog.
+     * The user types a simple prompt and DeepSeek generates a full gig.
+     */
+    @FXML
+    public void showAIGenerateDialog() {
+        Dialog<ButtonType> dialog = new Dialog<>();
+        dialog.setTitle("AI Gig Generator");
+
+        VBox root = new VBox(24);
+        root.setPadding(new Insets(32));
+        root.setAlignment(Pos.TOP_CENTER);
+        root.setStyle("-fx-background-color: white; -fx-min-width: 580; -fx-max-width: 580;");
+
+        // Header
+        VBox headerBox = new VBox(8);
+        headerBox.setAlignment(Pos.CENTER);
+        Label headerLabel = new Label("\uD83E\uDD16 AI Gig Generator");
+        headerLabel.setStyle("-fx-font-size: 26; -fx-font-weight: 800; -fx-text-fill: #1e293b;");
+        Label subLabel = new Label("Describe your skill or idea and AI will create a marketplace-ready gig for you");
+        subLabel.setStyle("-fx-font-size: 14; -fx-text-fill: #64748b;");
+        subLabel.setWrapText(true);
+        subLabel.setAlignment(Pos.CENTER);
+        headerBox.getChildren().addAll(headerLabel, subLabel);
+
+        // Prompt input
+        VBox promptBox = new VBox(8);
+        promptBox.setAlignment(Pos.TOP_LEFT);
+        Label promptLabel = new Label("What can you do?");
+        promptLabel.setStyle("-fx-font-size: 14; -fx-font-weight: 600; -fx-text-fill: #374151;");
+
+        TextArea promptField = new TextArea();
+        promptField.setPromptText("e.g. \"I'm great at designing modern logos\" or \"build full-stack web apps with React and Spring Boot\"");
+        promptField.setPrefRowCount(3);
+        promptField.setWrapText(true);
+        promptField.setStyle(
+            "-fx-font-size: 14; -fx-padding: 12 16;" +
+            "-fx-background-color: #f9fafb; -fx-border-color: #e5e7eb;" +
+            "-fx-border-radius: 12; -fx-background-radius: 12; -fx-border-width: 1.5;"
+        );
+        promptBox.getChildren().addAll(promptLabel, promptField);
+
+        // Generate button
+        Button generateBtn = new Button("\u2728 Generate Gig with AI");
+        generateBtn.setMaxWidth(Double.MAX_VALUE);
+        generateBtn.setStyle(
+            "-fx-background-color: linear-gradient(to bottom right, #6366f1, #8b5cf6);" +
+            "-fx-text-fill: white; -fx-font-size: 15; -fx-font-weight: 700;" +
+            "-fx-padding: 14 32; -fx-background-radius: 12; -fx-cursor: hand;" +
+            "-fx-effect: dropshadow(gaussian, rgba(99,102,241,0.4), 12, 0, 0, 4);"
+        );
+
+        // Result area (hidden initially)
+        VBox resultBox = new VBox(16);
+        resultBox.setVisible(false);
+        resultBox.setManaged(false);
+        resultBox.setStyle(
+            "-fx-background-color: #f0fdf4; -fx-padding: 20;" +
+            "-fx-background-radius: 12; -fx-border-color: #bbf7d0;" +
+            "-fx-border-radius: 12; -fx-border-width: 1.5;"
+        );
+
+        Label resultHeader = new Label("\u2705 Generated Gig Preview");
+        resultHeader.setStyle("-fx-font-size: 16; -fx-font-weight: 700; -fx-text-fill: #166534;");
+
+        Label genTitle = new Label();
+        genTitle.setStyle("-fx-font-size: 15; -fx-font-weight: 700; -fx-text-fill: #1e293b;");
+        genTitle.setWrapText(true);
+
+        Label genDesc = new Label();
+        genDesc.setStyle("-fx-font-size: 13; -fx-text-fill: #374151;");
+        genDesc.setWrapText(true);
+
+        HBox metaBadges = new HBox(12);
+        metaBadges.setAlignment(Pos.CENTER_LEFT);
+        Label genCategory = new Label();
+        genCategory.setStyle(
+            "-fx-background-color: #ede9fe; -fx-text-fill: #6d28d9;" +
+            "-fx-font-size: 12; -fx-font-weight: 700; -fx-padding: 6 14;" +
+            "-fx-background-radius: 20;"
+        );
+        Label genPrice = new Label();
+        genPrice.setStyle(
+            "-fx-background-color: #dcfce7; -fx-text-fill: #16a34a;" +
+            "-fx-font-size: 12; -fx-font-weight: 700; -fx-padding: 6 14;" +
+            "-fx-background-radius: 20;"
+        );
+        Label genDays = new Label();
+        genDays.setStyle(
+            "-fx-background-color: #dbeafe; -fx-text-fill: #2563eb;" +
+            "-fx-font-size: 12; -fx-font-weight: 700; -fx-padding: 6 14;" +
+            "-fx-background-radius: 20;"
+        );
+        metaBadges.getChildren().addAll(genCategory, genPrice, genDays);
+
+        // Use This Gig button
+        Button useGigBtn = new Button("\uD83D\uDE80 Use This Gig");
+        useGigBtn.setMaxWidth(Double.MAX_VALUE);
+        useGigBtn.setStyle(
+            "-fx-background-color: linear-gradient(to right, #10b981, #059669);" +
+            "-fx-text-fill: white; -fx-font-size: 14; -fx-font-weight: 700;" +
+            "-fx-padding: 12 32; -fx-background-radius: 10; -fx-cursor: hand;" +
+            "-fx-effect: dropshadow(gaussian, rgba(16,185,129,0.3), 8, 0, 0, 2);"
+        );
+
+        // Regenerate button
+        Button regenBtn = new Button("\uD83D\uDD04 Regenerate");
+        regenBtn.setMaxWidth(Double.MAX_VALUE);
+        regenBtn.setStyle(
+            "-fx-background-color: #f3f4f6; -fx-text-fill: #374151;" +
+            "-fx-font-size: 13; -fx-font-weight: 600;" +
+            "-fx-padding: 10 24; -fx-background-radius: 10; -fx-cursor: hand;"
+        );
+
+        HBox actionBtns = new HBox(12, regenBtn, useGigBtn);
+        actionBtns.setAlignment(Pos.CENTER);
+        HBox.setHgrow(useGigBtn, Priority.ALWAYS);
+        HBox.setHgrow(regenBtn, Priority.ALWAYS);
+
+        resultBox.getChildren().addAll(resultHeader, genTitle, genDesc, metaBadges, actionBtns);
+
+        // Loading indicator
+        Label loadingLabel = new Label("\u23F3 Generating your gig with AI... please wait");
+        loadingLabel.setStyle("-fx-font-size: 14; -fx-text-fill: #6366f1; -fx-font-weight: 600;");
+        loadingLabel.setVisible(false);
+        loadingLabel.setManaged(false);
+
+        // Hold the generated gig reference
+        final GigGenerationService.GeneratedGig[] generatedRef = new GigGenerationService.GeneratedGig[1];
+
+        // Generate action
+        Runnable doGenerate = () -> {
+            String prompt = promptField.getText().trim();
+            if (prompt.isEmpty()) {
+                Alert alert = new Alert(Alert.AlertType.WARNING, "Please describe your skill or idea first.", ButtonType.OK);
+                alert.initOwner(dialog.getDialogPane().getScene().getWindow());
+                alert.showAndWait();
+                return;
+            }
+
+            generateBtn.setDisable(true);
+            regenBtn.setDisable(true);
+            loadingLabel.setVisible(true);
+            loadingLabel.setManaged(true);
+            resultBox.setVisible(false);
+            resultBox.setManaged(false);
+
+            new Thread(() -> {
+                try {
+                    GigGenerationService.GeneratedGig generated = gigGenerationService.generate(prompt);
+                    generatedRef[0] = generated;
+
+                    javafx.application.Platform.runLater(() -> {
+                        genTitle.setText("\uD83D\uDCBC " + generated.getTitle());
+                        genDesc.setText(generated.getDescription());
+                        genCategory.setText("\uD83C\uDFF7\uFE0F " + generated.getCategory());
+                        genPrice.setText("\uD83D\uDCB0 " + String.format("%.2f TND", generated.getPrice()));
+                        genDays.setText("\uD83D\uDCC5 " + generated.getDeliveryDays() + " days");
+
+                        resultBox.setVisible(true);
+                        resultBox.setManaged(true);
+                        loadingLabel.setVisible(false);
+                        loadingLabel.setManaged(false);
+                        generateBtn.setDisable(false);
+                        regenBtn.setDisable(false);
+                    });
+                } catch (Exception ex) {
+                    javafx.application.Platform.runLater(() -> {
+                        loadingLabel.setVisible(false);
+                        loadingLabel.setManaged(false);
+                        generateBtn.setDisable(false);
+                        regenBtn.setDisable(false);
+                        Alert alert = new Alert(Alert.AlertType.ERROR, "Generation failed: " + ex.getMessage(), ButtonType.OK);
+                        alert.initOwner(dialog.getDialogPane().getScene().getWindow());
+                        alert.showAndWait();
+                    });
+                }
+            }).start();
+        };
+
+        generateBtn.setOnAction(e -> doGenerate.run());
+        regenBtn.setOnAction(e -> doGenerate.run());
+
+        // "Use This Gig" → close this dialog, open the Create Gig dialog pre-filled
+        useGigBtn.setOnAction(e -> {
+            if (generatedRef[0] == null) return;
+            GigGenerationService.GeneratedGig gen = generatedRef[0];
+            dialog.setResult(ButtonType.OK);
+            dialog.close();
+
+            // Open the standard gig creation dialog and pre-fill with AI data
+            showGigDialogPreFilled(gen);
+        });
+
+        // Cancel button
+        Button cancelBtn = new Button("Cancel");
+        cancelBtn.setStyle(
+            "-fx-background-color: #f3f4f6; -fx-text-fill: #374151;" +
+            "-fx-font-size: 13; -fx-font-weight: 600; -fx-padding: 10 24;" +
+            "-fx-background-radius: 10; -fx-cursor: hand;"
+        );
+        cancelBtn.setOnAction(e -> {
+            dialog.setResult(ButtonType.CANCEL);
+            dialog.close();
+        });
+
+        root.getChildren().addAll(headerBox, promptBox, generateBtn, loadingLabel, resultBox, cancelBtn);
+
+        ScrollPane scrollPane = new ScrollPane(root);
+        scrollPane.setFitToWidth(true);
+        scrollPane.setStyle("-fx-background-color: transparent; -fx-background: transparent;");
+
+        DialogPane dialogPane = dialog.getDialogPane();
+        dialogPane.setContent(scrollPane);
+        dialogPane.setStyle(
+            "-fx-background-color: white; -fx-background-radius: 16;" +
+            "-fx-effect: dropshadow(gaussian, rgba(0,0,0,0.2), 40, 0, 0, 10);"
+        );
+        dialogPane.getButtonTypes().clear();
+
+        dialog.showAndWait();
+    }
+
+    /**
+     * Opens the Create Gig dialog pre-filled with AI-generated content.
+     */
+    private void showGigDialogPreFilled(GigGenerationService.GeneratedGig generated) {
+        Dialog<ButtonType> dialog = new Dialog<>();
+        dialog.setTitle("Create AI-Generated Gig");
+
+        // Re-use showGigDialog but we need to pre-fill, so we call showGigDialog(null)
+        // and then set fields. Since showGigDialog is monolithic, we call it and inject via Platform.runLater.
+        // A cleaner approach: create a temporary GigModel to pass to showGigDialog's edit path.
+
+        // We create a "virtual" gig (id=0 signals new gig) with AI-generated fields
+        GigModel aiGig = new GigModel();
+        aiGig.setId(0); // new gig
+        aiGig.setTitle(generated.getTitle());
+        aiGig.setDescription(generated.getDescription());
+        aiGig.setPrice(generated.getPrice());
+
+        // Map AI category to an existing CategoryModel
+        String aiCat = generated.getCategory().toLowerCase();
+        CategoryModel matchedCat = null;
+        for (CategoryModel cat : categories) {
+            if (cat.getId() == 0) continue;
+            String catLower = cat.getName().toLowerCase();
+            if (catLower.contains(aiCat) || aiCat.contains(catLower)
+                    || (aiCat.contains("dev") && catLower.contains("dev"))
+                    || (aiCat.contains("design") && catLower.contains("design"))
+                    || (aiCat.contains("market") && catLower.contains("market"))
+                    || (aiCat.contains("writ") && catLower.contains("writ"))
+                    || (aiCat.contains("video") && catLower.contains("video"))
+                    || (aiCat.contains("data") && catLower.contains("data"))
+                    || (aiCat.contains("music") && catLower.contains("music"))
+                    || (aiCat.contains("business") && catLower.contains("business"))) {
+                matchedCat = cat;
+                break;
+            }
+        }
+        aiGig.setCategory(matchedCat != null ? matchedCat : (categories.size() > 1 ? categories.get(1) : null));
+
+        // Set delivery time based on AI-suggested days
+        aiGig.setDeliveryTime(LocalDateTime.now().plusDays(generated.getDeliveryDays()));
+        aiGig.setStatus("active");
+        aiGig.setImage("");
+
+        // Call the standard gig dialog in "edit" mode with the AI gig
+        // The save logic will detect id==0 and treat it as a new insert
+        showGigDialogForAI(aiGig);
+    }
+
+    /**
+     * Opens the standard gig creation dialog pre-filled with AI-generated data.
+     * Behaves like showGigDialog(null) but with pre-populated fields.
+     */
+    private void showGigDialogForAI(GigModel aiGig) {
+        showGigDialog(aiGig, true);
+    }
+
     private void showEditGigDialog(GigModel gig) {
         showGigDialog(gig);
     }
 
     private void showGigDialog(GigModel gigToEdit) {
+        showGigDialog(gigToEdit, false);
+    }
+
+    private void showGigDialog(GigModel gigToEdit, boolean isAIGenerated) {
+        // If AI-generated with id==0, treat as new gig creation (pre-filled)
+        GigModel effectiveGigToEdit = (isAIGenerated && gigToEdit != null && gigToEdit.getId() == 0) ? gigToEdit : gigToEdit;
+        boolean isNewGig = (isAIGenerated && effectiveGigToEdit != null && effectiveGigToEdit.getId() == 0);
+
         Dialog<ButtonType> dialog = new Dialog<>();
-        dialog.setTitle(gigToEdit == null ? "Add New Gig" : "Edit Gig");
+        dialog.setTitle(isNewGig ? "Create AI-Generated Gig" : (effectiveGigToEdit == null ? "Add New Gig" : "Edit Gig"));
 
         // Scrollable content wrapper
         ScrollPane scrollPane = new ScrollPane();
@@ -1214,7 +1510,7 @@ public class GigController implements Initializable {
             dialog.close();
         });
 
-        Button saveBtn = new Button(gigToEdit == null ? "💼 Create Gig" : "💾 Save Changes");
+        Button saveBtn = new Button(isNewGig ? "🤖 Publish AI Gig" : (gigToEdit == null ? "💼 Create Gig" : "💾 Save Changes"));
         saveBtn.setStyle(
             "-fx-background-color: linear-gradient(to bottom right, #6366f1, #8b5cf6);" +
             "-fx-text-fill: white; -fx-font-size: 14; -fx-font-weight: 700;" +
@@ -1239,7 +1535,54 @@ public class GigController implements Initializable {
                     if (price >= 10.0 && !date.isBefore(java.time.LocalDate.now())) {
                         LocalDateTime deliveryTime = LocalDateTime.of(date, java.time.LocalTime.of(hour, 0));
 
-                        if (saveGig(gigToEdit, title, desc, price, deliveryTime, image, status, category.getId())) {
+                        // Spam detection: analyze gig content before saving
+                        GigModel gigToValidate = new GigModel();
+                        gigToValidate.setTitle(title);
+                        gigToValidate.setDescription(desc);
+                        gigToValidate.setPrice(price);
+                        SpamResult spamResult = spamDetectionService.analyze(gigToValidate);
+
+                        if (spamResult.isSpam()) {
+                            // Block the save and show spam reasons to the user via an Alert
+                            // (showError writes to the main page label which is hidden behind this dialog)
+                            String reasons = String.join("\n• ", spamResult.getReasons());
+                            System.out.println("SPAM BLOCKED: score=" + spamResult.getSpamScore() + " reasons=" + spamResult.getReasons());
+
+                            Alert spamAlert = new Alert(Alert.AlertType.WARNING);
+                            spamAlert.setTitle("Spam Detected");
+                            spamAlert.setHeaderText("Your gig was flagged as spam (score: " + spamResult.getSpamScore() + "/" + 100 + ")");
+                            spamAlert.setContentText("Reasons:\n• " + reasons + "\n\nPlease revise your gig content and try again.");
+                            spamAlert.initOwner(dialog.getDialogPane().getScene().getWindow());
+                            spamAlert.showAndWait();
+                            return;
+                        }
+
+                        // Bad word detection: AI-powered content moderation via DeepSeek
+                        BadWordResult badWordResult = badWordDetectionService.analyze(title, desc);
+
+                        if (badWordResult.hasBadWords()
+                                && !"LOW".equalsIgnoreCase(badWordResult.getSeverity())
+                                && !"NONE".equalsIgnoreCase(badWordResult.getSeverity())) {
+                            String flaggedWords = badWordResult.getDetectedWords().isEmpty()
+                                    ? "(detected by AI analysis)"
+                                    : String.join(", ", badWordResult.getDetectedWords());
+                            System.out.println("BAD WORDS BLOCKED: severity=" + badWordResult.getSeverity()
+                                    + " words=" + badWordResult.getDetectedWords());
+
+                            Alert badWordAlert = new Alert(Alert.AlertType.ERROR);
+                            badWordAlert.setTitle("Inappropriate Content Detected");
+                            badWordAlert.setHeaderText("Severity: " + badWordResult.getSeverity());
+                            badWordAlert.setContentText(
+                                    "Your gig contains inappropriate language that violates our community guidelines.\n\n"
+                                    + "Flagged: " + flaggedWords + "\n\n"
+                                    + "Reason: " + badWordResult.getExplanation() + "\n\n"
+                                    + "Please remove the offensive content and try again.");
+                            badWordAlert.initOwner(dialog.getDialogPane().getScene().getWindow());
+                            badWordAlert.showAndWait();
+                            return;
+                        }
+
+                        if (saveGig(isNewGig ? null : gigToEdit, title, desc, price, deliveryTime, image, status, category.getId())) {
                             dialog.setResult(ButtonType.OK);
                             dialog.close();
                             loadGigs();

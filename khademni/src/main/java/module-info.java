@@ -14,4 +14,5 @@ module com.khademni {
     exports com.khademni;
     exports com.khademni.controller;
     exports com.khademni.model;
+    exports com.khademni.service;
 }
