@@ -997,51 +997,112 @@ public class MessageController {
     }
 
     private void setupEmojiPicker() {
+        if (emojiContainer == null) {
+            System.err.println("❌ Erreur: emojiContainer est null!");
+            return;
+        }
+
         emojiContainer.getChildren().clear();
 
+        // Créer une grille pour organiser les emojis
         GridPane emojiGrid = new GridPane();
-        emojiGrid.setHgap(5);
-        emojiGrid.setVgap(5);
+        emojiGrid.setHgap(8);
+        emojiGrid.setVgap(8);
         emojiGrid.setPadding(new Insets(10));
+        emojiGrid.setStyle("-fx-background-color: white;");
 
         int row = 0;
         int col = 0;
+        int emojisPerRow = 8; // 8 emojis par ligne
 
         for (String emoji : EMOJIS) {
             Button btn = new Button(emoji);
-            btn.setStyle("-fx-font-size: 24; -fx-min-width: 50; -fx-min-height: 50; " +
-                    "-fx-background-color: #f3f4f6; -fx-background-radius: 10; " +
-                    "-fx-cursor: hand; -fx-effect: dropshadow(gaussian, rgba(0,0,0,0.1), 2, 0, 0, 1);");
+            btn.setStyle(
+                    "-fx-font-size: 24px;" +
+                            "-fx-min-width: 50;" +
+                            "-fx-min-height: 50;" +
+                            "-fx-max-width: 50;" +
+                            "-fx-max-height: 50;" +
+                            "-fx-background-color: #f8fafc;" +
+                            "-fx-background-radius: 8;" +
+                            "-fx-border-color: #e2e8f0;" +
+                            "-fx-border-radius: 8;" +
+                            "-fx-cursor: hand;"
+            );
 
-            btn.setOnAction(e -> {
-                txtContenu.appendText(emoji);
-                emojiPicker.setVisible(false);
-                txtContenu.requestFocus();
-            });
-
+            // Effet hover
             btn.setOnMouseEntered(e ->
-                    btn.setStyle("-fx-font-size: 24; -fx-min-width: 50; -fx-min-height: 50; " +
-                            "-fx-background-color: #e5e7eb; -fx-background-radius: 10; " +
-                            "-fx-cursor: hand; -fx-effect: dropshadow(gaussian, rgba(0,0,0,0.2), 4, 0, 0, 2);")
+                    btn.setStyle(
+                            "-fx-font-size: 24px;" +
+                                    "-fx-min-width: 50;" +
+                                    "-fx-min-height: 50;" +
+                                    "-fx-max-width: 50;" +
+                                    "-fx-max-height: 50;" +
+                                    "-fx-background-color: #8b5cf6;" +
+                                    "-fx-background-radius: 8;" +
+                                    "-fx-border-color: #7c3aed;" +
+                                    "-fx-border-radius: 8;" +
+                                    "-fx-cursor: hand;" +
+                                    "-fx-text-fill: white;"
+                    )
             );
 
             btn.setOnMouseExited(e ->
-                    btn.setStyle("-fx-font-size: 24; -fx-min-width: 50; -fx-min-height: 50; " +
-                            "-fx-background-color: #f3f4f6; -fx-background-radius: 10; " +
-                            "-fx-cursor: hand; -fx-effect: dropshadow(gaussian, rgba(0,0,0,0.1), 2, 0, 0, 1);")
+                    btn.setStyle(
+                            "-fx-font-size: 24px;" +
+                                    "-fx-min-width: 50;" +
+                                    "-fx-min-height: 50;" +
+                                    "-fx-max-width: 50;" +
+                                    "-fx-max-height: 50;" +
+                                    "-fx-background-color: #f8fafc;" +
+                                    "-fx-background-radius: 8;" +
+                                    "-fx-border-color: #e2e8f0;" +
+                                    "-fx-border-radius: 8;" +
+                                    "-fx-cursor: hand;" +
+                                    "-fx-text-fill: black;"
+                    )
             );
+
+            // Action : ajouter l'emoji dans le texte
+            btn.setOnAction(e -> {
+                txtContenu.appendText(emoji);
+                emojiPicker.setVisible(false);
+                emojiPicker.setManaged(false);
+                txtContenu.requestFocus();
+            });
 
             emojiGrid.add(btn, col, row);
 
             col++;
-            if (col >= 6) {
+            if (col >= emojisPerRow) {
                 col = 0;
                 row++;
             }
         }
 
         emojiContainer.getChildren().add(emojiGrid);
-        emojiPicker.setVisible(false);
+
+        // Style du conteneur
+        emojiContainer.setStyle(
+                "-fx-background-color: white;" +
+                        "-fx-border-color: #e2e8f0;" +
+                        "-fx-border-width: 1;" +
+                        "-fx-border-radius: 5;"
+        );
+
+        // Configurer le ScrollPane
+        if (emojiPicker != null) {
+            emojiPicker.setStyle(
+                    "-fx-background-color: white;" +
+                            "-fx-background-radius: 8;" +
+                            "-fx-effect: dropshadow(gaussian, rgba(0,0,0,0.1), 10, 0, 0, 2);"
+            );
+            emojiPicker.setVisible(false);
+            emojiPicker.setManaged(false);
+            emojiPicker.setFitToWidth(true); // Important pour que la grille s'adapte
+        }
+
+        System.out.println("✅ Emoji picker configuré avec " + EMOJIS.length + " emojis");
     }
 
     private void setupTypingIndicator() {

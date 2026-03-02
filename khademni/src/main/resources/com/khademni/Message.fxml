@@ -101,7 +101,14 @@
             </VBox>
 
             <!-- Emoji Picker -->
-            <ScrollPane fx:id="emojiPicker" visible="false" managed="false" maxHeight="200">
+            <!-- Emoji Picker - Version corrigée -->
+            <!-- Emoji Picker - Version corrigée avec hauteur définie -->
+            <ScrollPane fx:id="emojiPicker"
+                        visible="false"
+                        managed="false"
+                        prefHeight="250"
+                        maxHeight="250"
+                        style="-fx-background-color: white; -fx-border-color: #e2e8f0; -fx-border-radius: 8; -fx-background-radius: 8;">
                 <VBox fx:id="emojiContainer" spacing="5" style="-fx-padding: 10;"/>
             </ScrollPane>
 

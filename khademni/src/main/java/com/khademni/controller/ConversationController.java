@@ -37,25 +37,18 @@ public class ConversationController {
     @FXML private ComboBox<String> cmbFilter;
     @FXML private Label errorLabel;
     @FXML private ComboBox<String> cmbStatut;
-    @FXML private Button btnMigrate; // Bouton optionnel pour migration
-
-    // Supprimer ces références car elles n'existent plus dans le FXML
-    // @FXML private Button btnArchiver;
-    // @FXML private Button btnActiver;
+    @FXML private Button btnMigrate;
 
     private Connection connection;
     private ObservableList<Map<String, Object>> conversationsList = FXCollections.observableArrayList();
     private int currentUserId;
-    private boolean migrationDone = false; // Flag pour éviter les migrations multiples
+    private boolean migrationDone = false;
 
     public ConversationController() {
         try {
             connection = MyDataBase.getConnection();
             currentUserId = App.getCurrentUser().getId();
-
-            // Créer la table conversation_members si elle n'existe pas
             createConversationMembersTable();
-
         } catch (SQLException e) {
             e.printStackTrace();
         }
@@ -80,7 +73,6 @@ public class ConversationController {
             stmt.execute(sql);
             System.out.println("✅ Table conversation_members vérifiée/créée");
 
-            // Ajouter les colonnes si elles n'existent pas
             try {
                 DatabaseMetaData md = connection.getMetaData();
                 ResultSet rs = md.getColumns(null, null, "conversation", "created_by");
@@ -104,7 +96,6 @@ public class ConversationController {
         if (migrationDone) return;
 
         try {
-            // Ajouter le client comme OWNER
             String sql1 = "INSERT IGNORE INTO conversation_members (conversation_id, user_id, role, status, joined_at, invited_by) " +
                     "SELECT c.id, c.client_id, 'OWNER', 'ACTIVE', COALESCE(c.created_at, NOW()), c.client_id " +
                     "FROM conversation c " +
@@ -112,7 +103,6 @@ public class ConversationController {
             Statement st1 = connection.createStatement();
             int clientRows = st1.executeUpdate(sql1);
 
-            // Ajouter le freelance comme OWNER
             String sql2 = "INSERT IGNORE INTO conversation_members (conversation_id, user_id, role, status, joined_at, invited_by) " +
                     "SELECT c.id, c.freelance_id, 'OWNER', 'ACTIVE', COALESCE(c.created_at, NOW()), c.freelance_id " +
                     "FROM conversation c " +
@@ -138,7 +128,6 @@ public class ConversationController {
             return;
         }
 
-        // Migration automatique au démarrage
         autoMigrateExistingConversations();
 
         setupFilters();
@@ -146,10 +135,9 @@ public class ConversationController {
         setupListClickHandler();
         loadConversations();
 
-        // Configurer le bouton de migration manuelle
         if (btnMigrate != null) {
             btnMigrate.setOnAction(e -> handleManualMigration());
-            btnMigrate.setVisible(false); // Cacher par défaut
+            btnMigrate.setVisible(false);
         }
     }
 
@@ -161,11 +149,6 @@ public class ConversationController {
         cmbFilter.setOnAction(e -> loadConversations());
 
         cmbStatut.setItems(FXCollections.observableArrayList("ACTIVE", "INACTIVE"));
-
-        // Supprimer les références à btnArchiver et btnActiver
-        // btnArchiver.setDisable(true);
-        // btnActiver.setDisable(true);
-        // cmbStatut.setDisable(true);
     }
 
     private void setupSearch() {
@@ -301,7 +284,7 @@ public class ConversationController {
         String initiales = getInitiales(otherName);
         Label avatar = new Label(initiales);
 
-        String avatarColor = "#8b5cf6"; // Violet
+        String avatarColor = "#8b5cf6";
         if (conv.get("statut") != null && "INACTIVE".equals(conv.get("statut"))) {
             avatarColor = "#9ca3af";
         }
@@ -649,41 +632,433 @@ public class ConversationController {
     // ==================== GESTION DES MEMBRES ====================
 
     private void showMembersDialog(int convId) {
-        // ... (code existant de showMembersDialog) ...
-        // Cette méthode reste inchangée
+        Dialog<Void> dialog = new Dialog<>();
+        dialog.setTitle("👥 Gérer les membres");
+        dialog.setHeaderText("Conversation #" + convId);
+
+        VBox content = new VBox(15);
+        content.setPadding(new Insets(20));
+        content.setPrefWidth(600);
+
+        // Récupérer les informations de la conversation
+        Map<String, Object> convInfo = getConversationDetails(convId);
+        String clientName = (String) convInfo.get("client_name");
+        String freelanceName = (String) convInfo.get("freelance_name");
+        String titre = (String) convInfo.get("titre");
+
+        VBox infoBox = new VBox(5);
+        infoBox.setStyle("-fx-background-color: #f8fafc; -fx-padding: 10; -fx-background-radius: 5;");
+
+        Label titleLabel = new Label(titre != null ? "📌 " + titre : "Conversation sans titre");
+        titleLabel.setStyle("-fx-font-weight: bold; -fx-font-size: 14px;");
+
+        Label participantsLabel = new Label("👤 Client: " + clientName + " | 👤 Freelance: " + freelanceName);
+        participantsLabel.setStyle("-fx-font-size: 12px; -fx-text-fill: #64748b;");
+
+        infoBox.getChildren().addAll(titleLabel, participantsLabel);
+
+        // Liste des membres
+        Label membersTitle = new Label("👥 Membres actuels :");
+        membersTitle.setStyle("-fx-font-weight: bold; -fx-font-size: 14px; -fx-padding: 10 0 5 0;");
+
+        ListView<HBox> membersList = new ListView<>();
+        membersList.setPrefHeight(250);
+        membersList.setStyle("-fx-background-color: transparent;");
+
+        loadMembersList(membersList, convId);
+
+        // Section ajout
+        VBox addSection = new VBox(10);
+        addSection.setPadding(new Insets(10, 0, 0, 0));
+
+        Label addTitle = new Label("➕ Ajouter un nouveau membre :");
+        addTitle.setStyle("-fx-font-weight: bold; -fx-font-size: 14px;");
+
+        HBox addBox = new HBox(10);
+        addBox.setAlignment(Pos.CENTER_LEFT);
+
+        ComboBox<String> cmbUsers = new ComboBox<>();
+        cmbUsers.setPromptText("Choisir un utilisateur");
+        cmbUsers.setPrefWidth(300);
+        cmbUsers.setStyle("-fx-background-radius: 5;");
+        loadAvailableUsers(cmbUsers, convId);
+
+        ComboBox<String> cmbRole = new ComboBox<>();
+        cmbRole.getItems().addAll("MEMBER", "ADMIN");
+        cmbRole.setValue("MEMBER");
+        cmbRole.setPrefWidth(100);
+
+        Button btnAdd = new Button("Ajouter");
+        btnAdd.setStyle("-fx-background-color: #10b981; -fx-text-fill: white; -fx-font-weight: bold; -fx-padding: 8 15; -fx-background-radius: 5; -fx-cursor: hand;");
+        btnAdd.setOnMouseEntered(e -> btnAdd.setStyle("-fx-background-color: #059669; -fx-text-fill: white; -fx-font-weight: bold; -fx-padding: 8 15; -fx-background-radius: 5; -fx-cursor: hand;"));
+        btnAdd.setOnMouseExited(e -> btnAdd.setStyle("-fx-background-color: #10b981; -fx-text-fill: white; -fx-font-weight: bold; -fx-padding: 8 15; -fx-background-radius: 5; -fx-cursor: hand;"));
+
+        addBox.getChildren().addAll(cmbUsers, cmbRole, btnAdd);
+
+        addSection.getChildren().addAll(addTitle, addBox);
+
+        content.getChildren().addAll(
+                infoBox,
+                new Separator(),
+                membersTitle,
+                membersList,
+                new Separator(),
+                addSection
+        );
+
+        dialog.getDialogPane().setContent(content);
+        dialog.getDialogPane().getButtonTypes().add(ButtonType.CLOSE);
+
+        btnAdd.setOnAction(e -> {
+            String selectedUser = cmbUsers.getValue();
+            String role = cmbRole.getValue();
+            if (selectedUser != null && !selectedUser.isEmpty()) {
+                addMember(convId, selectedUser, role);
+
+                // Petite pause pour que la BD se mette à jour
+                new Thread(() -> {
+                    try {
+                        Thread.sleep(200);
+                        Platform.runLater(() -> {
+                            // Recharger la liste des membres
+                            loadMembersList(membersList, convId);
+                            // Recharger la liste des utilisateurs disponibles
+                            loadAvailableUsers(cmbUsers, convId);
+                            // Forcer le rafraîchissement visuel
+                            membersList.refresh();
+                        });
+                    } catch (InterruptedException ex) {}
+                }).start();
+            } else {
+                showError("❌ Veuillez sélectionner un utilisateur");
+            }
+        });
+
+        dialog.showAndWait();
     }
 
     private Map<String, Object> getConversationDetails(int convId) {
-        // ... (code existant) ...
-        return new HashMap<>();
+        Map<String, Object> details = new HashMap<>();
+        try {
+            String sql = "SELECT c.*, " +
+                    "CONCAT(u1.first_name, ' ', u1.last_name) as client_name, " +
+                    "CONCAT(u2.first_name, ' ', u2.last_name) as freelance_name " +
+                    "FROM conversation c " +
+                    "JOIN users u1 ON c.client_id = u1.id " +
+                    "JOIN users u2 ON c.freelance_id = u2.id " +
+                    "WHERE c.id = ?";
+            PreparedStatement ps = connection.prepareStatement(sql);
+            ps.setInt(1, convId);
+            ResultSet rs = ps.executeQuery();
+
+            if (rs.next()) {
+                details.put("client_name", rs.getString("client_name"));
+                details.put("freelance_name", rs.getString("freelance_name"));
+                details.put("titre", rs.getString("titre"));
+                details.put("statut", rs.getString("statut"));
+            }
+        } catch (SQLException e) {
+            e.printStackTrace();
+            showError("Erreur chargement détails conversation");
+        }
+        return details;
     }
 
     private void loadMembersList(ListView<HBox> listView, int convId) {
-        // ... (code existant) ...
+        listView.getItems().clear();
+        try {
+            String sql = "SELECT cm.*, u.first_name, u.last_name, u.email, u.id as user_id " +
+                    "FROM conversation_members cm " +
+                    "JOIN users u ON cm.user_id = u.id " +
+                    "WHERE cm.conversation_id = ? AND cm.status = 'ACTIVE' " +
+                    "ORDER BY CASE cm.role " +
+                    "   WHEN 'OWNER' THEN 1 " +
+                    "   WHEN 'ADMIN' THEN 2 " +
+                    "   ELSE 3 END, u.first_name ASC";
+            PreparedStatement ps = connection.prepareStatement(sql);
+            ps.setInt(1, convId);
+            ResultSet rs = ps.executeQuery();
+
+            while (rs.next()) {
+                HBox item = new HBox(10);
+                item.setAlignment(Pos.CENTER_LEFT);
+                item.setPadding(new Insets(8));
+                item.setStyle("-fx-background-color: #f8fafc; -fx-background-radius: 5; -fx-border-color: #e2e8f0; -fx-border-radius: 5;");
+
+                int userId = rs.getInt("user_id");
+                String firstName = rs.getString("first_name");
+                String lastName = rs.getString("last_name");
+                String email = rs.getString("email");
+                String role = rs.getString("role");
+
+                // Avatar avec couleur selon le rôle
+                Label avatar = new Label(firstName.substring(0, 1).toUpperCase());
+                String avatarColor = role.equals("OWNER") ? "#dc2626" :
+                        role.equals("ADMIN") ? "#8b5cf6" : "#10b981";
+                avatar.setStyle("-fx-background-color: " + avatarColor + "; -fx-text-fill: white; " +
+                        "-fx-min-width: 35; -fx-min-height: 35; -fx-max-width: 35; -fx-max-height: 35; " +
+                        "-fx-background-radius: 17.5; -fx-alignment: center; -fx-font-weight: bold; -fx-font-size: 14;");
+
+                // Informations
+                VBox info = new VBox(2);
+                Label nameLabel = new Label(firstName + " " + lastName);
+                nameLabel.setStyle("-fx-font-weight: bold; -fx-font-size: 13;");
+
+                String roleIcon = role.equals("OWNER") ? "👑 " :
+                        role.equals("ADMIN") ? "⚙️ " : "👤 ";
+                Label detailsLabel = new Label(roleIcon + role + " · " + email);
+                detailsLabel.setStyle("-fx-text-fill: #64748b; -fx-font-size: 11;");
+                info.getChildren().addAll(nameLabel, detailsLabel);
+
+                Region spacer = new Region();
+                HBox.setHgrow(spacer, Priority.ALWAYS);
+
+                // Boutons d'action
+                HBox actions = new HBox(5);
+
+                if (!role.equals("OWNER") && userId != currentUserId) {
+                    // Bouton changer rôle
+                    Button btnRole = new Button("⚙️");
+                    btnRole.setStyle("-fx-background-color: transparent; -fx-cursor: hand; -fx-font-size: 14;");
+                    btnRole.setTooltip(new Tooltip("Changer le rôle"));
+                    btnRole.setOnAction(e -> showChangeRoleDialog(convId, userId, firstName + " " + lastName, role, listView));
+
+                    // Bouton supprimer
+                    Button btnDelete = new Button("❌");
+                    btnDelete.setStyle("-fx-background-color: transparent; -fx-cursor: hand; -fx-font-size: 14;");
+                    btnDelete.setTooltip(new Tooltip("Retirer le membre"));
+                    btnDelete.setOnAction(e -> removeMember(convId, userId, firstName + " " + lastName, listView));
+
+                    actions.getChildren().addAll(btnRole, btnDelete);
+                } else if (userId == currentUserId) {
+                    Label youLabel = new Label("(vous)");
+                    youLabel.setStyle("-fx-text-fill: #64748b; -fx-font-style: italic; -fx-font-size: 12;");
+                    actions.getChildren().add(youLabel);
+                }
+
+                item.getChildren().addAll(avatar, info, spacer, actions);
+                listView.getItems().add(item);
+            }
+
+            System.out.println("📋 Membres chargés: " + listView.getItems().size());
+
+        } catch (SQLException e) {
+            e.printStackTrace();
+            showError("❌ Erreur chargement des membres");
+        }
     }
 
     private void loadAvailableUsers(ComboBox<String> combo, int convId) {
-        // ... (code existant) ...
+        combo.getItems().clear();
+        try {
+            String sql = "SELECT CONCAT(first_name, ' ', last_name, ' (', email, ')') as display, id " +
+                    "FROM users WHERE id NOT IN " +
+                    "(SELECT user_id FROM conversation_members WHERE conversation_id = ? AND status = 'ACTIVE') " +
+                    "AND id != ? ORDER BY first_name";
+            PreparedStatement ps = connection.prepareStatement(sql);
+            ps.setInt(1, convId);
+            ps.setInt(2, currentUserId);
+            ResultSet rs = ps.executeQuery();
+
+            while (rs.next()) {
+                combo.getItems().add(rs.getString("display"));
+            }
+
+            if (combo.getItems().isEmpty()) {
+                combo.setPromptText("Aucun utilisateur disponible");
+                combo.setDisable(true);
+            } else {
+                combo.setDisable(false);
+            }
+
+            System.out.println("📋 Utilisateurs disponibles: " + combo.getItems().size());
+
+        } catch (SQLException e) {
+            e.printStackTrace();
+            showError("Erreur chargement utilisateurs");
+        }
     }
 
     private void addMember(int convId, String selectedUser, String role) {
-        // ... (code existant) ...
+        try {
+            // Extraire l'email de la chaîne "Prénom Nom (email)"
+            String email = selectedUser.replaceAll(".*\\((.*)\\).*", "$1");
+
+            // Récupérer l'ID de l'utilisateur
+            String sql = "SELECT id FROM users WHERE email = ?";
+            PreparedStatement ps = connection.prepareStatement(sql);
+            ps.setString(1, email);
+            ResultSet rs = ps.executeQuery();
+
+            if (rs.next()) {
+                int userId = rs.getInt("id");
+
+                // Vérifier si l'utilisateur est déjà membre (même avec status 'LEFT')
+                String checkSql = "SELECT status FROM conversation_members WHERE conversation_id = ? AND user_id = ?";
+                PreparedStatement checkPs = connection.prepareStatement(checkSql);
+                checkPs.setInt(1, convId);
+                checkPs.setInt(2, userId);
+                ResultSet checkRs = checkPs.executeQuery();
+
+                if (checkRs.next()) {
+                    // L'utilisateur existe déjà (peut-être avec status 'LEFT')
+                    String currentStatus = checkRs.getString("status");
+
+                    if ("LEFT".equals(currentStatus)) {
+                        // Réactiver le membre
+                        String updateSql = "UPDATE conversation_members SET status = 'ACTIVE', role = ?, invited_by = ?, joined_at = NOW() WHERE conversation_id = ? AND user_id = ?";
+                        PreparedStatement updatePs = connection.prepareStatement(updateSql);
+                        updatePs.setString(1, role);
+                        updatePs.setInt(2, currentUserId);
+                        updatePs.setInt(3, convId);
+                        updatePs.setInt(4, userId);
+                        updatePs.executeUpdate();
+
+                        String systemMsg = "🔔 " + App.getCurrentUser().getFirstName() + " a réintégré " + selectedUser.split("\\(")[0].trim() + " à la conversation";
+                        addSystemMessage(convId, systemMsg);
+                        showSuccess("✅ Membre réintégré avec succès !");
+
+                        // Vérification
+                        System.out.println("✅ Membre réintégré - ID: " + userId + ", Rôle: " + role);
+                    } else {
+                        showError("❌ Cet utilisateur est déjà membre actif");
+                        return;
+                    }
+                } else {
+                    // Nouveau membre
+                    String insert = "INSERT INTO conversation_members (conversation_id, user_id, role, invited_by, status, joined_at) VALUES (?, ?, ?, ?, 'ACTIVE', NOW())";
+                    PreparedStatement psInsert = connection.prepareStatement(insert);
+                    psInsert.setInt(1, convId);
+                    psInsert.setInt(2, userId);
+                    psInsert.setString(3, role);
+                    psInsert.setInt(4, currentUserId);
+                    psInsert.executeUpdate();
+
+                    // Ajouter un message système dans la conversation
+                    String systemMsg = "🔔 " + App.getCurrentUser().getFirstName() + " a ajouté " + selectedUser.split("\\(")[0].trim() + " à la conversation";
+                    addSystemMessage(convId, systemMsg);
+                    showSuccess("✅ Membre ajouté avec succès !");
+
+                    // Vérification
+                    System.out.println("✅ Nouveau membre ajouté - ID: " + userId + ", Rôle: " + role);
+                }
+            } else {
+                showError("❌ Utilisateur non trouvé");
+            }
+        } catch (SQLException e) {
+            if (e.getMessage().contains("Duplicate")) {
+                showError("❌ Cet utilisateur est déjà membre");
+            } else {
+                showError("❌ Erreur ajout membre: " + e.getMessage());
+                e.printStackTrace();
+            }
+        }
     }
 
     private void removeMember(int convId, int userId, String userName, ListView<HBox> listView) {
-        // ... (code existant) ...
+        Alert alert = new Alert(Alert.AlertType.CONFIRMATION);
+        alert.setTitle("Confirmation");
+        alert.setHeaderText("Retirer " + userName + " ?");
+        alert.setContentText("Cette action est irréversible.");
+
+        Optional<ButtonType> result = alert.showAndWait();
+        if (result.isPresent() && result.get() == ButtonType.OK) {
+            try {
+                String sql = "UPDATE conversation_members SET status = 'LEFT' WHERE conversation_id = ? AND user_id = ?";
+                PreparedStatement ps = connection.prepareStatement(sql);
+                ps.setInt(1, convId);
+                ps.setInt(2, userId);
+                ps.executeUpdate();
+
+                // Ajouter un message système
+                String systemMsg = "🔔 " + userName + " a été retiré de la conversation";
+                addSystemMessage(convId, systemMsg);
+
+                showSuccess("✅ " + userName + " a été retiré de la conversation");
+
+                // Recharger la liste
+                loadMembersList(listView, convId);
+
+            } catch (SQLException e) {
+                showError("❌ Erreur lors du retrait: " + e.getMessage());
+                e.printStackTrace();
+            }
+        }
     }
 
     private void showChangeRoleDialog(int convId, int userId, String userName, String currentRole, ListView<HBox> listView) {
-        // ... (code existant) ...
+        Dialog<String> dialog = new Dialog<>();
+        dialog.setTitle("Changer le rôle");
+        dialog.setHeaderText("Modifier le rôle de " + userName);
+
+        VBox content = new VBox(10);
+        content.setPadding(new Insets(20));
+
+        ComboBox<String> roleCombo = new ComboBox<>();
+        roleCombo.getItems().addAll("MEMBER", "ADMIN");
+        roleCombo.setValue(currentRole);
+        roleCombo.setPrefWidth(200);
+
+        content.getChildren().addAll(
+                new Label("Nouveau rôle :"),
+                roleCombo
+        );
+
+        dialog.getDialogPane().setContent(content);
+        dialog.getDialogPane().getButtonTypes().addAll(ButtonType.OK, ButtonType.CANCEL);
+
+        dialog.setResultConverter(button -> {
+            if (button == ButtonType.OK) {
+                return roleCombo.getValue();
+            }
+            return null;
+        });
+
+        Optional<String> result = dialog.showAndWait();
+        result.ifPresent(newRole -> {
+            if (!newRole.equals(currentRole)) {
+                updateMemberRole(convId, userId, newRole, userName, listView);
+            }
+        });
     }
 
     private void updateMemberRole(int convId, int userId, String newRole, String userName, ListView<HBox> listView) {
-        // ... (code existant) ...
+        try {
+            String sql = "UPDATE conversation_members SET role = ? WHERE conversation_id = ? AND user_id = ?";
+            PreparedStatement ps = connection.prepareStatement(sql);
+            ps.setString(1, newRole);
+            ps.setInt(2, convId);
+            ps.setInt(3, userId);
+            ps.executeUpdate();
+
+            // Ajouter un message système
+            String systemMsg = "🔔 " + userName + " est maintenant " + newRole;
+            addSystemMessage(convId, systemMsg);
+
+            showSuccess("✅ Rôle de " + userName + " modifié en " + newRole);
+
+            // Recharger la liste
+            loadMembersList(listView, convId);
+
+        } catch (SQLException e) {
+            showError("❌ Erreur modification rôle: " + e.getMessage());
+            e.printStackTrace();
+        }
     }
 
     private void addSystemMessage(int convId, String message) {
-        // ... (code existant) ...
+        try {
+            String sql = "INSERT INTO message (contenu, expediteur, conversation_id, date_envoie, type_message) VALUES (?, ?, ?, ?, ?)";
+            PreparedStatement ps = connection.prepareStatement(sql);
+            ps.setString(1, message);
+            ps.setString(2, "SYSTEM");
+            ps.setInt(3, convId);
+            ps.setTimestamp(4, Timestamp.valueOf(LocalDateTime.now()));
+            ps.setString(5, "SYSTEM");
+            ps.executeUpdate();
+        } catch (SQLException e) {
+            e.printStackTrace();
+        }
     }
 
     // ==================== UTILITAIRES ====================
