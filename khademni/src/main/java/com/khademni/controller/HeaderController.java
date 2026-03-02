@@ -164,6 +164,11 @@ public class HeaderController {
     }
 
     @FXML
+    private void goToMessages() throws IOException {
+        App.setRoot("Conversation");
+    }
+
+    @FXML
     private void goToBlogs() throws IOException {
         App.setRoot("Article/AjouterArticle");
     }
@@ -172,4 +177,6 @@ public class HeaderController {
     private void goToArticles() throws IOException {
         App.setRoot("Article/ArticlesPublications");
     }
+
+
 }

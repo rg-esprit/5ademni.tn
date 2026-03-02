@@ -17,7 +17,7 @@ import java.io.IOException;
 /**
  * JavaFX App
  */
-public class App extends Application {
+public class    App extends Application {
 
     private static Scene scene;
     private static Stage primaryStage;
@@ -82,6 +82,16 @@ public class App extends Application {
       } else if (fxml.equals("paiement_form")) {
           scene.getStylesheets().add(App.class.getResource("contrat.css").toExternalForm());
           primaryStage.setTitle("5ademni.tn — Paiement Manuel");
+          scene.setRoot(wrapWithChatbot(fxmlRoot));
+
+      } else if (fxml.equals("Conversation")) {
+          scene.getStylesheets().add(App.class.getResource("Conversation.css").toExternalForm());
+          primaryStage.setTitle("5ademni.tn — Mes Discussions");
+          scene.setRoot(wrapWithChatbot(fxmlRoot));
+
+      } else if (fxml.equals("Message")) {
+          scene.getStylesheets().add(App.class.getResource("Message.css").toExternalForm());
+          primaryStage.setTitle("5ademni.tn — Chat");
           scene.setRoot(wrapWithChatbot(fxmlRoot));
 
       } else {
