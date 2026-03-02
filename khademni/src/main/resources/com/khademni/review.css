@@ -360,6 +360,63 @@
   -fx-max-width: 800;
 }
 
+/* ---- AI Assist ---- */
+
+.ai-assist-row {
+  -fx-background-color: linear-gradient(to right, #f5f0ff, #ede8ff);
+  -fx-background-radius: 12;
+  -fx-border-color: #d8d0f8;
+  -fx-border-radius: 12;
+  -fx-border-width: 1.5;
+  -fx-padding: 10 14 10 14;
+}
+
+.ai-prompt-input {
+  -fx-background-color: white;
+  -fx-background-radius: 10;
+  -fx-border-color: #e0daf0;
+  -fx-border-radius: 10;
+  -fx-border-width: 1;
+  -fx-padding: 10 14 10 14;
+  -fx-font-size: 13;
+  -fx-font-weight: 500;
+  -fx-text-fill: #1a1a2e;
+  -fx-prompt-text-fill: #b0a8c0;
+  -fx-font-family: "Inter", "Segoe UI", sans-serif;
+}
+
+.ai-prompt-input:focused {
+  -fx-border-color: #6c0df2;
+  -fx-effect: dropshadow(gaussian, rgba(108, 13, 242, 0.12), 12, 0.15, 0, 4);
+}
+
+.ai-generate-btn {
+  -fx-background-color: linear-gradient(to right, #6c0df2, #9333ea);
+  -fx-background-radius: 10;
+  -fx-text-fill: white;
+  -fx-font-weight: 700;
+  -fx-font-size: 13;
+  -fx-padding: 10 20 10 20;
+  -fx-cursor: hand;
+  -fx-border-width: 0;
+  -fx-effect: dropshadow(gaussian, rgba(108, 13, 242, 0.25), 14, 0.15, 0, 4);
+  -fx-graphic-text-gap: 8;
+}
+
+.ai-generate-btn:hover {
+  -fx-effect: dropshadow(gaussian, rgba(108, 13, 242, 0.4), 20, 0.2, 0, 6);
+  -fx-scale-x: 1.03;
+  -fx-scale-y: 1.03;
+}
+
+.ai-generate-btn:pressed {
+  -fx-effect: dropshadow(gaussian, rgba(108, 13, 242, 0.25), 10, 0.1, 0, 3);
+}
+
+.ai-generate-btn:disabled {
+  -fx-opacity: 0.6;
+}
+
 /* ---- Empty State ---- */
 
 .review-empty-text {

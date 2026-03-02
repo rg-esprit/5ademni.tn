@@ -5,6 +5,10 @@ import com.khademni.model.ReviewModel;
 import com.khademni.model.UserModel;
 import com.khademni.utils.MyDataBase;
 
+import com.google.gson.JsonObject;
+import com.google.gson.JsonParser;
+import com.google.gson.JsonArray;
+
 import javafx.application.Platform;
 import javafx.fxml.FXML;
 import javafx.geometry.Pos;
@@ -12,6 +16,10 @@ import javafx.scene.control.*;
 import javafx.scene.layout.*;
 import org.kordamp.ikonli.javafx.FontIcon;
 
+import java.net.URI;
+import java.net.http.HttpClient;
+import java.net.http.HttpRequest;
+import java.net.http.HttpResponse;
 import java.sql.Connection;
 import java.sql.PreparedStatement;
 import java.sql.ResultSet;
@@ -34,6 +42,8 @@ public class ReviewController {
     @FXML private TextArea txtReviewText;
     @FXML private Button submitReviewBtn;
     @FXML private Button cancelEditBtn;
+    @FXML private TextField aiPromptField;
+    @FXML private Button aiGenerateBtn;
     @FXML private VBox receivedReviewsContainer;
     @FXML private VBox givenReviewsContainer;
     @FXML private Label noReceivedLabel;
@@ -374,6 +384,7 @@ public class ReviewController {
         selectedRating = 0;
         updateStarDisplay(0);
         txtReviewText.clear();
+        if (aiPromptField != null) aiPromptField.clear();
 
         selectedUserBox.setVisible(false);
         selectedUserBox.setManaged(false);
@@ -572,6 +583,120 @@ public class ReviewController {
         icon.setIconSize(size);
         icon.setIconColor(javafx.scene.paint.Color.web(color));
         return icon;
+    }
+
+    // ==================================================
+    // AI Review Generation
+    // ==================================================
+    private static final String OPENROUTER_API_KEY = "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";
+    private static final String OPENROUTER_URL = "https://openrouter.ai/api/v1/chat/completions";
+    // Fallback chain — tried in order until one succeeds
+    private static final String[] CHAT_MODELS = {
+        "mistralai/mistral-small-3.1-24b-instruct:free",
+        "google/gemma-3-27b-it:free",
+        "meta-llama/llama-3.3-70b-instruct:free",
+        "qwen/qwen3-4b:free",
+        "cognitivecomputations/dolphin-mistral-24b-venice-edition:free",
+        "liquid/lfm-2.5-1.2b-instruct:free",
+        "arcee-ai/trinity-mini:free"
+    };
+
+    @FXML
+    private void generateWithAI() {
+        String prompt = aiPromptField.getText() != null ? aiPromptField.getText().trim() : "";
+        if (prompt.isEmpty()) {
+            showError("Please describe what you want the review to say.");
+            return;
+        }
+
+        aiGenerateBtn.setDisable(true);
+        aiGenerateBtn.setText("Generating...");
+        hideStatus();
+
+        Thread aiThread = new Thread(() -> {
+            try {
+                String systemPrompt = "You are a helpful assistant that writes freelancer reviews for a job marketplace called 5ademni.tn. "
+                    + "Write a concise, professional, and natural-sounding review (2-4 sentences) based on the user's description. "
+                    + "Do NOT include any greeting, sign-off, rating, or stars. Just the review text. Keep it authentic and human.";
+
+                JsonObject systemMsg = new JsonObject();
+                systemMsg.addProperty("role", "system");
+                systemMsg.addProperty("content", systemPrompt);
+
+                JsonObject userMsg = new JsonObject();
+                userMsg.addProperty("role", "user");
+                userMsg.addProperty("content", "Write a review based on this: " + prompt);
+
+                JsonArray messages = new JsonArray();
+                messages.add(systemMsg);
+                messages.add(userMsg);
+
+                JsonObject body = new JsonObject();
+                body.add("messages", messages);
+
+                HttpClient client = HttpClient.newHttpClient();
+                String generatedText = null;
+                String lastError = "All models failed or are rate-limited. Please try again in a moment.";
+
+                for (int i = 0; i < CHAT_MODELS.length; i++) {
+                    final String model = CHAT_MODELS[i];
+                    final int attempt = i + 1;
+                    Platform.runLater(() -> aiGenerateBtn.setText("Trying (" + attempt + "/" + CHAT_MODELS.length + ")..."));
+                    body.addProperty("model", model);
+
+                    HttpRequest request = HttpRequest.newBuilder()
+                        .uri(URI.create(OPENROUTER_URL))
+                        .header("Content-Type", "application/json")
+                        .header("Authorization", "Bearer " + OPENROUTER_API_KEY)
+                        .POST(HttpRequest.BodyPublishers.ofString(body.toString()))
+                        .build();
+
+                    HttpResponse<String> response = client.send(request, HttpResponse.BodyHandlers.ofString());
+                    JsonObject json = JsonParser.parseString(response.body()).getAsJsonObject();
+
+                    if (json.has("error")) {
+                        lastError = json.getAsJsonObject("error")
+                            .get("message").getAsString();
+                        // rate limit or provider error — try next model
+                        continue;
+                    }
+
+                    JsonArray choices = json.getAsJsonArray("choices");
+                    if (choices == null || choices.size() == 0) {
+                        lastError = "Model '" + model + "' returned no content.";
+                        continue;
+                    }
+
+                    generatedText = choices.get(0).getAsJsonObject()
+                        .getAsJsonObject("message")
+                        .get("content").getAsString().trim();
+                    break; // success
+                }
+
+                final String result = generatedText;
+                final String errMsg = lastError;
+                Platform.runLater(() -> {
+                    aiGenerateBtn.setDisable(false);
+                    aiGenerateBtn.setText("Generate");
+                    if (result != null) {
+                        txtReviewText.setText(result);
+                        showSuccess("AI review generated! Feel free to edit it before submitting.");
+                    } else {
+                        showError(errMsg);
+                    }
+                });
+
+            } catch (Exception e) {
+                e.printStackTrace();
+                Platform.runLater(() -> {
+                    aiGenerateBtn.setDisable(false);
+                    aiGenerateBtn.setText("Generate");
+                    showError("AI generation failed: " + e.getMessage());
+                });
+            }
+        }, "ai-review-gen");
+        aiThread.setDaemon(true);
+        aiThread.start();
     }
 
     // ==================================================
