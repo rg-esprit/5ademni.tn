@@ -26,6 +26,8 @@
 
     <!-- Navigation Links -->
     <HBox spacing="25" alignment="CENTER">
+        <Button fx:id="jobsManagementLink" text="Jobs Management" onAction="#goToJobsAdmin"
+            styleClass="nav-link" style="-fx-background-color: transparent; -fx-cursor: hand;" visible="false" managed="false" />
         <Button text="Jobs &amp; Services" onAction="#onJobsAndServices" styleClass="nav-link" style="-fx-background-color: transparent; -fx-cursor: hand;" />
         <Button text="Contrat" onAction="#onContrat" styleClass="nav-link" style="-fx-background-color: transparent; -fx-cursor: hand;" />
         <Button text="Paiement" onAction="#onPaiement" styleClass="nav-link" style="-fx-background-color: transparent; -fx-cursor: hand;" />
@@ -34,6 +36,7 @@
         <Button text="Dashboard" styleClass="nav-link" style="-fx-background-color: transparent; -fx-cursor: hand;" />
         <Button text="Messages" styleClass="nav-link" style="-fx-background-color: transparent; -fx-cursor: hand;" />
         <Button text="Blogs" styleClass="nav-link" style="-fx-background-color: transparent; -fx-cursor: hand;" />
+        <Button text="Reviews" styleClass="nav-link" style="-fx-background-color: transparent; -fx-cursor: hand;" />
     </HBox>
 
     <Region HBox.hgrow="ALWAYS" />
@@ -41,11 +44,16 @@
     <!-- Profile Area -->
     <HBox spacing="12" alignment="CENTER_RIGHT">
         <Button text="Profile" onAction="#onProfile" styleClass="profile-button" />
-        <StackPane>
-            <Circle radius="18" fill="#6c0df2" />
-            <ImageView fx:id="headerAvatarImage" fitWidth="36" fitHeight="36" />
+        <StackPane prefHeight="40" prefWidth="40" maxHeight="40" maxWidth="40">
+            <Circle radius="20" fill="#f3f4f6" stroke="#6c0df2" strokeWidth="2" opacity="0.3" />
+            <Circle radius="20" style="-fx-fill: linear-gradient(to bottom, #6c0df2 0%, #8b5cf6 100%);" />
+            <Label fx:id="headerAvatarInitials" text=""
+                style="-fx-text-fill: white; -fx-font-size: 14; -fx-font-weight: bold;" />
+            <ImageView fx:id="headerAvatarImage" fitWidth="40" fitHeight="40"
+                preserveRatio="true" visible="false" managed="false" />
         </StackPane>
-        <Button text="Logout" onAction="#onLogout" styleClass="logout-btn" style="-fx-background-color: transparent; -fx-text-fill: #ef4444; -fx-cursor: hand;" />
+        <Button text="Logout" onAction="#onLogout" styleClass="logout-btn"
+            style="-fx-background-color: transparent; -fx-text-fill: #ef4444; -fx-cursor: hand;" />
     </HBox>
 
 </HBox>

@@ -15,6 +15,7 @@ public class UserModel {
     private boolean isAdmin;
     private String profileImage;
     private String bio;
+    private String faceEmbedding;
     private UserRole currentMode;
     private String cvPath;
     private LocalDateTime cvUploadedAt;
@@ -36,6 +37,33 @@ public class UserModel {
         this.isAdmin = false;
         this.profileImage = "";
         this.bio = "";
+    }
+
+    public UserModel(int id, String firstName, String lastName, LocalDate dateOfBirth, double balance, String email,
+            String password, boolean isAdmin, String profileImage, String bio) {
+        this();
+        this.id = id;
+        this.firstName = firstName;
+        this.lastName = lastName;
+        this.dateOfBirth = dateOfBirth;
+        this.balance = balance;
+        this.email = email;
+        this.password = password;
+        this.isAdmin = isAdmin;
+        this.profileImage = profileImage;
+        this.bio = bio;
+    }
+
+    public String getFaceEmbedding() {
+        return faceEmbedding;
+    }
+
+    public void setFaceEmbedding(String faceEmbedding) {
+        this.faceEmbedding = faceEmbedding;
+    }
+
+    public boolean hasFaceEnrolled() {
+        return faceEmbedding != null && !faceEmbedding.isBlank();
     }
 
     public int getId() {

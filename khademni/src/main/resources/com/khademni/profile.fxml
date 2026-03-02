@@ -85,7 +85,7 @@
                         style="-fx-padding: 20 0 0 0;">
                         <Label text="Gestion du CV" styleClass="profile-field-label"
                             style="-fx-text-fill: #6c0df2; -fx-font-weight: bold;" />
-                        
+
                         <Button fx:id="cvUploadBtn" text="Uploader mon CV" styleClass="cv-upload-btn"
                                 onAction="#onUploadCV" style="-fx-background-color: #6c0df2; -fx-text-fill: white; -fx-padding: 8 16; -fx-background-radius: 6;" />
 
@@ -182,14 +182,29 @@
                         </VBox>
                     </VBox>
 
+                    <!-- Profile Image Upload -->
+                    <VBox spacing="8">
+                        <Label text="Profile Image" styleClass="profile-field-label" />
+                        <TextField fx:id="profileImgField" visible="false" managed="false" />
+                        <HBox spacing="12" alignment="CENTER_LEFT">
+                            <Button text="Change Image" onAction="#onProfileChooseImage"
+                                style="-fx-background-color: #2d2b55; -fx-text-fill: #c4c0ff; -fx-border-color: #4a47a3; -fx-border-width: 1; -fx-border-radius: 8; -fx-background-radius: 8; -fx-padding: 10 20; -fx-cursor: hand; -fx-font-weight: 600;">
+                                <graphic>
+                                    <FontIcon iconLiteral="fas-upload" iconColor="#6c63ff" iconSize="14" />
+                                </graphic>
+                            </Button>
+                            <Label fx:id="profileImgStatusLabel" text="No image selected"
+                                style="-fx-text-fill: #a0a0a0; -fx-font-size: 13;" />
+                        </HBox>
+                    </VBox>
 
                     <!-- Preferences Field -->
                     <VBox spacing="8">
                         <Label text="Préférences" styleClass="profile-field-label" />
                         <HBox alignment="CENTER_LEFT" spacing="12">
-                            <CheckBox fx:id="languageToolAutoCorrectCheckbox" 
-                                      text="Activer la correction automatique (LanguageTool)" 
-                                      style="-fx-text-fill: #1f2937; -fx-font-size: 14px; -fx-cursor: hand;" 
+                            <CheckBox fx:id="languageToolAutoCorrectCheckbox"
+                                      text="Activer la correction automatique (LanguageTool)"
+                                      style="-fx-text-fill: #1f2937; -fx-font-size: 14px; -fx-cursor: hand;"
                                       onAction="#onToggleLanguageTool" />
                         </HBox>
                     </VBox>
@@ -199,6 +214,8 @@
                         <Button text="Sign Out" onAction="#onSignOut"
                             styleClass="profile-signout-btn" />
                         <Region HBox.hgrow="ALWAYS" />
+                        <Button text="Enroll / Update Face ID" onAction="#onEnrollFace"
+                            style="-fx-background-color: #1e1e3a; -fx-text-fill: #a0a0d0; -fx-border-color: #3a3a6a; -fx-border-width: 1; -fx-border-radius: 8; -fx-background-radius: 8; -fx-padding: 10 16 10 16; -fx-font-size: 13; -fx-cursor: hand;" />
                     </HBox>
                 </VBox>
             </VBox>

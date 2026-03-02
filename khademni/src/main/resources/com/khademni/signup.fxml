@@ -24,7 +24,8 @@
         <VBox alignment="CENTER" spacing="8" style="-fx-padding: 0 0 40 0;">
             <StackPane styleClass="logo-box" prefWidth="40" prefHeight="40" maxWidth="40"
                 maxHeight="40">
-                <FontIcon iconLiteral="fas-book-open" iconSize="24" iconColor="white" styleClass="icon-logo"/>
+                <FontIcon iconLiteral="fas-book-open" iconSize="24" iconColor="white"
+                    styleClass="icon-logo" />
             </StackPane>
             <Label text="5ademni.tn" styleClass="brand-title" />
         </VBox>
@@ -157,18 +158,24 @@
                     </StackPane>
                 </VBox>
 
-                <!-- Profile Image Upload Field -->
+                <!-- Profile Picture Upload -->
                 <VBox spacing="10" alignment="CENTER_LEFT">
                     <Label text="Profile Picture" styleClass="field-label" />
+                    <!-- Hidden field for Vercel Blob URL (used by onSignupChooseImage) -->
+                    <TextField fx:id="signupProfileImgField" visible="false" managed="false" />
                     <HBox spacing="15" alignment="CENTER_LEFT">
                         <StackPane styleClass="avatar-preview-box" prefWidth="80" prefHeight="80">
                             <Circle radius="40" fill="#f3f4f6" stroke="#e5e7eb" strokeType="INSIDE" />
-                            <ImageView fx:id="signupAvatarPreview" fitWidth="80" fitHeight="80" preserveRatio="false" visible="false" />
-                            <FontIcon fx:id="signupAvatarPlaceholder" iconLiteral="fas-user" iconSize="32" iconColor="#9ca3af" />
+                            <ImageView fx:id="signupAvatarPreview" fitWidth="80" fitHeight="80"
+                                preserveRatio="false" visible="false" />
+                            <FontIcon fx:id="signupAvatarPlaceholder" iconLiteral="fas-user"
+                                iconSize="32" iconColor="#9ca3af" />
                         </StackPane>
                         <VBox spacing="8">
-                            <Button text="Choose Photo" styleClass="button-secondary" onAction="#onSignupChoosePhoto" />
-                            <Label text="JPG, PNG (Max 5MB)" style="-fx-font-size: 11; -fx-text-fill: #6b7280;" />
+                            <Button text="Choose Photo" styleClass="button-secondary"
+                                onAction="#onSignupChoosePhoto" />
+                            <Label fx:id="signupImgStatusLabel" text="JPG, PNG (Max 5MB)"
+                                style="-fx-font-size: 11; -fx-text-fill: #6b7280;" />
                         </VBox>
                     </HBox>
                 </VBox>
@@ -187,6 +194,15 @@
                     onAction="#onSignUp" maxWidth="Infinity" graphicTextGap="8">
                     <graphic>
                         <FontIcon iconLiteral="fas-arrow-right" styleClass="btn-icon-arrow" />
+                    </graphic>
+                </Button>
+
+                <!-- Enroll Face ID (available after account is created) -->
+                <Button text="Enroll Face ID (optional)" onAction="#onEnrollFace"
+                    maxWidth="Infinity" graphicTextGap="10"
+                    style="-fx-background-color: #1e1e3a; -fx-text-fill: #a0a0d0; -fx-border-color: #3a3a6a; -fx-border-width: 1; -fx-border-radius: 10; -fx-background-radius: 10; -fx-padding: 12 0 12 0; -fx-font-size: 14; -fx-font-weight: 600; -fx-cursor: hand;">
+                    <graphic>
+                        <FontIcon iconLiteral="fas-camera" iconColor="#6c63ff" iconSize="16" />
                     </graphic>
                 </Button>
             </VBox>
@@ -227,3 +243,4 @@
 
     </VBox>
 </ScrollPane>
+

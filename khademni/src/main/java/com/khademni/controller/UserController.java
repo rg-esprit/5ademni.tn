@@ -4,6 +4,7 @@ import com.khademni.App;
 import com.khademni.model.UserModel;
 import com.khademni.model.UserRole;
 import com.khademni.utils.MyDataBase;
+import com.khademni.utils.VercelBlobUploader;
 import com.khademni.utils.ValidationUtils;
 import com.khademni.utils.SpellCheckDecorator;
 import com.khademni.service.ServiceFactory;
@@ -13,21 +14,23 @@ import javafx.application.Platform;
 import javafx.concurrent.Task;
 import javafx.event.ActionEvent;
 import javafx.fxml.FXML;
+import javafx.fxml.FXMLLoader;
+import javafx.scene.Parent;
+import javafx.scene.Scene;
 import javafx.scene.control.*;
 import javafx.scene.image.Image;
-import javafx.scene.Scene;
-import javafx.scene.web.WebEngine;
-import javafx.scene.web.WebView;
-import javafx.stage.Modality;
-import javafx.stage.Stage;
-import com.khademni.service.StripeService;
-import com.khademni.service.DepositVerificationResult;
 import javafx.scene.image.ImageView;
 import javafx.scene.input.MouseEvent;
 import javafx.scene.layout.StackPane;
 import javafx.scene.layout.VBox;
 import javafx.scene.shape.Circle;
+import javafx.scene.web.WebEngine;
+import javafx.scene.web.WebView;
 import javafx.stage.FileChooser;
+import javafx.stage.Modality;
+import javafx.stage.Stage;
+import com.khademni.service.StripeService;
+import com.khademni.service.DepositVerificationResult;
 
 import java.io.File;
 import java.io.IOException;
@@ -136,6 +139,9 @@ public class UserController {
     private UserRole selectedMode = UserRole.CLIENT;
     private String selectedCvPath = null;
 
+    @FXML
+    private Label profileImgStatusLabel;
+
     // Login fields
     @FXML
     private TextField emailField;
@@ -192,6 +198,9 @@ public class UserController {
     private File selectedSignupPhoto;
 
     @FXML
+    private Label signupImgStatusLabel;
+
+    @FXML
     private TextArea signupBioField;
 
     @FXML
@@ -208,6 +217,9 @@ public class UserController {
 
     private boolean passwordVisible = false;
     private boolean confirmPasswordVisible = false;
+
+    /** Holds the DB-generated id of the user just created during signup, to allow face enrollment. */
+    private int tempNewUserId = -1;
 
     @FXML
     public void initialize() {
@@ -555,6 +567,157 @@ public class UserController {
     private void onSignupAppleSignIn(ActionEvent event) {
         System.out.println("Apple Sign Up clicked");
         // TODO: Implement Apple Sign In
+    }
+
+    // ============ IMAGE UPLOAD METHODS ============
+
+    @FXML
+    private void onSignupChooseImage(ActionEvent event) {
+        File file = openImageFileChooser();
+        if (file == null) return;
+        uploadImageAsync(file, signupProfileImgField, signupImgStatusLabel, null);
+    }
+
+    @FXML
+    private void onProfileChooseImage(ActionEvent event) {
+        File file = openImageFileChooser();
+        if (file == null) return;
+        uploadImageAsync(file, profileImgField, profileImgStatusLabel, profileAvatarImage);
+    }
+
+    private File openImageFileChooser() {
+        FileChooser chooser = new FileChooser();
+        chooser.setTitle("Select Profile Image");
+        chooser.getExtensionFilters().addAll(
+                new FileChooser.ExtensionFilter("Image Files", "*.png", "*.jpg", "*.jpeg", "*.gif", "*.webp"),
+                new FileChooser.ExtensionFilter("All Files", "*.*")
+        );
+        return chooser.showOpenDialog(App.getPrimaryStage());
+    }
+
+    private void uploadImageAsync(File file, TextField urlField, Label statusLabel, ImageView avatarImage) {
+        if (statusLabel != null) {
+            statusLabel.setText("Uploading " + file.getName() + "...");
+            statusLabel.setStyle("-fx-text-fill: #6c63ff; -fx-font-size: 13;");
+        }
+
+        Thread uploadThread = new Thread(() -> {
+            try {
+                String url = VercelBlobUploader.upload(file);
+                javafx.application.Platform.runLater(() -> {
+                    urlField.setText(url);
+                    if (statusLabel != null) {
+                        statusLabel.setText("Uploaded \u2713");
+                        statusLabel.setStyle("-fx-text-fill: #059669; -fx-font-size: 13; -fx-font-weight: 600;");
+                    }
+                    if (avatarImage != null) {
+                        showAvatarImage(avatarImage, url);
+                    }
+                });
+            } catch (Exception e) {
+                e.printStackTrace();
+                javafx.application.Platform.runLater(() -> {
+                    if (statusLabel != null) {
+                        statusLabel.setText("Upload failed: " + e.getMessage());
+                        statusLabel.setStyle("-fx-text-fill: #dc2626; -fx-font-size: 13;");
+                    }
+                });
+            }
+        }, "vercel-blob-upload");
+        uploadThread.setDaemon(true);
+        uploadThread.start();
+    }
+
+    private void showAvatarImage(ImageView imageView, String url) {
+        if (url == null || url.isBlank()) {
+            imageView.setVisible(false);
+            imageView.setManaged(false);
+            return;
+        }
+        // Private blob URLs need authenticated download via the Vercel API
+        Thread loader = new Thread(() -> {
+            try {
+                java.io.InputStream is = VercelBlobUploader.downloadAsStream(url);
+                javafx.application.Platform.runLater(() -> {
+                    Image img = new Image(is, 100, 100, true, true);
+                    imageView.setImage(img);
+                    Circle clip = new Circle(50, 50, 50);
+                    imageView.setClip(clip);
+                    imageView.setVisible(true);
+                    imageView.setManaged(true);
+                });
+            } catch (Exception e) {
+                System.err.println("Failed to load avatar from blob: " + e.getMessage());
+                e.printStackTrace();
+            }
+        }, "blob-avatar-loader");
+        loader.setDaemon(true);
+        loader.start();
+    }
+
+    // ============ FACE RECOGNITION METHODS ============
+
+    /**
+     * Opens the face-capture dialog in enrollment mode.
+     * Can be triggered from signup (uses tempNewUserId) or profile (uses currentUser).
+     */
+    @FXML
+    private void onEnrollFace(ActionEvent event) {
+        int userId = -1;
+        if (App.getCurrentUser() != null) {
+            userId = App.getCurrentUser().getId();
+        } else if (tempNewUserId > 0) {
+            userId = tempNewUserId;
+        }
+        if (userId <= 0) {
+            Label label = (signupErrorLabel != null) ? signupErrorLabel : errorLabel;
+            showError("Please create your account first before enrolling your face.", label);
+            return;
+        }
+        openFaceCaptureDialog(true, userId);
+    }
+
+    /**
+     * Opens the face-capture dialog in 1:N identification mode (Face ID Login).
+     * Available from the login screen.
+     */
+    @FXML
+    private void onFaceLogin(ActionEvent event) {
+        openFaceCaptureDialog(false, -1);
+    }
+
+    private void openFaceCaptureDialog(boolean enroll, int userId) {
+        try {
+            FXMLLoader loader = new FXMLLoader(App.class.getResource("face_capture.fxml"));
+            Parent root = loader.load();
+            FaceController fc = loader.getController();
+
+            Stage dialog = new Stage();
+            dialog.initOwner(App.getPrimaryStage());
+            dialog.initModality(Modality.APPLICATION_MODAL);
+            dialog.setTitle(enroll ? "Enroll Face ID" : "Face ID Login");
+            dialog.setResizable(false);
+
+            Scene dialogScene = new Scene(root);
+            String cssUrl = App.class.getResource("face_capture.css") != null
+                    ? App.class.getResource("face_capture.css").toExternalForm() : null;
+            if (cssUrl != null) dialogScene.getStylesheets().add(cssUrl);
+            dialog.setScene(dialogScene);
+
+            // Configure mode BEFORE showing
+            if (enroll) {
+                fc.configureEnroll(userId);
+            } else {
+                fc.configureLogin();
+            }
+
+            // Ensure dialog releases resources on window close
+            dialog.setOnCloseRequest(e -> dialog.close());
+
+            dialog.showAndWait();
+        } catch (IOException e) {
+            e.printStackTrace();
+        }
     }
 
     // ============ PROFILE METHODS ============

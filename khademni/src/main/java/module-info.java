@@ -8,6 +8,7 @@ module com.khademni {
     requires java.prefs;
     requires javafx.web;
     requires com.fasterxml.jackson.databind;
+    requires com.google.gson;
     requires org.mariadb.jdbc;
     requires org.kordamp.ikonli.javafx;
     requires org.kordamp.ikonli.material2;
@@ -26,7 +27,6 @@ module com.khademni {
     opens com.khademni.service to javafx.fxml, javafx.base;
     opens com.khademni.dao to javafx.base;
     opens com.khademni.exception to javafx.base;
-
     exports com.khademni;
     exports com.khademni.controller;
     exports com.khademni.model;
