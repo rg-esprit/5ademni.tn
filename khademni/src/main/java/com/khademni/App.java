@@ -55,6 +55,9 @@ public class App extends Application {
         } else if (fxml.equals("jobs-management")) {
             primaryStage.setTitle("5ademni.tn — Jobs Management");
             scene.getStylesheets().add(App.class.getResource("jobs-management.css").toExternalForm());
+        } else if (fxml.equals("review")) {
+            primaryStage.setTitle("5ademni.tn — Reviews");
+            scene.getStylesheets().add(App.class.getResource("review.css").toExternalForm());
         }
         primaryStage.setFullScreen(true);
     }
