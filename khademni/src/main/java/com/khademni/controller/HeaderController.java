@@ -43,6 +43,7 @@ public class HeaderController {
         UserModel user = App.getCurrentUser();
         if (user == null) return;
 
+        // Set initials
         if (headerAvatarInitials != null) {
             String initials = "";
             if (user.getFirstName() != null && !user.getFirstName().isEmpty())
@@ -52,6 +53,7 @@ public class HeaderController {
             headerAvatarInitials.setText(initials.toUpperCase());
         }
 
+        // Load profile image from Vercel Blob
         String imgUrl = user.getProfileImg();
         if (headerAvatarImage != null && imgUrl != null && !imgUrl.isBlank()) {
             Thread loader = new Thread(() -> {
@@ -64,6 +66,7 @@ public class HeaderController {
                         headerAvatarImage.setClip(clip);
                         headerAvatarImage.setVisible(true);
                         headerAvatarImage.setManaged(true);
+                        // Hide initials + gradient circle behind image
                         if (headerAvatarInitials != null) {
                             headerAvatarInitials.setVisible(false);
                             headerAvatarInitials.setManaged(false);
