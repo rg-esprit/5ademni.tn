@@ -9,7 +9,7 @@ public class PaimentModel {
     private ObjectProperty<LocalDate> datePaiement;
     private StringProperty methode; // Flouci
 
-    public void PaiementModel() {
+    public PaimentModel() {
         this.id = new SimpleIntegerProperty();
         this.contratId = new SimpleIntegerProperty();
         this.montant = new SimpleDoubleProperty();
@@ -17,7 +17,7 @@ public class PaimentModel {
         this.methode = new SimpleStringProperty();
     }
 
-    public void PaiementModel(int contratId, double montant) {
+    public PaimentModel(int contratId, double montant) {
         this.contratId = new SimpleIntegerProperty(contratId);
         this.montant = new SimpleDoubleProperty(montant);
         this.datePaiement = new SimpleObjectProperty<>(LocalDate.now());

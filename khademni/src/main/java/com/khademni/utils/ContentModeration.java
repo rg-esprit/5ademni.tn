@@ -1,5 +1,6 @@
 package com.khademni.utils;
 
+import io.github.cdimascio.dotenv.Dotenv;
 import org.json.JSONArray;
 import org.json.JSONObject;
 
@@ -13,7 +14,12 @@ import java.util.Scanner;
 // tu es  beau et intelligent
 public class ContentModeration {
 
-    private static final String API_KEY = "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"; // ⚠️ Mets ton token ici
+    private static final String API_KEY;
+
+    static {
+        Dotenv dotenv = Dotenv.configure().ignoreIfMissing().load();
+        API_KEY = dotenv.get("HF_API_KEY", "");
+    }
 
     private static final String MODEL_URL = "https://router.huggingface.co/hf-inference/models/unitary/toxic-bert";
 
