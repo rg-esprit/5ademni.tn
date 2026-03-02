@@ -1,20 +1,34 @@
 /* Header Styles */
 .header {
     -fx-effect: dropshadow(gaussian, rgba(0, 0, 0, 0.05), 4, 0, 0, 2);
+    -fx-background-color: white;
 }
 
-/* Hyperlinks */
-.header .hyperlink {
+/* Navigation Links */
+.nav-link {
+    -fx-text-fill: #4b5563;
+    -fx-font-size: 14px;
+    -fx-font-weight: bold;
+    -fx-background-color: transparent;
     -fx-border-width: 0;
-    -fx-underline: false;
+    -fx-padding: 0;
     -fx-cursor: hand;
 }
 
-.header .hyperlink:hover {
+.nav-link:hover {
     -fx-text-fill: #6c0df2;
 }
 
-/* Profile Button Hover Effect */
+/* Profile Button */
+.profile-button {
+    -fx-background-color: #6c0df2;
+    -fx-text-fill: white;
+    -fx-background-radius: 20;
+    -fx-padding: 8 20 8 20;
+    -fx-font-weight: bold;
+    -fx-cursor: hand;
+}
+
 .profile-button:hover {
     -fx-background-color: #5a0ac9;
     -fx-effect: dropshadow(gaussian, rgba(108, 13, 242, 0.3), 8, 0, 0, 2);
@@ -22,4 +36,8 @@
 
 .profile-button:pressed {
     -fx-background-color: #4a089f;
+}
+
+.logout-btn:hover {
+    -fx-text-fill: #dc2626;
 }
