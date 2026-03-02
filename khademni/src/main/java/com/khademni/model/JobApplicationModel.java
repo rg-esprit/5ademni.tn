@@ -12,9 +12,11 @@ public class JobApplicationModel {
     private String cvUrl;
     private String status;
     private LocalDateTime appliedDate;
+    private String phoneNumber;
 
     public JobApplicationModel(int id, int jobId, String applicantName, String applicantEmail,
-            String title, String description, String cvUrl, String status, LocalDateTime appliedDate) {
+            String title, String description, String cvUrl, String status, LocalDateTime appliedDate,
+            String phoneNumber) {
         this.id = id;
         this.jobId = jobId;
         this.applicantName = applicantName;
@@ -24,10 +26,12 @@ public class JobApplicationModel {
         this.cvUrl = cvUrl;
         this.status = status;
         this.appliedDate = appliedDate;
+        this.phoneNumber = phoneNumber;
     }
 
     public JobApplicationModel(int jobId, String applicantName, String applicantEmail,
-            String title, String description, String cvUrl, String status, LocalDateTime appliedDate) {
+            String title, String description, String cvUrl, String status, LocalDateTime appliedDate,
+            String phoneNumber) {
         this.jobId = jobId;
         this.applicantName = applicantName;
         this.applicantEmail = applicantEmail;
@@ -36,6 +40,7 @@ public class JobApplicationModel {
         this.cvUrl = cvUrl;
         this.status = status;
         this.appliedDate = appliedDate;
+        this.phoneNumber = phoneNumber;
     }
 
     public int getId() {
@@ -110,6 +115,14 @@ public class JobApplicationModel {
         this.appliedDate = appliedDate;
     }
 
+    public String getPhoneNumber() {
+        return phoneNumber;
+    }
+
+    public void setPhoneNumber(String phoneNumber) {
+        this.phoneNumber = phoneNumber;
+    }
+
     @Override
     public String toString() {
         return "JobApplicationModel{" +
@@ -122,6 +135,7 @@ public class JobApplicationModel {
                 ", cvUrl='" + cvUrl + '\'' +
                 ", status='" + status + '\'' +
                 ", appliedDate=" + appliedDate +
+                ", phoneNumber='" + phoneNumber + '\'' +
                 '}';
     }
 }

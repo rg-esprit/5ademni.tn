@@ -27,6 +27,7 @@ public class    App extends Application {
 
     @Override
     public void start(Stage stage) throws IOException {
+        com.khademni.utils.MyDataBase.init();
         primaryStage = stage;
         hostServices = getHostServices();
 

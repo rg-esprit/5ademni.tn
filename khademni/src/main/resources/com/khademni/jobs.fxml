@@ -30,11 +30,12 @@
             <VBox styleClass="jobs-filter-card" spacing="16" maxWidth="900" prefWidth="900"
                 style="-fx-padding: 24 24 24 24;">
                 
-                <!-- Search Box -->
+                <!-- Search Box with saved jobs button -->
                 <HBox spacing="12" alignment="CENTER_LEFT">
                     <TextField fx:id="jobSearchField" promptText="Search by job title, company..."
                         styleClass="jobs-search-input" HBox.hgrow="ALWAYS" />
                     <Button text="Search" styleClass="jobs-search-btn" onAction="#performSearch" />
+                    <Button text="Saved Jobs" styleClass="jobs-saved-btn" onAction="#openSavedJobsTab" />
                     <Button text="+ Add Job" styleClass="jobs-add-btn" onAction="#showAddJobDialog" />
                 </HBox>
 
@@ -64,7 +65,7 @@
                     style="-fx-padding: 60 40 60 40; -fx-border-radius: 16; -fx-background-color: white; -fx-effect: dropshadow(gaussian, rgba(0, 0, 0, 0.06), 30, 0, 0, 8);">
                     <Label text="No jobs found" styleClass="empty-state-title" />
                     <Label text="Try adjusting your filters or search criteria"
-                        styleClass="empty-state-subtitle" />
+                        styleClass="jobs-empty-state-subtitle" />
                 </VBox>
             </VBox>
         </VBox>

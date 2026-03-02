@@ -16,25 +16,44 @@ public class JobModel {
     private int userId;
     private String userName;
     private String userEmail;
+    private int progress;
+    private String status;
+    private int acceptedFreelancerId;
 
     public JobModel(int id, String title, String company, String location,
             String description, String category, String salaryRange,
             String jobType, LocalDateTime postedDate, String[] requirements, int userId) {
         this(id, title, company, location, description, category, salaryRange, jobType, postedDate, requirements,
-                userId, "", "");
+                userId, "", "", 0, "OPEN", 0);
     }
 
     public JobModel(int id, String title, String company, String location,
             String description, String category, String salaryRange,
             String jobType, LocalDateTime postedDate, String[] requirements, int userId, String userName) {
         this(id, title, company, location, description, category, salaryRange, jobType, postedDate, requirements,
-                userId, userName, "");
+                userId, userName, "", 0, "OPEN", 0);
     }
 
     public JobModel(int id, String title, String company, String location,
             String description, String category, String salaryRange,
             String jobType, LocalDateTime postedDate, String[] requirements, int userId, String userName,
             String userEmail) {
+        this(id, title, company, location, description, category, salaryRange, jobType, postedDate, requirements,
+                userId, userName, userEmail, 0, "OPEN", 0);
+    }
+
+    public JobModel(int id, String title, String company, String location,
+            String description, String category, String salaryRange,
+            String jobType, LocalDateTime postedDate, String[] requirements, int userId, String userName,
+            String userEmail, int progress, String status) {
+        this(id, title, company, location, description, category, salaryRange, jobType, postedDate, requirements,
+                userId, userName, userEmail, progress, status, 0);
+    }
+
+    public JobModel(int id, String title, String company, String location,
+            String description, String category, String salaryRange,
+            String jobType, LocalDateTime postedDate, String[] requirements, int userId, String userName,
+            String userEmail, int progress, String status, int acceptedFreelancerId) {
         this.id = id;
         this.title = title;
         this.company = company;
@@ -48,6 +67,9 @@ public class JobModel {
         this.userId = userId;
         this.userName = userName;
         this.userEmail = userEmail;
+        this.progress = progress;
+        this.status = status;
+        this.acceptedFreelancerId = acceptedFreelancerId;
     }
 
     public int getId() {
@@ -102,6 +124,14 @@ public class JobModel {
         return userEmail;
     }
 
+    public int getProgress() {
+        return progress;
+    }
+
+    public String getStatus() {
+        return status;
+    }
+
     public void setId(int id) {
         this.id = id;
     }
@@ -152,5 +182,21 @@ public class JobModel {
 
     public void setUserEmail(String userEmail) {
         this.userEmail = userEmail;
+    }
+
+    public void setProgress(int progress) {
+        this.progress = progress;
+    }
+
+    public void setStatus(String status) {
+        this.status = status;
+    }
+
+    public int getAcceptedFreelancerId() {
+        return acceptedFreelancerId;
+    }
+
+    public void setAcceptedFreelancerId(int acceptedFreelancerId) {
+        this.acceptedFreelancerId = acceptedFreelancerId;
     }
 }

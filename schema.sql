@@ -93,3 +93,15 @@ CREATE TABLE IF NOT EXISTS paiments (
     methode        VARCHAR(100)  NOT NULL DEFAULT 'Flouci',
     CONSTRAINT fk_paiments_contrat FOREIGN KEY (contrat_id) REFERENCES contrats(id) ON DELETE CASCADE
 );
+
+-- ------------------------------------------------------------
+-- 7. saved_jobs (user favorites)
+-- ------------------------------------------------------------
+CREATE TABLE IF NOT EXISTS saved_jobs (
+    user_id INT NOT NULL,
+    job_id  INT NOT NULL,
+    saved_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    PRIMARY KEY (user_id, job_id),
+    CONSTRAINT fk_saved_user FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE,
+    CONSTRAINT fk_saved_job  FOREIGN KEY (job_id)  REFERENCES jobs(id)  ON DELETE CASCADE
+);
