@@ -1,0 +1,39 @@
+<?xml version="1.0" encoding="UTF-8"?>
+
+<?import javafx.scene.control.*?>
+<?import javafx.scene.layout.*?>
+
+<ScrollPane xmlns="http://javafx.com/javafx/22"
+            xmlns:fx="http://javafx.com/fxml/1"
+            fx:controller="com.khademni.controller.ArticlePublicationController"
+            fitToWidth="true"
+            styleClass="profile-scroll"
+            stylesheets="@dashboard-article.css">
+
+    <VBox styleClass="profile-root">
+ <fx:include source="../header.fxml"/>
+
+        <VBox alignment="TOP_CENTER"
+              spacing="30"
+              style="-fx-padding: 40 24 60 24;">
+
+            <Label text="Publications"
+                   styleClass="profile-page-title"/>
+
+        
+
+                <Label text="Articles"
+                       styleClass="profile-field-label"/>
+
+            <TilePane fx:id="articlesContainer"
+          hgap="30"
+          vgap="30"
+          prefColumns="1"
+          alignment="CENTER"
+          tileAlignment="CENTER" />
+
+
+           
+        </VBox>
+    </VBox>
+</ScrollPane>

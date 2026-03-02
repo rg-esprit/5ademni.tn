@@ -1,9 +1,11 @@
 package com.khademni.model;
 
 import java.time.LocalDate;
+import java.time.LocalDateTime;
 
 public class UserModel {
     private int id;
+    private int uniqueId; // 4-digit ID
     private String firstName;
     private String lastName;
     private LocalDate dateOfBirth;
@@ -11,13 +13,21 @@ public class UserModel {
     private String email;
     private String password;
     private boolean isAdmin;
-    private String profileImg;
+    private String profileImage;
     private String bio;
+    private String faceEmbedding;
+    private UserRole currentMode;
+    private String cvPath;
+    private LocalDateTime cvUploadedAt;
 
     public UserModel() {
+        this.currentMode = UserRole.CLIENT;
     }
 
-    public UserModel(String firstName, String lastName, LocalDate dateOfBirth, String email, String password) {
+    public UserModel(int uniqueId, String firstName, String lastName, LocalDate dateOfBirth, String email,
+            String password) {
+        this();
+        this.uniqueId = uniqueId;
         this.firstName = firstName;
         this.lastName = lastName;
         this.dateOfBirth = dateOfBirth;
@@ -25,11 +35,13 @@ public class UserModel {
         this.password = password;
         this.balance = 0.0;
         this.isAdmin = false;
-        this.profileImg = "";
+        this.profileImage = "";
         this.bio = "";
     }
 
-    public UserModel(int id, String firstName, String lastName, LocalDate dateOfBirth, double balance, String email, String password, boolean isAdmin, String profileImg, String bio) {
+    public UserModel(int id, String firstName, String lastName, LocalDate dateOfBirth, double balance, String email,
+            String password, boolean isAdmin, String profileImage, String bio) {
+        this();
         this.id = id;
         this.firstName = firstName;
         this.lastName = lastName;
@@ -38,8 +50,20 @@ public class UserModel {
         this.email = email;
         this.password = password;
         this.isAdmin = isAdmin;
-        this.profileImg = profileImg;
+        this.profileImage = profileImage;
         this.bio = bio;
+    }
+
+    public String getFaceEmbedding() {
+        return faceEmbedding;
+    }
+
+    public void setFaceEmbedding(String faceEmbedding) {
+        this.faceEmbedding = faceEmbedding;
+    }
+
+    public boolean hasFaceEnrolled() {
+        return faceEmbedding != null && !faceEmbedding.isBlank();
     }
 
     public int getId() {
@@ -48,6 +72,14 @@ public class UserModel {
 
     public void setId(int id) {
         this.id = id;
+    }
+
+    public int getUniqueId() {
+        return uniqueId;
+    }
+
+    public void setUniqueId(int uniqueId) {
+        this.uniqueId = uniqueId;
     }
 
     public String getFirstName() {
@@ -106,12 +138,12 @@ public class UserModel {
         this.isAdmin = isAdmin;
     }
 
-    public String getProfileImg() {
-        return profileImg;
+    public String getProfileImage() {
+        return profileImage;
     }
 
-    public void setProfileImg(String profileImg) {
-        this.profileImg = profileImg;
+    public void setProfileImage(String profileImage) {
+        this.profileImage = profileImage;
     }
 
     public String getBio() {
@@ -122,8 +154,34 @@ public class UserModel {
         this.bio = bio;
     }
 
+    public UserRole getCurrentMode() {
+        return currentMode;
+    }
+
+    public void setCurrentMode(UserRole currentMode) {
+        this.currentMode = currentMode;
+    }
+
+    public String getCvPath() {
+        return cvPath;
+    }
+
+    public void setCvPath(String cvPath) {
+        this.cvPath = cvPath;
+    }
+
+    public LocalDateTime getCvUploadedAt() {
+        return cvUploadedAt;
+    }
+
+    public void setCvUploadedAt(LocalDateTime cvUploadedAt) {
+        this.cvUploadedAt = cvUploadedAt;
+    }
+
     @Override
     public String toString() {
-        return "UserModel{id=" + id + ", firstName='" + firstName + "', lastName='" + lastName + "', email='" + email + "', balance=" + balance + ", isAdmin=" + isAdmin + ", bio='" + bio + "'}";
+        return "UserModel{id=" + id + ", uniqueId=" + uniqueId + ", firstName='" + firstName + "', lastName='"
+                + lastName + "', email='" + email
+                + "', balance=" + balance + ", isAdmin=" + isAdmin + ", mode=" + currentMode + "}";
     }
 }

@@ -13,7 +13,7 @@ public class GigModel {
     private String image;
     private String status;
     private CategoryModel category;
-
+private double relevanceScore;
     public GigModel() {}
 
     public GigModel(int id, String title, String description, double price, LocalDateTime deliveryTime, String image, String status) {
@@ -25,7 +25,15 @@ public class GigModel {
         this.image = image;
         this.status = status;
     }
+   // Getter pour relevanceScore
+    public double getRelevanceScore() {
+        return relevanceScore;
+    }
 
+    // Setter pour relevanceScore
+    public void setRelevanceScore(double relevanceScore) {
+        this.relevanceScore = relevanceScore;
+    }
     // Getters
     public int getId() {
         return id;

@@ -1,7 +1,5 @@
 package com.khademni.model;
 
-import java.util.Objects;
-
 public class CategoryModel {
     private int id;
     private String name;
@@ -59,17 +57,5 @@ public class CategoryModel {
     public String toString() {
         return name;
     }
-
-    @Override
-    public boolean equals(Object o) {
-        if (this == o) return true;
-        if (!(o instanceof CategoryModel)) return false;
-        CategoryModel that = (CategoryModel) o;
-        return id == that.id;
-    }
-
-    @Override
-    public int hashCode() {
-        return Objects.hash(id);
-    }
 }
+
