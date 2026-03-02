@@ -103,8 +103,10 @@ public class    App extends Application {
             scene.setRoot(wrapWithChatbot(fxmlRoot));
         }
 
-        // keep fullscreen behavior from your branch
-        primaryStage.setFullScreen(true);
+        // Only set full screen if it's not already, to avoid focus issues
+        if (!primaryStage.isFullScreen()) {
+            primaryStage.setFullScreen(true);
+        }
     }
 
     /**
