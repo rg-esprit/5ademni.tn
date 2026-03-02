@@ -1,0 +1,43 @@
+<?xml version="1.0" encoding="UTF-8"?>
+
+<?import javafx.scene.control.*?>
+<?import javafx.scene.layout.*?>
+<?import javafx.scene.shape.*?>
+<?import javafx.geometry.Insets?>
+
+<BorderPane xmlns="http://javafx.com/javafx/17" xmlns:fx="http://javafx.com/fxml/1"
+    fx:controller="com.khademni.controller.JobsManagementController"
+    style="-fx-background-color: #f7f5f8;">
+
+    <!-- Top: Header -->
+    <top>
+        <fx:include source="header.fxml" />
+    </top>
+
+    <!-- Center: Main Content -->
+    <center>
+        <VBox spacing="0" style="-fx-background-color: #f7f5f8;">
+
+            <!-- Title Section -->
+            <VBox alignment="TOP_CENTER" spacing="8" style="-fx-padding: 40 24 32 24;">
+                <Label text="Jobs Management" styleClass="jobs-mgmt-page-title" />
+                <Label text="Create, view, edit, and manage all job listings"
+                    styleClass="jobs-mgmt-page-subtitle" />
+            </VBox>
+
+            <!-- Actions Bar -->
+            <HBox alignment="CENTER_LEFT" spacing="16" style="-fx-padding: 0 24 24 24;">
+                <TextField fx:id="searchJobsField" promptText="Search jobs..." 
+                    styleClass="jobs-mgmt-search-input" HBox.hgrow="ALWAYS" maxWidth="400" />
+                <Button text="🔍 Search" styleClass="jobs-mgmt-search-btn" onAction="#performSearch" />
+                <Region HBox.hgrow="ALWAYS" />
+            </HBox>
+
+            <!-- Jobs Table/List Container -->
+            <ScrollPane fitToWidth="true" style="-fx-padding: 0 24 40 24; -fx-background: transparent; -fx-border-color: transparent;">
+                <VBox fx:id="jobsTableContainer" spacing="12" style="-fx-background-color: transparent;" />
+            </ScrollPane>
+
+        </VBox>
+    </center>
+</BorderPane>

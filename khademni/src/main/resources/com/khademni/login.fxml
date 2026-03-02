@@ -23,7 +23,8 @@
         <VBox alignment="CENTER" spacing="8" style="-fx-padding: 0 0 40 0;">
             <StackPane styleClass="logo-box" prefWidth="40" prefHeight="40" maxWidth="40"
                 maxHeight="40">
-                <FontIcon iconLiteral="fas-book-open" iconSize="24" iconColor="white" styleClass="icon-logo"/>
+                <FontIcon iconLiteral="fas-book-open" iconSize="24" iconColor="white"
+                    styleClass="icon-logo" />
             </StackPane>
             <Label text="5ademni.tn" styleClass="brand-title" />
         </VBox>
@@ -92,6 +93,15 @@
                     onAction="#onSignIn" maxWidth="Infinity" graphicTextGap="8">
                     <graphic>
                         <FontIcon iconLiteral="fas-arrow-right" styleClass="btn-icon-arrow" />
+                    </graphic>
+                </Button>
+
+                <!-- Face ID Login Button -->
+                <Button text="Face ID Login" styleClass="button-secondary"
+                    onAction="#onFaceLogin" maxWidth="Infinity" graphicTextGap="10"
+                    style="-fx-background-color: #1e1e3a; -fx-text-fill: #a0a0d0; -fx-border-color: #3a3a6a; -fx-border-width: 1; -fx-border-radius: 10; -fx-background-radius: 10; -fx-padding: 12 0 12 0; -fx-font-size: 14; -fx-font-weight: 600; -fx-cursor: hand;">
+                    <graphic>
+                        <FontIcon iconLiteral="fas-user-circle" iconColor="#6c63ff" iconSize="16" />
                     </graphic>
                 </Button>
             </VBox>
