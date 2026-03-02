@@ -50,4 +50,26 @@ public class EmailService {
 
         System.out.println("Email envoyé avec succès à " + to);
     }
+
+    /**
+     * Envoie un email pour notifier la création d'un nouvel article.
+     *
+     * @param to      L'adresse email du destinataire.
+     * @param title   Le titre de l'article.
+     * @param content Le contenu de l'article.
+     * @param date    La date de création de l'article.
+     * @throws MessagingException En cas d'erreur lors de l'envoi.
+     */
+    public static void sendArticleCreationEmail(String to, String title, String content, String date)
+            throws MessagingException {
+        String subject = "Nouvel Article Créé : " + title;
+        String body = "Bonjour,\n\n" +
+                "Un nouvel article a été créé avec les détails suivants :\n" +
+                "Titre : " + title + "\n" +
+                "Contenu : " + content + "\n" +
+                "Date de création : " + date + "\n\n" +
+                "Cordialement,\nL'équipe 5ademni.tn";
+
+        sendEmail(to, subject, body);
+    }
 }
