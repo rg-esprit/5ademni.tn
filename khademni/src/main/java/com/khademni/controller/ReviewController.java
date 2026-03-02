@@ -262,23 +262,77 @@ public class ReviewController {
             return;
         }
 
-        if (editingReviewId == -1) {
-            // Creating new review — check for duplicates
+        // Disable button while profanity check runs
+        submitReviewBtn.setDisable(true);
+        String originalBtnText = submitReviewBtn.getText();
+        submitReviewBtn.setText("Checking...");
+
+        final int capturedEditingId = editingReviewId;
+        final int capturedSelectedUserId = selectedUserId;
+        final int capturedRating = selectedRating;
+
+        Thread profanityThread = new Thread(() -> {
+            boolean profane = false;
+            boolean networkError = false;
             try {
-                if (reviewExists(currentUser.getId(), selectedUserId)) {
-                    showError("You have already reviewed this user. You can edit your existing review below.");
+                profane = containsProfanity(reviewText);
+            } catch (Exception e) {
+                e.printStackTrace();
+                networkError = true; // allow submission if API is unreachable
+            }
+
+            final boolean isProfane = profane;
+            final boolean isNetworkError = networkError;
+            Platform.runLater(() -> {
+                submitReviewBtn.setDisable(false);
+                submitReviewBtn.setText(originalBtnText);
+
+                if (isProfane) {
+                    showError("Your review contains inappropriate language. Please revise it before submitting.");
                     return;
                 }
-            } catch (SQLException e) {
-                showError("Database error: " + e.getMessage());
-                e.printStackTrace();
-                return;
-            }
-            createReview(currentUser.getId(), selectedUserId, selectedRating, reviewText);
-        } else {
-            // Updating existing review
-            updateReview(editingReviewId, selectedRating, reviewText);
-        }
+
+                if (capturedEditingId == -1) {
+                    // Creating new review — check for duplicates
+                    try {
+                        if (reviewExists(currentUser.getId(), capturedSelectedUserId)) {
+                            showError("You have already reviewed this user. You can edit your existing review below.");
+                            return;
+                        }
+                    } catch (SQLException e) {
+                        showError("Database error: " + e.getMessage());
+                        e.printStackTrace();
+                        return;
+                    }
+                    createReview(currentUser.getId(), capturedSelectedUserId, capturedRating, reviewText);
+                } else {
+                    // Updating existing review
+                    updateReview(capturedEditingId, capturedRating, reviewText);
+                }
+            });
+        }, "profanity-check");
+        profanityThread.setDaemon(true);
+        profanityThread.start();
+    }
+
+    /**
+     * Calls the vector.profanity.dev API to check if the given text contains profanity.
+     * Throws an exception if the network request fails (caller treats it as a pass).
+     */
+    private boolean containsProfanity(String text) throws Exception {
+        JsonObject body = new JsonObject();
+        body.addProperty("message", text);
+
+        HttpClient client = HttpClient.newHttpClient();
+        HttpRequest request = HttpRequest.newBuilder()
+            .uri(URI.create("https://vector.profanity.dev"))
+            .header("Content-Type", "application/json")
+            .POST(HttpRequest.BodyPublishers.ofString(body.toString()))
+            .build();
+
+        HttpResponse<String> response = client.send(request, HttpResponse.BodyHandlers.ofString());
+        JsonObject json = JsonParser.parseString(response.body()).getAsJsonObject();
+        return json.has("isProfanity") && json.get("isProfanity").getAsBoolean();
     }
 
     private void createReview(int clientId, int freelancerId, int rating, String reviewText) {
