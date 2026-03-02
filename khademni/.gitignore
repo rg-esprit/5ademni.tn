@@ -63,6 +63,3 @@ Thumbs.db
 # Temporary files
 *.tmp
 *.temp
-
-# API Keys & Configuration
-src/main/resources/openai.properties

@@ -1,0 +1,177 @@
+/* Global Font & Reset */
+.root {
+    -fx-font-family: "Inter", "Segoe UI", "Helvetica Neue", Arial;
+    -fx-background-color: #f8f7fa;
+}
+
+/* --- HERO HEADER --- */
+.hero-header {
+    -fx-background-color: linear-gradient(to right, #6c0df2, #8b5cf6);
+    -fx-padding: 30 40 30 40;
+    -fx-effect: dropshadow(gaussian, rgba(108, 13, 242, 0.2), 20, 0, 0, 4);
+}
+
+.hero-title {
+    -fx-font-size: 28px;
+    -fx-font-weight: 800;
+    -fx-text-fill: white;
+}
+
+.hero-subtitle {
+    -fx-font-size: 14px;
+    -fx-font-weight: 500;
+    -fx-text-fill: rgba(255, 255, 255, 0.8);
+}
+
+/* --- STATS CARD (Top Right) --- */
+.stats-card {
+    -fx-background-color: rgba(255, 255, 255, 0.15);
+    -fx-background-radius: 12;
+    -fx-padding: 10 20;
+    -fx-border-color: rgba(255, 255, 255, 0.2);
+    -fx-border-radius: 12;
+}
+
+.stats-count {
+    -fx-font-size: 24px;
+    -fx-font-weight: 800;
+    -fx-text-fill: white;
+}
+
+.stats-label {
+    -fx-font-size: 11px;
+    -fx-text-fill: rgba(255, 255, 255, 0.8);
+    -fx-font-weight: 600;
+    -fx-text-transform: uppercase;
+}
+
+/* --- FILTERS --- */
+.filter-box {
+    -fx-background-color: white;
+    -fx-background-radius: 30;
+    -fx-padding: 8 20;
+    -fx-effect: dropshadow(gaussian, rgba(0,0,0,0.05), 10, 0, 0, 2);
+}
+
+.filter-combo {
+    -fx-background-color: transparent;
+    -fx-border-width: 0;
+    -fx-font-size: 13px;
+    -fx-font-weight: 600;
+    -fx-text-fill: #4b5563;
+}
+
+/* --- APPLICATION CARD --- */
+.app-card {
+    -fx-background-color: white;
+    -fx-background-radius: 16;
+    -fx-padding: 20;
+    -fx-effect: dropshadow(gaussian, rgba(0, 0, 0, 0.04), 15, 0, 0, 4);
+    -fx-border-color: transparent;
+    -fx-border-width: 1;
+    -fx-cursor: hand;
+}
+
+.app-card:hover {
+    -fx-effect: dropshadow(gaussian, rgba(108, 13, 242, 0.15), 25, 0, 0, 8);
+    -fx-translate-y: -4; 
+    /* JavaFX CSS animates translate via code usually, but this hints intent */
+}
+
+/* Avatar Circle */
+.avatar-circle {
+    -fx-fill: #f3e8ff;
+    -fx-stroke: #d8b4fe;
+    -fx-stroke-width: 1;
+}
+
+.avatar-text {
+    -fx-font-size: 16px;
+    -fx-font-weight: 800;
+    -fx-fill: #6c0df2;
+}
+
+/* Content */
+.applicant-name {
+    -fx-font-size: 16px;
+    -fx-font-weight: 700;
+    -fx-text-fill: #111827;
+}
+
+.applicant-email {
+    -fx-font-size: 12px;
+    -fx-text-fill: #6b7280;
+}
+
+.app-title {
+    -fx-font-size: 14px;
+    -fx-font-weight: 600;
+    -fx-text-fill: #4b5563;
+}
+
+.app-desc-snippet {
+    -fx-font-size: 13px;
+    -fx-text-fill: #9ca3af;
+    -fx-padding: 4 0 0 0;
+}
+
+/* --- STATUS BADGES --- */
+.status-badge {
+    -fx-padding: 6 12;
+    -fx-background-radius: 20;
+    -fx-font-size: 11px;
+    -fx-font-weight: 700;
+    -fx-text-fill: white;
+}
+
+.status-pending {
+    -fx-background-color: #f59e0b; /* Amber */
+    -fx-effect: dropshadow(gaussian, rgba(245, 158, 11, 0.4), 8, 0, 0, 2);
+}
+
+.status-accepted {
+    -fx-background-color: #10b981; /* Emerald */
+    -fx-effect: dropshadow(gaussian, rgba(16, 185, 129, 0.4), 8, 0, 0, 2);
+}
+
+.status-rejected {
+    -fx-background-color: #ef4444; /* Red */
+    -fx-effect: dropshadow(gaussian, rgba(239, 68, 68, 0.4), 8, 0, 0, 2);
+}
+
+/* --- BUTTONS --- */
+.action-btn {
+    -fx-cursor: hand;
+    -fx-background-radius: 8;
+    -fx-padding: 8 12;
+    -fx-font-weight: 600;
+    -fx-font-size: 12px;
+}
+
+.btn-accept {
+    -fx-background-color: #d1fae5;
+    -fx-text-fill: #065f46;
+}
+.btn-accept:hover { -fx-background-color: #a7f3d0; }
+
+.btn-reject {
+    -fx-background-color: #fee2e2;
+    -fx-text-fill: #991b1b;
+}
+.btn-reject:hover { -fx-background-color: #fecaca; }
+
+.btn-cv {
+    -fx-background-color: #f3f4f6;
+    -fx-text-fill: #374151;
+    -fx-border-color: #e5e7eb;
+    -fx-border-radius: 8;
+}
+.btn-cv:hover { -fx-background-color: #e5e7eb; }
+
+/* ScrollPane transparent background */
+.scroll-pane {
+    -fx-background-color: transparent;
+}
+.scroll-pane > .viewport {
+    -fx-background-color: transparent;
+}

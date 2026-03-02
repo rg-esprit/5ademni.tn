@@ -1,0 +1,72 @@
+<?xml version="1.0" encoding="UTF-8"?>
+
+<?import javafx.geometry.Insets?>
+<?import javafx.scene.control.Button?>
+<?import javafx.scene.control.ComboBox?>
+<?import javafx.scene.control.Label?>
+<?import javafx.scene.control.TableColumn?>
+<?import javafx.scene.control.TableView?>
+<?import javafx.scene.layout.BorderPane?>
+<?import javafx.scene.layout.HBox?>
+<?import javafx.scene.layout.VBox?>
+<?import javafx.scene.layout.StackPane?>
+<?import javafx.scene.control.ScrollPane?>
+
+<BorderPane xmlns="http://javafx.com/javafx/22" xmlns:fx="http://javafx.com/fxml/1" fx:controller="com.khademni.controller.JobApplicationController"
+    stylesheets="@job_applications.css" styleClass="root">
+
+    <!-- Top Header -->
+    <top>
+        <HBox styleClass="hero-header" alignment="CENTER_LEFT" spacing="20">
+            <VBox spacing="4" HBox.hgrow="ALWAYS">
+                <Label text="Job Applications" styleClass="hero-title" />
+                <Label fx:id="jobTitleLabel" styleClass="hero-subtitle" />
+            </VBox>
+            
+            <!-- Stats -->
+            <VBox styleClass="stats-card" alignment="CENTER">
+                <Label fx:id="totalApplicantsLabel" text="0" styleClass="stats-count" />
+                <Label text="Applicants" styleClass="stats-label" />
+            </VBox>
+
+            <!-- Filter -->
+            <HBox styleClass="filter-box" alignment="CENTER" spacing="8">
+                <Label fx:id="applicationsCountLabel" text="All applications" style="-fx-text-fill: #374151; -fx-font-size: 12px; -fx-font-weight: 600;" />
+                <ComboBox fx:id="statusFilterCombo" promptText="Filter Status" styleClass="filter-combo" />
+            </HBox>
+        </HBox>
+    </top>
+
+    <!-- Center - Content Area -->
+    <center>
+        <StackPane style="-fx-padding: 20;">
+            <!-- Admin View: Scrollable Cards -->
+            <ScrollPane fx:id="adminScrollPane" fitToWidth="true" styleClass="scroll-pane" visible="true">
+                <VBox fx:id="adminCardsContainer" spacing="16" style="-fx-padding: 0 10 20 10; -fx-background-color: transparent;" />
+            </ScrollPane>
+
+            <!-- Freelancer View: Job Details + Application Status/Form -->
+            <ScrollPane fx:id="freelancerView" visible="false" fitToWidth="true" styleClass="scroll-pane">
+                <VBox spacing="20" style="-fx-background-color: transparent; -fx-padding: 0 10 20 10;">
+                    
+                    <!-- Job Description Section -->
+                    <VBox styleClass="app-card">
+                         <Label text="Job Details" style="-fx-font-size: 18; -fx-font-weight: bold; -fx-text-fill: #111827; -fx-padding: 0 0 15 0;" />
+                         <Label fx:id="jobDescriptionLabel" wrapText="true" style="-fx-font-size: 14; -fx-text-fill: #4b5563; -fx-line-spacing: 5;" />
+                    </VBox>
+
+                    <!-- Application Section -->
+                     <VBox fx:id="applicationFormContainer" spacing="15" />
+
+                </VBox>
+            </ScrollPane>
+        </StackPane>
+    </center>
+
+    <!-- Bottom - Buttons (Hidden mostly, logic handled in cards) -->
+    <!-- We keep adminButtonsBox but make it hidden by default or repurpose if needed -->
+    <bottom>
+        <HBox fx:id="adminButtonsBox" visible="false" managed="false" />
+    </bottom>
+
+</BorderPane>

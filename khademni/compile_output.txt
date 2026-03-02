@@ -1,0 +1,28 @@
+﻿[INFO] Scanning for projects...
+[INFO] 
+[INFO] -----------------------< com.khademni:khademni >------------------------
+[INFO] Building khademni 1.0-SNAPSHOT
+[INFO]   from pom.xml
+[INFO] --------------------------------[ jar ]---------------------------------
+[WARNING] 6 problems were encountered while building the effective model for org.openjfx:javafx-controls:jar:win:22 during dependency collection step for project (use -X to see details)
+[INFO] 
+[INFO] --- clean:3.2.0:clean (default-clean) @ khademni ---
+[INFO] Deleting C:\Users\dakhl\Desktop\5ademni.tn-main1\5ademni.tn-main\5ademni.tn-main\khademni\target
+[INFO] 
+[INFO] --- resources:3.3.1:resources (default-resources) @ khademni ---
+[INFO] Copying 39 resources from src\main\resources to target\classes
+[INFO] 
+[INFO] --- compiler:3.11.0:compile (default-compile) @ khademni ---
+[WARNING] ******************************************************************************************************************************************************************
+[WARNING] * Required filename-based automodules detected: [stripe-java-24.16.0.jar, bcrypt-0.10.2.jar]. Please don't publish this project to a public artifact repository! *
+[WARNING] ******************************************************************************************************************************************************************
+[INFO] Changes detected - recompiling the module! :source
+[INFO] Compiling 93 source files with javac [debug release 17 module-path] to target\classes
+[INFO] /C:/Users/dakhl/Desktop/5ademni.tn-main1/5ademni.tn-main/5ademni.tn-main/khademni/src/main/java/com/khademni/controller/JobsController.java: C:\Users\dakhl\Desktop\5ademni.tn-main1\5ademni.tn-main\5ademni.tn-main\khademni\src\main\java\com\khademni\controller\JobsController.java uses unchecked or unsafe operations.
+[INFO] /C:/Users/dakhl/Desktop/5ademni.tn-main1/5ademni.tn-main/5ademni.tn-main/khademni/src/main/java/com/khademni/controller/JobsController.java: Recompile with -Xlint:unchecked for details.
+[INFO] ------------------------------------------------------------------------
+[INFO] BUILD SUCCESS
+[INFO] ------------------------------------------------------------------------
+[INFO] Total time:  6.467 s
+[INFO] Finished at: 2026-02-24T19:13:56+01:00
+[INFO] ------------------------------------------------------------------------
