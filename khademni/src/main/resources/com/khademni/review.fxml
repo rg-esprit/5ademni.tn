@@ -77,6 +77,21 @@
                 <!-- Review Text -->
                 <VBox spacing="8">
                     <Label text="Your Review" styleClass="review-field-label" />
+
+                    <!-- AI Assist Row -->
+                    <HBox spacing="10" alignment="CENTER_LEFT" styleClass="ai-assist-row">
+                        <FontIcon iconLiteral="fas-magic" iconColor="#6c0df2" iconSize="16" />
+                        <TextField fx:id="aiPromptField"
+                            promptText="Describe what to say and AI will write it..."
+                            styleClass="ai-prompt-input" HBox.hgrow="ALWAYS" />
+                        <Button fx:id="aiGenerateBtn" text="Generate"
+                            onAction="#generateWithAI" styleClass="ai-generate-btn">
+                            <graphic>
+                                <FontIcon iconLiteral="fas-robot" iconColor="white" iconSize="14" />
+                            </graphic>
+                        </Button>
+                    </HBox>
+
                     <TextArea fx:id="txtReviewText" promptText="Share your experience..."
                         styleClass="review-textarea" prefRowCount="4" wrapText="true" />
                 </VBox>
