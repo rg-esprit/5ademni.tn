@@ -40,7 +40,7 @@ public class ChatWebSocketClient {
     private void connect() {
         try {
             HttpClient client = HttpClient.newHttpClient();
-            String wsUrl = "ws://localhost:8081/ws/chat/" + conversationId;
+            String wsUrl = "ws://localhost:8082/ws/chat/" + conversationId;
 
             client.newWebSocketBuilder()
                     .buildAsync(URI.create(wsUrl), new WebSocketListener())
@@ -71,9 +71,28 @@ public class ChatWebSocketClient {
         }
     }
 
+    // ✅ NOUVELLE MÉTHODE: Envoyer un message JSON brut (pour les requêtes spéciales)
+    public void send(String jsonMessage) {
+        if (!connected || webSocket == null) {
+            System.err.println("❌ WebSocket non connecté, impossible d'envoyer: " + jsonMessage);
+            return;
+        }
+
+        try {
+            webSocket.sendText(jsonMessage, true);
+            System.out.println("📤 Message envoyé: " + jsonMessage);
+        } catch (Exception e) {
+            System.err.println("❌ Erreur envoi message: " + e.getMessage());
+            e.printStackTrace();
+            if (listener != null) {
+                Platform.runLater(() -> listener.onError("Erreur envoi: " + e.getMessage()));
+            }
+        }
+    }
+
     public void sendMessage(String contenu) {
         if (!connected || webSocket == null) {
-            System.err.println("WebSocket non connecté");
+            System.err.println("❌ WebSocket non connecté");
             return;
         }
 
@@ -83,15 +102,24 @@ public class ChatWebSocketClient {
                     "\",\"clientId\":" + clientId + ",\"freelanceId\":" + freelanceId + "}";
 
             webSocket.sendText(message, true);
+            System.out.println("📤 Message envoyé: " + message);
 
         } catch (Exception e) {
             e.printStackTrace();
+            if (listener != null) {
+                Platform.runLater(() -> listener.onError("Erreur envoi message: " + e.getMessage()));
+            }
         }
     }
 
     public void close() {
-        if (webSocket != null) {
-            webSocket.sendClose(WebSocket.NORMAL_CLOSURE, "Fermeture normale");
+        if (webSocket != null && connected) {
+            try {
+                webSocket.sendClose(WebSocket.NORMAL_CLOSURE, "Fermeture normale");
+                System.out.println("🔌 WebSocket fermé normalement");
+            } catch (Exception e) {
+                System.err.println("❌ Erreur fermeture WebSocket: " + e.getMessage());
+            }
         }
         connected = false;
         if (listener != null) {
@@ -121,19 +149,13 @@ public class ChatWebSocketClient {
 
                 // Vérifier si c'est un message système
                 if (json.has("type") && "SYSTEM".equals(json.get("type").asText())) {
-                    // C'est un message système, on l'ignore ou on le log
                     System.out.println("🔔 Message système: " +
                             (json.has("content") ? json.get("content").asText() : ""));
+                }
 
-                    // Optionnel: notifier le listener
-                    if (listener != null) {
-                        Platform.runLater(() -> listener.onMessage(json));
-                    }
-                } else {
-                    // C'est un message normal de conversation
-                    if (listener != null) {
-                        Platform.runLater(() -> listener.onMessage(json));
-                    }
+                // Notifier le listener pour tous les types de messages
+                if (listener != null) {
+                    Platform.runLater(() -> listener.onMessage(json));
                 }
 
             } catch (Exception e) {
@@ -159,7 +181,7 @@ public class ChatWebSocketClient {
 
         @Override
         public CompletionStage<?> onClose(WebSocket webSocket, int statusCode, String reason) {
-            System.out.println("🔴 WebSocket fermé: " + reason);
+            System.out.println("🔴 WebSocket fermé: " + reason + " (code: " + statusCode + ")");
             connected = false;
 
             if (listener != null) {

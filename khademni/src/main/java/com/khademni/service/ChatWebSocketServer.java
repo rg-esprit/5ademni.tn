@@ -3,135 +3,109 @@ package com.khademni.service;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.node.ObjectNode;
-import com.khademni.utils.MyDataBase;
-
 import jakarta.websocket.*;
 import jakarta.websocket.server.PathParam;
 import jakarta.websocket.server.ServerEndpoint;
+
 import java.io.IOException;
-import java.sql.*;
 import java.time.LocalDateTime;
+import java.time.format.DateTimeFormatter;
 import java.util.concurrent.ConcurrentHashMap;
 
-@ServerEndpoint("/chat/{conversationId}")
+@ServerEndpoint("/ws/chat/{conversationId}")
 public class ChatWebSocketServer {
 
-    // Stocke les sessions par conversation
-    private static ConcurrentHashMap<String, ConcurrentHashMap<Session, Boolean>> rooms
-            = new ConcurrentHashMap<>();
-
-    private ObjectMapper mapper = new ObjectMapper();
+    private static ConcurrentHashMap<String, Session> sessions = new ConcurrentHashMap<>();
+    private static ObjectMapper mapper = new ObjectMapper();
 
     @OnOpen
-    public void onOpen(Session session, @PathParam("conversationId") String convId) {
-        System.out.println("🔵 Nouvelle connexion - Conversation: " + convId);
+    public void onOpen(Session session, @PathParam("conversationId") String conversationId) {
+        sessions.put(conversationId + "_" + session.getId(), session);
+        System.out.println("🔵 Nouvelle connexion - Conversation: " + conversationId);
 
-        // Ajouter la session à la room
-        rooms.putIfAbsent(convId, new ConcurrentHashMap<>());
-        rooms.get(convId).put(session, true);
-
-        // Configurer la session
-        session.setMaxIdleTimeout(0); // Pas de timeout
-
-        // Envoyer confirmation
-        sendToClient(session, "SYSTEM", "Connecté à la conversation " + convId);
-    }
-
-    @OnMessage
-    public void onMessage(String message, Session session, @PathParam("conversationId") String convId) {
-        System.out.println("📩 Message reçu: " + message);
-
+        // Envoyer un message de confirmation
         try {
-            // Parser le message JSON
-            JsonNode json = mapper.readTree(message);
-            String contenu = json.get("contenu").asText();
-            String expediteur = json.get("expediteur").asText();
-            int clientId = json.get("clientId").asInt();
-            int freelanceId = json.get("freelanceId").asInt();
-
-            // Sauvegarder dans MySQL
-            int messageId = saveToDatabase(convId, contenu, expediteur, clientId, freelanceId);
-
-            // Préparer la réponse
-            ObjectNode response = mapper.createObjectNode();
-            response.put("id", messageId);
-            response.put("contenu", contenu);
-            response.put("expediteur", expediteur);
-            response.put("date", LocalDateTime.now().toString());
-            response.put("type", "TEXTE");
-
-            String responseStr = mapper.writeValueAsString(response);
-
-            // Diffuser à tous les clients de la conversation
-            broadcastToRoom(convId, session, responseStr);
-
-        } catch (Exception e) {
-            e.printStackTrace();
-            sendToClient(session, "SYSTEM", "Erreur: " + e.getMessage());
-        }
-    }
-
-    private int saveToDatabase(String convId, String contenu, String expediteur,
-                               int clientId, int freelanceId) throws SQLException {
-        String sql = "INSERT INTO message (contenu, expediteur, conversation_id, date_envoie, type_message) " +
-                "VALUES (?, ?, ?, ?, ?)";
-
-        try (Connection conn = MyDataBase.getConnection();
-             PreparedStatement ps = conn.prepareStatement(sql, Statement.RETURN_GENERATED_KEYS)) {
-
-            ps.setString(1, contenu);
-            ps.setString(2, expediteur);
-            ps.setInt(3, Integer.parseInt(convId));
-            ps.setTimestamp(4, Timestamp.valueOf(LocalDateTime.now()));
-            ps.setString(5, "TEXTE");
-
-            ps.executeUpdate();
-
-            ResultSet rs = ps.getGeneratedKeys();
-            if (rs.next()) {
-                return rs.getInt(1);
-            }
-        }
-        return -1;
-    }
-
-    private void broadcastToRoom(String convId, Session sender, String message) {
-        ConcurrentHashMap<Session, Boolean> room = rooms.get(convId);
-        if (room != null) {
-            for (Session s : room.keySet()) {
-                if (s.isOpen() && !s.equals(sender)) {
-                    try {
-                        s.getBasicRemote().sendText(message);
-                    } catch (IOException e) {
-                        System.err.println("Erreur broadcast: " + e.getMessage());
-                    }
-                }
-            }
-        }
-    }
-
-    private void sendToClient(Session session, String type, String content) {
-        try {
-            ObjectNode msg = mapper.createObjectNode();
-            msg.put("type", type);
-            msg.put("content", content);
-            session.getBasicRemote().sendText(mapper.writeValueAsString(msg));
+            ObjectNode welcomeMsg = mapper.createObjectNode();
+            welcomeMsg.put("type", "SYSTEM");
+            welcomeMsg.put("content", "Connecté à la conversation " + conversationId);
+            session.getBasicRemote().sendText(welcomeMsg.toString());
         } catch (IOException e) {
             e.printStackTrace();
         }
     }
 
-    @OnClose
-    public void onClose(Session session, @PathParam("conversationId") String convId) {
-        System.out.println("🔴 Connexion fermée - Conversation: " + convId);
+    @OnMessage
+    public void onMessage(String message, Session session) {
+        try {
+            JsonNode json = mapper.readTree(message);
 
-        ConcurrentHashMap<Session, Boolean> room = rooms.get(convId);
-        if (room != null) {
-            room.remove(session);
-            if (room.isEmpty()) {
-                rooms.remove(convId);
+            // Vérifier si c'est une requête GET_MISSED_CALLS
+            if (json.has("type") && "GET_MISSED_CALLS".equals(json.get("type").asText())) {
+                // Traiter la requête d'appels manqués
+                int userId = json.get("userId").asInt();
+                System.out.println("📞 Requête d'appels manqués pour l'utilisateur: " + userId);
+
+                // Répondre avec les appels manqués (à implémenter selon votre logique)
+                ObjectNode response = mapper.createObjectNode();
+                response.put("type", "MISSED_CALLS_RESPONSE");
+                response.put("userId", userId);
+                response.put("timestamp", LocalDateTime.now().format(DateTimeFormatter.ISO_LOCAL_DATE_TIME));
+                session.getBasicRemote().sendText(response.toString());
+                return;
+            }
+
+            // Vérifier si c'est un message de chat normal
+            if (json.has("contenu") && json.has("expediteur")) {
+                String contenu = json.get("contenu").asText();
+                String expediteur = json.get("expediteur").asText();
+
+                ObjectNode chatMsg = mapper.createObjectNode();
+                chatMsg.put("id", System.currentTimeMillis());
+                chatMsg.put("contenu", contenu);
+                chatMsg.put("expediteur", expediteur);
+                chatMsg.put("date", LocalDateTime.now().toString());
+
+                // Diffuser à toutes les sessions de la même conversation
+                String targetConversationId = null;
+                for (String key : sessions.keySet()) {
+                    if (key.startsWith(targetConversationId)) {
+                        Session s = sessions.get(key);
+                        if (s.isOpen()) {
+                            s.getBasicRemote().sendText(chatMsg.toString());
+                        }
+                    }
+                }
+            }
+
+        } catch (Exception e) {
+            System.err.println("❌ Erreur traitement message: " + e.getMessage());
+            e.printStackTrace();
+
+            // Envoyer une erreur au client
+            try {
+                ObjectNode errorMsg = mapper.createObjectNode();
+                errorMsg.put("type", "ERROR");
+                errorMsg.put("message", "Erreur de traitement: " + e.getMessage());
+                session.getBasicRemote().sendText(errorMsg.toString());
+            } catch (IOException ex) {
+                ex.printStackTrace();
             }
         }
+    }
+
+    @OnClose
+    public void onClose(Session session, @PathParam("conversationId") String conversationId) {
+        String keyToRemove = null;
+        for (String key : sessions.keySet()) {
+            if (key.startsWith(conversationId) && sessions.get(key).equals(session)) {
+                keyToRemove = key;
+                break;
+            }
+        }
+        if (keyToRemove != null) {
+            sessions.remove(keyToRemove);
+        }
+        System.out.println("🔴 Déconnexion - Conversation: " + conversationId);
     }
 
     @OnError

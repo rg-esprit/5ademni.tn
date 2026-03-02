@@ -3,6 +3,9 @@ package com.khademni.controller;
 import com.khademni.App;
 import com.khademni.model.MessageModel;
 import com.khademni.model.UserModel;
+import com.khademni.service.CallClient;
+import com.khademni.service.CallWindow;
+import com.khademni.service.GoogleCalendarService;
 import com.khademni.utils.MyDataBase;
 import com.khademni.service.IASummaryService;
 import com.khademni.service.ChatWebSocketClient;
@@ -20,10 +23,12 @@ import javafx.scene.Parent;
 import javafx.scene.Scene;
 import javafx.scene.control.*;
 import javafx.scene.control.Button;
+import javafx.scene.control.Dialog;
 import javafx.scene.control.Label;
 import javafx.scene.control.MenuItem;
 import javafx.scene.control.ScrollPane;
 import javafx.scene.control.TextArea;
+import javafx.scene.control.TextField;
 import javafx.scene.image.Image;
 import javafx.scene.image.ImageView;
 import javafx.scene.input.KeyCode;
@@ -49,10 +54,13 @@ import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.StandardCopyOption;
 import java.sql.*;
+import java.time.LocalDate;
 import java.time.LocalDateTime;
+import java.time.LocalTime;
 import java.time.format.DateTimeFormatter;
 import java.util.*;
 import java.util.List;
+import java.util.concurrent.atomic.AtomicBoolean;
 
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
@@ -61,10 +69,12 @@ public class MessageController {
 
     @FXML private VBox mainContainer;
     @FXML private Label lblConversationInfo;
+    @FXML private Label lblConversationTitle;
     @FXML private Button btnRetour;
     @FXML private Button btnVideoCall;
     @FXML private Button btnAudioCall;
     @FXML private Button btnInfo;
+    @FXML private Button btnReunion;
     @FXML private ListView<HBox> listMessages;
     @FXML private TextArea txtContenu;
     @FXML private Button btnEnvoyer;
@@ -72,9 +82,9 @@ public class MessageController {
     @FXML private Button btnPieceJointe;
     @FXML private Button btnPhoto;
     @FXML private Button btnMicro;
-    @FXML private Button btnReunion;
+    @FXML private Button btnSummary;
     @FXML private Label errorLabel;
-    @FXML private VBox typingIndicator;
+    @FXML private HBox typingIndicator;
     @FXML private Label lblTyping;
     @FXML private ScrollPane emojiPicker;
     @FXML private VBox emojiContainer;
@@ -83,7 +93,10 @@ public class MessageController {
     @FXML private Label filePreviewName;
     @FXML private Button filePreviewCancel;
     @FXML private ProgressBar uploadProgress;
-    @FXML private Button btnSummary;
+    @FXML private HBox contractBadge;
+    @FXML private Label lblContractStatus;
+    @FXML private Button btnCreateContract;
+    @FXML private Button btnProcessPayment;
 
     private Connection connection;
     private ObservableList<HBox> messageDisplayList = FXCollections.observableArrayList();
@@ -111,6 +124,12 @@ public class MessageController {
     private MediaPlayer ringtonePlayer;
     private Stage callStage;
     private boolean isInCall = false;
+    private boolean isRinging = false;
+    private AtomicBoolean callTimeoutActive = new AtomicBoolean(false);
+    private Thread callTimeoutThread;
+
+    // Client d'appel
+    private CallClient callClient;
 
     // WebSocket
     private ChatWebSocketClient webSocketClient;
@@ -130,8 +149,56 @@ public class MessageController {
             new File(UPLOAD_DIR + "images/").mkdirs();
             new File(UPLOAD_DIR + "files/").mkdirs();
             new File(UPLOAD_DIR + "audio/").mkdirs();
+
+            // Créer la table missed_calls si elle n'existe pas
+            createMissedCallsTable();
+
+            // Créer la table voice_messages si elle n'existe pas
+            createVoiceMessagesTable();
+
         } catch (SQLException e) {
             e.printStackTrace();
+        }
+    }
+
+    private void createMissedCallsTable() {
+        try {
+            String sql = "CREATE TABLE IF NOT EXISTS missed_calls (" +
+                    "id INT PRIMARY KEY AUTO_INCREMENT, " +
+                    "caller_id INT NOT NULL, " +
+                    "user_id INT NOT NULL, " +
+                    "call_time TIMESTAMP DEFAULT CURRENT_TIMESTAMP, " +
+                    "seen BOOLEAN DEFAULT FALSE, " +
+                    "FOREIGN KEY (caller_id) REFERENCES users(id), " +
+                    "FOREIGN KEY (user_id) REFERENCES users(id))";
+            Statement stmt = connection.createStatement();
+            stmt.execute(sql);
+            System.out.println("✅ Table missed_calls vérifiée/créée");
+        } catch (SQLException e) {
+            System.err.println("❌ Erreur création table missed_calls: " + e.getMessage());
+        }
+    }
+
+    private void createVoiceMessagesTable() {
+        try {
+            String sql = "CREATE TABLE IF NOT EXISTS voice_messages (" +
+                    "id INT PRIMARY KEY AUTO_INCREMENT, " +
+                    "sender_id INT NOT NULL, " +
+                    "receiver_id INT NOT NULL, " +
+                    "audio_data LONGTEXT, " +
+                    "duration VARCHAR(10), " +
+                    "conversation_id INT, " +
+                    "created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP, " +
+                    "played BOOLEAN DEFAULT FALSE, " +
+                    "FOREIGN KEY (sender_id) REFERENCES users(id), " +
+                    "FOREIGN KEY (receiver_id) REFERENCES users(id), " +
+                    "FOREIGN KEY (conversation_id) REFERENCES conversation(id)" +
+                    ")";
+            Statement stmt = connection.createStatement();
+            stmt.execute(sql);
+            System.out.println("✅ Table voice_messages vérifiée/créée");
+        } catch (SQLException e) {
+            System.err.println("❌ Erreur création table voice_messages: " + e.getMessage());
         }
     }
 
@@ -156,22 +223,530 @@ public class MessageController {
         setupFilePreview();
         setupKeyboardShortcuts();
 
-        btnVideoCall.setOnAction(e -> startVideoCall());
-        btnAudioCall.setOnAction(e -> startAudioCall());
-        btnInfo.setOnAction(e -> showConversationInfo());
-        btnEmoji.setOnAction(e -> handleEmojiPicker());
-        btnPieceJointe.setOnAction(e -> handleFileAttachment());
-        btnPhoto.setOnAction(e -> handlePhotoAttachment());
-        btnMicro.setOnAction(e -> handleVoiceMessage());
-        btnReunion.setOnAction(e -> scheduleMeeting());
-        btnSummary.setOnAction(e -> generateChatSummary());
+        // Initialisation des boutons
+        if (btnVideoCall != null) btnVideoCall.setOnAction(e -> startVideoCall());
+        if (btnAudioCall != null) btnAudioCall.setOnAction(e -> startAudioCall());
+        if (btnInfo != null) btnInfo.setOnAction(e -> showConversationInfo());
+        if (btnReunion != null) btnReunion.setOnAction(e -> scheduleMeeting());
+        if (btnEmoji != null) btnEmoji.setOnAction(e -> handleEmojiPicker());
+        if (btnPieceJointe != null) btnPieceJointe.setOnAction(e -> handleFileAttachment());
+        if (btnPhoto != null) btnPhoto.setOnAction(e -> handlePhotoAttachment());
+        if (btnMicro != null) btnMicro.setOnAction(e -> handleVoiceMessage());
+        if (btnSummary != null) btnSummary.setOnAction(e -> generateChatSummary());
+        if (btnCreateContract != null) btnCreateContract.setOnAction(e -> showInfo("Création de contrat"));
+        if (btnProcessPayment != null) btnProcessPayment.setOnAction(e -> showInfo("Paiement"));
+
+        // Initialiser le client d'appel
+        initCallClient();
 
         disableButtons(true);
 
-        System.out.println("MessageController initialisé");
+        System.out.println("✅ MessageController initialisé");
     }
 
-    // ==================== MÉTHODES D'APPEL AMÉLIORÉES ====================
+    private void showInfo(String message) {
+        showSuccess(message);
+    }
+
+    // ==================== INITIALISATION CLIENT D'APPEL ====================
+
+    private void initCallClient() {
+        if (connectedUser == null) return;
+
+        callClient = new CallClient(String.valueOf(connectedUser.getId()), new CallClient.CallListener() {
+            @Override
+            public void onIncomingCall(String callerId) {
+                Platform.runLater(() -> {
+                    String callerName = getUserNameById(Integer.parseInt(callerId));
+                    showIncomingCallNotification(callerName, callerId);
+                });
+            }
+
+            @Override
+            public void onCallAccepted() {
+                Platform.runLater(() -> {
+                    showSuccess("✅ Appel accepté");
+                    isInCall = true;
+                    cancelCallTimeout();
+                    addCallMessageToChat("Appel accepté", "CALL_ACCEPTED");
+                });
+            }
+
+            @Override
+            public void onCallRejected() {
+                Platform.runLater(() -> {
+                    showError("❌ Appel refusé");
+                    isInCall = false;
+                    cancelCallTimeout();
+                });
+            }
+
+            @Override
+            public void onCallEnded() {
+                Platform.runLater(() -> {
+                    showError("🔴 Appel terminé");
+                    isInCall = false;
+                    cancelCallTimeout();
+                    addCallMessageToChat("Appel terminé", "CALL_ENDED");
+                });
+            }
+
+            @Override
+            public void onRemoteVideoFrame(String frameData) {
+                // Pour la vidéo (optionnel)
+            }
+
+            @Override
+            public void onConnectionError(String error) {
+                Platform.runLater(() -> {
+                    showError("📞 Erreur appel: " + error);
+                    isInCall = false;
+                    cancelCallTimeout();
+                });
+            }
+
+            @Override
+            public void onMissedCall(String callerId, String timestamp) {
+                Platform.runLater(() -> {
+                    String callerName = getUserNameById(Integer.parseInt(callerId));
+                    showError("📞 Appel manqué de " + callerName + " à " + timestamp);
+                    addCallMessageToChat("Appel manqué de " + callerName + " à " + timestamp, "MISSED_CALL");
+                    cancelCallTimeout();
+                });
+            }
+
+            @Override
+            public void onMissedCallNotification(String callerId, String timestamp) {
+                Platform.runLater(() -> {
+                    String callerName = getUserNameById(Integer.parseInt(callerId));
+                    showMissedCallNotification(callerName, timestamp);
+                });
+            }
+
+            @Override
+            public void onUserUnavailable(String message, String timestamp) {
+                Platform.runLater(() -> {
+                    showError("📞 " + message + " (" + timestamp + ")");
+                    cancelCallTimeout();
+                    isInCall = false;
+                });
+            }
+
+            @Override
+            public void onUserOffline(String message, String timestamp) {
+                Platform.runLater(() -> {
+                    showError("📞 " + message + " - utilisateur hors ligne (" + timestamp + ")");
+                    cancelCallTimeout();
+                    isInCall = false;
+
+                    // Proposer de laisser un message vocal
+                    showVoiceMessageOption();
+                });
+            }
+
+            @Override
+            public void onUserOnline(String userId) {
+                Platform.runLater(() -> {
+                    System.out.println("✅ Utilisateur " + userId + " est en ligne");
+                });
+            }
+
+            @Override
+            public void onVoiceMessageReceived(String fromUserId, String audioData, String duration) {
+                Platform.runLater(() -> {
+                    String callerName = getUserNameById(Integer.parseInt(fromUserId));
+                    showSuccess("🎤 Message vocal reçu de " + callerName + " (durée: " + duration + ")");
+                    addCallMessageToChat("Message vocal reçu de " + callerName, "VOICE_MESSAGE");
+
+                    // Sauvegarder le message vocal dans la base de données
+                    saveVoiceMessageToDatabase(Integer.parseInt(fromUserId), audioData, duration);
+                });
+            }
+        });
+    }
+
+    private void showVoiceMessageOption() {
+        Alert alert = new Alert(Alert.AlertType.CONFIRMATION);
+        alert.setTitle("Utilisateur hors ligne");
+        alert.setHeaderText("👤 L'utilisateur n'est pas en ligne");
+        alert.setContentText("Voulez-vous laisser un message vocal ?");
+
+        ButtonType voiceMessageButton = new ButtonType("🎤 Laisser un message vocal", ButtonBar.ButtonData.OK_DONE);
+        ButtonType cancelButton = new ButtonType("Annuler", ButtonBar.ButtonData.CANCEL_CLOSE);
+
+        alert.getButtonTypes().setAll(voiceMessageButton, cancelButton);
+
+        Optional<ButtonType> result = alert.showAndWait();
+        if (result.isPresent() && result.get() == voiceMessageButton) {
+            startVoiceRecordingForOfflineUser();
+        }
+    }
+
+    private void startVoiceRecordingForOfflineUser() {
+        // Utiliser la même méthode que pour l'enregistrement vocal normal
+        if (!isRecording) {
+            startRecording();
+
+            // Modifier le comportement pour l'envoyer comme message vocal hors ligne
+            new Thread(() -> {
+                try {
+                    Thread.sleep(30000); // 30 secondes max
+                    if (isRecording) {
+                        Platform.runLater(() -> {
+                            stopRecordingAndSendAsOfflineMessage();
+                        });
+                    }
+                } catch (InterruptedException e) {}
+            }).start();
+        }
+    }
+
+    private void stopRecordingAndSendAsOfflineMessage() {
+        if (!isRecording) return;
+
+        isRecording = false;
+
+        if (microphone != null) {
+            microphone.stop();
+            microphone.close();
+        }
+
+        try {
+            if (recordingThread != null) {
+                recordingThread.join(1000);
+            }
+        } catch (InterruptedException e) {
+            e.printStackTrace();
+        }
+
+        byte[] audioData = audioOutputStream.toByteArray();
+
+        if (audioData.length == 0) {
+            showError("Aucun audio enregistré");
+            resetMicrophoneButton();
+            return;
+        }
+
+        // Envoyer comme message vocal hors ligne
+        double durationSeconds = audioData.length / (16000.0 * 2);
+        String duration = String.format("%d:%02d", (int)durationSeconds / 60, (int)durationSeconds % 60);
+
+        String targetId = String.valueOf(connectedUser.getId() == clientId ? freelanceId : clientId);
+
+        if (callClient != null) {
+            callClient.sendVoiceMessage(targetId, audioData, duration);
+            showSuccess("✅ Message vocal envoyé (sera délivré quand l'utilisateur sera en ligne)");
+        }
+
+        resetMicrophoneButton();
+    }
+
+    private String getUserNameById(int userId) {
+        try {
+            String sql = "SELECT first_name, last_name FROM users WHERE id = ?";
+            PreparedStatement ps = connection.prepareStatement(sql);
+            ps.setInt(1, userId);
+            ResultSet rs = ps.executeQuery();
+            if (rs.next()) {
+                return rs.getString("first_name") + " " + rs.getString("last_name");
+            }
+        } catch (SQLException e) {
+            e.printStackTrace();
+        }
+        return "Utilisateur " + userId;
+    }
+
+    private void addCallMessageToChat(String message, String type) {
+        if (currentConversationId == -1) return;
+
+        String contenu = "🔔 " + message;
+
+        try {
+            String sql = "INSERT INTO message (contenu, expediteur, conversation_id, date_envoie, type_message) VALUES (?, ?, ?, ?, ?)";
+            PreparedStatement ps = connection.prepareStatement(sql);
+            ps.setString(1, contenu);
+            ps.setString(2, "SYSTEM");
+            ps.setInt(3, currentConversationId);
+            ps.setTimestamp(4, Timestamp.valueOf(LocalDateTime.now()));
+            ps.setString(5, "SYSTEM");
+            ps.executeUpdate();
+            refreshChat();
+        } catch (SQLException e) {
+            e.printStackTrace();
+        }
+    }
+
+    // ==================== GESTION DU TIMEOUT D'APPEL ====================
+
+    private void startCallTimeout() {
+        cancelCallTimeout();
+
+        callTimeoutActive.set(true);
+        callTimeoutThread = new Thread(() -> {
+            try {
+                Thread.sleep(30000);
+                if (callTimeoutActive.get() && !isInCall) {
+                    Platform.runLater(() -> {
+                        showError("⏰ Personne ne répond");
+                        if (currentConversationId != -1) {
+                            addCallMessageToChat("Appel sans réponse", "MISSED_CALL");
+                        }
+
+                        String targetId = String.valueOf(connectedUser.getId() == clientId ? freelanceId : clientId);
+
+                        saveMissedCallToDatabase(Integer.parseInt(targetId));
+
+                        if (callClient != null) {
+                            callClient.reportMissedCall(targetId);
+                        }
+
+                        isInCall = false;
+                    });
+                }
+            } catch (InterruptedException e) {
+                // Timeout annulé
+            }
+        });
+        callTimeoutThread.setDaemon(true);
+        callTimeoutThread.start();
+    }
+
+    private void cancelCallTimeout() {
+        callTimeoutActive.set(false);
+        if (callTimeoutThread != null) {
+            callTimeoutThread.interrupt();
+            callTimeoutThread = null;
+        }
+    }
+
+    // ==================== GESTION DES APPELS MANQUÉS ====================
+
+    private void saveMissedCallToDatabase(int callerId) {
+        try {
+            String sql = "INSERT INTO missed_calls (caller_id, user_id, call_time, seen) VALUES (?, ?, ?, 0)";
+            PreparedStatement ps = connection.prepareStatement(sql);
+            ps.setInt(1, callerId);
+            ps.setInt(2, connectedUser.getId());
+            ps.setTimestamp(3, Timestamp.valueOf(LocalDateTime.now()));
+            ps.executeUpdate();
+            System.out.println("✅ Appel manqué sauvegardé dans la base de données");
+        } catch (SQLException e) {
+            System.err.println("❌ Erreur lors de la sauvegarde de l'appel manqué: " + e.getMessage());
+        }
+    }
+
+    private void saveVoiceMessageToDatabase(int senderId, String audioData, String duration) {
+        try {
+            String sql = "INSERT INTO voice_messages (sender_id, receiver_id, audio_data, duration, conversation_id) VALUES (?, ?, ?, ?, ?)";
+            PreparedStatement ps = connection.prepareStatement(sql);
+            ps.setInt(1, senderId);
+            ps.setInt(2, connectedUser.getId());
+            ps.setString(3, audioData);
+            ps.setString(4, duration);
+            ps.setInt(5, currentConversationId);
+            ps.executeUpdate();
+
+            System.out.println("✅ Message vocal sauvegardé dans la base de données");
+
+        } catch (SQLException e) {
+            System.err.println("❌ Erreur sauvegarde message vocal: " + e.getMessage());
+        }
+    }
+
+    private void checkMissedCalls() {
+        if (connectedUser == null) return;
+
+        try {
+            String sql = "SELECT mc.*, u.first_name, u.last_name FROM missed_calls mc " +
+                    "JOIN users u ON mc.caller_id = u.id " +
+                    "WHERE mc.user_id = ? AND mc.seen = 0 ORDER BY mc.call_time DESC";
+            PreparedStatement ps = connection.prepareStatement(sql);
+            ps.setInt(1, connectedUser.getId());
+            ResultSet rs = ps.executeQuery();
+
+            while (rs.next()) {
+                int callerId = rs.getInt("caller_id");
+                String callerName = rs.getString("first_name") + " " + rs.getString("last_name");
+                String timestamp = rs.getTimestamp("call_time").toString();
+
+                showMissedCallNotification(callerName, timestamp);
+
+                String updateSql = "UPDATE missed_calls SET seen = 1 WHERE id = ?";
+                PreparedStatement updatePs = connection.prepareStatement(updateSql);
+                updatePs.setInt(1, rs.getInt("id"));
+                updatePs.executeUpdate();
+            }
+        } catch (SQLException e) {
+            System.err.println("❌ Erreur lors de la vérification des appels manqués: " + e.getMessage());
+        }
+
+        // Vérifier aussi les messages vocaux
+        checkVoiceMessages();
+    }
+
+    private void checkVoiceMessages() {
+        if (connectedUser == null) return;
+
+        try {
+            String sql = "SELECT vm.*, u.first_name, u.last_name FROM voice_messages vm " +
+                    "JOIN users u ON vm.sender_id = u.id " +
+                    "WHERE vm.receiver_id = ? AND vm.played = FALSE ORDER BY vm.created_at DESC";
+            PreparedStatement ps = connection.prepareStatement(sql);
+            ps.setInt(1, connectedUser.getId());
+            ResultSet rs = ps.executeQuery();
+
+            while (rs.next()) {
+                int senderId = rs.getInt("sender_id");
+                String senderName = rs.getString("first_name") + " " + rs.getString("last_name");
+                String duration = rs.getString("duration");
+                String createdAt = rs.getTimestamp("created_at").toString();
+
+                showVoiceMessageNotification(senderName, duration, createdAt, rs.getInt("id"));
+            }
+        } catch (SQLException e) {
+            System.err.println("❌ Erreur vérification messages vocaux: " + e.getMessage());
+        }
+    }
+
+    private void showVoiceMessageNotification(String senderName, String duration, String timestamp, int messageId) {
+        Platform.runLater(() -> {
+            Alert alert = new Alert(Alert.AlertType.INFORMATION);
+            alert.setTitle("Message vocal");
+            alert.setHeaderText("🎤 Message vocal de " + senderName);
+            alert.setContentText("Durée: " + duration + "\nDate: " + timestamp);
+
+            ButtonType ecouterButton = new ButtonType("🔊 Écouter", ButtonBar.ButtonData.OK_DONE);
+            ButtonType fermerButton = new ButtonType("Fermer", ButtonBar.ButtonData.CANCEL_CLOSE);
+
+            alert.getButtonTypes().setAll(ecouterButton, fermerButton);
+
+            Optional<ButtonType> result = alert.showAndWait();
+            if (result.isPresent() && result.get() == ecouterButton) {
+                // Marquer comme écouté
+                try {
+                    String updateSql = "UPDATE voice_messages SET played = TRUE WHERE id = ?";
+                    PreparedStatement updatePs = connection.prepareStatement(updateSql);
+                    updatePs.setInt(1, messageId);
+                    updatePs.executeUpdate();
+                } catch (SQLException e) {
+                    e.printStackTrace();
+                }
+
+                showSuccess("🔊 Lecture du message vocal...");
+            }
+        });
+    }
+
+    private void showMissedCallNotification(String callerName, String timestamp) {
+        Platform.runLater(() -> {
+            Alert alert = new Alert(Alert.AlertType.INFORMATION);
+            alert.setTitle("Appel manqué");
+            alert.setHeaderText("📞 Appel manqué de " + callerName);
+            alert.setContentText("Date: " + timestamp);
+
+            ButtonType rappelerButton = new ButtonType("Rappeler", ButtonBar.ButtonData.OK_DONE);
+            ButtonType fermerButton = new ButtonType("Fermer", ButtonBar.ButtonData.CANCEL_CLOSE);
+
+            alert.getButtonTypes().setAll(rappelerButton, fermerButton);
+
+            Optional<ButtonType> result = alert.showAndWait();
+            if (result.isPresent() && result.get() == rappelerButton) {
+                startAudioCall();
+            }
+        });
+    }
+
+    // ==================== NOTIFICATION D'APPEL ENTRANT ====================
+
+    private void showIncomingCallNotification(String callerName, String callerId) {
+        playRingtone();
+
+        Stage notificationStage = new Stage();
+        notificationStage.initStyle(StageStyle.UNDECORATED);
+        notificationStage.setTitle("Appel entrant");
+
+        notificationStage.setX(javafx.stage.Screen.getPrimary().getVisualBounds().getMaxX() - 320);
+        notificationStage.setY(20);
+
+        BorderPane root = new BorderPane();
+        root.setStyle("-fx-background-color: white; -fx-background-radius: 10; -fx-effect: dropshadow(gaussian, rgba(0,0,0,0.3), 10, 0, 0, 2);");
+        root.setPadding(new Insets(20));
+        root.setPrefWidth(300);
+
+        VBox content = new VBox(15);
+        content.setAlignment(Pos.CENTER);
+
+        Label iconLabel = new Label("📞");
+        iconLabel.setStyle("-fx-font-size: 40px;");
+
+        Label titleLabel = new Label("Appel entrant");
+        titleLabel.setStyle("-fx-font-size: 16px; -fx-font-weight: bold; -fx-text-fill: #1f2937;");
+
+        Label nameLabel = new Label(callerName);
+        nameLabel.setStyle("-fx-font-size: 18px; -fx-font-weight: bold; -fx-text-fill: #2563eb;");
+
+        HBox buttonBox = new HBox(15);
+        buttonBox.setAlignment(Pos.CENTER);
+
+        Button acceptBtn = new Button("✅ Accepter");
+        acceptBtn.setStyle("-fx-background-color: #10b981; -fx-text-fill: white; -fx-font-weight: bold; -fx-padding: 10 20; -fx-cursor: hand; -fx-background-radius: 5;");
+        acceptBtn.setOnAction(e -> {
+            stopRingtone();
+            notificationStage.close();
+            if (callClient != null) {
+                callClient.acceptCall(callerId);
+                CallWindow callWindow = new CallWindow(callerName, false, callClient);
+                callWindow.show();
+                cancelCallTimeout();
+            }
+        });
+
+        Button rejectBtn = new Button("❌ Refuser");
+        rejectBtn.setStyle("-fx-background-color: #ef4444; -fx-text-fill: white; -fx-font-weight: bold; -fx-padding: 10 20; -fx-cursor: hand; -fx-background-radius: 5;");
+        rejectBtn.setOnAction(e -> {
+            stopRingtone();
+            notificationStage.close();
+            if (callClient != null) {
+                callClient.rejectCall(callerId);
+            }
+        });
+
+        buttonBox.getChildren().addAll(acceptBtn, rejectBtn);
+
+        content.getChildren().addAll(iconLabel, titleLabel, nameLabel, buttonBox);
+        root.setCenter(content);
+
+        Scene scene = new Scene(root);
+        notificationStage.setScene(scene);
+        notificationStage.show();
+
+        final String finalCallerId = callerId;
+        new Thread(() -> {
+            try {
+                Thread.sleep(30000);
+                Platform.runLater(() -> {
+                    if (notificationStage.isShowing()) {
+                        notificationStage.close();
+                        stopRingtone();
+                        showError("Appel non répondus");
+
+                        saveMissedCallToDatabase(Integer.parseInt(finalCallerId));
+
+                        if (callClient != null) {
+                            callClient.reportMissedCall(finalCallerId);
+                        }
+
+                        if (currentConversationId != -1) {
+                            String callerName2 = getUserNameById(Integer.parseInt(finalCallerId));
+                            addCallMessageToChat("Appel manqué de " + callerName2, "MISSED_CALL");
+                        }
+                    }
+                });
+            } catch (InterruptedException ex) {}
+        }).start();
+    }
+
+    // ==================== MÉTHODES D'APPEL ====================
 
     @FXML
     private void startVideoCall() {
@@ -185,13 +760,20 @@ public class MessageController {
             return;
         }
 
-        String participantName = getOtherParticipantName();
+        if (callClient == null) {
+            showError("Client d'appel non initialisé");
+            return;
+        }
 
-        // Jouer une sonnerie
-        playRingtone();
+        String targetId = String.valueOf(connectedUser.getId() == clientId ? freelanceId : clientId);
+        String targetName = getOtherParticipantName();
 
-        // Afficher la fenêtre d'appel
-        showCallWindow(participantName, true);
+        callClient.startCall(targetId);
+        showInfo("Appel vidéo en cours vers " + targetName + "...");
+        addCallMessageToChat("Appel vidéo initié", "CALL_STARTED");
+
+        isInCall = true;
+        startCallTimeout();
     }
 
     @FXML
@@ -206,156 +788,192 @@ public class MessageController {
             return;
         }
 
-        String participantName = getOtherParticipantName();
+        if (callClient == null) {
+            showError("Client d'appel non initialisé");
+            return;
+        }
 
-        // Jouer une sonnerie
-        playRingtone();
+        String targetId = String.valueOf(connectedUser.getId() == clientId ? freelanceId : clientId);
+        String targetName = getOtherParticipantName();
 
-        // Afficher la fenêtre d'appel
-        showCallWindow(participantName, false);
+        callClient.startCall(targetId);
+        showInfo("Appel en cours vers " + targetName + "...");
+        addCallMessageToChat("Appel audio initié", "CALL_STARTED");
+
+        isInCall = true;
+        startCallTimeout();
     }
 
     private void playRingtone() {
         try {
-            // Essayer de charger une sonnerie depuis les ressources
             String ringtonePath = getClass().getResource("/sounds/ringtone.mp3").toExternalForm();
-            Media ringtone = new Media(ringtonePath);
-            ringtonePlayer = new MediaPlayer(ringtone);
-            ringtonePlayer.setCycleCount(MediaPlayer.INDEFINITE);
-            ringtonePlayer.play();
+            System.out.println("🔍 Chemin sonnerie: " + ringtonePath);
+
+            if (ringtonePath != null && !ringtonePath.isEmpty() && !ringtonePath.equals("null")) {
+                Media ringtone = new Media(ringtonePath);
+                ringtonePlayer = new MediaPlayer(ringtone);
+                ringtonePlayer.setCycleCount(MediaPlayer.INDEFINITE);
+                ringtonePlayer.setVolume(0.8);
+                ringtonePlayer.play();
+                System.out.println("🔊 Sonnerie jouée");
+            } else {
+                System.err.println("❌ Fichier sonnerie non trouvé");
+                isRinging = true;
+                new Thread(() -> {
+                    while (isRinging) {
+                        Toolkit.getDefaultToolkit().beep();
+                        try { Thread.sleep(2000); } catch (InterruptedException ex) {}
+                    }
+                }).start();
+            }
         } catch (Exception e) {
-            System.err.println("Sonnerie non trouvée, utilisation de beep système");
-            // Fallback: beep système
-            Toolkit.getDefaultToolkit().beep();
+            System.err.println("❌ Erreur sonnerie: " + e.getMessage());
+            isRinging = true;
+            new Thread(() -> {
+                while (isRinging) {
+                    Toolkit.getDefaultToolkit().beep();
+                    try { Thread.sleep(2000); } catch (InterruptedException ex) {}
+                }
+            }).start();
         }
     }
 
     private void stopRingtone() {
+        isRinging = false;
         if (ringtonePlayer != null) {
             ringtonePlayer.stop();
         }
     }
 
-    private void showCallWindow(String participantName, boolean isVideo) {
-        callStage = new Stage();
-        callStage.initStyle(StageStyle.UNDECORATED);
-        callStage.setTitle(isVideo ? "Appel vidéo" : "Appel audio");
+    // ==================== PLANIFICATION RÉUNION ====================
 
-        BorderPane root = new BorderPane();
-        root.setStyle("-fx-background-color: linear-gradient(to bottom, #1e293b, #0f172a);");
-        root.setPadding(new Insets(30));
+    @FXML
+    private void scheduleMeeting() {
+        if (currentConversationId == -1) return;
 
-        // Centre: Informations de l'appel
-        VBox centerBox = new VBox(20);
-        centerBox.setAlignment(Pos.CENTER);
+        Dialog<ButtonType> dialog = new Dialog<>();
+        dialog.setTitle("📅 Planifier une réunion");
+        dialog.setHeaderText("Planifier une réunion avec " + getOtherParticipantName());
 
-        // Icône selon le type d'appel
-        Label iconLabel = new Label(isVideo ? "📹" : "📞");
-        iconLabel.setStyle("-fx-font-size: 64px; -fx-text-fill: white;");
+        VBox content = new VBox(15);
+        content.setPadding(new Insets(20));
+        content.setPrefWidth(400);
 
-        Label statusLabel = new Label("Appel en cours...");
-        statusLabel.setStyle("-fx-text-fill: #94a3b8; -fx-font-size: 14px;");
+        Label titleLabel = new Label("Titre de la réunion :");
+        titleLabel.setStyle("-fx-font-weight: bold;");
+        TextField titleField = new TextField("Réunion " + getOtherParticipantName());
 
-        Label nameLabel = new Label(participantName);
-        nameLabel.setStyle("-fx-text-fill: white; -fx-font-size: 24px; -fx-font-weight: bold;");
+        Label dateLabel = new Label("Date :");
+        dateLabel.setStyle("-fx-font-weight: bold;");
+        DatePicker datePicker = new DatePicker(LocalDate.now());
+        datePicker.setPrefWidth(300);
 
-        // Timer
-        Label timerLabel = new Label("00:00");
-        timerLabel.setStyle("-fx-text-fill: #10b981; -fx-font-size: 18px; -fx-font-family: monospace;");
+        Label timeLabel = new Label("Heure :");
+        timeLabel.setStyle("-fx-font-weight: bold;");
 
-        // Démarrer le timer
-        startCallTimer(timerLabel);
+        HBox timeBox = new HBox(10);
+        Spinner<Integer> hourSpinner = new Spinner<>(0, 23, 14);
+        hourSpinner.setPrefWidth(80);
+        hourSpinner.setEditable(true);
 
-        centerBox.getChildren().addAll(iconLabel, nameLabel, statusLabel, timerLabel);
-        root.setCenter(centerBox);
+        Spinner<Integer> minuteSpinner = new Spinner<>(0, 59, 0);
+        minuteSpinner.setPrefWidth(80);
+        minuteSpinner.setEditable(true);
 
-        // Bas: Boutons de contrôle
-        HBox buttonBox = new HBox(20);
-        buttonBox.setAlignment(Pos.CENTER);
-        buttonBox.setPadding(new Insets(20, 0, 0, 0));
+        Label separator = new Label(":");
+        separator.setStyle("-fx-font-size: 16; -fx-font-weight: bold;");
 
-        // Bouton micro (mute/unmute)
-        Button muteButton = new Button("🎤");
-        muteButton.setStyle("-fx-background-color: #334155; -fx-text-fill: white; -fx-font-size: 18px; -fx-min-width: 50; -fx-min-height: 50; -fx-background-radius: 25;");
-        muteButton.setOnAction(e -> {
-            if (muteButton.getStyle().contains("#334155")) {
-                muteButton.setStyle("-fx-background-color: #ef4444; -fx-text-fill: white; -fx-font-size: 18px; -fx-min-width: 50; -fx-min-height: 50; -fx-background-radius: 25;");
-                showSuccess("Micro coupé");
-            } else {
-                muteButton.setStyle("-fx-background-color: #334155; -fx-text-fill: white; -fx-font-size: 18px; -fx-min-width: 50; -fx-min-height: 50; -fx-background-radius: 25;");
-                showSuccess("Micro activé");
+        timeBox.getChildren().addAll(hourSpinner, separator, minuteSpinner);
+
+        Label durationLabel = new Label("Durée (minutes) :");
+        durationLabel.setStyle("-fx-font-weight: bold;");
+        Spinner<Integer> durationSpinner = new Spinner<>(5, 180, 30, 5);
+        durationSpinner.setPrefWidth(120);
+        durationSpinner.setEditable(true);
+
+        Label descLabel = new Label("Description :");
+        descLabel.setStyle("-fx-font-weight: bold;");
+        TextArea descArea = new TextArea();
+        descArea.setPromptText("Objet de la réunion...");
+        descArea.setPrefRowCount(3);
+
+        content.getChildren().addAll(
+                titleLabel, titleField,
+                dateLabel, datePicker,
+                timeLabel, timeBox,
+                durationLabel, durationSpinner,
+                descLabel, descArea
+        );
+
+        dialog.getDialogPane().setContent(content);
+        dialog.getDialogPane().getButtonTypes().addAll(ButtonType.OK, ButtonType.CANCEL);
+
+        dialog.showAndWait().ifPresent(response -> {
+            if (response == ButtonType.OK) {
+                String titreSaisi = titleField.getText().trim();
+                LocalDate date = datePicker.getValue();
+                int hour = hourSpinner.getValue();
+                int minute = minuteSpinner.getValue();
+                int duration = durationSpinner.getValue();
+                String description = descArea.getText().trim();
+
+                final String titre = titreSaisi.isEmpty() ? "Réunion" : titreSaisi;
+                final LocalDateTime meetingTime = LocalDateTime.of(date, LocalTime.of(hour, minute));
+                final int finalDuration = duration;
+                final String finalDescription = description;
+
+                new Thread(() -> {
+                    try {
+                        GoogleCalendarService calendarService = new GoogleCalendarService();
+                        String eventId = calendarService.createMeetingEvent(
+                                titre,
+                                finalDescription,
+                                meetingTime,
+                                finalDuration
+                        );
+
+                        Platform.runLater(() -> {
+                            String message = String.format(
+                                    "✅ Réunion planifiée dans votre calendrier !\n📅 %s à %02d:%02d\n⏱️ %d minutes",
+                                    date.format(DateTimeFormatter.ofPattern("dd/MM/yyyy")),
+                                    hour, minute, finalDuration
+                            );
+
+                            envoyerMessageSysteme("🔔 Réunion planifiée: " + titre + " le " +
+                                    date.format(DateTimeFormatter.ofPattern("dd/MM/yyyy")) + " à " +
+                                    String.format("%02d:%02d", hour, minute));
+
+                            showSuccess(message);
+                        });
+
+                    } catch (Exception e) {
+                        Platform.runLater(() -> {
+                            showError("Erreur Google Calendar: " + e.getMessage());
+                            e.printStackTrace();
+                        });
+                    }
+                }).start();
             }
         });
-
-        // Bouton fin d'appel
-        Button endButton = new Button("🔴");
-        endButton.setStyle("-fx-background-color: #ef4444; -fx-text-fill: white; -fx-font-size: 18px; -fx-min-width: 60; -fx-min-height: 60; -fx-background-radius: 30;");
-        endButton.setOnAction(e -> endCall());
-
-        // Bouton haut-parleur
-        Button speakerButton = new Button("🔊");
-        speakerButton.setStyle("-fx-background-color: #334155; -fx-text-fill: white; -fx-font-size: 18px; -fx-min-width: 50; -fx-min-height: 50; -fx-background-radius: 25;");
-
-        buttonBox.getChildren().addAll(muteButton, endButton, speakerButton);
-        root.setBottom(buttonBox);
-
-        // Simulation d'appel pour la démo
-        simulateCallConnection();
-
-        Scene scene = new Scene(root, 400, 500);
-        callStage.setScene(scene);
-        callStage.show();
     }
 
-    private void startCallTimer(Label timerLabel) {
-        Thread timerThread = new Thread(() -> {
-            int seconds = 0;
-            while (isInCall) {
-                try {
-                    Thread.sleep(1000);
-                    seconds++;
-                    int minutes = seconds / 60;
-                    int secs = seconds % 60;
-                    String time = String.format("%02d:%02d", minutes, secs);
-                    Platform.runLater(() -> timerLabel.setText(time));
-                } catch (InterruptedException e) {
-                    break;
-                }
-            }
-        });
-        timerThread.setDaemon(true);
-        timerThread.start();
-    }
-
-    private void simulateCallConnection() {
-        isInCall = true;
-
-        // Simuler la connexion après 2 secondes
-        new Thread(() -> {
-            try {
-                Thread.sleep(2000);
-                Platform.runLater(() -> {
-                    stopRingtone();
-                    showSuccess("✅ Appel connecté !");
-                });
-            } catch (InterruptedException e) {
-                e.printStackTrace();
-            }
-        }).start();
-    }
-
-    private void endCall() {
-        isInCall = false;
-        stopRingtone();
-
-        if (callStage != null) {
-            callStage.close();
+    private void envoyerMessageSysteme(String contenu) {
+        try {
+            String sql = "INSERT INTO message (contenu, expediteur, conversation_id, date_envoie, type_message) VALUES (?, ?, ?, ?, ?)";
+            PreparedStatement ps = connection.prepareStatement(sql);
+            ps.setString(1, contenu);
+            ps.setString(2, "SYSTEM");
+            ps.setInt(3, currentConversationId);
+            ps.setTimestamp(4, Timestamp.valueOf(LocalDateTime.now()));
+            ps.setString(5, "SYSTEM");
+            ps.executeUpdate();
+            refreshChat();
+        } catch (SQLException e) {
+            e.printStackTrace();
         }
-
-        showError("🔴 Appel terminé");
     }
 
-    // ==================== FIN MÉTHODES D'APPEL ====================
+    // ==================== MÉTHODES EXISTANTES ====================
 
     private void setupMessageList() {
         listMessages.setCellFactory(new Callback<ListView<HBox>, ListCell<HBox>>() {
@@ -426,7 +1044,6 @@ public class MessageController {
         emojiPicker.setVisible(false);
     }
 
-
     private void setupTypingIndicator() {
         txtContenu.textProperty().addListener((obs, old, newVal) -> {
             if (!newVal.isEmpty() && currentConversationId != -1) {
@@ -471,10 +1088,8 @@ public class MessageController {
 
     @FXML
     private void handleEmojiPicker() {
-        if (emojiPicker.isVisible()) {
-            emojiPicker.setVisible(false);
-        } else {
-            emojiPicker.setVisible(true);
+        if (emojiPicker != null) {
+            emojiPicker.setVisible(!emojiPicker.isVisible());
         }
     }
 
@@ -701,7 +1316,9 @@ public class MessageController {
     private void initWebSocket() {
         if (currentConversationId == -1 || connectedUser == null) return;
 
-        // Fermer ancienne connexion
+        System.out.println("🔄 Initialisation WebSocket - Conv: " + currentConversationId +
+                ", Client: " + clientId + ", Freelance: " + freelanceId);
+
         if (webSocketClient != null) {
             webSocketClient.close();
         }
@@ -719,14 +1336,12 @@ public class MessageController {
                     public void onMessage(JsonNode message) {
                         Platform.runLater(() -> {
                             try {
-                                // Vérifier si c'est un message système
                                 if (message.has("type") && "SYSTEM".equals(message.get("type").asText())) {
-                                    // Message système - on l'ignore ou on affiche une notification
-                                    System.out.println("ℹ️ " + (message.has("content") ? message.get("content").asText() : ""));
+                                    System.out.println("ℹ️ Message système: " +
+                                            (message.has("content") ? message.get("content").asText() : ""));
                                     return;
                                 }
 
-                                // Message normal de conversation
                                 int id = message.get("id").asInt();
                                 String contenu = message.get("contenu").asText();
                                 String expediteur = message.get("expediteur").asText();
@@ -765,6 +1380,7 @@ public class MessageController {
                         Platform.runLater(() -> {
                             if (connected) {
                                 showSuccess("✅ Connecté (temps réel)");
+                                checkMissedCalls();
                             } else {
                                 showError("⚠️ Mode dégradé (polling)");
                             }
@@ -807,11 +1423,9 @@ public class MessageController {
         }
 
         if (webSocketClient != null && webSocketClient.isConnected()) {
-            // Envoi via WebSocket
             webSocketClient.sendMessage(contenu);
             txtContenu.clear();
         } else {
-            // Fallback: envoi HTTP classique
             envoyerMessageHttp(contenu);
         }
     }
@@ -838,7 +1452,7 @@ public class MessageController {
         }
     }
 
-    // ==================== MÉTHODES EXISTANTES ====================
+    // ==================== RÉSUMÉ IA ====================
 
     private void generateChatSummary() {
         if (currentConversationId == -1) {
@@ -1414,38 +2028,25 @@ public class MessageController {
             }
         }
     }
-    @FXML
-    private void scheduleMeeting() {
-        if (currentConversationId != -1) {
-            TextInputDialog dialog = new TextInputDialog("30");
-            dialog.setTitle("Planifier une réunion");
-            dialog.setHeaderText("Planifier une réunion avec " + getOtherParticipantName());
-            dialog.setContentText("Durée (minutes):");
-
-            Optional<String> result = dialog.showAndWait();
-            if (result.isPresent()) {
-                try {
-                    int minutes = Integer.parseInt(result.get());
-                    LocalDateTime meetingTime = LocalDateTime.now().plusMinutes(minutes);
-                    showSuccess("Réunion planifiée pour " + meetingTime.format(DateTimeFormatter.ofPattern("HH:mm")));
-                } catch (NumberFormatException e) {
-                    showError("Durée invalide");
-                }
-            }
-        }
-    }
 
     @FXML
     private void showConversationInfo() {
         if (currentConversationId != -1) {
             Alert alert = new Alert(Alert.AlertType.INFORMATION);
             alert.setTitle("Informations conversation");
-            alert.setHeaderText("Conversation #" + currentConversationId);
+            alert.setHeaderText("À propos de cette conversation");
+
+            String clientName = getClientName();
+            String freelanceName = getFreelanceName();
+            String titre = getConversationTitle();
 
             String content = String.format(
-                    "Client: ID %d\nFreelance: ID %d\nParticipant: %s\nMessages: %d\nDate: %s",
-                    clientId, freelanceId, getOtherParticipantName(),
-                    messagesMap.size(), LocalDateTime.now().format(DateTimeFormatter.ofPattern("dd/MM/yyyy HH:mm"))
+                    "Titre: %s\nClient: %s\nFreelance: %s\nMessages: %d\nDate: %s",
+                    (titre != null ? titre : "Conversation simple"),
+                    clientName,
+                    freelanceName,
+                    messagesMap.size(),
+                    LocalDateTime.now().format(DateTimeFormatter.ofPattern("dd/MM/yyyy HH:mm"))
             );
 
             alert.setContentText(content);
@@ -1456,41 +2057,78 @@ public class MessageController {
     private String getOtherParticipantName() {
         if (connectedUser != null) {
             if (connectedUser.getId() == clientId) {
-                return "Freelance (ID: " + freelanceId + ")";
+                return getFreelanceName();
             } else {
-                return "Client (ID: " + clientId + ")";
+                return getClientName();
             }
         }
         return "Participant";
     }
 
+    private String getClientName() {
+        try {
+            String sql = "SELECT first_name, last_name FROM users WHERE id = ?";
+            PreparedStatement ps = connection.prepareStatement(sql);
+            ps.setInt(1, clientId);
+            ResultSet rs = ps.executeQuery();
+            if (rs.next()) {
+                return rs.getString("first_name") + " " + rs.getString("last_name");
+            }
+        } catch (SQLException e) {
+            e.printStackTrace();
+        }
+        return "Client";
+    }
+
+    private String getFreelanceName() {
+        try {
+            String sql = "SELECT first_name, last_name FROM users WHERE id = ?";
+            PreparedStatement ps = connection.prepareStatement(sql);
+            ps.setInt(1, freelanceId);
+            ResultSet rs = ps.executeQuery();
+            if (rs.next()) {
+                return rs.getString("first_name") + " " + rs.getString("last_name");
+            }
+        } catch (SQLException e) {
+            e.printStackTrace();
+        }
+        return "Freelance";
+    }
+
     private void disableButtons(boolean disable) {
-        btnVideoCall.setDisable(disable);
-        btnAudioCall.setDisable(disable);
-        btnReunion.setDisable(disable);
-        btnInfo.setDisable(disable);
-        btnEnvoyer.setDisable(disable);
-        txtContenu.setDisable(disable);
+        if (btnVideoCall != null) btnVideoCall.setDisable(disable);
+        if (btnAudioCall != null) btnAudioCall.setDisable(disable);
+        if (btnReunion != null) btnReunion.setDisable(disable);
+        if (btnInfo != null) btnInfo.setDisable(disable);
+        if (btnEnvoyer != null) btnEnvoyer.setDisable(disable);
+        if (txtContenu != null) txtContenu.setDisable(disable);
     }
 
     public void setConversationId(int id) {
         this.currentConversationId = id;
         disableButtons(false);
         refreshChat();
-        initWebSocket(); // Initialiser WebSocket
+        initWebSocket();
     }
 
     public void setConversationInfo(int clientId, int freelanceId) {
         this.clientId = clientId;
         this.freelanceId = freelanceId;
 
+        System.out.println("📌 Conversation Info reçue - Client ID: " + clientId + ", Freelance ID: " + freelanceId);
+
         if (connectedUser != null) {
             currentUser = connectedUser.getFirstName();
 
             if (connectedUser.getId() == clientId) {
                 userRole = "CLIENT";
+                System.out.println("✅ Rôle défini: CLIENT pour " + currentUser);
             } else if (connectedUser.getId() == freelanceId) {
                 userRole = "FREELANCE";
+                System.out.println("✅ Rôle défini: FREELANCE pour " + currentUser);
+            } else {
+                userRole = "OBSERVATEUR";
+                System.out.println("⚠️ Rôle: OBSERVATEUR");
             }
         }
 
@@ -1500,18 +2138,44 @@ public class MessageController {
     private void updateConversationInfo() {
         if (lblConversationInfo != null) {
             String role = (userRole != null) ? " (" + userRole + ")" : "";
-            lblConversationInfo.setText("Conversation #" + currentConversationId +
-                    " | Client: " + clientId +
-                    " | Freelance: " + freelanceId +
-                    " | Vous: " + (currentUser != null ? currentUser + role : "Non connecté"));
+            lblConversationInfo.setText("Conversation avec " + getOtherParticipantName() + role);
         }
+        if (lblConversationTitle != null) {
+            String titre = getConversationTitle();
+            if (titre != null && !titre.isEmpty()) {
+                lblConversationTitle.setText("📌 " + titre);
+            } else {
+                lblConversationTitle.setText("Conversation avec " + getOtherParticipantName());
+            }
+        }
+    }
+
+    private String getConversationTitle() {
+        try {
+            String sql = "SELECT titre FROM conversation WHERE id = ?";
+            PreparedStatement ps = connection.prepareStatement(sql);
+            ps.setInt(1, currentConversationId);
+            ResultSet rs = ps.executeQuery();
+            if (rs.next()) {
+                return rs.getString("titre");
+            }
+        } catch (SQLException e) {
+            e.printStackTrace();
+        }
+        return null;
     }
 
     @FXML
     private void handleRetour() {
+        cancelCallTimeout();
+        if (isInCall && callClient != null) {
+            callClient.endCall();
+        }
+
         if (webSocketClient != null) {
             webSocketClient.close();
         }
+
         try {
             FXMLLoader loader = new FXMLLoader(getClass().getResource("/com/khademni/Conversation.fxml"));
             Parent root = loader.load();
@@ -1526,6 +2190,7 @@ public class MessageController {
     }
 
     private void showError(String message) {
+        if (errorLabel == null) return;
         errorLabel.setText("❌ " + message);
         errorLabel.setStyle("-fx-text-fill: #dc2626;");
         errorLabel.setVisible(true);
@@ -1537,6 +2202,7 @@ public class MessageController {
     }
 
     private void showSuccess(String message) {
+        if (errorLabel == null) return;
         errorLabel.setText("✅ " + message);
         errorLabel.setStyle("-fx-text-fill: #10b981;");
         errorLabel.setVisible(true);

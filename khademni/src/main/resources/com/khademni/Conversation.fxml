@@ -53,33 +53,37 @@
 
                 <!-- Boutons d'action -->
                 <HBox spacing="10" alignment="CENTER_RIGHT">
+                    <!-- NOUVEAU BOUTON VIOLET pour Gérer les membres -->
                     <Button text="👥 Gérer les membres" onAction="#handleManageMembers"
-                            style="-fx-background-color: #8b5cf6; -fx-text-fill: white; -fx-background-radius: 8; -fx-cursor: hand; -fx-pref-height: 40; -fx-pref-width: 150;"/>
+                            style="-fx-background-color: #8b5cf6; -fx-text-fill: white; -fx-background-radius: 20; -fx-cursor: hand; -fx-pref-height: 40; -fx-pref-width: 160; -fx-font-weight: bold;">
+                        <graphic>
+                            <FontIcon iconLiteral="fas-users" iconColor="white" iconSize="14"/>
+                        </graphic>
+                    </Button>
+
+                    <!-- BOUTON VIOLET pour Supprimer -->
                     <Button text="🗑️ Supprimer" onAction="#handleSupprimer"
-                            style="-fx-background-color: #ef4444; -fx-text-fill: white; -fx-background-radius: 8; -fx-cursor: hand; -fx-pref-height: 40; -fx-pref-width: 120;"/>
-                    <Button text="💬 Ouvrir la discussion" onAction="#handleOpenChat"
-                            style="-fx-background-color: #2563eb; -fx-text-fill: white; -fx-background-radius: 8; -fx-cursor: hand; -fx-pref-height: 40; -fx-pref-width: 180;">
+                            style="-fx-background-color: #8b5cf6; -fx-text-fill: white; -fx-background-radius: 20; -fx-cursor: hand; -fx-pref-height: 40; -fx-pref-width: 120; -fx-font-weight: bold;"/>
+
+                    <!-- BOUTON VIOLET pour Ouvrir la discussion -->
+                    <Button text="💬 Ouvrir" onAction="#handleOpenChat"
+                            style="-fx-background-color: #8b5cf6; -fx-text-fill: white; -fx-background-radius: 20; -fx-cursor: hand; -fx-pref-height: 40; -fx-pref-width: 120; -fx-font-weight: bold;">
                         <graphic>
                             <FontIcon iconLiteral="fas-comments" iconColor="white" iconSize="14"/>
                         </graphic>
                     </Button>
                 </HBox>
-                <!-- Section UPDATE - ComboBox pour le statut -->
+
+                <!-- Section UPDATE - ComboBox pour le statut (gardée mais avec style violet) -->
                 <HBox spacing="10" alignment="CENTER_LEFT">
-                    <Label text="Changer statut:" style="-fx-font-weight: 600;"/>
-                    <ComboBox fx:id="cmbStatut" prefWidth="120" promptText="Statut"/>
+                    <Label text="Changer statut:" style="-fx-font-weight: 600; -fx-text-fill: #4b5563;"/>
+                    <ComboBox fx:id="cmbStatut" prefWidth="120" promptText="Statut"
+                              style="-fx-background-radius: 20; -fx-border-radius: 20;"/>
                     <Button text="Appliquer" onAction="#handleChangerStatut"
-                            style="-fx-background-color: #f59e0b; -fx-text-fill: white; -fx-background-radius: 8; -fx-cursor: hand;"/>
+                            style="-fx-background-color: #8b5cf6; -fx-text-fill: white; -fx-background-radius: 20; -fx-cursor: hand; -fx-pref-height: 35; -fx-font-weight: bold;"/>
                 </HBox>
 
-                <!-- Boutons d'action -->
-                <HBox spacing="10" alignment="CENTER_RIGHT">
-                    <Button fx:id="btnArchiver" text="Archiver" onAction="#handleArchiver"
-                            style="-fx-background-color: #6b7280; -fx-text-fill: white; -fx-background-radius: 8; -fx-cursor: hand;"/>
-                    <Button fx:id="btnActiver" text="Activer" onAction="#handleActiver"
-                            style="-fx-background-color: #10b981; -fx-text-fill: white; -fx-background-radius: 8; -fx-cursor: hand;"/>
-                    <!-- Vos autres boutons -->
-                </HBox>
+                <!-- Note: Boutons Archiver et Activer ont été supprimés -->
             </VBox>
         </VBox>
     </VBox>
