@@ -5,6 +5,7 @@
 <?import javafx.scene.image.ImageView?>
 <?import javafx.scene.image.Image?>
 <?import javafx.geometry.Insets?>
+<?import javafx.scene.shape.Circle?>
 <?import org.kordamp.ikonli.javafx.FontIcon?>
 
 <ScrollPane xmlns="http://javafx.com/javafx/17" xmlns:fx="http://javafx.com/fxml/1"
@@ -49,6 +50,18 @@
 
             <!-- Form Section -->
             <VBox spacing="24">
+                <!-- User ID Field: optional at signup (empty = auto), 4 digits, never editable after save -->
+                <VBox spacing="8">
+                    <Label text="ID unique (4 chiffres) — optionnel : laisser vide pour génération auto" styleClass="field-label" />
+                    <StackPane styleClass="input-wrapper">
+                        <HBox alignment="CENTER_LEFT" styleClass="input-container">
+                            <FontIcon iconLiteral="fas-id-card" styleClass="input-icon" />
+                            <TextField fx:id="signupUserIdField" promptText="ex: 1234 (ou vide)"
+                                styleClass="input-field" HBox.hgrow="ALWAYS" />
+                        </HBox>
+                    </StackPane>
+                </VBox>
+
                 <!-- Name Row -->
                 <HBox spacing="16">
                     <VBox spacing="8" HBox.hgrow="ALWAYS">
@@ -145,20 +158,25 @@
                     </StackPane>
                 </VBox>
 
-                <!-- Profile Image Upload -->
-                <VBox spacing="8">
-                    <Label text="Profile Image (optional)" styleClass="field-label" />
+                <!-- Profile Picture Upload -->
+                <VBox spacing="10" alignment="CENTER_LEFT">
+                    <Label text="Profile Picture" styleClass="field-label" />
+                    <!-- Hidden field for Vercel Blob URL (used by onSignupChooseImage) -->
                     <TextField fx:id="signupProfileImgField" visible="false" managed="false" />
-                    <HBox spacing="12" alignment="CENTER_LEFT">
-                        <Button text="Choose Image" onAction="#onSignupChooseImage"
-                            styleClass="button-secondary" graphicTextGap="8"
-                            style="-fx-background-color: #2d2b55; -fx-text-fill: #c4c0ff; -fx-border-color: #4a47a3; -fx-border-width: 1; -fx-border-radius: 8; -fx-background-radius: 8; -fx-padding: 10 20; -fx-cursor: hand; -fx-font-weight: 600;">
-                            <graphic>
-                                <FontIcon iconLiteral="fas-upload" iconColor="#6c63ff" iconSize="14" />
-                            </graphic>
-                        </Button>
-                        <Label fx:id="signupImgStatusLabel" text="No image selected"
-                            style="-fx-text-fill: #a0a0a0; -fx-font-size: 13;" />
+                    <HBox spacing="15" alignment="CENTER_LEFT">
+                        <StackPane styleClass="avatar-preview-box" prefWidth="80" prefHeight="80">
+                            <Circle radius="40" fill="#f3f4f6" stroke="#e5e7eb" strokeType="INSIDE" />
+                            <ImageView fx:id="signupAvatarPreview" fitWidth="80" fitHeight="80"
+                                preserveRatio="false" visible="false" />
+                            <FontIcon fx:id="signupAvatarPlaceholder" iconLiteral="fas-user"
+                                iconSize="32" iconColor="#9ca3af" />
+                        </StackPane>
+                        <VBox spacing="8">
+                            <Button text="Choose Photo" styleClass="button-secondary"
+                                onAction="#onSignupChoosePhoto" />
+                            <Label fx:id="signupImgStatusLabel" text="JPG, PNG (Max 5MB)"
+                                style="-fx-font-size: 11; -fx-text-fill: #6b7280;" />
+                        </VBox>
                     </HBox>
                 </VBox>
 
@@ -225,3 +243,4 @@
 
     </VBox>
 </ScrollPane>
+

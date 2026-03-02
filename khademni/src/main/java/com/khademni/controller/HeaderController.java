@@ -7,6 +7,7 @@ import com.khademni.App;
 import com.khademni.model.UserModel;
 import com.khademni.utils.VercelBlobUploader;
 
+import javafx.event.ActionEvent;
 import javafx.fxml.FXML;
 import javafx.scene.control.Label;
 import javafx.scene.image.Image;
@@ -14,9 +15,6 @@ import javafx.scene.image.ImageView;
 import javafx.scene.shape.Circle;
 
 public class HeaderController {
-
-    @FXML
-    private javafx.scene.control.Hyperlink jobsManagementLink;
 
     @FXML
     private Label headerAvatarInitials;
@@ -80,54 +78,67 @@ public class HeaderController {
     }
 
     @FXML
-    private void goToJobs() throws IOException {
-        // Role-aware: admins see management, regular users see public jobs
-        if (App.getCurrentUser() != null && App.getCurrentUser().isIsAdmin()) {
-            App.setRoot("jobs-management");
-        } else {
-            App.setRoot("jobs");
-        }
-    }
-
-    @FXML
-    private void goToJobsPublic() {
-        System.out.println("DEBUG: goToJobsPublic called");
+    private void onLogout(ActionEvent event) {
+        App.setCurrentUser(null);
         try {
-            App.setRoot("jobs");
-            System.out.println("DEBUG: App.setRoot('jobs') successful");
+            App.setRoot("login");
         } catch (IOException e) {
-            System.err.println("DEBUG: Error in goToJobsPublic: " + e.getMessage());
             e.printStackTrace();
         }
     }
 
     @FXML
-    private void goToJobsAdmin() throws IOException {
-        App.setRoot("jobs-management");
+    private void onProfile(ActionEvent event) {
+        try {
+            App.setRoot("profile");
+        } catch (IOException e) {
+            e.printStackTrace();
+        }
     }
 
     @FXML
-    private void goToDashboard() throws IOException {
-        // App.setRoot("secondary");
+    private void onJobsAndServices(ActionEvent event) {
+        try {
+            App.setRoot("offre");
+        } catch (IOException e) {
+            e.printStackTrace();
+        }
     }
 
     @FXML
-    private void goToMessages() throws IOException {
-        // App.setRoot("messages");
+    private void onContrat(ActionEvent event) {
+        try {
+            App.setRoot("contrat");
+        } catch (IOException e) {
+            e.printStackTrace();
+        }
     }
 
     @FXML
-    private void goToBlogs() throws IOException {
-        // App.setRoot("blogs");
+    private void onPaiement(ActionEvent event) {
+        try {
+            App.setRoot("paiement");
+        } catch (IOException e) {
+            e.printStackTrace();
+        }
     }
 
     @FXML
-    private void goToReviews() throws IOException {
-        App.setRoot("review");
+    private void onFreelancer(ActionEvent event) {
+        try {
+            App.setRoot("freelancer_space");
+        } catch (IOException e) {
+            e.printStackTrace();
+        }
     }
 
     @FXML
-    private void goToProfile() throws IOException {
-        App.setRoot("profile");
+    private void onClient(ActionEvent event) {
+        try {
+            App.setRoot("client_space");
+        } catch (IOException e) {
+            e.printStackTrace();
+        }
     }
+
 }
