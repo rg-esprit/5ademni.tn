@@ -8,69 +8,56 @@
 <?import javafx.scene.layout.Region?>
 <?import javafx.scene.layout.StackPane?>
 <?import javafx.scene.shape.Circle?>
-<?import javafx.scene.shape.SVGPath?>
 <?import javafx.scene.image.ImageView?>
 <?import javafx.scene.image.Image?>
 
-<HBox xmlns="http://javafx.com/javafx"
-    xmlns:fx="http://javafx.com/fxml"
+<HBox xmlns="http://javafx.com/javafx/17" xmlns:fx="http://javafx.com/fxml/1"
     fx:controller="com.khademni.controller.HeaderController"
-    alignment="CENTER_LEFT"
-    spacing="20"
-    styleClass="header"
-    style="-fx-background-color: white; -fx-border-color: #e5e7eb; -fx-border-width: 0 0 1 0; -fx-padding: 16 40 16 40;">
+    spacing="20" alignment="CENTER_LEFT" styleClass="header"
+    stylesheets="@header.css"
+    prefHeight="70" style="-fx-background-color: white; -fx-padding: 0 30 0 30;">
 
-    <!-- Left Section: Logo and Brand Name -->
-    <HBox alignment="CENTER_LEFT" spacing="16">
-        <!-- Logo -->
-        <StackPane prefHeight="32" prefWidth="32">
-            <ImageView fitHeight="32" fitWidth="32" preserveRatio="true">
+    <!-- Logo & Brand -->
+    <HBox spacing="12" alignment="CENTER_LEFT">
+        <ImageView fitHeight="36" preserveRatio="true" pickOnBounds="true" smooth="true">
+            <image>
                 <Image url="@logo.png" />
-            </ImageView>
-        </StackPane>
-
-        <!-- Brand Name -->
-        <Label text="5ademni.tn"
-            style="-fx-font-size: 20px; -fx-font-weight: 800; -fx-text-fill: #141118;" />
+            </image>
+        </ImageView>
+        <Label text="5ademni.tn" style="-fx-font-size: 20px; -fx-font-weight: bold; -fx-text-fill: #1f2937;" />
     </HBox>
 
-    <!-- Spacer to push right content to the end -->
     <Region HBox.hgrow="ALWAYS" />
 
-    <!-- Right Section: Navigation and Profile -->
-    <HBox alignment="CENTER_RIGHT" spacing="32">
-        <!-- Navigation Links -->
-        <HBox spacing="32" alignment="CENTER">
-            <Hyperlink text="Jobs &amp; Services" onAction="#goToJobs"
-                style="-fx-font-size: 14px; -fx-font-weight: 600; -fx-text-fill: #141118;" />
-            <Hyperlink text="Dashboard" onAction="#goToDashboard"
-                style="-fx-font-size: 14px; -fx-font-weight: 600; -fx-text-fill: #141118;" />
-            <Hyperlink text="Messages" onAction="#goToMessages"
-                style="-fx-font-size: 14px; -fx-font-weight: 600; -fx-text-fill: #141118;" />
-            <Hyperlink text="Blogs" onAction="#goToBlogs"
-                style="-fx-font-size: 14px; -fx-font-weight: 600; -fx-text-fill: #141118;" />
-            <Hyperlink text="Articles" onAction="#goToArticles"
-                style="-fx-font-size: 14px; -fx-font-weight: 600; -fx-text-fill: #141118;" />
-        </HBox>
-
-        <!-- Profile Section with Separator -->
-        <HBox spacing="16" alignment="CENTER"
-            style="-fx-border-color: #e5e7eb; -fx-border-width: 0 0 0 1; -fx-padding: 0 0 0 32;">
-            <!-- Profile Button -->
-            <Button text="Profile" onAction="#goToProfile"
-                styleClass="profile-button"
-                style="-fx-background-color: #6c0df2; -fx-text-fill: white; -fx-font-weight: bold; -fx-font-size: 14px; -fx-background-radius: 12; -fx-padding: 8 20 8 20; -fx-cursor: hand;" />
-
-            <!-- Avatar Circle -->
-            <StackPane prefHeight="40" prefWidth="40">
-                <Circle radius="20"
-                    fill="#f3f4f6"
-                    stroke="#6c0df2"
-                    strokeWidth="2"
-                    opacity="0.3" />
-                <Circle radius="20"
-                    style="-fx-fill: linear-gradient(to bottom, #6c0df2 0%, #8b5cf6 100%);" />
-            </StackPane>
-        </HBox>
+    <!-- Navigation Links -->
+    <HBox spacing="20" alignment="CENTER">
+        <Button fx:id="jobsManagementLink" text="Jobs Management" onAction="#goToJobsAdmin"
+            styleClass="nav-link" style="-fx-background-color: transparent; -fx-cursor: hand;" visible="false" managed="false" />
+        <Button text="Jobs &amp; Services" onAction="#onJobsAndServices" styleClass="nav-link" style="-fx-background-color: transparent; -fx-cursor: hand;" />
+        <Button text="Contrat" onAction="#onContrat" styleClass="nav-link" style="-fx-background-color: transparent; -fx-cursor: hand;" />
+        <Button text="Paiement" onAction="#onPaiement" styleClass="nav-link" style="-fx-background-color: transparent; -fx-cursor: hand;" />
+        <Button text="Freelancer" onAction="#onFreelancer" styleClass="nav-link" style="-fx-background-color: transparent; -fx-cursor: hand;" />
+        <Button text="Client" onAction="#onClient" styleClass="nav-link" style="-fx-background-color: transparent; -fx-cursor: hand;" />
+        <Button text="Reviews" onAction="#onReviews" styleClass="nav-link" style="-fx-background-color: transparent; -fx-cursor: hand;" />
+        <Button text="Blogs" onAction="#goToBlogs" styleClass="nav-link" style="-fx-background-color: transparent; -fx-cursor: hand;" />
+        <Button text="Articles" onAction="#goToArticles" styleClass="nav-link" style="-fx-background-color: transparent; -fx-cursor: hand;" />
     </HBox>
+
+    <Region HBox.hgrow="ALWAYS" />
+
+    <!-- Profile Area -->
+    <HBox spacing="12" alignment="CENTER_RIGHT">
+        <Button text="Profile" onAction="#onProfile" styleClass="profile-button" />
+        <StackPane prefHeight="40" prefWidth="40" maxHeight="40" maxWidth="40">
+            <Circle radius="20" fill="#f3f4f6" stroke="#6c0df2" strokeWidth="2" opacity="0.3" />
+            <Circle radius="20" style="-fx-fill: linear-gradient(to bottom, #6c0df2 0%, #8b5cf6 100%);" />
+            <Label fx:id="headerAvatarInitials" text=""
+                style="-fx-text-fill: white; -fx-font-size: 14; -fx-font-weight: bold;" />
+            <ImageView fx:id="headerAvatarImage" fitWidth="40" fitHeight="40"
+                preserveRatio="true" visible="false" managed="false" />
+        </StackPane>
+        <Button text="Logout" onAction="#onLogout" styleClass="logout-btn"
+            style="-fx-background-color: transparent; -fx-text-fill: #ef4444; -fx-cursor: hand;" />
+    </HBox>
+
 </HBox>
