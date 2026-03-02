@@ -1,6 +1,7 @@
 <project xmlns="http://maven.apache.org/POM/4.0.0"
          xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
-         xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/maven-v4_0_0.xsd">
+         xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 https://maven.apache.org/xsd/maven-4.0.0.xsd">
+
     <modelVersion>4.0.0</modelVersion>
 
     <groupId>com.khademni</groupId>
@@ -11,18 +12,21 @@
         <maven.compiler.source>17</maven.compiler.source>
         <maven.compiler.target>17</maven.compiler.target>
         <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
+
         <javafx.version>22</javafx.version>
         <tyrus.version>2.1.3</tyrus.version>
         <ikonli.version>12.3.1</ikonli.version>
         <jackson.version>2.18.6</jackson.version>
         <javacv.version>1.5.9</javacv.version>
     </properties>
+
     <repositories>
         <repository>
             <id>central</id>
             <url>https://repo.maven.apache.org/maven2</url>
         </repository>
     </repositories>
+
     <dependencies>
 
         <!-- ================== JAVA FX ================== -->
@@ -52,7 +56,7 @@
             <version>${javafx.version}</version>
         </dependency>
 
-        <!-- MariaDB JDBC -->
+        <!-- ================== DATABASE ================== -->
         <dependency>
             <groupId>org.mariadb.jdbc</groupId>
             <artifactId>mariadb-java-client</artifactId>
@@ -60,7 +64,6 @@
             <scope>compile</scope>
         </dependency>
 
-        <!-- ================== MYSQL ================== -->
         <dependency>
             <groupId>com.mysql</groupId>
             <artifactId>mysql-connector-j</artifactId>
@@ -124,8 +127,6 @@
             <artifactId>ikonli-core</artifactId>
             <version>${ikonli.version}</version>
         </dependency>
-
-        <!-- Ikonli -->
         <dependency>
             <groupId>org.kordamp.ikonli</groupId>
             <artifactId>ikonli-javafx</artifactId>
@@ -139,7 +140,7 @@
         <dependency>
             <groupId>org.kordamp.ikonli</groupId>
             <artifactId>ikonli-materialdesign2-pack</artifactId>
-            <version>12.3.1</version>
+            <version>${ikonli.version}</version>
         </dependency>
         <dependency>
             <groupId>org.kordamp.ikonli</groupId>
@@ -153,73 +154,39 @@
             <artifactId>javacv-platform</artifactId>
             <version>${javacv.version}</version>
         </dependency>
-
-        <!-- ================== JAVACV / OpenCV / FFmpeg ================== -->
-        <!-- Remplacer javacv-platform par des dépendances spécifiques -->
         <dependency>
             <groupId>org.bytedeco</groupId>
             <artifactId>javacv</artifactId>
             <version>${javacv.version}</version>
         </dependency>
-
-        <!-- OpenCV -->
         <dependency>
             <groupId>org.bytedeco</groupId>
             <artifactId>opencv</artifactId>
             <version>4.7.0-${javacv.version}</version>
         </dependency>
-
-        <!-- FFmpeg -->
         <dependency>
             <groupId>org.bytedeco</groupId>
             <artifactId>ffmpeg</artifactId>
             <version>6.0-${javacv.version}</version>
         </dependency>
-
-        <!-- Modules supplémentaires requis par javacv -->
         <dependency>
             <groupId>org.bytedeco</groupId>
             <artifactId>flandmark</artifactId>
             <version>1.07-1.5.8</version>
         </dependency>
+
         <dependency>
             <groupId>org.controlsfx</groupId>
             <artifactId>controlsfx</artifactId>
             <version>11.1.2</version>
         </dependency>
 
-
-        <!-- JavaMail pour les notifications email -->
-        <dependency>
-            <groupId>com.sun.mail</groupId>
-            <artifactId>javax.mail</artifactId>
-            <version>1.6.2</version>
-        </dependency>
-
-        <dependency>
-            <groupId>com.google.oauth-client</groupId>
-            <artifactId>google-oauth-client-jetty</artifactId>
-            <version>1.34.1</version>
-        </dependency>
-
-        <dependency>
-            <groupId>com.google.apis</groupId>
-            <artifactId>google-api-services-calendar</artifactId>
-            <version>v3-rev305-1.23.0</version>
-        </dependency>
-
-        <dependency>
-            <groupId>com.google.auth</groupId>
-            <artifactId>google-auth-library-oauth2-http</artifactId>
-            <version>1.23.0</version>
-        </dependency>
-
+        <!-- OCR -->
         <dependency>
             <groupId>org.bytedeco</groupId>
             <artifactId>leptonica</artifactId>
             <version>1.83.0-${javacv.version}</version>
         </dependency>
-
         <dependency>
             <groupId>org.bytedeco</groupId>
             <artifactId>tesseract</artifactId>
@@ -232,7 +199,16 @@
             <artifactId>google-api-client</artifactId>
             <version>1.33.0</version>
         </dependency>
-
+        <dependency>
+            <groupId>com.google.apis</groupId>
+            <artifactId>google-api-services-calendar</artifactId>
+            <version>v3-rev20220715-1.32.1</version>
+        </dependency>
+        <dependency>
+            <groupId>com.google.auth</groupId>
+            <artifactId>google-auth-library-oauth2-http</artifactId>
+            <version>1.23.0</version>
+        </dependency>
         <dependency>
             <groupId>com.google.auth</groupId>
             <artifactId>google-auth-library-credentials</artifactId>
@@ -243,12 +219,18 @@
             <artifactId>google-http-client</artifactId>
             <version>1.41.5</version>
         </dependency>
-
         <dependency>
             <groupId>com.google.oauth-client</groupId>
             <artifactId>google-oauth-client</artifactId>
             <version>1.33.3</version>
         </dependency>
+        <dependency>
+            <groupId>com.google.oauth-client</groupId>
+            <artifactId>google-oauth-client-jetty</artifactId>
+            <version>1.33.3</version>
+        </dependency>
+
+        <!-- JSON / Search -->
         <dependency>
             <groupId>org.json</groupId>
             <artifactId>json</artifactId>
@@ -259,8 +241,6 @@
             <artifactId>lucene-core</artifactId>
             <version>9.7.0</version>
         </dependency>
-
-        <!-- JSON parsing (face backend responses) -->
         <dependency>
             <groupId>com.google.code.gson</groupId>
             <artifactId>gson</artifactId>
@@ -346,6 +326,7 @@
             <artifactId>jakarta.mail</artifactId>
             <version>2.0.1</version>
         </dependency>
+
     </dependencies>
 
     <build>
@@ -356,12 +337,6 @@
                 <version>3.11.0</version>
                 <configuration>
                     <release>17</release>
-                    <!-- Remove these unless you truly still need them -->
-                    <!--
-                    <compilerArgs>
-                        <arg>--add-reads=com.khademni=ALL-UNNAMED</arg>
-                    </compilerArgs>
-                    -->
                 </configuration>
             </plugin>
 
@@ -379,6 +354,8 @@
                 <artifactId>exec-maven-plugin</artifactId>
                 <version>3.1.0</version>
             </plugin>
+
         </plugins>
     </build>
+
 </project>

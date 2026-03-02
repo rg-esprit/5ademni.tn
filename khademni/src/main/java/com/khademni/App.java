@@ -39,67 +39,71 @@ public class    App extends Application {
     }
 
     public static void setRoot(String fxml) throws IOException {
-      Parent fxmlRoot = loadFXML(fxml);
+        Parent fxmlRoot = loadFXML(fxml);
 
-      // Update title and CSS based on the scene
-      scene.getStylesheets().clear();
+        // Update title and CSS based on the scene
+        scene.getStylesheets().clear();
 
-      if (fxml.equals("login")) {
-          scene.getStylesheets().add(App.class.getResource("login.css").toExternalForm());
-          primaryStage.setTitle("5ademni.tn — Sign In");
-          scene.setRoot(fxmlRoot);
+        if (fxml.equals("login")) {
+            primaryStage.setTitle("5ademni.tn — Sign In");
+            scene.getStylesheets().add(App.class.getResource("login.css").toExternalForm());
+            scene.setRoot(fxmlRoot);
 
-      } else if (fxml.equals("signup")) {
-          scene.getStylesheets().add(App.class.getResource("signup.css").toExternalForm());
-          primaryStage.setTitle("5ademni.tn — Create Account");
-          scene.setRoot(fxmlRoot);
+        } else if (fxml.equals("signup")) {
+            primaryStage.setTitle("5ademni.tn — Create Account");
+            scene.getStylesheets().add(App.class.getResource("signup.css").toExternalForm());
+            scene.setRoot(fxmlRoot);
 
-      } else if (fxml.equals("profile")) {
-          scene.getStylesheets().add(App.class.getResource("profile.css").toExternalForm());
-          primaryStage.setTitle("5ademni.tn — My Profile");
-          scene.setRoot(wrapWithChatbot(fxmlRoot));
+        } else if (fxml.equals("profile")) {
+            primaryStage.setTitle("5ademni.tn — My Profile");
+            scene.getStylesheets().add(App.class.getResource("profile.css").toExternalForm());
+            scene.setRoot(wrapWithChatbot(fxmlRoot));
 
-      } else if (fxml.equals("jobs")) {
-          scene.getStylesheets().add(App.class.getResource("jobs.css").toExternalForm());
-          primaryStage.setTitle("5ademni.tn — Jobs & Opportunities");
-          scene.setRoot(wrapWithChatbot(fxmlRoot)); // or scene.setRoot(fxmlRoot) if you don't want chatbot here
+        } else if (fxml.equals("jobs")) {
+            primaryStage.setTitle("5ademni.tn — Jobs & Opportunities");
+            scene.getStylesheets().add(App.class.getResource("jobs.css").toExternalForm());
+            scene.setRoot(wrapWithChatbot(fxmlRoot)); // change to fxmlRoot if you don't want chatbot here
 
-      } else if (fxml.equals("jobs-management")) {
-          scene.getStylesheets().add(App.class.getResource("jobs-management.css").toExternalForm());
-          primaryStage.setTitle("5ademni.tn — Jobs Management");
-          scene.setRoot(wrapWithChatbot(fxmlRoot));
+        } else if (fxml.equals("jobs-management")) {
+            primaryStage.setTitle("5ademni.tn — Jobs Management");
+            scene.getStylesheets().add(App.class.getResource("jobs-management.css").toExternalForm());
+            scene.setRoot(wrapWithChatbot(fxmlRoot));
 
-      } else if (fxml.equals("review")) {
-          scene.getStylesheets().add(App.class.getResource("review.css").toExternalForm());
-          primaryStage.setTitle("5ademni.tn — Reviews");
-          scene.setRoot(wrapWithChatbot(fxmlRoot));
+        } else if (fxml.equals("review")) {
+            primaryStage.setTitle("5ademni.tn — Reviews");
+            scene.getStylesheets().add(App.class.getResource("review.css").toExternalForm());
+            scene.setRoot(wrapWithChatbot(fxmlRoot));
 
-      } else if (fxml.equals("contrat")) {
-          scene.getStylesheets().add(App.class.getResource("contrat.css").toExternalForm());
-          primaryStage.setTitle("5ademni.tn — Gestion Contrats");
-          scene.setRoot(wrapWithChatbot(fxmlRoot));
+        } else if (fxml.equals("contrat")) {
+            primaryStage.setTitle("5ademni.tn — Gestion Contrats");
+            scene.getStylesheets().add(App.class.getResource("contrat.css").toExternalForm());
+            scene.setRoot(wrapWithChatbot(fxmlRoot));
 
-      } else if (fxml.equals("paiement_form")) {
-          scene.getStylesheets().add(App.class.getResource("contrat.css").toExternalForm());
-          primaryStage.setTitle("5ademni.tn — Paiement Manuel");
-          scene.setRoot(wrapWithChatbot(fxmlRoot));
+        } else if (fxml.equals("paiement_form")) {
+            primaryStage.setTitle("5ademni.tn — Paiement Manuel");
+            scene.getStylesheets().add(App.class.getResource("contrat.css").toExternalForm());
+            scene.setRoot(wrapWithChatbot(fxmlRoot));
 
-      } else if (fxml.equals("Conversation")) {
-          scene.getStylesheets().add(App.class.getResource("Conversation.css").toExternalForm());
-          primaryStage.setTitle("5ademni.tn — Mes Discussions");
-          scene.setRoot(wrapWithChatbot(fxmlRoot));
+        } else if (fxml.equals("Conversation")) {
+            primaryStage.setTitle("5ademni.tn — Mes Discussions");
+            scene.getStylesheets().add(App.class.getResource("Conversation.css").toExternalForm());
+            scene.setRoot(wrapWithChatbot(fxmlRoot));
 
-      } else if (fxml.equals("Message")) {
-          scene.getStylesheets().add(App.class.getResource("Message.css").toExternalForm());
-          primaryStage.setTitle("5ademni.tn — Chat");
-          scene.setRoot(wrapWithChatbot(fxmlRoot));
+        } else if (fxml.equals("Message")) {
+            primaryStage.setTitle("5ademni.tn — Chat");
+            scene.getStylesheets().add(App.class.getResource("Message.css").toExternalForm());
+            scene.setRoot(wrapWithChatbot(fxmlRoot));
 
-      } else {
-          // Default fallback
-          scene.getStylesheets().add(App.class.getResource("contrat.css").toExternalForm());
-          primaryStage.setTitle("5ademni.tn");
-          scene.setRoot(wrapWithChatbot(fxmlRoot));
-      }
+        } else {
+            // Default fallback
+            primaryStage.setTitle("5ademni.tn");
+            // Keep a safe default stylesheet only if it exists in your resources
+            // scene.getStylesheets().add(App.class.getResource("app.css").toExternalForm());
+            scene.setRoot(wrapWithChatbot(fxmlRoot));
+        }
+
+        // keep fullscreen behavior from your branch
+        primaryStage.setFullScreen(true);
     }
 
     /**
