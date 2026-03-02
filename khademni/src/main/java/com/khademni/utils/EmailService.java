@@ -11,8 +11,9 @@ public class EmailService {
     // Configuration SMTP
     private static final String SMTP_HOST = "smtp.gmail.com"; // Serveur SMTP
     private static final String SMTP_PORT = "587"; // Port pour TLS
-    private static final String EMAIL_USERNAME = "votre_email@gmail.com"; // Remplacez par votre email
-    private static final String EMAIL_PASSWORD = "votre_mot_de_passe"; // Remplacez par votre mot de passe ou mot de passe d'application
+    private static final String EMAIL_USERNAME = "yassinegharbi158@gmail.com"; // Remplacez par votre email
+    private static final String EMAIL_PASSWORD = "zlkbnptuklerxudj"; // Remplacez par votre mot de passe ou mot de passe
+                                                                     // d'application
 
     /**
      * Envoie un email à un destinataire.
