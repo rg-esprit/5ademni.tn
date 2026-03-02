@@ -1,0 +1,90 @@
+<?xml version="1.0" encoding="UTF-8"?>
+
+<?import javafx.scene.control.*?>
+<?import javafx.scene.layout.*?>
+<?import javafx.geometry.Insets?>
+<?import org.kordamp.ikonli.javafx.FontIcon?>
+
+<ScrollPane xmlns="http://javafx.com/javafx/17" xmlns:fx="http://javafx.com/fxml/1"
+            fx:controller="com.khademni.controller.ConversationController"
+            fitToWidth="true" fitToHeight="true"
+            style="-fx-background-color: #f7f5f8; -fx-background: #f7f5f8;">
+
+    <VBox spacing="0" style="-fx-background-color: #f7f5f8;">
+
+        <!-- Header -->
+        <fx:include source="header.fxml" />
+
+        <VBox alignment="TOP_CENTER" spacing="32" style="-fx-padding: 40 24 60 24;">
+
+            <!-- Titre -->
+            <VBox alignment="CENTER" spacing="8">
+                <Label text="Mes Conversations"
+                       style="-fx-font-size: 28px; -fx-font-weight: bold; -fx-text-fill: #1f2937;"/>
+                <Label text="Discutez avec vos clients et freelances en toute simplicité"
+                       style="-fx-font-size: 16px; -fx-text-fill: #6b7280;"/>
+            </VBox>
+
+            <!-- Carte principale -->
+            <VBox style="-fx-background-color: white; -fx-background-radius: 16; -fx-effect: dropshadow(gaussian, rgba(0,0,0,0.1), 10, 0, 0, 4); -fx-padding: 32 40 40 40;"
+                  spacing="28" maxWidth="900" prefWidth="900">
+
+                <!-- Label d'erreur/succès -->
+                <Label fx:id="errorLabel" visible="false" managed="true"
+                       style="-fx-font-size: 14px; -fx-padding: 10; -fx-background-color: #fee2e2; -fx-background-radius: 8; -fx-text-fill: #dc2626;"/>
+
+                <!-- Formulaire de recherche et filtres -->
+                <HBox spacing="20" alignment="CENTER_LEFT">
+                    <TextField fx:id="txtSearch" promptText="Rechercher une conversation..."
+                               HBox.hgrow="ALWAYS" style="-fx-pref-height: 40; -fx-background-radius: 20; -fx-border-radius: 20; -fx-border-color: #e5e7eb; -fx-padding: 0 15;"/>
+
+                    <!-- ComboBox SANS items dans le FXML (ils seront chargés dans le code) -->
+                    <ComboBox fx:id="cmbFilter" prefWidth="150" promptText="Filtre"
+                              style="-fx-pref-height: 40; -fx-background-radius: 20; -fx-border-radius: 20;"/>
+                </HBox>
+
+                <!-- Liste des conversations -->
+                <ListView fx:id="listConversations" prefHeight="500" VBox.vgrow="ALWAYS"
+                          style="-fx-border-color: #e5e7eb; -fx-border-radius: 8; -fx-background-radius: 8;">
+                    <placeholder>
+                        <Label text="Aucune conversation pour le moment" style="-fx-text-fill: #9ca3af;"/>
+                    </placeholder>
+                </ListView>
+
+                <!-- Boutons d'action -->
+                <HBox spacing="10" alignment="CENTER_RIGHT">
+                    <!-- NOUVEAU BOUTON VIOLET pour Gérer les membres -->
+                    <Button text="👥 Gérer les membres" onAction="#handleManageMembers"
+                            style="-fx-background-color: #8b5cf6; -fx-text-fill: white; -fx-background-radius: 20; -fx-cursor: hand; -fx-pref-height: 40; -fx-pref-width: 160; -fx-font-weight: bold;">
+                        <graphic>
+                            <FontIcon iconLiteral="fas-users" iconColor="white" iconSize="14"/>
+                        </graphic>
+                    </Button>
+
+                    <!-- BOUTON VIOLET pour Supprimer -->
+                    <Button text="🗑️ Supprimer" onAction="#handleSupprimer"
+                            style="-fx-background-color: #8b5cf6; -fx-text-fill: white; -fx-background-radius: 20; -fx-cursor: hand; -fx-pref-height: 40; -fx-pref-width: 120; -fx-font-weight: bold;"/>
+
+                    <!-- BOUTON VIOLET pour Ouvrir la discussion -->
+                    <Button text="💬 Ouvrir" onAction="#handleOpenChat"
+                            style="-fx-background-color: #8b5cf6; -fx-text-fill: white; -fx-background-radius: 20; -fx-cursor: hand; -fx-pref-height: 40; -fx-pref-width: 120; -fx-font-weight: bold;">
+                        <graphic>
+                            <FontIcon iconLiteral="fas-comments" iconColor="white" iconSize="14"/>
+                        </graphic>
+                    </Button>
+                </HBox>
+
+                <!-- Section UPDATE - ComboBox pour le statut (gardée mais avec style violet) -->
+                <HBox spacing="10" alignment="CENTER_LEFT">
+                    <Label text="Changer statut:" style="-fx-font-weight: 600; -fx-text-fill: #4b5563;"/>
+                    <ComboBox fx:id="cmbStatut" prefWidth="120" promptText="Statut"
+                              style="-fx-background-radius: 20; -fx-border-radius: 20;"/>
+                    <Button text="Appliquer" onAction="#handleChangerStatut"
+                            style="-fx-background-color: #8b5cf6; -fx-text-fill: white; -fx-background-radius: 20; -fx-cursor: hand; -fx-pref-height: 35; -fx-font-weight: bold;"/>
+                </HBox>
+
+                <!-- Note: Boutons Archiver et Activer ont été supprimés -->
+            </VBox>
+        </VBox>
+    </VBox>
+</ScrollPane>
