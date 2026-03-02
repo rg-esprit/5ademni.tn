@@ -20,6 +20,8 @@ module com.khademni {
     requires io.github.cdimascio.dotenv.java;
     requires jdk.jsobject;
     requires jakarta.mail;
+    requires org.json;
+    requires org.kordamp.ikonli.materialdesign2;
 
     opens com.khademni to javafx.fxml;
     opens com.khademni.controller to javafx.fxml;

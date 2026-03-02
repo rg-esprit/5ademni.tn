@@ -10,6 +10,7 @@ import javafx.stage.Stage;
 // user model
 import com.khademni.model.UserModel;
 import com.khademni.controller.ChatbotController;
+import com.khademni.utils.SessionManager;
 
 import java.io.IOException;
 
@@ -130,6 +131,7 @@ public class App extends Application {
 
     public static void setCurrentUser(UserModel user) {
         currentUser = user;
+        SessionManager.setCurrentUser(user);
         // Reset chatbot when user changes (login/logout)
         chatbotController = null;
     }

@@ -9,12 +9,16 @@ import com.khademni.utils.VercelBlobUploader;
 
 import javafx.event.ActionEvent;
 import javafx.fxml.FXML;
+import javafx.scene.control.Button;
 import javafx.scene.control.Label;
 import javafx.scene.image.Image;
 import javafx.scene.image.ImageView;
 import javafx.scene.shape.Circle;
 
 public class HeaderController {
+
+    @FXML
+    private Button jobsManagementLink;
 
     @FXML
     private Label headerAvatarInitials;
@@ -141,4 +145,31 @@ public class HeaderController {
         }
     }
 
+    @FXML
+    private void onReviews(ActionEvent event) {
+        try {
+            App.setRoot("review");
+        } catch (IOException e) {
+            e.printStackTrace();
+        }
+    }
+
+    @FXML
+    private void goToJobsAdmin(ActionEvent event) {
+        try {
+            App.setRoot("jobs-management");
+        } catch (IOException e) {
+            e.printStackTrace();
+        }
+    }
+
+    @FXML
+    private void goToBlogs() throws IOException {
+        App.setRoot("Article/AjouterArticle");
+    }
+
+    @FXML
+    private void goToArticles() throws IOException {
+        App.setRoot("Article/ArticlesPublications");
+    }
 }

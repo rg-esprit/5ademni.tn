@@ -13,7 +13,7 @@ numpy==1.26.2
 joblib==1.3.2
 
 # Serveur WSGI pour production (optionnel)
-gunicorn==21.2.0
+gunicorn==22.0.0
 
 # CORS pour les requêtes cross-origin (optionnel)
 flask-cors==4.0.0

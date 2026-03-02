@@ -85,4 +85,10 @@ public class MyDataBase {
             e.printStackTrace();
         }
     }
+
+    public static void closeConnection() throws SQLException {
+        if (connection != null && !connection.isClosed()) {
+            connection.close();
+        }
+    }
 }
