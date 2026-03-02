@@ -1,0 +1,43 @@
+# Fichiers de modèles générés
+*.pkl
+
+# Environnement virtuel Python
+venv/
+env/
+ENV/
+.venv
+
+# Fichiers Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+
+# Distribution / packaging
+dist/
+build/
+*.egg-info/
+.installed.cfg
+*.egg
+
+# Jupyter Notebook
+.ipynb_checkpoints
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# Logs
+*.log
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Données personnelles (décommenter si nécessaire)
+# training_data.csv
+# price_training_data.csv

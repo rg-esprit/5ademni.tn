@@ -1,0 +1,178 @@
+<?xml version="1.0" encoding="UTF-8"?>
+
+<?import javafx.scene.control.*?>
+<?import javafx.scene.layout.*?>
+<?import javafx.geometry.Insets?>
+<?import javafx.scene.chart.*?>
+
+<?import javafx.scene.chart.NumberAxis?>
+<ScrollPane xmlns="http://javafx.com/javafx/22"
+    xmlns:fx="http://javafx.com/fxml/1"
+    fx:controller="com.khademni.controller.ArticleGUIController"
+    fitToWidth="true"
+    styleClass="profile-scroll"
+    stylesheets="@dashboard-article.css"
+>
+    <VBox styleClass="profile-root">
+        <fx:include source="../header.fxml" />
+        <VBox spacing="30" style="-fx-padding:40;">
+
+
+            <Label text="Gestion des Articles"
+                styleClass="profile-page-title" />
+
+            <!-- ================= STAT CARDS ================= -->
+            <HBox spacing="20" alignment="CENTER">
+
+                <VBox styleClass="stat-card">
+                    <Label text="Total Articles" styleClass="stat-title" />
+                    <Label fx:id="lblTotal" text="0" styleClass="stat-value" />
+                </VBox>
+
+                <VBox styleClass="stat-card green-card">
+                    <Label text="Articles Visibles" styleClass="stat-title" />
+                    <Label fx:id="lblVisible" text="0" styleClass="stat-value" />
+                </VBox>
+
+                <VBox styleClass="stat-card red-card">
+                    <Label text="Articles Masqués" styleClass="stat-title" />
+                    <Label fx:id="lblMasque" text="0" styleClass="stat-value" />
+                </VBox>
+
+            </HBox>
+
+
+            <HBox spacing="20" alignment="TOP_LEFT">
+
+                <!-- LEFT SIDE (TABLE + FORM) -->
+                <VBox styleClass="profile-card" spacing="15" VBox.vgrow="ALWAYS">
+
+                    <!-- TABLE CARD -->
+                    <VBox fx:id="tableContainer"
+                        styleClass="profile-card"
+                        spacing="15"
+                        VBox.vgrow="ALWAYS"
+                        prefHeight="400"> <!-- Réduction de la hauteur du tableau -->
+
+                        <HBox spacing="70" alignment="CENTER_LEFT" HBox.hgrow="ALWAYS">
+                            <TextField fx:id="searchField"
+                                promptText="Rechercher..."
+                                styleClass="profile-input"
+                                HBox.hgrow="ALWAYS" />
+
+                            <Button text="Ajouter"
+                                onAction="#showForm"
+                                styleClass="profile-save-btn" />
+                        </HBox>
+
+                        <TableView fx:id="tableArticles" VBox.vgrow="ALWAYS">
+                            <columns>
+                                <TableColumn fx:id="colTitle" text="Titre" prefWidth="180" />
+                                <TableColumn fx:id="colContent" text="Contenu" prefWidth="250" />
+                                <TableColumn fx:id="colStatus" text="Statut" prefWidth="100" />
+                                <TableColumn fx:id="colDate" text="Date" prefWidth="130" />
+                                <TableColumn fx:id="colActions" text="Actions" prefWidth="140" />
+                            </columns>
+                        </TableView>
+
+                    </VBox>
+
+                    <!-- FORM CARD -->
+                    <VBox fx:id="formContainer"
+                        styleClass="profile-card"
+                        spacing="15"
+                        visible="false"
+                        managed="false">
+
+                        <Label text="Ajouter / Modifier Article"
+                            styleClass="stat-title" />
+
+                        <HBox spacing="10" alignment="CENTER_LEFT">
+                            <Label text="Image:" />
+                            <TextField fx:id="txtImagePath" promptText="Chemin de l'image..."
+                                styleClass="profile-input" HBox.hgrow="ALWAYS" />
+                            <Button text="Parcourir" onAction="#chooseImage"
+                                styleClass="profile-save-btn" />
+                        </HBox>
+
+                        <TextField fx:id="txtTitle"
+                            promptText="Titre"
+                            styleClass="profile-input" />
+                        <Label fx:id="errorTitle" textFill="red" visible="false" />
+
+                        <TextArea fx:id="txtContent"
+                            promptText="Contenu"
+                            prefRowCount="3"
+                            styleClass="profile-textarea" />
+                        <Label fx:id="errorContent" textFill="red" visible="false" />
+
+                        <ComboBox fx:id="cmbStatus"
+                            promptText="Statut"
+                            styleClass="profile-input" />
+                        <Label fx:id="errorStatus" textFill="red" visible="false" />
+
+                        <HBox spacing="10">
+                            <Button text="Enregistrer"
+                                onAction="#ajouterArticle"
+                                styleClass="profile-save-btn" />
+
+                            <Button text="Annuler"
+                                onAction="#hideForm"
+                                styleClass="profile-cancel-btn" />
+                        </HBox>
+
+                    </VBox>
+
+                </VBox>
+
+
+                <!-- GRAPHIQUES -->
+
+                <!-- Pie Chart for Article Status -->
+                <VBox styleClass="profile-card" spacing="15">
+                    <Label text="Répartition des Articles" styleClass="stat-title" />
+                    <PieChart fx:id="pieChart"
+                        legendVisible="true"
+                        prefHeight="300"
+                        startAngle="90">
+                    </PieChart>
+                </VBox>
+            </HBox>
+
+            <VBox spacing="20" alignment="CENTER" style="-fx-padding: 20;">
+
+
+                <!-- Graphique en barres pour les favoris -->
+                <VBox styleClass="profile-card" spacing="15">
+                    <Label text="Répartition des Favoris" styleClass="stat-title" />
+                    <BarChart fx:id="barChartFavoris" title="Répartition des Favoris"
+                        prefHeight="300">
+                        <xAxis>
+                            <CategoryAxis fx:id="xAxisFavoris" label="Articles" />
+                        </xAxis>
+                        <yAxis>
+                            <NumberAxis fx:id="yAxisFavoris" label="Nombre de Favoris" />
+                        </yAxis>
+                    </BarChart>
+                </VBox>
+
+                <!-- Graphique en barres pour les commentaires -->
+                <VBox styleClass="profile-card" spacing="15">
+                    <Label text="Répartition des Commentaires" styleClass="stat-title" />
+                    <BarChart fx:id="barChartCommentaires" title="Répartition des Commentaires"
+                        prefHeight="300">
+                        <xAxis>
+                            <CategoryAxis fx:id="xAxisCommentaires" label="Articles" />
+                        </xAxis>
+                        <yAxis>
+                            <NumberAxis fx:id="yAxisCommentaires" label="Nombre de Commentaires" />
+                        </yAxis>
+                    </BarChart>
+                </VBox>
+
+            </VBox>
+
+        </VBox>
+    </VBox>
+
+</ScrollPane>

@@ -1,0 +1,31 @@
+<?xml version="1.0" encoding="UTF-8"?>
+
+<?import javafx.scene.control.ScrollPane?>
+<?import javafx.scene.layout.VBox?>
+<?import javafx.scene.layout.TilePane?>
+<?import javafx.scene.control.Label?>
+
+<ScrollPane xmlns="http://javafx.com/javafx/22"
+    xmlns:fx="http://javafx.com/fxml"
+    fx:controller="com.khademni.controller.FavorisController"
+    fitToWidth="true"
+    styleClass="profile-scroll"
+    stylesheets="@dashboard-article.css">
+
+    <content>
+        <VBox spacing="20" styleClass="profile-root">
+            <fx:include source="../header.fxml" />
+
+            <Label text="Mes Articles Favoris"
+                styleClass="profile-page-title"
+                style="-fx-padding: 20 0 0 20;" />
+
+            <TilePane fx:id="favorisContainer"
+                hgap="20"
+                vgap="20"
+                prefColumns="1"
+                tileAlignment="TOP_LEFT"
+                styleClass="tile-pane" />
+        </VBox>
+    </content>
+</ScrollPane>

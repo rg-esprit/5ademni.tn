@@ -1,0 +1,72 @@
+<?xml version="1.0" encoding="UTF-8"?>
+
+<?import javafx.scene.control.*?>
+<?import javafx.scene.layout.*?>
+<?import javafx.scene.shape.*?>
+<?import javafx.geometry.Insets?>
+
+<ScrollPane xmlns="http://javafx.com/javafx/17" xmlns:fx="http://javafx.com/fxml/1"
+    fx:controller="com.khademni.controller.JobsController"
+    fitToWidth="true" fitToHeight="true" styleClass="jobs-scroll"
+    style="-fx-background-color: #f7f5f8; -fx-background: #f7f5f8;">
+
+    <VBox spacing="0" styleClass="jobs-root"
+        style="-fx-background-color: #f7f5f8;">
+
+        <!-- Header -->
+        <fx:include source="header.fxml" />
+
+        <!-- Main Content -->
+        <VBox alignment="TOP_CENTER" spacing="0" style="-fx-padding: 40 24 60 24;">
+
+            <!-- Page Title Section -->
+            <VBox alignment="CENTER" spacing="8" style="-fx-padding: 0 0 32 0;">
+                <Label text="Jobs &amp; Opportunities" styleClass="jobs-page-title" />
+                <Label text="Explore career opportunities and find your next role"
+                    styleClass="jobs-page-subtitle" />
+            </VBox>
+
+            <!-- Filter and Search Section -->
+            <VBox styleClass="jobs-filter-card" spacing="16" maxWidth="900" prefWidth="900"
+                style="-fx-padding: 24 24 24 24;">
+                
+                <!-- Search Box -->
+                <HBox spacing="12" alignment="CENTER_LEFT">
+                    <TextField fx:id="jobSearchField" promptText="Search by job title, company..."
+                        styleClass="jobs-search-input" HBox.hgrow="ALWAYS" />
+                    <Button text="Search" styleClass="jobs-search-btn" onAction="#performSearch" />
+                    <Button text="+ Add Job" styleClass="jobs-add-btn" onAction="#showAddJobDialog" />
+                </HBox>
+
+                <!-- Filter Row -->
+                <HBox spacing="16" alignment="CENTER_LEFT">
+                    <ComboBox fx:id="jobCategoryFilter" promptText="Category"
+                        styleClass="jobs-filter-combo" prefWidth="180" />
+                    <ComboBox fx:id="jobLocationFilter" promptText="Location"
+                        styleClass="jobs-filter-combo" prefWidth="180" />
+                    <VBox spacing="5" alignment="CENTER_LEFT" HBox.hgrow="ALWAYS" maxWidth="300">
+                        <Label fx:id="salaryFilterLabel" text="Min Salary: 0 TND" styleClass="jobs-filter-label" style="-fx-font-size: 11px; -fx-text-fill: #666;" />
+                        <Slider fx:id="jobSalarySlider" min="0" max="10000" value="0" showTickLabels="false" showTickMarks="false" />
+                    </VBox>
+                    <Region HBox.hgrow="ALWAYS" />
+                    <Button text="Reset Filters" styleClass="jobs-reset-btn" onAction="#resetFilters" />
+                </HBox>
+            </VBox>
+
+            <!-- Jobs List Section -->
+            <VBox spacing="16" style="-fx-padding: 24 0 0 0; -fx-max-width: 900; -fx-pref-width: 900;">
+                
+                <!-- Jobs Container -->
+                <VBox fx:id="jobsContainer" spacing="16" styleClass="jobs-list-container" />
+
+                <!-- Empty State -->
+                <VBox fx:id="emptyStateBox" alignment="CENTER" spacing="16"
+                    style="-fx-padding: 60 40 60 40; -fx-border-radius: 16; -fx-background-color: white; -fx-effect: dropshadow(gaussian, rgba(0, 0, 0, 0.06), 30, 0, 0, 8);">
+                    <Label text="No jobs found" styleClass="empty-state-title" />
+                    <Label text="Try adjusting your filters or search criteria"
+                        styleClass="empty-state-subtitle" />
+                </VBox>
+            </VBox>
+        </VBox>
+    </VBox>
+</ScrollPane>

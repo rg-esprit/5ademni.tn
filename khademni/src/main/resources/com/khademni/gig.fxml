@@ -1,0 +1,310 @@
+<?xml version="1.0" encoding="UTF-8"?>
+
+<?import javafx.scene.control.*?>
+<?import javafx.scene.layout.*?>
+<?import javafx.geometry.Insets?>
+
+<BorderPane xmlns="http://javafx.com/javafx"
+            xmlns:fx="http://javafx.com/fxml"
+            fx:controller="com.khademni.controller.GigController"
+            stylesheets="@gig.css"
+            style="-fx-background-color: #f7f8fa;">
+
+    <!-- ===== HEADER ===== -->
+    <top>
+        <VBox spacing="0">
+            <fx:include source="header.fxml" />
+
+            <!-- Page Title Bar -->
+            <HBox alignment="CENTER_LEFT" spacing="16"
+                  style="-fx-background-color: white;
+                         -fx-padding: 24 48;
+                         -fx-border-color: #e5e7eb;
+                         -fx-border-width: 0 0 1 0;">
+                <VBox spacing="4" HBox.hgrow="ALWAYS">
+                    <Label text="💼 Gig Management"
+                           style="-fx-font-size: 28; -fx-font-weight: 800; -fx-text-fill: #111827;" />
+                    <Label text="Create and manage your service offerings"
+                           style="-fx-font-size: 14; -fx-text-fill: #6b7280;" />
+                </VBox>
+
+                <!-- Quick Actions -->
+                <HBox spacing="12">
+                    <Button text="+ New Gig"
+                            onAction="#showAddGigDialog"
+                            style="-fx-background-color: #6366f1;
+                                   -fx-text-fill: white;
+                                   -fx-font-size: 14;
+                                   -fx-font-weight: 700;
+                                   -fx-padding: 12 24;
+                                   -fx-background-radius: 10;
+                                   -fx-cursor: hand;
+                                   -fx-effect: dropshadow(gaussian, rgba(99,102,241,0.3), 8, 0, 0, 2);" />
+
+                    <Button text="&#x1F916; AI Generate"
+                            onAction="#showAIGenerateDialog"
+                            style="-fx-background-color: linear-gradient(to right, #8b5cf6, #6366f1);
+                                   -fx-text-fill: white;
+                                   -fx-font-size: 14;
+                                   -fx-font-weight: 700;
+                                   -fx-padding: 12 24;
+                                   -fx-background-radius: 10;
+                                   -fx-cursor: hand;
+                                   -fx-effect: dropshadow(gaussian, rgba(139,92,246,0.3), 8, 0, 0, 2);" />
+
+                    <Button text="⟳"
+                            onAction="#onRefresh"
+                            style="-fx-background-color: #f3f4f6;
+                                   -fx-text-fill: #374151;
+                                   -fx-font-size: 16;
+                                   -fx-font-weight: 700;
+                                   -fx-padding: 12 16;
+                                   -fx-background-radius: 10;
+                                   -fx-cursor: hand;" />
+                </HBox>
+            </HBox>
+        </VBox>
+    </top>
+
+    <!-- ===== MAIN CONTENT ===== -->
+    <center>
+        <HBox spacing="0" style="-fx-background-color: #f7f8fa;">
+
+            <!-- ===== LEFT SIDEBAR : FILTERS ===== -->
+            <VBox spacing="0" prefWidth="320" minWidth="320"
+                  style="-fx-background-color: white;
+                         -fx-border-color: #e5e7eb;
+                         -fx-border-width: 0 1 0 0;
+                         -fx-padding: 24;">
+
+                <Label text="Filters &amp; Search"
+                       style="-fx-font-size: 18; -fx-font-weight: 700; -fx-text-fill: #111827;
+                              -fx-padding: 0 0 20 0;" />
+
+                <!-- Search Bar -->
+                <VBox spacing="8" style="-fx-padding: 0 0 24 0;">
+                    <Label text="Search Gigs"
+                           style="-fx-font-size: 12; -fx-font-weight: 600; -fx-text-fill: #6b7280;" />
+                    <TextField fx:id="searchField"
+                               promptText="🔍 Search by title..."
+                               style="-fx-background-color: #f9fafb;
+                                      -fx-border-color: #e5e7eb;
+                                      -fx-border-radius: 8;
+                                      -fx-background-radius: 8;
+                                      -fx-padding: 10 14;
+                                      -fx-font-size: 14;" />
+                </VBox>
+
+                <!-- Category Filter -->
+                <VBox spacing="8" style="-fx-padding: 0 0 24 0;">
+                    <Label text="Category"
+                           style="-fx-font-size: 12; -fx-font-weight: 600; -fx-text-fill: #6b7280;" />
+                    <ComboBox fx:id="filterCategoryComboBox"
+                              promptText="All Categories"
+                              maxWidth="Infinity"
+                              style="-fx-background-color: #f9fafb;
+                                     -fx-border-color: #e5e7eb;
+                                     -fx-border-radius: 8;
+                                     -fx-background-radius: 8;" />
+                </VBox>
+
+                <!-- Status Filter -->
+                <VBox spacing="8" style="-fx-padding: 0 0 24 0;">
+                    <Label text="Status"
+                           style="-fx-font-size: 12; -fx-font-weight: 600; -fx-text-fill: #6b7280;" />
+                    <ComboBox fx:id="filterStatusComboBox"
+                              promptText="All Status"
+                              maxWidth="Infinity"
+                              style="-fx-background-color: #f9fafb;
+                                     -fx-border-color: #e5e7eb;
+                                     -fx-border-radius: 8;
+                                     -fx-background-radius: 8;" />
+                </VBox>
+
+                <!-- Price Range -->
+                <VBox spacing="8" style="-fx-padding: 0 0 24 0;">
+                    <Label text="Price Range (TND)"
+                           style="-fx-font-size: 12; -fx-font-weight: 600; -fx-text-fill: #6b7280;" />
+                    <HBox spacing="8">
+                        <TextField fx:id="minPriceField"
+                                   promptText="Min"
+                                   prefWidth="100"
+                                   style="-fx-background-color: #f9fafb;
+                                          -fx-border-color: #e5e7eb;
+                                          -fx-border-radius: 8;
+                                          -fx-background-radius: 8;
+                                          -fx-padding: 8 12;" />
+                        <Label text="-" style="-fx-padding: 8 0 0 0;" />
+                        <TextField fx:id="maxPriceField"
+                                   promptText="Max"
+                                   prefWidth="100"
+                                   style="-fx-background-color: #f9fafb;
+                                          -fx-border-color: #e5e7eb;
+                                          -fx-border-radius: 8;
+                                          -fx-background-radius: 8;
+                                          -fx-padding: 8 12;" />
+                    </HBox>
+                </VBox>
+
+                <!-- Filter Actions -->
+                <VBox spacing="10">
+                    <Button text="Apply Filters"
+                            onAction="#applyFilters"
+                            maxWidth="Infinity"
+                            style="-fx-background-color: #6366f1;
+                                   -fx-text-fill: white;
+                                   -fx-font-size: 13;
+                                   -fx-font-weight: 600;
+                                   -fx-padding: 10 20;
+                                   -fx-background-radius: 8;
+                                   -fx-cursor: hand;" />
+
+                    <Button text="Clear Filters"
+                            onAction="#clearFilters"
+                            maxWidth="Infinity"
+                            style="-fx-background-color: #f3f4f6;
+                                   -fx-text-fill: #374151;
+                                   -fx-font-size: 13;
+                                   -fx-font-weight: 600;
+                                   -fx-padding: 10 20;
+                                   -fx-background-radius: 8;
+                                   -fx-cursor: hand;" />
+                </VBox>
+
+                <Separator style="-fx-padding: 24 0;" />
+
+                <!-- Navigation -->
+                <VBox spacing="10">
+                    <Button text="← Back to Profile"
+                            onAction="#onGoBack"
+                            maxWidth="Infinity"
+                            style="-fx-background-color: #f59e0b;
+                                   -fx-text-fill: white;
+                                   -fx-font-size: 13;
+                                   -fx-font-weight: 600;
+                                   -fx-padding: 10 20;
+                                   -fx-background-radius: 8;
+                                   -fx-cursor: hand;" />
+
+                    <Button text="⊗ Exit"
+                            onAction="#onExit"
+                            maxWidth="Infinity"
+                            style="-fx-background-color: #6b7280;
+                                   -fx-text-fill: white;
+                                   -fx-font-size: 13;
+                                   -fx-font-weight: 600;
+                                   -fx-padding: 10 20;
+                                   -fx-background-radius: 8;
+                                   -fx-cursor: hand;" />
+                </VBox>
+
+            </VBox>
+
+            <!-- ===== RIGHT CONTENT : GIGS GRID ===== -->
+            <ScrollPane fitToWidth="true" fitToHeight="true" HBox.hgrow="ALWAYS"
+                        style="-fx-background-color: #f7f8fa; -fx-background: #f7f8fa;">
+
+                <VBox spacing="24" style="-fx-padding: 32 48;">
+
+                    <!-- Status Message -->
+                    <Label fx:id="messageLabel"
+                           text=""
+                           visible="false"
+                           managed="false"
+                           wrapText="true"
+                           maxWidth="Infinity" />
+
+                    <!-- Stats Bar -->
+                    <HBox spacing="16" alignment="CENTER_LEFT">
+                        <VBox spacing="4" style="-fx-background-color: white;
+                                                   -fx-padding: 16 24;
+                                                   -fx-background-radius: 12;
+                                                   -fx-border-color: #e5e7eb;
+                                                   -fx-border-radius: 12;
+                                                   -fx-border-width: 1;">
+                            <Label text="Total Gigs"
+                                   style="-fx-font-size: 12; -fx-text-fill: #6b7280;" />
+                            <Label fx:id="totalGigsLabel"
+                                   text="0"
+                                   style="-fx-font-size: 24; -fx-font-weight: 800; -fx-text-fill: #6366f1;" />
+                        </VBox>
+
+                        <VBox spacing="4" style="-fx-background-color: white;
+                                                   -fx-padding: 16 24;
+                                                   -fx-background-radius: 12;
+                                                   -fx-border-color: #e5e7eb;
+                                                   -fx-border-radius: 12;
+                                                   -fx-border-width: 1;">
+                            <Label text="Active Gigs"
+                                   style="-fx-font-size: 12; -fx-text-fill: #6b7280;" />
+                            <Label fx:id="activeGigsLabel"
+                                   text="0"
+                                   style="-fx-font-size: 24; -fx-font-weight: 800; -fx-text-fill: #10b981;" />
+                        </VBox>
+
+                        <VBox spacing="4" style="-fx-background-color: white;
+                                                   -fx-padding: 16 24;
+                                                   -fx-background-radius: 12;
+                                                   -fx-border-color: #e5e7eb;
+                                                   -fx-border-radius: 12;
+                                                   -fx-border-width: 1;">
+                            <Label text="Total Revenue"
+                                   style="-fx-font-size: 12; -fx-text-fill: #6b7280;" />
+                            <Label fx:id="totalRevenueLabel"
+                                   text="0 TND"
+                                   style="-fx-font-size: 24; -fx-font-weight: 800; -fx-text-fill: #f59e0b;" />
+                        </VBox>
+                    </HBox>
+
+                    <!-- Gigs Grid (Cards) -->
+                    <VBox spacing="16">
+                        <Label text="Your Gigs"
+                               style="-fx-font-size: 20; -fx-font-weight: 700; -fx-text-fill: #111827;" />
+
+                        <!-- Gigs Container (will be populated programmatically) -->
+                        <FlowPane fx:id="gigsContainer"
+                                  hgap="20" vgap="20"
+                                  alignment="TOP_LEFT"
+                                  prefWrapLength="1000">
+                            <!-- Gig cards will be added here dynamically -->
+                        </FlowPane>
+
+                        <!-- Empty State -->
+                        <VBox fx:id="emptyState"
+                              spacing="12"
+                              alignment="CENTER"
+                              visible="false"
+                              managed="false"
+                              style="-fx-padding: 60 0;
+                                     -fx-background-color: white;
+                                     -fx-background-radius: 16;
+                                     -fx-border-color: #e5e7eb;
+                                     -fx-border-radius: 16;
+                                     -fx-border-width: 2;
+                                     -fx-border-style: dashed;">
+                            <Label text="📦"
+                                   style="-fx-font-size: 48;" />
+                            <Label text="No gigs found"
+                                   style="-fx-font-size: 18; -fx-font-weight: 700; -fx-text-fill: #374151;" />
+                            <Label text="Create your first gig or adjust your filters"
+                                   style="-fx-font-size: 14; -fx-text-fill: #9ca3af;" />
+                            <Button text="+ Create New Gig"
+                                    onAction="#showAddGigDialog"
+                                    style="-fx-background-color: #6366f1;
+                                           -fx-text-fill: white;
+                                           -fx-font-size: 14;
+                                           -fx-font-weight: 600;
+                                           -fx-padding: 12 32;
+                                           -fx-background-radius: 10;
+                                           -fx-cursor: hand;
+                                           -fx-margin: 12 0 0 0;" />
+                        </VBox>
+                    </VBox>
+
+                </VBox>
+            </ScrollPane>
+
+        </HBox>
+    </center>
+
+</BorderPane>

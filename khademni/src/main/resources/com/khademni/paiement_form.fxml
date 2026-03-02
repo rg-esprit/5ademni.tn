@@ -1,0 +1,60 @@
+<?xml version="1.0" encoding="UTF-8"?>
+
+<?import javafx.scene.control.*?>
+<?import javafx.scene.layout.*?>
+<?import javafx.geometry.Insets?>
+
+<ScrollPane xmlns="http://javafx.com/javafx/17" xmlns:fx="http://javafx.com/fxml/1"
+    fx:controller="com.khademni.controller.PaiementFormController"
+    fitToWidth="true" fitToHeight="true" styleClass="root-scroll"
+    stylesheets="@contrat.css"
+    style="-fx-background-color: #f7f5f8; -fx-background: #f7f5f8;">
+
+    <VBox alignment="TOP_CENTER" spacing="0" styleClass="root">
+        
+        <!-- Global Header -->
+        <fx:include source="header.fxml" />
+
+        <!-- Main Content Area -->
+        <VBox alignment="TOP_CENTER" spacing="32" style="-fx-padding: 40 24 60 24;">
+
+            <!-- Main Card Container -->
+            <VBox styleClass="card" spacing="28" maxWidth="600" prefWidth="600"
+                style="-fx-padding: 36;">
+
+                <!-- Header Section -->
+                <VBox spacing="8" alignment="CENTER">
+                    <Label text="Paiement Manuel Stripe" styleClass="heading" />
+                    <Label text="Saisissez les informations pour générer un lien de paiement Stripe" styleClass="subtitle-text" />
+                </VBox>
+
+                <VBox spacing="20">
+                    <!-- Amount Field -->
+                    <VBox spacing="8">
+                        <Label text="Montant (DT)" style="-fx-font-weight: bold; -fx-font-size: 14px; -fx-text-fill: #374151;" />
+                        <TextField fx:id="amountField" promptText="Ex: 50.0" 
+                                   style="-fx-padding: 12; -fx-background-radius: 8; -fx-border-radius: 8; -fx-border-color: #d1d5db; -fx-background-color: white;" />
+                    </VBox>
+
+                    <!-- Description Field -->
+                    <VBox spacing="8">
+                        <Label text="Description / Référence" style="-fx-font-weight: bold; -fx-font-size: 14px; -fx-text-fill: #374151;" />
+                        <TextField fx:id="descriptionField" promptText="Ex: Paiement service Web" 
+                                   style="-fx-padding: 12; -fx-background-radius: 8; -fx-border-radius: 8; -fx-border-color: #d1d5db; -fx-background-color: white;" />
+                    </VBox>
+                </VBox>
+
+                <!-- Action Button -->
+                <VBox alignment="CENTER" spacing="16" style="-fx-padding: 20 0 0 0;">
+                    <Button text="Générer le lien de paiement" styleClass="button-primary" onAction="#handleGeneratePaymentLink"
+                            maxWidth="Infinity" style="-fx-padding: 14; -fx-font-size: 15px; -fx-font-weight: bold;">
+                    </Button>
+                    <Button text="Annuler" onAction="#handleCancel"
+                            style="-fx-text-fill: #6b7280; -fx-cursor: hand; -fx-background-color: transparent;">
+                    </Button>
+                </VBox>
+
+            </VBox>
+        </VBox>
+    </VBox>
+</ScrollPane>
