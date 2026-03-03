@@ -26,7 +26,7 @@ public class App extends Application {
     @Override
     public void start(Stage stage) throws IOException {
         primaryStage = stage;
-                
+
         scene = new Scene(loadFXML("login"), 540, 700);
         scene.getStylesheets().add(App.class.getResource("login.css").toExternalForm());
         stage.setTitle("5ademni.tn — Sign In");
@@ -37,7 +37,7 @@ public class App extends Application {
 
     public static void setRoot(String fxml) throws IOException {
         scene.setRoot(loadFXML(fxml));
-        
+
         // Update title and CSS based on the scene
         scene.getStylesheets().clear();
         if (fxml.equals("login")) {
@@ -55,6 +55,14 @@ public class App extends Application {
         } else if (fxml.equals("jobs-management")) {
             primaryStage.setTitle("5ademni.tn — Jobs Management");
             scene.getStylesheets().add(App.class.getResource("jobs-management.css").toExternalForm());
+        }
+        else if (fxml.equals("Conversation")) {
+            primaryStage.setTitle("5ademni.tn — Mes Discussions");
+            // On peut réutiliser profile.css ou créer un chat.css spécifique
+            scene.getStylesheets().add(App.class.getResource("Conversation.css").toExternalForm());
+        } else if (fxml.equals("Message")) {
+            primaryStage.setTitle("5ademni.tn — Chat");
+            scene.getStylesheets().add(App.class.getResource("Message.css").toExternalForm());
         }
         primaryStage.setFullScreen(true);
     }
