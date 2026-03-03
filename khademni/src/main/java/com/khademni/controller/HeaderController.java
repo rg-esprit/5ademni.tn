@@ -26,14 +26,9 @@ public class HeaderController {
 
     @FXML
     public void initialize() {
-        if (App.getCurrentUser() != null && App.getCurrentUser().isIsAdmin()) {
-            jobsManagementLink.setVisible(true);
-            jobsManagementLink.setManaged(true);
-        } else {
-            jobsManagementLink.setVisible(false);
-            jobsManagementLink.setManaged(false);
-        }
-
+        // Jobs Management link is always visible for both admins and regular users
+        // It redirects to admin panel if user is admin, otherwise shows access denied
+        
         loadHeaderAvatar();
     }
 
@@ -103,7 +98,11 @@ public class HeaderController {
 
     @FXML
     private void goToJobsAdmin() throws IOException {
-        App.setRoot("jobs-management");
+        if (App.getCurrentUser() != null && App.getCurrentUser().isIsAdmin()) {
+            App.setRoot("jobs-management");
+        } else {
+            App.setRoot("jobs");
+        }
     }
 
     @FXML

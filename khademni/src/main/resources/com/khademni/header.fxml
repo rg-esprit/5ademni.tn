@@ -51,10 +51,6 @@
                 style="-fx-font-size: 14px; -fx-font-weight: 600; -fx-text-fill: #141118;" />
             <Hyperlink text="Jobs" onAction="#goToJobsPublic"
                 style="-fx-font-size: 14px; -fx-font-weight: 600; -fx-text-fill: #141118;" />
-            <Hyperlink text="Jobs &amp; Services" onAction="#goToJobs"
-                style="-fx-font-size: 14px; -fx-font-weight: 600; -fx-text-fill: #141118;" />
-            <Hyperlink text="Dashboard" onAction="#goToDashboard"
-                style="-fx-font-size: 14px; -fx-font-weight: 600; -fx-text-fill: #141118;" />
 
             <!-- Categories Dropdown -->
             <MenuButton text="Categories" styleClass="header-menu-button"
