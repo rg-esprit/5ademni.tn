@@ -1,15 +1,28 @@
 package com.khademni.controller;
 
 import java.io.IOException;
+import java.io.InputStream;
 
 import com.khademni.App;
+import com.khademni.model.UserModel;
+import com.khademni.utils.VercelBlobUploader;
 
 import javafx.fxml.FXML;
+import javafx.scene.control.Label;
+import javafx.scene.image.Image;
+import javafx.scene.image.ImageView;
+import javafx.scene.shape.Circle;
 
 public class HeaderController {
 
     @FXML
     private javafx.scene.control.Hyperlink jobsManagementLink;
+
+    @FXML
+    private Label headerAvatarInitials;
+
+    @FXML
+    private ImageView headerAvatarImage;
 
     @FXML
     public void initialize() {
@@ -19,6 +32,50 @@ public class HeaderController {
         } else {
             jobsManagementLink.setVisible(false);
             jobsManagementLink.setManaged(false);
+        }
+
+        loadHeaderAvatar();
+    }
+
+    private void loadHeaderAvatar() {
+        UserModel user = App.getCurrentUser();
+        if (user == null) return;
+
+        // Set initials
+        if (headerAvatarInitials != null) {
+            String initials = "";
+            if (user.getFirstName() != null && !user.getFirstName().isEmpty())
+                initials += user.getFirstName().charAt(0);
+            if (user.getLastName() != null && !user.getLastName().isEmpty())
+                initials += user.getLastName().charAt(0);
+            headerAvatarInitials.setText(initials.toUpperCase());
+        }
+
+        // Load profile image from Vercel Blob
+        String imgUrl = user.getProfileImg();
+        if (headerAvatarImage != null && imgUrl != null && !imgUrl.isBlank()) {
+            Thread loader = new Thread(() -> {
+                try {
+                    InputStream is = VercelBlobUploader.downloadAsStream(imgUrl);
+                    javafx.application.Platform.runLater(() -> {
+                        Image img = new Image(is, 40, 40, true, true);
+                        headerAvatarImage.setImage(img);
+                        Circle clip = new Circle(20, 20, 20);
+                        headerAvatarImage.setClip(clip);
+                        headerAvatarImage.setVisible(true);
+                        headerAvatarImage.setManaged(true);
+                        // Hide initials + gradient circle behind image
+                        if (headerAvatarInitials != null) {
+                            headerAvatarInitials.setVisible(false);
+                            headerAvatarInitials.setManaged(false);
+                        }
+                    });
+                } catch (Exception e) {
+                    System.err.println("Failed to load header avatar: " + e.getMessage());
+                }
+            }, "header-avatar-loader");
+            loader.setDaemon(true);
+            loader.start();
         }
     }
 

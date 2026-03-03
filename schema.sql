@@ -9,16 +9,17 @@ USE appdb;
 -- 1. users
 -- ------------------------------------------------------------
 CREATE TABLE IF NOT EXISTS users (
-    id            INT AUTO_INCREMENT PRIMARY KEY,
-    first_name    VARCHAR(100)  NOT NULL,
-    last_name     VARCHAR(100)  NOT NULL,
-    date_of_birth DATE          NOT NULL,
-    balance       DOUBLE        NOT NULL DEFAULT 0.0,
-    email         VARCHAR(255)  NOT NULL UNIQUE,
-    password      VARCHAR(255)  NOT NULL,
-    is_admin      TINYINT(1)    NOT NULL DEFAULT 0,
-    profile_img   VARCHAR(500)  NOT NULL DEFAULT '',
-    bio           TEXT
+    id             INT AUTO_INCREMENT PRIMARY KEY,
+    first_name     VARCHAR(100)  NOT NULL,
+    last_name      VARCHAR(100)  NOT NULL,
+    date_of_birth  DATE          NOT NULL,
+    balance        DOUBLE        NOT NULL DEFAULT 0.0,
+    email          VARCHAR(255)  NOT NULL UNIQUE,
+    password       VARCHAR(255)  NOT NULL,
+    is_admin       TINYINT(1)    NOT NULL DEFAULT 0,
+    profile_img    VARCHAR(500)  NOT NULL DEFAULT '',
+    bio            TEXT,
+    face_embedding JSON          NULL COMMENT '128-dim Facenet embedding stored as JSON array'
 );
 
 -- ------------------------------------------------------------
