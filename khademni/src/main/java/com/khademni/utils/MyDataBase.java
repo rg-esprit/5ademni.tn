@@ -132,7 +132,7 @@ public class MyDataBase {
                 System.out.println("Schema update: ensured phone_number column exists in job_applications.");
             } catch (SQLException e) {
                 System.out.println("Note: phone_number column already exists or update failed.");
-=======
+            }
 
             // Add face_embedding column for face recognition feature.
             // Error code 1060 = "Duplicate column name" — safe to ignore.
@@ -145,7 +145,6 @@ public class MyDataBase {
                 } else {
                     System.out.println("Note: users.face_embedding fix skipped: " + e.getMessage());
                 }
->>>>>>> origin/Gestion_Users
             }
         } catch (SQLException e) {
             System.err.println("Error during schema check: " + e.getMessage());
