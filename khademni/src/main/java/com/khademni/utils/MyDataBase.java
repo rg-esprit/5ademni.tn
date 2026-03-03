@@ -98,6 +98,32 @@ public class MyDataBase {
                     System.out.println("Note: users.face_embedding fix skipped: " + e.getMessage());
                 }
             }
+
+            // Add user_id column to gig table for tracking creator
+            try {
+                stmt.execute("ALTER TABLE gig ADD COLUMN user_id INT DEFAULT NULL");
+                System.out.println("Schema update: gig.user_id column added.");
+            } catch (SQLException e) {
+                if (e.getErrorCode() == 1060) {
+                    System.out.println("Note: gig.user_id already exists — OK.");
+                } else {
+                    System.out.println("Note: gig.user_id fix skipped: " + e.getMessage());
+                }
+            }
+
+            // Migrate existing gigs with NULL user_id to random users
+            try {
+                stmt.execute("""
+                    UPDATE gig SET user_id = (
+                        SELECT id FROM (
+                            SELECT id FROM users ORDER BY RAND() LIMIT 1
+                        ) AS random_user
+                    ) WHERE user_id IS NULL
+                """);
+                System.out.println("Schema update: Assigned existing gigs to random users.");
+            } catch (SQLException e) {
+                System.out.println("Note: Gig user_id migration skipped: " + e.getMessage());
+            }
         } catch (SQLException e) {
             System.err.println("Error during schema check: " + e.getMessage());
         }

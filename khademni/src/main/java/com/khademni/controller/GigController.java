@@ -11,10 +11,14 @@ import com.khademni.service.SpamDetectionService;
 import com.khademni.utils.MyDataBase;
 import com.khademni.utils.FreeAIService;
 import com.khademni.utils.FlaskAPIClient;
+import com.khademni.utils.ConversationHelper;
 import javafx.fxml.FXML;
+import javafx.fxml.FXMLLoader;
 import javafx.fxml.Initializable;
 import javafx.geometry.Insets;
 import javafx.geometry.Pos;
+import javafx.scene.Parent;
+import javafx.scene.Scene;
 import javafx.scene.control.*;
 import javafx.scene.image.Image;
 import javafx.scene.image.ImageView;
@@ -172,10 +176,10 @@ public class GigController implements Initializable {
         allGigs.clear();
         System.out.println("Loading gigs...");
 
-        // Load ALL gigs (no user_id filter)
+        // Load ALL gigs (with user_id filter)
         String query = """
             SELECT g.id, g.title, g.description, g.price, g.delivery_time,
-                   g.image, g.status, c.id as cat_id, c.name as cat_name, c.description as cat_desc
+                   g.image, g.status, g.user_id, c.id as cat_id, c.name as cat_name, c.description as cat_desc
             FROM gig g
             LEFT JOIN category c ON g.category_id = c.id
             ORDER BY g.id DESC
@@ -221,6 +225,7 @@ public class GigController implements Initializable {
                         actualStatus  // Use dynamic status
                 );
                 gig.setCategory(category);
+                gig.setUserId(rs.getInt("user_id"));
 
                 allGigs.add(gig);
                 count++;
@@ -402,6 +407,9 @@ public class GigController implements Initializable {
         price.getStyleClass().add("gig-card-price");
         HBox.setHgrow(price, Priority.ALWAYS);
 
+        // Check if current user is owner or admin
+        boolean isOwner = isGigOwner(gig);
+        
         Button editBtn = new Button("✏️");
         editBtn.setStyle("-fx-background-color: #3b82f6; -fx-text-fill: white; " +
                         "-fx-padding: 8 12; -fx-background-radius: 6; -fx-cursor: hand;");
@@ -412,19 +420,31 @@ public class GigController implements Initializable {
                           "-fx-padding: 8 12; -fx-background-radius: 6; -fx-cursor: hand;");
         deleteBtn.setOnAction(e -> deleteGig(gig));
 
-        // Disable actions for EXPIRED gigs
-        if (gig.getStatus().equalsIgnoreCase("EXPIRED")) {
-            editBtn.setDisable(true);
-            editBtn.setStyle("-fx-background-color: #9ca3af; -fx-text-fill: white; " +
-                            "-fx-padding: 8 12; -fx-background-radius: 6; -fx-opacity: 0.5;");
-            deleteBtn.setDisable(false); // Allow deletion of expired gigs
+        // Message button for non-owners
+        Button messageBtn = new Button("💬");
+        messageBtn.setStyle("-fx-background-color: #10b981; -fx-text-fill: white; " +
+                          "-fx-padding: 8 12; -fx-background-radius: 6; -fx-cursor: hand;");
+        messageBtn.setOnAction(e -> handleMessageGigOwner(gig));
 
-            // Add expired tooltip
-            Tooltip expiredTooltip = new Tooltip("⚠️ This gig has expired and cannot be edited");
-            Tooltip.install(editBtn, expiredTooltip);
+        // Show/hide buttons based on ownership
+        if (isOwner) {
+            // Owner: show edit and delete
+            if (gig.getStatus().equalsIgnoreCase("EXPIRED")) {
+                editBtn.setDisable(true);
+                editBtn.setStyle("-fx-background-color: #9ca3af; -fx-text-fill: white; " +
+                                "-fx-padding: 8 12; -fx-background-radius: 6; -fx-opacity: 0.5;");
+                Tooltip expiredTooltip = new Tooltip("⚠️ This gig has expired and cannot be edited");
+                Tooltip.install(editBtn, expiredTooltip);
+            }
+            footer.getChildren().addAll(price, editBtn, deleteBtn);
+        } else {
+            // Non-owner: show message button (if logged in and not own gig)
+            if (App.currentUser != null) {
+                footer.getChildren().addAll(price, messageBtn);
+            } else {
+                footer.getChildren().add(price);
+            }
         }
-
-        footer.getChildren().addAll(price, editBtn, deleteBtn);
 
         content.getChildren().addAll(title, description, badges, new Separator(), footer);
         card.getChildren().addAll(imagePane, content);
@@ -1630,15 +1650,16 @@ public class GigController implements Initializable {
     private boolean saveGig(GigModel gigToEdit, String title, String desc, double price, LocalDateTime deliveryTime,
                            String image, String status, int categoryId) {
         String query;
+        int currentUserId = App.currentUser != null ? App.currentUser.getId() : 1;
 
         if (gigToEdit == null) {
-            // Create new gig
+            // Create new gig - include user_id
             query = """
-                INSERT INTO gig (title, description, price, delivery_time, image, status, category_id)
-                VALUES (?, ?, ?, ?, ?, ?, ?)
+                INSERT INTO gig (title, description, price, delivery_time, image, status, category_id, user_id)
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?)
             """;
         } else {
-            // Update existing gig
+            // Update existing gig - keep existing user_id
             query = """
                 UPDATE gig 
                 SET title = ?, description = ?, price = ?, delivery_time = ?, image = ?, status = ?, category_id = ?
@@ -1657,7 +1678,9 @@ public class GigController implements Initializable {
             ps.setString(6, status);
             ps.setInt(7, categoryId);
 
-            if (gigToEdit != null) {
+            if (gigToEdit == null) {
+                ps.setInt(8, currentUserId);
+            } else {
                 ps.setInt(8, gigToEdit.getId());
             }
 
@@ -1782,8 +1805,8 @@ public class GigController implements Initializable {
             case "Development": base = 300; perChar = 2.5; perDay = 40; break;
             case "Design":      base = 100; perChar = 1.2; perDay = 25; break;
             case "Marketing":   base = 150; perChar = 1.5; perDay = 30; break;
-            case "Video":       base = 120; perChar = 1.3; perDay = 35; break;
-            case "Writing":     base =  50; perChar = 0.8; perDay = 10; break;
+            case "Video":      base = 120; perChar = 1.3; perDay = 35; break;
+            case "Writing":    base =  50; perChar = 0.8; perDay = 10; break;
             default:            base = 200; perChar = 1.5; perDay = 30; break;
         }
         // Formule: base + longueur × perChar + jours × perDay
@@ -1797,8 +1820,65 @@ public class GigController implements Initializable {
             + " → prix=" + String.format("%.2f", price) + " TND");
         return price;
     }
-}
 
+    private boolean isGigOwner(GigModel gig) {
+        if (App.currentUser == null) {
+            return false;
+        }
+        return gig.getUserId() > 0 && gig.getUserId() == App.currentUser.getId();
+    }
+
+    private boolean isAdmin() {
+        return App.currentUser != null && App.currentUser.isIsAdmin();
+    }
+
+    private void handleMessageGigOwner(GigModel gig) {
+        if (App.currentUser == null) {
+            showError("Please log in to message the gig owner");
+            return;
+        }
+
+        if (gig.getUserId() <= 0) {
+            showError("This gig has no owner assigned");
+            return;
+        }
+
+        if (gig.getUserId() == App.currentUser.getId()) {
+            showError("You cannot message yourself");
+            return;
+        }
+
+        try {
+            int conversationId = ConversationHelper.createOrGetConversation(
+                App.currentUser.getId(),
+                gig.getUserId(),
+                "Gig: " + gig.getTitle()
+            );
+            openConversation(conversationId);
+        } catch (SQLException e) {
+            showError("Error creating conversation: " + e.getMessage());
+            e.printStackTrace();
+        }
+    }
+
+    private void openConversation(int conversationId) {
+        try {
+            FXMLLoader loader = new FXMLLoader(getClass().getResource("/com/khademni/Message.fxml"));
+            Parent root = loader.load();
+
+            MessageController messageController = loader.getController();
+            messageController.setConversationId(conversationId);
+
+            Stage stage = (Stage) gigsContainer.getScene().getWindow();
+            stage.setScene(new Scene(root));
+            stage.setTitle("Conversation");
+
+        } catch (Exception e) {
+            showError("Error opening conversation: " + e.getMessage());
+            e.printStackTrace();
+        }
+    }
+}
 
 
 

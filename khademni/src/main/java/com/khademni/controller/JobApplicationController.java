@@ -30,6 +30,8 @@ public class JobApplicationController {
     private Label jobTitleLabel;
     @FXML
     private Label applicationsCountLabel;
+    @FXML
+    private Button closeButton;
 
     // Admin/Owner UI
     @FXML
@@ -63,7 +65,12 @@ public class JobApplicationController {
 
     @FXML
     public void initialize() {
-        // Default init
+        if (closeButton != null) {
+            closeButton.setOnAction(e -> {
+                javafx.stage.Stage stage = (javafx.stage.Stage) closeButton.getScene().getWindow();
+                stage.close();
+            });
+        }
     }
 
     private void initializeView() {
@@ -1086,5 +1093,11 @@ public class JobApplicationController {
             alert.setContentText(msg);
             alert.show();
         });
+    }
+
+    @FXML
+    private void handleClose() {
+        javafx.stage.Stage stage = (javafx.stage.Stage) jobTitleLabel.getScene().getWindow();
+        stage.close();
     }
 }

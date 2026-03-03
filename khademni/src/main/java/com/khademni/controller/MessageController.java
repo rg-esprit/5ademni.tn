@@ -74,7 +74,7 @@ public class MessageController {
     @FXML private Button btnMicro;
     @FXML private Button btnReunion;
     @FXML private Label errorLabel;
-    @FXML private VBox typingIndicator;
+    @FXML private HBox typingIndicator;
     @FXML private Label lblTyping;
     @FXML private ScrollPane emojiPicker;
     @FXML private VBox emojiContainer;
@@ -163,8 +163,12 @@ public class MessageController {
         btnPieceJointe.setOnAction(e -> handleFileAttachment());
         btnPhoto.setOnAction(e -> handlePhotoAttachment());
         btnMicro.setOnAction(e -> handleVoiceMessage());
-        btnReunion.setOnAction(e -> scheduleMeeting());
-        btnSummary.setOnAction(e -> generateChatSummary());
+        if (btnReunion != null) {
+            btnReunion.setOnAction(e -> scheduleMeeting());
+        }
+        if (btnSummary != null) {
+            btnSummary.setOnAction(e -> generateChatSummary());
+        }
 
         disableButtons(true);
 
@@ -1470,7 +1474,9 @@ public class MessageController {
     private void disableButtons(boolean disable) {
         btnVideoCall.setDisable(disable);
         btnAudioCall.setDisable(disable);
-        btnReunion.setDisable(disable);
+        if (btnReunion != null) {
+            btnReunion.setDisable(disable);
+        }
         btnInfo.setDisable(disable);
         btnEnvoyer.setDisable(disable);
         txtContenu.setDisable(disable);
