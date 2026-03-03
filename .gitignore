@@ -1,3 +1,22 @@
-html files
+# IDE
 .vscode/
 .idea/
+
+# Java / Maven
+khademni/target/
+*.class
+*.jar
+
+# Python
+face_backend/__pycache__/
+face_backend/**/*.pyc
+face_backend/.venv*/
+
+# macOS
+.DS_Store
+
+# Logs
+/tmp/uvicorn.log
+
+# HTML
+html files

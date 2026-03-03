@@ -48,9 +48,9 @@
         <HBox spacing="24" alignment="CENTER">
 
             <Hyperlink fx:id="jobsManagementLink" text="Jobs Management" onAction="#goToJobsAdmin"
-                       style="-fx-font-size: 14px; -fx-font-weight: 600; -fx-text-fill: #141118;" />
+                style="-fx-font-size: 14px; -fx-font-weight: 600; -fx-text-fill: #141118;" />
             <Hyperlink text="Jobs" onAction="#goToJobsPublic"
-                       style="-fx-font-size: 14px; -fx-font-weight: 600; -fx-text-fill: #141118;" />
+                style="-fx-font-size: 14px; -fx-font-weight: 600; -fx-text-fill: #141118;" />
             <Hyperlink text="Jobs &amp; Services" onAction="#goToJobs"
                 style="-fx-font-size: 14px; -fx-font-weight: 600; -fx-text-fill: #141118;" />
             <Hyperlink text="Dashboard" onAction="#goToDashboard"
@@ -86,7 +86,7 @@
                 style="-fx-background-color: #6c0df2; -fx-text-fill: white; -fx-font-weight: bold; -fx-font-size: 14px; -fx-background-radius: 12; -fx-padding: 8 20 8 20; -fx-cursor: hand;" />
 
             <!-- Avatar Circle -->
-            <StackPane prefHeight="40" prefWidth="40">
+            <StackPane prefHeight="40" prefWidth="40" maxHeight="40" maxWidth="40">
                 <Circle radius="20"
                     fill="#f3f4f6"
                     stroke="#6c0df2"
@@ -94,6 +94,10 @@
                     opacity="0.3" />
                 <Circle radius="20"
                     style="-fx-fill: linear-gradient(to bottom, #6c0df2 0%, #8b5cf6 100%);" />
+                <Label fx:id="headerAvatarInitials" text=""
+                    style="-fx-text-fill: white; -fx-font-size: 14; -fx-font-weight: bold;" />
+                <ImageView fx:id="headerAvatarImage" fitWidth="40" fitHeight="40"
+                    preserveRatio="true" visible="false" managed="false" />
             </StackPane>
         </HBox>
 

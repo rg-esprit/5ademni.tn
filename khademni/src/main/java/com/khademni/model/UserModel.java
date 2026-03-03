@@ -13,6 +13,7 @@ public class UserModel {
     private boolean isAdmin;
     private String profileImg;
     private String bio;
+    private String faceEmbedding;
 
     public UserModel() {
     }
@@ -42,6 +43,18 @@ public UserModel(int id) {
         this.isAdmin = isAdmin;
         this.profileImg = profileImg;
         this.bio = bio;
+    }
+
+    public String getFaceEmbedding() {
+        return faceEmbedding;
+    }
+
+    public void setFaceEmbedding(String faceEmbedding) {
+        this.faceEmbedding = faceEmbedding;
+    }
+
+    public boolean hasFaceEnrolled() {
+        return faceEmbedding != null && !faceEmbedding.isBlank();
     }
 
     public int getId() {
