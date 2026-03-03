@@ -4,6 +4,7 @@ module com.khademni {
     requires javafx.web;
     requires jdk.jsobject;
     requires java.net.http;
+    requires javafx.graphics;
     requires java.sql;
     requires mysql.connector.j;
     requires org.kordamp.ikonli.javafx;
@@ -25,4 +26,5 @@ module com.khademni {
     exports com.khademni;
     exports com.khademni.controller;
     exports com.khademni.model;
+    exports com.khademni.service;
 }

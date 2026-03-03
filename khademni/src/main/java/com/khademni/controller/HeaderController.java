@@ -80,4 +80,14 @@ public class HeaderController {
     private void goToArticles() throws IOException {
         App.setRoot("Article/ArticlesPublications");
     }
+
+    @FXML
+    private void goToCategory() throws IOException {
+        App.setRoot("category");
+    }
+
+    @FXML
+    private void goToGig() throws IOException {
+        App.setRoot("gig");
+    }
 }

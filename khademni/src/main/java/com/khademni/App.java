@@ -46,16 +46,33 @@ public class App extends Application {
         } else if (fxml.equals("signup")) {
             primaryStage.setTitle("5ademni.tn — Create Account");
             scene.getStylesheets().add(App.class.getResource("signup.css").toExternalForm());
-        } else if (fxml.equals("profile")) {
-            primaryStage.setTitle("5ademni.tn — My Profile");
-            scene.getStylesheets().add(App.class.getResource("profile.css").toExternalForm());
         } else if (fxml.equals("jobs")) {
             primaryStage.setTitle("5ademni.tn — Jobs & Opportunities");
             scene.getStylesheets().add(App.class.getResource("jobs.css").toExternalForm());
         } else if (fxml.equals("jobs-management")) {
             primaryStage.setTitle("5ademni.tn — Jobs Management");
             scene.getStylesheets().add(App.class.getResource("jobs-management.css").toExternalForm());
+        } else if (fxml.equals("category")) {
+            primaryStage.setTitle("5ademni.tn — Categories");
+            scene.getStylesheets().add(App.class.getResource("category.css").toExternalForm());
+        } else if (fxml.equals("gig")) {
+            primaryStage.setTitle("5ademni.tn — Gigs");
+            scene.getStylesheets().add(App.class.getResource("gig.css").toExternalForm());
         }
+        else if (fxml.equals("Conversation")) {
+            primaryStage.setTitle("5ademni.tn — Mes Discussions");
+            // On peut réutiliser profile.css ou créer un chat.css spécifique
+            scene.getStylesheets().add(App.class.getResource("Conversation.css").toExternalForm());
+        } else if (fxml.equals("Message")) {
+            primaryStage.setTitle("5ademni.tn — Chat");
+            scene.getStylesheets().add(App.class.getResource("Message.css").toExternalForm());
+        }
+        
+        // Only set full screen if it's not already, to avoid focus issues
+        if (!primaryStage.isFullScreen()) {
+            primaryStage.setFullScreen(true);
+        }
+    }
         else if (fxml.equals("Conversation")) {
             primaryStage.setTitle("5ademni.tn — Mes Discussions");
             // On peut réutiliser profile.css ou créer un chat.css spécifique

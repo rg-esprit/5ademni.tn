@@ -1,0 +1,177 @@
+<?xml version="1.0" encoding="UTF-8"?>
+
+<?import javafx.scene.control.*?>
+<?import javafx.scene.layout.*?>
+<?import javafx.geometry.Insets?>
+
+<VBox xmlns="http://javafx.com/javafx"
+      xmlns:fx="http://javafx.com/fxml"
+      fx:controller="com.khademni.controller.CategoryController"
+      stylesheets="@category.css"
+      style="-fx-background-color: #f8fafc;">
+
+    <!-- Header -->
+    <fx:include source="header.fxml" />
+
+    <!-- Main Content -->
+    <ScrollPane fitToWidth="true" VBox.vgrow="ALWAYS"
+                style="-fx-background-color: #f8fafc; -fx-background: #f8fafc;">
+        <VBox spacing="32" style="-fx-padding: 40 48 48 48;">
+
+            <!-- Page Header -->
+            <HBox alignment="CENTER_LEFT" spacing="20">
+                <VBox spacing="4" HBox.hgrow="ALWAYS">
+                    <Label text="📂 Category Management"
+                           style="-fx-font-size: 32; -fx-font-weight: 700; -fx-text-fill: #1e293b;" />
+                    <Label text="Organize and manage service categories"
+                           style="-fx-font-size: 16; -fx-text-fill: #64748b;" />
+                </VBox>
+
+                <!-- Action Buttons -->
+                <HBox spacing="12">
+                    <Button text="⟳ Refresh" onAction="#onRefresh"
+                            styleClass="action-button-secondary"
+                            style="-fx-background-color: #f1f5f9; -fx-text-fill: #475569;
+                                   -fx-font-size: 14; -fx-font-weight: 600; -fx-padding: 12 24;
+                                   -fx-background-radius: 10; -fx-cursor: hand;" />
+
+                    <Button text="+ New Category" onAction="#onAddCategory"
+                            styleClass="action-button-primary"
+                            style="-fx-background-color: linear-gradient(to bottom right, #6366f1, #8b5cf6);
+                                   -fx-text-fill: white; -fx-font-size: 14; -fx-font-weight: 600;
+                                   -fx-padding: 12 28; -fx-background-radius: 10; -fx-cursor: hand;
+                                   -fx-effect: dropshadow(gaussian, rgba(99,102,241,0.3), 12, 0, 0, 4);" />
+                </HBox>
+            </HBox>
+
+            <!-- Stats Cards -->
+            <HBox spacing="20" alignment="CENTER_LEFT">
+                <VBox spacing="8" style="-fx-background-color: white; -fx-padding: 24;
+                                         -fx-background-radius: 16; -fx-effect: dropshadow(gaussian, rgba(0,0,0,0.06), 16, 0, 0, 4);"
+                      HBox.hgrow="ALWAYS">
+                    <Label text="TOTAL CATEGORIES" style="-fx-font-size: 12; -fx-font-weight: 600; -fx-text-fill: #94a3b8;" />
+                    <Label fx:id="totalCategoriesLabel" text="0"
+                           style="-fx-font-size: 36; -fx-font-weight: 700; -fx-text-fill: #1e293b;" />
+                </VBox>
+
+                <VBox spacing="8" style="-fx-background-color: white; -fx-padding: 24;
+                                         -fx-background-radius: 16; -fx-effect: dropshadow(gaussian, rgba(0,0,0,0.06), 16, 0, 0, 4);"
+                      HBox.hgrow="ALWAYS">
+                    <Label text="ACTIVE" style="-fx-font-size: 12; -fx-font-weight: 600; -fx-text-fill: #94a3b8;" />
+                    <Label fx:id="activeCategoriesLabel" text="0"
+                           style="-fx-font-size: 36; -fx-font-weight: 700; -fx-text-fill: #10b981;" />
+                </VBox>
+
+                <VBox spacing="8" style="-fx-background-color: white; -fx-padding: 24;
+                                         -fx-background-radius: 16; -fx-effect: dropshadow(gaussian, rgba(0,0,0,0.06), 16, 0, 0, 4);"
+                      HBox.hgrow="ALWAYS">
+                    <Label text="INACTIVE" style="-fx-font-size: 12; -fx-font-weight: 600; -fx-text-fill: #94a3b8;" />
+                    <Label fx:id="inactiveCategoriesLabel" text="0"
+                           style="-fx-font-size: 36; -fx-font-weight: 700; -fx-text-fill: #ef4444;" />
+                </VBox>
+
+                <VBox spacing="8" style="-fx-background-color: white; -fx-padding: 24;
+                                         -fx-background-radius: 16; -fx-effect: dropshadow(gaussian, rgba(0,0,0,0.06), 16, 0, 0, 4);"
+                      HBox.hgrow="ALWAYS">
+                    <Label text="TOTAL GIGS" style="-fx-font-size: 12; -fx-font-weight: 600; -fx-text-fill: #94a3b8;" />
+                    <Label fx:id="totalGigsLabel" text="0"
+                           style="-fx-font-size: 36; -fx-font-weight: 700; -fx-text-fill: #6366f1;" />
+                </VBox>
+
+                <VBox spacing="8" style="-fx-background-color: white; -fx-padding: 24;
+                                         -fx-background-radius: 16; -fx-effect: dropshadow(gaussian, rgba(0,0,0,0.06), 16, 0, 0, 4);"
+                      HBox.hgrow="ALWAYS">
+                    <Label text="MOST ACTIVE" style="-fx-font-size: 12; -fx-font-weight: 600; -fx-text-fill: #94a3b8;" />
+                    <Label fx:id="mostActiveCategoryLabel" text="-"
+                           style="-fx-font-size: 18; -fx-font-weight: 700; -fx-text-fill: #f59e0b;" />
+                </VBox>
+            </HBox>
+
+            <!-- Gigs per Category Statistics -->
+            <VBox spacing="0" style="-fx-background-color: white; -fx-background-radius: 16;
+                                     -fx-effect: dropshadow(gaussian, rgba(0,0,0,0.06), 16, 0, 0, 4);">
+                <HBox alignment="CENTER_LEFT" spacing="16"
+                      style="-fx-background-color: #f8fafc; -fx-padding: 20 28;
+                             -fx-background-radius: 16 16 0 0; -fx-border-color: #e2e8f0;
+                             -fx-border-width: 0 0 1 0;">
+                    <Label text="Gigs per Category"
+                           style="-fx-font-size: 18; -fx-font-weight: 700; -fx-text-fill: #1e293b;" />
+                    <Region HBox.hgrow="ALWAYS" />
+                    <Label text="Category | Status | Gigs | Distribution | %"
+                           style="-fx-font-size: 12; -fx-text-fill: #94a3b8; -fx-font-weight: 500;" />
+                </HBox>
+                <VBox fx:id="statsContainer" spacing="0" style="-fx-background-color: white;" />
+            </VBox>
+
+            <!-- Search and Filters -->
+            <HBox spacing="16" alignment="CENTER_LEFT"
+                  style="-fx-background-color: white; -fx-padding: 20; -fx-background-radius: 16;
+                         -fx-effect: dropshadow(gaussian, rgba(0,0,0,0.06), 16, 0, 0, 4);">
+
+                <TextField fx:id="searchField" promptText="🔍 Search categories..."
+                           HBox.hgrow="ALWAYS"
+                           style="-fx-background-color: #f8fafc; -fx-background-radius: 10;
+                                  -fx-border-color: #e2e8f0; -fx-border-radius: 10; -fx-border-width: 1;
+                                  -fx-padding: 12 16; -fx-font-size: 14; -fx-pref-width: 400;" />
+
+                <ComboBox fx:id="statusFilterCombo" promptText="Filter by Status"
+                          style="-fx-background-color: #f8fafc; -fx-background-radius: 10;
+                                 -fx-border-color: #e2e8f0; -fx-border-radius: 10; -fx-border-width: 1;
+                                 -fx-padding: 8 16; -fx-font-size: 14; -fx-pref-width: 200;" />
+
+                <Button text="Clear Filters" onAction="#onClearFilters"
+                        style="-fx-background-color: #f1f5f9; -fx-text-fill: #64748b;
+                               -fx-font-size: 13; -fx-font-weight: 500; -fx-padding: 10 20;
+                               -fx-background-radius: 8; -fx-cursor: hand;" />
+            </HBox>
+
+            <!-- Categories Grid -->
+            <VBox spacing="0" style="-fx-background-color: white; -fx-background-radius: 16;
+                                     -fx-effect: dropshadow(gaussian, rgba(0,0,0,0.06), 16, 0, 0, 4);">
+
+                <!-- Grid Header -->
+                <HBox alignment="CENTER_LEFT" spacing="16"
+                      style="-fx-background-color: #f8fafc; -fx-padding: 20 28;
+                             -fx-background-radius: 16 16 0 0; -fx-border-color: #e2e8f0;
+                             -fx-border-width: 0 0 1 0;">
+                    <Label text="All Categories"
+                           style="-fx-font-size: 18; -fx-font-weight: 700; -fx-text-fill: #1e293b;" />
+                    <Region HBox.hgrow="ALWAYS" />
+                    <Label fx:id="categoryCountLabel" text="0 categories"
+                           style="-fx-font-size: 14; -fx-text-fill: #64748b;" />
+                </HBox>
+
+                <!-- Categories Container -->
+                <FlowPane fx:id="categoriesContainer"
+                          hgap="20" vgap="20"
+                          alignment="TOP_LEFT"
+                          style="-fx-padding: 28; -fx-background-color: white;" />
+
+                <!-- Empty State -->
+                <VBox fx:id="emptyState" alignment="CENTER" spacing="16"
+                      style="-fx-padding: 80; -fx-background-color: white;"
+                      visible="false" managed="false">
+                    <Label text="📂" style="-fx-font-size: 64;" />
+                    <Label text="No Categories Yet"
+                           style="-fx-font-size: 24; -fx-font-weight: 700; -fx-text-fill: #1e293b;" />
+                    <Label text="Start by creating your first category"
+                           style="-fx-font-size: 15; -fx-text-fill: #64748b;" />
+                    <Button text="+ Create Category" onAction="#onAddCategory"
+                            style="-fx-background-color: #6366f1; -fx-text-fill: white;
+                                   -fx-font-size: 14; -fx-font-weight: 600; -fx-padding: 12 28;
+                                   -fx-background-radius: 10; -fx-cursor: hand;" />
+                </VBox>
+            </VBox>
+
+        </VBox>
+    </ScrollPane>
+
+    <!-- Success/Error Message -->
+    <HBox fx:id="messageContainer" alignment="CENTER" spacing="12"
+          style="-fx-padding: 16 24; -fx-background-color: #10b981;"
+          visible="false" managed="false">
+        <Label fx:id="errorLabel" text=""
+               style="-fx-text-fill: white; -fx-font-size: 14; -fx-font-weight: 600;" />
+    </HBox>
+
+</VBox>
