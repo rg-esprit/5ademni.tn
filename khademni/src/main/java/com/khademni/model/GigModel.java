@@ -13,6 +13,7 @@ public class GigModel {
     private String image;
     private String status;
     private CategoryModel category;
+    private double relevanceScore;
 
     public GigModel() {}
 
@@ -103,6 +104,14 @@ public class GigModel {
 
     public void setCategory(CategoryModel category) {
         this.category = category;
+    }
+
+    public double getRelevanceScore() {
+        return relevanceScore;
+    }
+
+    public void setRelevanceScore(double relevanceScore) {
+        this.relevanceScore = relevanceScore;
     }
 
     // toString
