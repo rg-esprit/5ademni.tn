@@ -469,6 +469,7 @@ public class ConversationController {
         int convId = (int) selected.getUserData();
 
         Alert alert = new Alert(Alert.AlertType.CONFIRMATION);
+        alert.initOwner(listConversations.getScene().getWindow());
         alert.setTitle("Confirmation");
         alert.setHeaderText("Supprimer la conversation ?");
         alert.setContentText("Tous les messages seront définitivement supprimés.");

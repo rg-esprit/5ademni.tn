@@ -125,6 +125,7 @@ public class ArticlePublicationController {
 
     private void showAlert(Alert.AlertType type, String title, String message) {
         Alert alert = new Alert(type);
+        alert.initOwner(rootPane.getScene().getWindow());
         alert.setTitle(title);
         alert.setHeaderText(null);
         alert.setContentText(message);
@@ -739,6 +740,7 @@ private void ajouterCommentaire() {
 }
     private void deleteComment(Commentaire commentaire, VBox commentairesBox) {
     Alert alert = new Alert(Alert.AlertType.CONFIRMATION);
+    alert.initOwner(commentairesBox.getScene().getWindow());
     alert.setTitle("Delete Comment");
     alert.setHeaderText("Are you sure you want to delete this comment?");
     alert.setContentText("This action cannot be undone.");
