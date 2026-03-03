@@ -6,20 +6,16 @@ module com.khademni {
     requires java.net.http;
     requires javafx.graphics;
     requires java.sql;
-    requires java.desktop;          // BufferedImage, ImageIO
+    requires java.desktop;
     requires mysql.connector.j;
     requires org.kordamp.ikonli.javafx;
     requires org.kordamp.ikonli.material2;
     requires org.kordamp.ikonli.fontawesome5;
-    requires javafx.graphics;
     requires jakarta.mail;
     requires org.json; 
-    
     requires org.kordamp.ikonli.materialdesign2;
-    requires org.json;
     requires twilio;
-    requires java.desktop;
-    requires com.google.gson;       // JSON parsing of backend responses
+    requires com.google.gson;
 
     opens com.khademni to javafx.fxml;
     opens com.khademni.controller to javafx.fxml;
