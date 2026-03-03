@@ -56,7 +56,7 @@ public class HeaderController {
 
     @FXML
     private void goToMessages() throws IOException {
-        // App.setRoot("messages");
+        App.setRoot("Conversation");
     }
 
     @FXML
