@@ -3,63 +3,139 @@
 <?import javafx.geometry.Insets?>
 <?import javafx.scene.control.*?>
 <?import javafx.scene.layout.*?>
+<?import org.kordamp.ikonli.javafx.FontIcon?>
 
 <ScrollPane xmlns="http://javafx.com/javafx/17" xmlns:fx="http://javafx.com/fxml/1"
     fx:controller="com.khademni.controller.ReviewController"
-    fitToWidth="true" fitToHeight="true"
+    fitToWidth="true" fitToHeight="true" styleClass="review-scroll"
     style="-fx-background-color: #f7f5f8; -fx-background: #f7f5f8;">
 
-    <VBox spacing="0" style="-fx-background-color: #f7f5f8;">
+    <VBox spacing="0" styleClass="review-root"
+        style="-fx-background-color: #f7f5f8;">
 
-        <!-- Reusable Header -->
+        <!-- Header -->
         <fx:include source="header.fxml" />
 
         <!-- Main Content -->
-        <VBox spacing="20" alignment="CENTER" stylesheets="@review.css"
-            style="-fx-padding: 40 24 60 24;">
+        <VBox alignment="TOP_CENTER" spacing="0" style="-fx-padding: 40 24 60 24;">
 
-            <Label text="Gestion des Reviews" styleClass="title" />
-
-            <!-- Error/Status Label -->
-            <Label fx:id="statusLabel" text="" styleClass="status-label"
-                visible="false" managed="false"
-                style="-fx-text-fill: #dc2626; -fx-background-color: #fef2f2; -fx-border-color: #fecaca; -fx-border-radius: 10; -fx-background-radius: 10; -fx-padding: 12 20 12 20; -fx-font-size: 14; -fx-font-weight: 600;" />
-
-            <HBox spacing="15" alignment="CENTER">
-                <VBox spacing="5">
-                    <Label text="Client ID" />
-                    <TextField fx:id="txtClientId" promptText="Client ID" />
-                </VBox>
-                <VBox spacing="5">
-                    <Label text="Freelancer ID" />
-                    <TextField fx:id="txtFreelancerId" promptText="Freelancer ID" />
-                </VBox>
-                <VBox spacing="5">
-                    <Label text="Rating (1-5)" />
-                    <TextField fx:id="txtRating" promptText="Rating" />
-                </VBox>
-            </HBox>
-
-            <VBox spacing="5" alignment="CENTER">
-                <Label text="Review Text" />
-                <TextArea fx:id="txtReviewText" promptText="Entrez votre avis..." prefRowCount="3"
-                    prefWidth="400" />
+            <!-- Page Title Section -->
+            <VBox alignment="CENTER" spacing="8" style="-fx-padding: 0 0 32 0;">
+                <Label text="Reviews" styleClass="review-page-title" />
+                <Label text="Share feedback and see what others think"
+                    styleClass="review-page-subtitle" />
             </VBox>
 
-            <HBox spacing="10" alignment="CENTER">
-                <Button text="Ajouter" onAction="#ajouterReview" styleClass="btn-primary" />
-                <Button text="Supprimer" onAction="#supprimerReview" styleClass="btn-danger" />
-            </HBox>
+            <!-- Status Label -->
+            <Label fx:id="statusLabel" text="" styleClass="review-status-label"
+                visible="false" managed="false" />
 
-            <TableView fx:id="tableReview" prefHeight="300" prefWidth="600">
-                <columns>
-                    <TableColumn fx:id="colId" text="ID" prefWidth="50" />
-                    <TableColumn fx:id="colClient" text="Client ID" prefWidth="80" />
-                    <TableColumn fx:id="colFreelancer" text="Freelancer ID" prefWidth="100" />
-                    <TableColumn fx:id="colRating" text="Rating" prefWidth="70" />
-                    <TableColumn fx:id="colReviewText" text="Review Text" prefWidth="280" />
-                </columns>
-            </TableView>
+            <!-- ===== Write a Review Section ===== -->
+            <VBox styleClass="review-section-card" spacing="20" maxWidth="800" prefWidth="800"
+                style="-fx-padding: 28 28 28 28;">
+
+                <Label text="Write a Review" styleClass="review-section-title" />
+
+                <!-- User Search -->
+                <VBox spacing="8">
+                    <Label text="Search for a user" styleClass="review-field-label" />
+                    <TextField fx:id="userSearchField" promptText="Type a name to search..."
+                        styleClass="review-search-input" />
+                </VBox>
+
+                <!-- Search Results -->
+                <VBox fx:id="searchResultsContainer" spacing="0" styleClass="review-search-results"
+                    visible="false" managed="false" maxHeight="200" />
+
+                <!-- Selected User Display -->
+                <HBox fx:id="selectedUserBox" spacing="12" alignment="CENTER_LEFT"
+                    styleClass="review-selected-user"
+                    visible="false" managed="false" style="-fx-padding: 12 16 12 16;">
+                    <StackPane prefWidth="40" prefHeight="40" maxWidth="40" maxHeight="40"
+                        styleClass="review-avatar-small">
+                        <Label fx:id="selectedUserInitials" text=""
+                            styleClass="review-avatar-initials-small" />
+                    </StackPane>
+                    <VBox spacing="2" HBox.hgrow="ALWAYS">
+                        <Label fx:id="selectedUserName" text="" styleClass="review-selected-name" />
+                        <Label fx:id="selectedUserEmail" text="" styleClass="review-selected-email" />
+                    </VBox>
+                    <Button fx:id="clearSelectionBtn" text="" onAction="#clearUserSelection"
+                        styleClass="review-clear-btn">
+                        <graphic>
+                            <FontIcon iconLiteral="fas-times" iconColor="#999" iconSize="14" />
+                        </graphic>
+                    </Button>
+                </HBox>
+
+                <!-- Rating -->
+                <VBox spacing="8">
+                    <Label text="Rating" styleClass="review-field-label" />
+                    <HBox fx:id="starsContainer" spacing="6" alignment="CENTER_LEFT" />
+                </VBox>
+
+                <!-- Review Text -->
+                <VBox spacing="8">
+                    <Label text="Your Review" styleClass="review-field-label" />
+
+                    <!-- AI Assist Row -->
+                    <HBox spacing="10" alignment="CENTER_LEFT" styleClass="ai-assist-row">
+                        <FontIcon iconLiteral="fas-magic" iconColor="#6c0df2" iconSize="16" />
+                        <TextField fx:id="aiPromptField"
+                            promptText="Describe what to say and AI will write it..."
+                            styleClass="ai-prompt-input" HBox.hgrow="ALWAYS" />
+                        <Button fx:id="aiGenerateBtn" text="Generate"
+                            onAction="#generateWithAI" styleClass="ai-generate-btn">
+                            <graphic>
+                                <FontIcon iconLiteral="fas-robot" iconColor="white" iconSize="14" />
+                            </graphic>
+                        </Button>
+                    </HBox>
+
+                    <TextArea fx:id="txtReviewText" promptText="Share your experience..."
+                        styleClass="review-textarea" prefRowCount="4" wrapText="true" />
+                </VBox>
+
+                <!-- Submit Button -->
+                <HBox alignment="CENTER_RIGHT" spacing="12">
+                    <Button fx:id="cancelEditBtn" text="Cancel Edit" onAction="#cancelEdit"
+                        styleClass="review-cancel-btn" visible="false" managed="false" />
+                    <Button fx:id="submitReviewBtn" text="Submit Review"
+                        onAction="#submitReview" styleClass="review-submit-btn" />
+                </HBox>
+            </VBox>
+
+            <!-- Spacer -->
+            <Region prefHeight="48" />
+
+            <!-- ===== Reviews About You Section ===== -->
+            <VBox styleClass="review-section-card" spacing="16" maxWidth="800" prefWidth="800"
+                style="-fx-padding: 28 28 28 28;">
+                <HBox alignment="CENTER_LEFT" spacing="12">
+                    <FontIcon iconLiteral="fas-star" iconColor="#6c0df2" iconSize="20" />
+                    <Label text="Reviews About You" styleClass="review-section-title" />
+                </HBox>
+                <VBox fx:id="receivedReviewsContainer" spacing="12" />
+                <Label fx:id="noReceivedLabel"
+                    text="No reviews yet. When someone reviews you, it will show up here."
+                    styleClass="review-empty-text" />
+            </VBox>
+
+            <!-- Spacer -->
+            <Region prefHeight="40" />
+
+            <!-- ===== Reviews You Gave Section ===== -->
+            <VBox styleClass="review-section-card" spacing="16" maxWidth="800" prefWidth="800"
+                style="-fx-padding: 28 28 28 28;">
+                <HBox alignment="CENTER_LEFT" spacing="12">
+                    <FontIcon iconLiteral="fas-pen" iconColor="#6c0df2" iconSize="18" />
+                    <Label text="Reviews You Gave" styleClass="review-section-title" />
+                </HBox>
+                <VBox fx:id="givenReviewsContainer" spacing="12" />
+                <Label fx:id="noGivenLabel" text="You haven't written any reviews yet."
+                    styleClass="review-empty-text" />
+            </VBox>
+
         </VBox>
     </VBox>
 </ScrollPane>

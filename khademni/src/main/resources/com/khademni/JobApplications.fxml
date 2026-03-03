@@ -34,6 +34,11 @@
                 <Label fx:id="applicationsCountLabel" text="All applications" style="-fx-text-fill: #374151; -fx-font-size: 12px; -fx-font-weight: 600;" />
                 <ComboBox fx:id="statusFilterCombo" promptText="Filter Status" styleClass="filter-combo" />
             </HBox>
+
+            <!-- Close Button -->
+            <Button fx:id="closeButton" text="✕ Close"
+                    style="-fx-background-color: #ef4444; -fx-text-fill: white; -fx-font-weight: 700;
+                           -fx-font-size: 13; -fx-padding: 10 20; -fx-background-radius: 8; -fx-cursor: hand;" />
         </HBox>
     </top>
 

@@ -1,0 +1,63 @@
+/* face_capture.css – Face Capture Dialog Styles */
+
+/* ── Root ──────────────────────────────────────────────────────────────── */
+.face-root {
+  -fx-background-color: #13132b;
+  -fx-background-radius: 16;
+}
+
+/* ── Title row ─────────────────────────────────────────────────────────── */
+.face-icon-box {
+  -fx-background-color: #6c63ff;
+  -fx-background-radius: 10;
+}
+
+.face-title {
+  -fx-text-fill: #e8e8f8;
+  -fx-font-size: 20px;
+  -fx-font-weight: bold;
+}
+
+/* ── Camera box ─────────────────────────────────────────────────────────── */
+.camera-box {
+  -fx-background-color: #0c0c22;
+  -fx-background-radius: 14;
+  -fx-border-color: #2e2e5a;
+  -fx-border-width: 1.5;
+  -fx-border-radius: 14;
+}
+
+/* ── Status label ────────────────────────────────────────────────────────── */
+.face-status {
+  -fx-text-fill: #9090c0;
+  -fx-font-size: 13.5px;
+  -fx-text-alignment: center;
+}
+
+/* ── Action button ───────────────────────────────────────────────────────── */
+.face-btn {
+  -fx-background-color: #6c63ff;
+  -fx-text-fill: white;
+  -fx-font-size: 15px;
+  -fx-font-weight: bold;
+  -fx-background-radius: 10;
+  -fx-padding: 14 0 14 0;
+  -fx-cursor: hand;
+}
+
+.face-btn:hover {
+  -fx-background-color: #5a52e0;
+}
+
+.face-btn:disabled {
+  -fx-background-color: #3a3a6a;
+  -fx-text-fill: #6a6a9a;
+  -fx-cursor: default;
+}
+
+/* ── Hint text ───────────────────────────────────────────────────────────── */
+.face-hint {
+  -fx-text-fill: #5a5a8a;
+  -fx-font-size: 11.5px;
+  -fx-text-alignment: center;
+}

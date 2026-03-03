@@ -1,5 +1,8 @@
 package com.khademni.controller;
 
+import javafx.animation.Interpolator;
+import javafx.animation.ScaleTransition;
+import javafx.animation.TranslateTransition;
 import javafx.fxml.FXML;
 import javafx.fxml.FXMLLoader;
 import javafx.geometry.Insets;
@@ -10,11 +13,15 @@ import javafx.scene.control.*;
 import javafx.scene.image.Image;
 import javafx.scene.image.ImageView;
 import javafx.scene.layout.*;
+import javafx.stage.Modality;
 import javafx.stage.Stage;
+import javafx.util.Duration;
 
+import org.json.JSONArray;
+import org.json.JSONObject;
 import com.khademni.App;
 import com.khademni.model.*;
-
+import com.khademni.utils.ContentModeration;
 import com.khademni.service.ArticleController;
 import com.khademni.service.CommentaireController;
 import com.khademni.service.FavoriController;
@@ -23,6 +30,7 @@ import com.khademni.utils.SessionManager;
 
 import org.kordamp.ikonli.javafx.FontIcon;
 
+import java.io.File;
 import java.io.IOException;
 import java.sql.Connection;
 import java.sql.PreparedStatement;
@@ -35,42 +43,143 @@ import java.util.Optional;
 
 import org.kordamp.ikonli.fontawesome5.FontAwesomeSolid;
 
-
-
 public class ArticlePublicationController {
 
-    @FXML private ListView<Article> listArticles;
+    @FXML
+    private VBox commentCard;
+
+    @FXML
+    private VBox commentContainer;
+    @FXML
+    private TilePane gigsContainer;
+    @FXML
+    private ListView<Article> listArticles;
 
     private final ArticleController articleService = new ArticleController();
     private final CommentaireController commentaireService = new CommentaireController();
     private final FavoriController favoriService = new FavoriController();
-@FXML
-private TilePane articlesContainer;
-@FXML
-private TilePane gigsContainer;
+    @FXML
+    private TilePane articlesContainer;
+    @FXML
+    private HBox mainContainer;
+    @FXML
+    private StackPane rootPane;
+
+    @FXML
+    private VBox mainContent;
+
     @FXML
     public void initialize() {
-      loadArticles();
+        loadArticles();
     }
 
+    @FXML
+    private VBox gigsCard;
+
+    @FXML
+    private void showGigsCard() {
+        gigsCard.setVisible(true);
+        gigsCard.setManaged(true);
+
+        // Animation de translation depuis la droite
+        TranslateTransition translateTransition = new TranslateTransition(Duration.millis(300), gigsCard);
+        translateTransition.setFromX(300); // Position initiale (en dehors de l'écran)
+        translateTransition.setToX(0); // Position finale (visible à l'écran)
+        translateTransition.setInterpolator(Interpolator.EASE_OUT);
+        translateTransition.play();
+    }
+
+    @FXML
+    private void showCommentCard(Article article) {
+        commentCard.setVisible(true);
+        commentCard.setManaged(true);
+        commentCard.setTranslateY(0);
+        mainContainer.setDisable(true); // Disable the main content
+        mainContainer.setStyle("-fx-opacity: 0.3;"); // Dim the main content
+        chargerCommentaires(article, commentContainer); // Load comments for the selected article
+        // Center the comment card
+        StackPane.setAlignment(commentCard, Pos.CENTER);
+    }
+
+    @FXML
+    private void hideCommentCard() {
+        commentCard.setVisible(false);
+        commentCard.setManaged(false);
+        mainContainer.setDisable(false); // Re-enable the main content
+        mainContainer.setStyle("-fx-opacity: 1;"); // Restore the main content opacity
+    }
+
+    @FXML
+    private void showGigsCard(Article article) {
+        gigsCard.setVisible(true);
+        gigsCard.setManaged(true);
+        mainContainer.getStyleClass().add("gigs-visible"); // Add the class to align left
+        loadGigsByArticle(article); // Load Gigs for the selected article
+    }
+
+    @FXML
+    private void hideGigsCard() {
+        gigsCard.setVisible(false);
+        gigsCard.setManaged(false);
+        mainContainer.getStyleClass().remove("gigs-visible"); // Retirer la classe pour centrer
+    }
 
     private void showAlert(Alert.AlertType type, String title, String message) {
         Alert alert = new Alert(type);
+        alert.initOwner(mainContent.getScene().getWindow());
         alert.setTitle(title);
         alert.setHeaderText(null);
         alert.setContentText(message);
         alert.showAndWait();
     }
-private void loadArticles() {
+
+    private void showModernDialog(String title, String message, String type) {
+        Stage dialog = new Stage();
+        dialog.initModality(Modality.APPLICATION_MODAL);
+        dialog.setTitle(title);
+
+        VBox dialogVBox = new VBox(20);
+        dialogVBox.setAlignment(Pos.CENTER);
+        dialogVBox.setPadding(new Insets(20));
+        dialogVBox.setStyle("-fx-background-color: white; -fx-border-radius: 10; -fx-background-radius: 10;");
+
+        Label lblMessage = new Label(message);
+        lblMessage.setStyle("-fx-font-size: 14px; -fx-text-fill: #374151; -fx-font-weight: bold;");
+
+        Button btnClose = new Button("OK");
+        btnClose.setStyle(
+                "-fx-background-color: #6c0df2; -fx-text-fill: white; -fx-font-size: 14px; -fx-font-weight: bold; -fx-background-radius: 20;");
+        btnClose.setOnAction(e -> dialog.close());
+
+        dialogVBox.getChildren().addAll(lblMessage, btnClose);
+
+        Scene dialogScene = new Scene(dialogVBox, 300, 150);
+        dialog.setScene(dialogScene);
+        dialog.showAndWait();
+    }
+
+    private void loadArticles() {
         try {
             // Charger uniquement les articles avec le statut "VISIBLE"
             var articlesVisibles = articleService.findAll().stream()
                     .filter(a -> "VISIBLE".equalsIgnoreCase(a.getStatus()))
                     .toList();
 
+            // Appliquer le tri en fonction du filtre sélectionné
+            var articlesTries = articlesVisibles.stream()
+                    .sorted((a1, a2) -> {
+                        if ("favoris".equals(currentFilter)) {
+                            return Integer.compare(getFavoriCount(a2), getFavoriCount(a1)); // Trier par favoris
+                        } else if ("commentaires".equals(currentFilter)) {
+                            return Integer.compare(getCommentCount(a2), getCommentCount(a1)); // Trier par commentaires
+                        }
+                        return 0; // Aucun tri par défaut
+                    })
+                    .toList();
+
             articlesContainer.getChildren().clear();
 
-            for (Article article : articlesVisibles) {
+            for (Article article : articlesTries) {
                 VBox card = createArticleCard(article);
                 articlesContainer.getChildren().add(card);
             }
@@ -79,559 +188,503 @@ private void loadArticles() {
             e.printStackTrace();
             showAlert(Alert.AlertType.ERROR, "Erreur", "Impossible de charger les articles.");
         }
+
     }
-private VBox createArticleCard(Article article) {
 
-    // ===== CARTE PRINCIPALE =====
-    VBox card = new VBox(15);
-    card.setAlignment(Pos.CENTER_LEFT);
-    card.setStyle("""
-        -fx-background-color: white;
-        -fx-padding: 20;
-        -fx-background-radius: 20;
-        -fx-effect: dropshadow(three-pass-box, rgba(0,0,0,0.08), 15, 0, 0, 5);
-    """);
-    card.setPrefWidth(900);
+    @FXML
+    private Button filterButton;
 
-    // ================= IMAGE (GAUCHE) =================
-    ImageView imageView = new ImageView();
-    imageView.setFitWidth(150);
-    imageView.setFitHeight(150);
-    imageView.setPreserveRatio(true);
+    private String currentFilter = "favoris";
 
-    try {
-        String path = article.getImagePath();
-        if (path != null && !path.isEmpty()) {
-            imageView.setImage(new Image("file:" + path));
-        } else {
-            imageView.setImage(new Image(getClass()
-                    .getResource("/images/default.png").toExternalForm()));
+    @FXML
+    private void showFilterOptions() {
+        ContextMenu filterMenu = new ContextMenu();
+
+        MenuItem filterByFavoris = new MenuItem("Filtrer par Favoris");
+        filterByFavoris.setOnAction(e -> {
+            currentFilter = "favoris";
+            loadArticles(); // Recharger les articles avec le filtre sélectionné
+        });
+
+        MenuItem filterByCommentaires = new MenuItem("Filtrer par Commentaires");
+        filterByCommentaires.setOnAction(e -> {
+            currentFilter = "commentaires";
+            loadArticles(); // Recharger les articles avec le filtre sélectionné
+        });
+
+        filterMenu.getItems().addAll(filterByFavoris, filterByCommentaires);
+        filterMenu.show(filterButton, filterButton.getLayoutX(), filterButton.getLayoutY() + filterButton.getHeight());
+    }
+
+    private VBox commentairesBox = new VBox(10);
+
+    private VBox createArticleCard(Article article) {
+
+        // ===== CARTE PRINCIPALE =====
+        VBox card = new VBox(15);
+        card.setAlignment(Pos.CENTER_LEFT);
+        card.setStyle("""
+                    -fx-background-color: white;
+                    -fx-padding: 20;
+                    -fx-background-radius: 20;
+                    -fx-effect: dropshadow(three-pass-box, rgba(0,0,0,0.08), 15, 0, 0, 5);
+                """);
+        card.setPrefWidth(900);
+
+        // ================= IMAGE (GAUCHE) =================
+        ImageView imageView = new ImageView();
+        imageView.setFitWidth(150);
+        imageView.setFitHeight(150);
+        imageView.setPreserveRatio(true);
+
+        try {
+            String path = article.getImagePath();
+            if (path != null && !path.isEmpty()) {
+                imageView.setImage(new Image("file:" + path));
+            } else {
+                imageView.setImage(new Image(getClass()
+                        .getResource("/images/default.png").toExternalForm()));
+            }
+        } catch (Exception e) {
+            e.printStackTrace();
         }
+
+        // ================= CONTENU CENTRE =================
+        VBox contentBox = new VBox(8);
+        contentBox.setAlignment(Pos.CENTER_LEFT);
+        contentBox.setPrefWidth(500);
+
+        Label title = new Label(article.getTitle());
+        title.setStyle("-fx-font-size: 20px; -fx-font-weight: bold; -fx-text-fill: #2c3e50;");
+
+        Label description = new Label(article.getContent());
+        description.setWrapText(true);
+        description.setStyle("-fx-font-size: 14px; -fx-text-fill: #555;");
+
+        Label date = new Label("Publié le " + article.getCreatedAt());
+        date.setStyle("-fx-text-fill: gray; -fx-font-size: 12px;");
+
+        contentBox.getChildren().addAll(title, description, date);
+
+        // ================= ACTIONS DROITE =================
+        VBox actionsBox = new VBox(20);
+        actionsBox.setAlignment(Pos.CENTER);
+
+        // ===== FAVORI =====
+        FontIcon heartIcon = new FontIcon(FontAwesomeSolid.HEART);
+        heartIcon.setIconSize(22);
+        updateHeartColor(heartIcon, article);
+
+        Label favoriCount = new Label(String.valueOf(getFavoriCount(article)));
+
+        Button likeBtn = new Button();
+        likeBtn.setGraphic(heartIcon);
+        likeBtn.setStyle("-fx-background-color: transparent;");
+
+        likeBtn.setOnAction(e -> {
+            toggleFavori(article);
+            updateHeartColor(heartIcon, article);
+            favoriCount.setText(String.valueOf(getFavoriCount(article)));
+        });
+
+        HBox favoriBox = new HBox(5, likeBtn, favoriCount);
+        favoriBox.setAlignment(Pos.CENTER);
+
+        // ===== BOUTON Voir Gigs =====
+
+        Button voirArticleBtn = new Button("Voir Gigs");
+        voirArticleBtn.getStyleClass().add("button-modern");
+        voirArticleBtn.setStyle("""
+                         -fx-background-color: linear-gradient(to right, #7c3aed, #6c0df2);
+                    -fx-text-fill: white;
+                    -fx-font-size: 14px;
+                    -fx-font-weight: bold;
+                    -fx-background-radius: 20;
+                    -fx-padding: 8 20;
+                    -fx-cursor: hand;
+                    -fx-effect: dropshadow(gaussian, rgba(108, 13, 242, 0.3), 10, 0, 0, 4);
+                """);
+        voirArticleBtn.setOnMouseEntered(e -> voirArticleBtn.setStyle("""
+                    -fx-background-color: linear-gradient(to right, #5f0ad6, #5209be);
+                    -fx-text-fill: white;
+                    -fx-font-size: 14px;
+                    -fx-font-weight: bold;
+                    -fx-background-radius: 20;
+                    -fx-padding: 8 20;
+                    -fx-cursor: hand;
+                    -fx-effect: dropshadow(gaussian, rgba(108, 13, 242, 0.5), 12, 0, 0, 6);
+                """));
+
+        voirArticleBtn.setOnMouseExited(e -> voirArticleBtn.setStyle("""
+                    -fx-background-color: linear-gradient(to right, #7c3aed, #6c0df2);
+                    -fx-text-fill: white;
+                    -fx-font-size: 14px;
+                    -fx-font-weight: bold;
+                    -fx-background-radius: 20;
+                    -fx-padding: 8 20;
+                    -fx-cursor: hand;
+                    -fx-effect: dropshadow(gaussian, rgba(108, 13, 242, 0.3), 10, 0, 0, 4);
+                """));
+
+        voirArticleBtn.setOnAction(e -> showGigsCard(article));
+
+        // ===== COMMENTAIRE =====
+        FontIcon commentIcon = new FontIcon(FontAwesomeSolid.COMMENT);
+        commentIcon.setIconSize(20);
+
+        // Fetch the comment count for the article
+        Label commentCount = new Label(String.valueOf(getCommentCount(article)));
+        commentCount.setStyle("-fx-font-size: 14px; -fx-text-fill: #555;"); // Optional styling for the count
+
+        Button commentBtn = new Button();
+        commentBtn.setGraphic(commentIcon);
+        commentBtn.setStyle("-fx-background-color: transparent;");
+
+        // Add the comment icon and count to an HBox
+        HBox commentBox = new HBox(5, commentBtn, commentCount);
+        commentBox.setAlignment(Pos.CENTER);
+
+        // Set the action for the comment button
+        commentBtn.setOnAction(e -> showCommentCard(article));
+
+        // Add the commentBox to the actionsBox
+        actionsBox.getChildren().addAll(favoriBox, voirArticleBtn, commentBox);
+
+        // ================= LAYOUT PRINCIPAL =================
+        HBox mainRow = new HBox(30, imageView, contentBox, actionsBox);
+        mainRow.setAlignment(Pos.CENTER_LEFT);
+
+        // ================= COMMENTAIRES (EN DESSOUS) =================
+        VBox commentairesBox = new VBox(10);
+        commentairesBox.setVisible(false);
+        commentairesBox.setManaged(false);
+
+        // Set the action for the comment button
+        commentBtn.setOnAction(e -> showCommentCard(article));
+
+        card.getChildren().addAll(mainRow, commentairesBox);
+
+        return card;
+    }
+@FXML
+private TextArea commentTextArea; // Ensure this is defined in your FXML file
+
+  
+@FXML
+private void ajouterCommentaire() {
+    System.out.println("Debug: Entered ajouterCommentaire method");
+
+    // Récupérer le contenu du commentaire depuis le TextArea
+    String contenuCommentaire = commentTextArea.getText();
+    System.out.println("Debug: Comment content: " + contenuCommentaire);
+
+    if (contenuCommentaire == null || contenuCommentaire.isBlank()) {
+        System.out.println("Debug: Comment is empty or blank.");
+        showAlert(Alert.AlertType.WARNING, "Erreur", "Le commentaire ne peut pas être vide.");
+        return;
+    }
+
+    // Récupérer l'article sélectionné
+    Article article = listArticles.getSelectionModel().getSelectedItem();
+    if (article == null) {
+        System.out.println("Debug: No article selected.");
+        showAlert(Alert.AlertType.WARNING, "Erreur", "Aucun article sélectionné.");
+        return;
+    }
+
+    System.out.println("Debug: Checking if comment is acceptable...");
+    boolean isAcceptable = ContentModeration.isCommentAcceptable(contenuCommentaire);
+
+    if (!isAcceptable) {
+        System.out.println("Debug: Comment is not acceptable.");
+        showAlert(Alert.AlertType.ERROR, "Commentaire rejeté", "Votre commentaire contient des propos inappropriés.");
+        return;
+    }
+
+    System.out.println("Debug: Comment is acceptable. Proceeding to add comment...");
+    try {
+        Commentaire newComment = new Commentaire(
+                null,
+                contenuCommentaire,
+                "VISIBLE",
+                LocalDateTime.now(),
+                article,
+                SessionManager.getCurrentUser());
+
+        commentaireService.create(newComment);
+
+        System.out.println("Commentaire ajouté avec succès : " + contenuCommentaire);
+
+        // Recharger les commentaires après l'ajout
+        chargerCommentaires(article, commentContainer);
+
+        showAlert(Alert.AlertType.INFORMATION, "Succès", "Commentaire ajouté avec succès.");
     } catch (Exception e) {
         e.printStackTrace();
+        showAlert(Alert.AlertType.ERROR, "Erreur", "Impossible d'ajouter le commentaire.");
     }
+}
 
-    // ================= CONTENU CENTRE =================
-    VBox contentBox = new VBox(8);
-    contentBox.setAlignment(Pos.CENTER_LEFT);
-    contentBox.setPrefWidth(500);
-
-    Label title = new Label(article.getTitle());
-    title.setStyle("-fx-font-size: 20px; -fx-font-weight: bold; -fx-text-fill: #2c3e50;");
-
-    Label description = new Label(article.getContent());
-    description.setWrapText(true);
-    description.setStyle("-fx-font-size: 14px; -fx-text-fill: #555;");
-
-    Label date = new Label("Publié le " + article.getCreatedAt());
-    date.setStyle("-fx-text-fill: gray; -fx-font-size: 12px;");
-
-    contentBox.getChildren().addAll(title, description, date);
-
-    // ================= ACTIONS DROITE =================
-    VBox actionsBox = new VBox(20);
-    actionsBox.setAlignment(Pos.CENTER);
-
-    // ===== FAVORI =====
-    FontIcon heartIcon = new FontIcon(FontAwesomeSolid.HEART);
-    heartIcon.setIconSize(22);
-    updateHeartColor(heartIcon, article);
-
-    Label favoriCount = new Label(String.valueOf(getFavoriCount(article)));
-
-    Button likeBtn = new Button();
-    likeBtn.setGraphic(heartIcon);
-    likeBtn.setStyle("-fx-background-color: transparent;");
-
-    likeBtn.setOnAction(e -> {
-        toggleFavori(article);
-        updateHeartColor(heartIcon, article);
-        favoriCount.setText(String.valueOf(getFavoriCount(article)));
-    });
-
-    HBox favoriBox = new HBox(5, likeBtn, favoriCount);
-    favoriBox.setAlignment(Pos.CENTER);
-
-    // ===== BOUTON Voir Gigs =====
-    
-    Button voirArticleBtn = new Button("Voir Gigs");
-    voirArticleBtn.getStyleClass().add("button-modern");
-    voirArticleBtn.setStyle("""
-             -fx-background-color: linear-gradient(to right, #7c3aed, #6c0df2);
-        -fx-text-fill: white;
-        -fx-font-size: 14px;
-        -fx-font-weight: bold;
-        -fx-background-radius: 20;
-        -fx-padding: 8 20;
-        -fx-cursor: hand;
-        -fx-effect: dropshadow(gaussian, rgba(108, 13, 242, 0.3), 10, 0, 0, 4);
-    """);
- voirArticleBtn.setOnMouseEntered(e -> voirArticleBtn.setStyle("""
-        -fx-background-color: linear-gradient(to right, #5f0ad6, #5209be);
-        -fx-text-fill: white;
-        -fx-font-size: 14px;
-        -fx-font-weight: bold;
-        -fx-background-radius: 20;
-        -fx-padding: 8 20;
-        -fx-cursor: hand;
-        -fx-effect: dropshadow(gaussian, rgba(108, 13, 242, 0.5), 12, 0, 0, 6);
-    """));
-
-    voirArticleBtn.setOnMouseExited(e -> voirArticleBtn.setStyle("""
-        -fx-background-color: linear-gradient(to right, #7c3aed, #6c0df2);
-        -fx-text-fill: white;
-        -fx-font-size: 14px;
-        -fx-font-weight: bold;
-        -fx-background-radius: 20;
-        -fx-padding: 8 20;
-        -fx-cursor: hand;
-        -fx-effect: dropshadow(gaussian, rgba(108, 13, 242, 0.3), 10, 0, 0, 4);
-    """));
-
-    voirArticleBtn.setOnAction(e -> navigateToGigsPage(article));
-
-    // ===== COMMENTAIRE =====
-    FontIcon commentIcon = new FontIcon(FontAwesomeSolid.COMMENT);
-    commentIcon.setIconSize(20);
-
-    Label commentCount = new Label(String.valueOf(getCommentCount(article)));
-
-    Button commentBtn = new Button();
-    commentBtn.setGraphic(commentIcon);
-    commentBtn.setStyle("-fx-background-color: transparent;");
-
-    HBox commentBox = new HBox(5, commentBtn, commentCount);
-    commentBox.setAlignment(Pos.CENTER);
-
-    actionsBox.getChildren().addAll(favoriBox, voirArticleBtn, commentBox);
-
-    // ================= LAYOUT PRINCIPAL =================
-    HBox mainRow = new HBox(30, imageView, contentBox, actionsBox);
-    mainRow.setAlignment(Pos.CENTER_LEFT);
-
-    // ================= COMMENTAIRES (EN DESSOUS) =================
-    VBox commentairesBox = new VBox(10);
-    commentairesBox.setVisible(false);
-    commentairesBox.setManaged(false);
-
-    commentBtn.setOnAction(e -> {
-        boolean visible = !commentairesBox.isVisible();
-        commentairesBox.setVisible(visible);
-        commentairesBox.setManaged(visible);
-
-         if (visible) {
-            card.setStyle("""
-                -fx-background-color: white;
-                -fx-padding: 30;
-                -fx-background-radius: 20;
-                -fx-effect: dropshadow(three-pass-box, rgba(0,0,0,0.08), 15, 0, 0, 5);
-            """);
-            chargerCommentaires(article, commentairesBox);
-        } else {
-            card.setStyle("""
-                -fx-background-color: white;
-                -fx-padding: 20;
-                -fx-background-radius: 20;
-                -fx-effect: dropshadow(three-pass-box, rgba(0,0,0,0.08), 15, 0, 0, 5);
-            """);
+    private int getCommentCount(Article article) {
+        try {
+            return commentaireService.countByArticle(article.getId());
+        } catch (SQLException e) {
+            e.printStackTrace();
+            return 0;
         }
-    });
-
-    card.getChildren().addAll(mainRow, commentairesBox);
-
-    return card;
-}
-
-
-
-
-private int getCommentCount(Article article) {
-    try {
-        return (int) commentaireService.findAll()
-                .stream()
-                .filter(comment -> comment.getArticle().getId().equals(article.getId()))
-                .count();
-    } catch (SQLException e) {
-        e.printStackTrace();
-        return 0;
     }
-}
 
-private void navigateToGigsPage(Article article) {
-    try {
-        FXMLLoader loader = new FXMLLoader(getClass().getResource("/com/khademni/Article/GigPage.fxml"));
-        Parent gigsPage = loader.load();
+    private void navigateToGigsPage(Article article) {
+        try {
+            FXMLLoader loader = new FXMLLoader(getClass().getResource("/com/khademni/Article/GigPage.fxml"));
+            Parent gigsPage = loader.load();
 
-        // Passer l'article sélectionné au contrôleur de la page des gigs
-        GigDisplayController gigDisplayController = loader.getController();
-        gigDisplayController.setArticle(article);
+            // Passer l'article sélectionné au contrôleur de la page des gigs
+            GigDisplayController gigDisplayController = loader.getController();
+            gigDisplayController.setArticle(article);
 
-        // Afficher la nouvelle page
-        Stage stage = (Stage) articlesContainer.getScene().getWindow();
-        stage.setScene(new Scene(gigsPage));
-        stage.show();
-    } catch (IOException e) {
-        e.printStackTrace();
-        showAlert(Alert.AlertType.ERROR, "Erreur", "Impossible de charger la page des gigs.");
+            // Afficher la nouvelle page
+            Stage stage = (Stage) articlesContainer.getScene().getWindow();
+            stage.setScene(new Scene(gigsPage));
+            stage.show();
+        } catch (IOException e) {
+            e.printStackTrace();
+            showAlert(Alert.AlertType.ERROR, "Erreur", "Impossible de charger la page des gigs.");
+        }
     }
-}
 
-public void loadGigsByArticle(Article article) {
-    try {
-        // Extraire les mots-clés de l'article
-        List<String> keywords = extractKeywords(article);
-
-        // Rechercher les Gigs correspondants dans la base de données
-        List<GigModel> gigs = findGigsByKeywords(keywords);
-
-        // Vider le conteneur avant d'ajouter les nouveaux Gigs
+    private void loadGigsByArticle(Article article) {
         gigsContainer.getChildren().clear();
 
-        if (gigs.isEmpty()) {
-            Label noGigsLabel = new Label("Aucun Gig trouvé pour cet article.");
-            noGigsLabel.setStyle("-fx-font-size: 16px; -fx-text-fill: gray;");
-            gigsContainer.getChildren().add(noGigsLabel);
-        } else {
-            for (GigModel gig : gigs) {
-                VBox gigCard = createGigCard(gig);
-                gigsContainer.getChildren().add(gigCard);
-            }
+        if (article == null) {
+            Label noArticleLabel = new Label("Aucun article sélectionné.");
+            noArticleLabel.setStyle("-fx-font-size: 16px; -fx-text-fill: gray;");
+            gigsContainer.getChildren().add(noArticleLabel);
+            return;
         }
-    } catch (Exception e) {
-        e.printStackTrace();
-        showAlert(Alert.AlertType.ERROR, "Erreur", "Impossible de charger les Gigs.");
-    }
-}
 
-private void loadGigsForArticle(Article article) {
-    try {
-        // Extraire les mots-clés de l'article
         List<String> keywords = extractKeywords(article);
+        List<GigModel> gigs = new ArrayList<>();
 
-        // Rechercher les Gigs correspondants dans la base de données
-        List<GigModel> gigs = findGigsByKeywords(keywords);
-
-        // Créer une nouvelle fenêtre pour afficher les Gigs
-        Stage stage = new Stage();
-        VBox gigsContainer = new VBox(10);
-        gigsContainer.setPadding(new Insets(10));
+        try {
+            gigs = findGigsByKeywords(keywords);
+        } catch (SQLException e) {
+            e.printStackTrace();
+        }
 
         if (gigs.isEmpty()) {
             Label noGigsLabel = new Label("Aucun Gig trouvé pour cet article.");
             noGigsLabel.setStyle("-fx-font-size: 16px; -fx-text-fill: gray;");
             gigsContainer.getChildren().add(noGigsLabel);
-
-            // Suggérer des Gigs populaires
-            List<GigModel> popularGigs = findPopularGigs();
-            if (!popularGigs.isEmpty()) {
-                Label suggestionLabel = new Label("Suggestions de Gigs populaires :");
-                suggestionLabel.setStyle("-fx-font-size: 14px; -fx-font-weight: bold;");
-                gigsContainer.getChildren().add(suggestionLabel);
-
-                for (GigModel gig : popularGigs) {
-                    VBox gigCard = createGigCard(gig);
-                    gigsContainer.getChildren().add(gigCard);
-                }
-            }
         } else {
             for (GigModel gig : gigs) {
                 VBox gigCard = createGigCard(gig);
                 gigsContainer.getChildren().add(gigCard);
             }
         }
-
-        ScrollPane scrollPane = new ScrollPane(gigsContainer);
-        scrollPane.setFitToWidth(true);
-
-        Scene scene = new Scene(scrollPane, 400, 600);
-        stage.setScene(scene);
-        stage.setTitle("Liste des Gigs");
-        stage.show();
-    } catch (Exception e) {
-        showAlert(Alert.AlertType.ERROR, "Erreur", "Impossible de charger les Gigs : " + e.getMessage());
     }
-}
 
-private List<GigModel> findPopularGigs() throws SQLException {
-    List<GigModel> gigs = new ArrayList<>();
+    private VBox createGigCard(GigModel gig) {
+        VBox card = new VBox(10);
+        card.setAlignment(Pos.CENTER);
+        card.setStyle("""
+                    -fx-border-color: #ddd;
+                    -fx-border-radius: 10;
+                    -fx-background-radius: 10;
+                    -fx-background-color: white;
+                    -fx-padding: 15;
+                    -fx-effect: dropshadow(gaussian, rgba(0, 0, 0, 0.2), 10, 0, 0, 4);
+                    -fx-max-width: 250px;
+                    -fx-min-width: 250px;
+                """);
 
-    String query = """
-        SELECT g.id, g.title, g.description, g.price, g.delivery_time, g.image, g.status
-        FROM gig g
-        ORDER BY g.delivery_time DESC
-        LIMIT 5
-    """;
-
-    try (Connection conn = MyDataBase.getConnection();
-         PreparedStatement ps = conn.prepareStatement(query)) {
-
-        ResultSet rs = ps.executeQuery();
-
-        while (rs.next()) {
-            GigModel gig = new GigModel(
-                rs.getInt("id"),
-                rs.getString("title"),
-                rs.getString("description"),
-                rs.getDouble("price"),
-                rs.getTimestamp("delivery_time").toLocalDateTime(),
-                rs.getString("image"),
-                rs.getString("status")
-            );
-            gigs.add(gig);
+        // Image du Gig
+        ImageView gigImage;
+        try {
+            String imagePath = gig.getImage(); // Chemin de l'image
+            if (imagePath != null && !imagePath.isEmpty()) {
+                Image image = new Image(new File(imagePath).toURI().toString(), 200, 120, true, true);
+                gigImage = new ImageView(image);
+            } else {
+                // Si l'image est introuvable, utiliser une image par défaut
+                gigImage = new ImageView(
+                        new Image(getClass().getResource("/com/khademni/default-image.png").toExternalForm()));
+            }
+        } catch (Exception e) {
+            // En cas d'erreur, utiliser une image par défaut
+            gigImage = new ImageView(
+                    new Image(getClass().getResource("/com/khademni/default-image.png").toExternalForm()));
         }
+        gigImage.setFitWidth(200);
+        gigImage.setFitHeight(120);
+        gigImage.setPreserveRatio(true);
+        gigImage.setStyle("-fx-border-radius: 10; -fx-background-radius: 10;");
+
+        // Titre du Gig
+        Label gigTitle = new Label(gig.getTitle());
+        gigTitle.setStyle("-fx-font-size: 16px; -fx-font-weight: bold; -fx-text-fill: #333;");
+        gigTitle.setWrapText(true);
+
+        // Description du Gig
+        Label gigDescription = new Label(gig.getDescription());
+        gigDescription.setStyle("-fx-font-size: 14px; -fx-text-fill: #666;");
+        gigDescription.setWrapText(true);
+
+        // Prix du Gig
+        Label gigPrice = new Label(String.format("Prix : %.2f TND", gig.getPrice()));
+        gigPrice.setStyle("-fx-font-size: 14px; -fx-font-weight: bold; -fx-text-fill: #4caf50;");
+
+        // Ajouter les éléments à la carte
+        card.getChildren().addAll(gigImage, gigTitle, gigDescription, gigPrice);
+
+        return card;
     }
 
-    return gigs;
-}
+    private List<GigModel> findGigsByKeywords(List<String> keywords) throws SQLException {
+        List<GigModel> gigs = new ArrayList<>();
 
-private VBox createGigCard(GigModel gig) {
-    VBox card = new VBox(10);
-    card.setStyle("-fx-border-color: #ddd; -fx-border-radius: 10; -fx-padding: 10;");
-
-    // Titre du Gig
-    Label gigTitle = new Label(gig.getTitle());
-    gigTitle.setStyle("-fx-font-size: 16px; -fx-font-weight: bold;");
-
-    // Description du Gig
-    Label gigDescription = new Label(gig.getDescription());
-    gigDescription.setWrapText(true);
-    gigDescription.setStyle("-fx-font-size: 14px;");
-
-    // Prix du Gig
-    Label gigPrice = new Label(String.format("Prix : %.2f TND", gig.getPrice()));
-    gigPrice.setStyle("-fx-font-size: 14px; -fx-text-fill: #4caf50;");
-
-    // Ajouter les éléments à la carte
-    card.getChildren().addAll(gigTitle, gigDescription, gigPrice);
-
-    return card;
-}
-
-
-private List<GigModel> findGigsByKeywords(List<String> keywords) throws SQLException {
-    List<GigModel> gigs = new ArrayList<>();
-
-    // Construire une requête SQL dynamique avec des mots-clés
-    StringBuilder queryBuilder = new StringBuilder("""
-        SELECT g.id, g.title, g.description, g.price, g.delivery_time, g.image, g.status
-        FROM gig g
-        WHERE
-    """);
-
-    for (int i = 0; i < keywords.size(); i++) {
-        queryBuilder.append("LOWER(g.title) LIKE ? OR LOWER(g.description) LIKE ?");
-        if (i < keywords.size() - 1) {
-            queryBuilder.append(" OR ");
+        if (keywords.isEmpty()) {
+            return gigs;
         }
+
+        // Construire une requête SQL dynamique avec des mots-clés
+        StringBuilder queryBuilder = new StringBuilder("""
+                    SELECT g.id, g.title, g.description, g.price, g.delivery_time, g.image, g.status
+                    FROM gig g
+                    WHERE g.status = 'active'
+                """);
+
+        queryBuilder.append(" AND (");
+        for (int i = 0; i < keywords.size(); i++) {
+            queryBuilder.append("LOWER(g.title) LIKE ? OR LOWER(g.description) LIKE ?");
+            if (i < keywords.size() - 1) {
+                queryBuilder.append(" OR ");
+            }
+        }
+        queryBuilder.append(")");
+
+        try (Connection conn = MyDataBase.getConnection();
+                PreparedStatement ps = conn.prepareStatement(queryBuilder.toString())) {
+
+            // Ajouter les mots-clés aux paramètres de la requête
+            int paramIndex = 1;
+            for (String keyword : keywords) {
+                String likePattern = "%" + keyword + "%";
+                ps.setString(paramIndex++, likePattern);
+                ps.setString(paramIndex++, likePattern);
+            }
+
+            ResultSet rs = ps.executeQuery();
+
+            while (rs.next()) {
+                GigModel gig = new GigModel(
+                        rs.getInt("id"),
+                        rs.getString("title"),
+                        rs.getString("description"),
+                        rs.getDouble("price"),
+                        rs.getTimestamp("delivery_time").toLocalDateTime(),
+                        rs.getString("image"),
+                        rs.getString("status"));
+
+                // Calculer le score de pertinence
+                double relevanceScore = calculateRelevanceScore(gig, keywords);
+                gig.setRelevanceScore(relevanceScore);
+
+                gigs.add(gig);
+            }
+        }
+
+        // Trier les Gigs par pertinence (score décroissant)
+        gigs.sort((g1, g2) -> Double.compare(g2.getRelevanceScore(), g1.getRelevanceScore()));
+
+        return gigs;
     }
 
-    try (Connection conn = MyDataBase.getConnection();
-         PreparedStatement ps = conn.prepareStatement(queryBuilder.toString())) {
+    private double calculateRelevanceScore(GigModel gig, List<String> keywords) {
+        double score = 0.0;
 
-        // Ajouter les mots-clés aux paramètres de la requête
-        int paramIndex = 1;
+        // Convertir le titre et la description en minuscules
+        String title = gig.getTitle().toLowerCase();
+        String description = gig.getDescription().toLowerCase();
+
+        // Calculer le score en fonction des mots-clés
         for (String keyword : keywords) {
-            String likePattern = "%" + keyword + "%";
-            ps.setString(paramIndex++, likePattern);
-            ps.setString(paramIndex++, likePattern);
+            if (title.contains(keyword)) {
+                score += 2.0; // Le titre a un poids plus élevé
+            }
+            if (description.contains(keyword)) {
+                score += 1.0; // La description a un poids plus faible
+            }
         }
 
-        ResultSet rs = ps.executeQuery();
+        return score;
+    }
 
-        while (rs.next()) {
-            GigModel gig = new GigModel(
-                rs.getInt("id"),
-                rs.getString("title"),
-                rs.getString("description"),
-                rs.getDouble("price"),
-                rs.getTimestamp("delivery_time").toLocalDateTime(),
-                rs.getString("image"),
-                rs.getString("status")
-            );
+    private List<String> extractKeywords(Article article) {
+        String content = article.getTitle() + " " + article.getContent();
+        String[] words = content.split("\\W+"); // Sépare les mots par des caractères non alphabétiques
+        List<String> keywords = new ArrayList<>();
 
-            // Calculer le score de pertinence
-            double relevanceScore = calculateRelevanceScore(gig, keywords);
-            gig.setRelevanceScore(relevanceScore); // Ajoutez un champ `relevanceScore` dans `GigModel`
-
-            gigs.add(gig);
+        for (String word : words) {
+            if (word.length() > 3) { // Inclure uniquement les mots de plus de 3 caractères
+                keywords.add(word.toLowerCase());
+            }
         }
+
+        return keywords;
     }
 
-    // Trier les Gigs par pertinence (score décroissant)
-    gigs.sort((g1, g2) -> Double.compare(g2.getRelevanceScore(), g1.getRelevanceScore()));
-
-    return gigs;
-}
-
-private double calculateRelevanceScore(GigModel gig, List<String> keywords) {
-    double score = 0.0;
-
-    // Convertir le titre et la description en minuscules
-    String title = gig.getTitle().toLowerCase();
-    String description = gig.getDescription().toLowerCase();
-
-    // Calculer le score en fonction des mots-clés
-    for (String keyword : keywords) {
-        if (title.contains(keyword)) {
-            score += 2.0; // Le titre a un poids plus élevé
-        }
-        if (description.contains(keyword)) {
-            score += 1.0; // La description a un poids plus faible
-        }
+    private UserModel getCurrentUser() {
+        // Replace with the actual logic to retrieve the logged-in user
+        return SessionManager.getCurrentUser(); // Example: Using a SessionManager class
     }
 
-    return score;
-}
-
-
-private List<String> extractKeywords(Article article) {
-    List<String> keywords = new ArrayList<>();
-
-    // Ajouter les mots du titre
-    if (article.getTitle() != null) {
-        String[] titleWords = article.getTitle().toLowerCase().split("\\s+");
-        keywords.addAll(List.of(titleWords));
-    }
-
-    // Ajouter les mots de la description
-    if (article.getContent() != null) {
-        String[] contentWords = article.getContent().toLowerCase().split("\\s+");
-        keywords.addAll(List.of(contentWords));
-    }
-
-    // Supprimer les doublons
-    return keywords.stream().distinct().toList();
-}
-private UserModel getCurrentUser() {
-    // Replace with the actual logic to retrieve the logged-in user
-    return SessionManager.getCurrentUser(); // Example: Using a SessionManager class
-}
-
-
-
-private void chargerCommentaires(Article article, VBox commentairesBox) {
+    private void chargerCommentaires(Article article, VBox commentairesBox) {
     commentairesBox.getChildren().clear();
 
     try {
+        // Récupérer les commentaires pour l'article donné
         var commentaires = commentaireService.findByArticleId(article.getId());
         UserModel currentUser = SessionManager.getCurrentUser();
 
         for (Commentaire c : commentaires) {
-            // Author and time
+            // Afficher l'auteur et la date
             Label authorLabel = new Label(c.getUser().getFirstName() + " " + c.getUser().getLastName());
-            authorLabel.setStyle("-fx-font-weight: bold; -fx-font-size: 12px; -fx-text-fill: #6a1b9a;");
+            authorLabel.getStyleClass().add("author");
 
             Label timeLabel = new Label(formatTimeAgo(c.getCreatedAt()));
-            timeLabel.setStyle("-fx-font-size: 10px; -fx-text-fill: gray;");
+            timeLabel.getStyleClass().add("time");
 
             HBox authorTimeBox = new HBox(10, authorLabel, timeLabel);
             authorTimeBox.setAlignment(Pos.CENTER_LEFT);
 
-            // Comment content
+            // Contenu du commentaire
             Label contentLabel = new Label(c.getContent());
-            contentLabel.setWrapText(true);
-            contentLabel.setStyle("-fx-font-size: 14px; -fx-text-fill: #4a148c;");
+            contentLabel.getStyleClass().add("content");
 
             VBox commentContentBox = new VBox(5, authorTimeBox, contentLabel);
-            commentContentBox.setPadding(new Insets(5, 10, 5, 10));
-            commentContentBox.setStyle("-fx-background-color: #f3e5f5; -fx-border-color: #ce93d8; -fx-border-radius: 5; -fx-background-radius: 5;");
+            commentContentBox.getStyleClass().add("comment-box");
 
-            // Editable area for editing comments
-            TextArea editArea = new TextArea(c.getContent());
-            editArea.setWrapText(true);
-            editArea.setVisible(false);
-            editArea.setManaged(false);
-            editArea.setStyle("-fx-border-color: #ce93d8; -fx-border-radius: 5; -fx-background-radius: 5;");
-
-            Button saveBtn = new Button("Save");
-            saveBtn.setStyle("-fx-background-color: #6a1b9a; -fx-text-fill: white; -fx-font-size: 12px; -fx-border-radius: 5; -fx-background-radius: 5;");
-            saveBtn.setVisible(false);
-            saveBtn.setManaged(false);
-
-            Button cancelBtn = new Button("Cancel");
-            cancelBtn.setStyle("-fx-background-color: #9c27b0; -fx-text-fill: white; -fx-font-size: 12px; -fx-border-radius: 5; -fx-background-radius: 5;");
-            cancelBtn.setVisible(false);
-            cancelBtn.setManaged(false);
-
-            // Buttons for editing and deleting
-            Button editBtn = new Button("Edit");
-            editBtn.setStyle("-fx-background-color: #6a1b9a; -fx-text-fill: white; -fx-font-size: 12px; -fx-border-radius: 5; -fx-background-radius: 5;");
-
-            Button deleteBtn = new Button("Delete");
-            deleteBtn.setStyle("-fx-background-color: #d32f2f; -fx-text-fill: white; -fx-font-size: 12px; -fx-border-radius: 5; -fx-background-radius: 5;");
-
-            // Show buttons only if the current user is the owner
+            // Boutons pour modifier et supprimer (si l'utilisateur est le propriétaire)
             if (currentUser != null && c.getUser().getId() == currentUser.getId()) {
-                editBtn.setOnAction(ev -> {
-                    contentLabel.setVisible(false);
-                    contentLabel.setManaged(false);
-                    editArea.setVisible(true);
-                    editArea.setManaged(true);
-                    saveBtn.setVisible(true);
-                    saveBtn.setManaged(true);
-                    cancelBtn.setVisible(true);
-                    cancelBtn.setManaged(true);
-                    editBtn.setVisible(false);
-                    editBtn.setManaged(false);
-                });
+                Button editBtn = new Button("Edit");
+                editBtn.getStyleClass().add("edit-btn");
 
-                saveBtn.setOnAction(ev -> {
-                    String newContent = editArea.getText().trim();
-                    int wordCount = newContent.isEmpty() ? 0 : newContent.split("\\s+").length;
+                Button deleteBtn = new Button("Delete");
+                deleteBtn.getStyleClass().add("delete-btn");
 
-                    if (wordCount < 3 || wordCount > 30) {
-                        showAlert(Alert.AlertType.WARNING, "Error", "The comment must contain between 3 and 30 words.");
-                        return;
-                    }
+                editBtn.setOnAction(ev -> editComment(c));
+                deleteBtn.setOnAction(ev -> deleteComment(c, commentairesBox));
 
-                    try {
-                        c.setContent(newContent);
-                        commentaireService.update(c);
-                        chargerCommentaires(article, commentairesBox);
-                        showAlert(Alert.AlertType.INFORMATION, "Success", "Comment updated successfully!");
-                    } catch (SQLException e) {
-                        e.printStackTrace();
-                        showAlert(Alert.AlertType.ERROR, "Error", "Failed to update comment.");
-                    }
-                });
-
-                cancelBtn.setOnAction(ev -> {
-                    editArea.setVisible(false);
-                    editArea.setManaged(false);
-                    saveBtn.setVisible(false);
-                    saveBtn.setManaged(false);
-                    cancelBtn.setVisible(false);
-                    cancelBtn.setManaged(false);
-                    contentLabel.setVisible(true);
-                    contentLabel.setManaged(true);
-                    editBtn.setVisible(true);
-                    editBtn.setManaged(true);
-                });
-
-                deleteBtn.setOnAction(ev -> {
-                    Alert confirm = new Alert(Alert.AlertType.CONFIRMATION, "Are you sure you want to delete this comment?", ButtonType.YES, ButtonType.NO);
-                    confirm.showAndWait().ifPresent(response -> {
-                        if (response == ButtonType.YES) {
-                            try {
-                                commentaireService.delete(c.getId());
-                                chargerCommentaires(article, commentairesBox);
-                            } catch (SQLException e) {
-                                e.printStackTrace();
-                                showAlert(Alert.AlertType.ERROR, "Error", "Failed to delete comment.");
-                            }
-                        }
-                    });
-                });
-
-                HBox buttonBox = new HBox(10, editBtn, deleteBtn, saveBtn, cancelBtn);
+                HBox buttonBox = new HBox(10, editBtn, deleteBtn);
                 buttonBox.setAlignment(Pos.CENTER_RIGHT);
-                commentContentBox.getChildren().addAll(editArea, buttonBox);
+                commentContentBox.getChildren().add(buttonBox);
             }
 
             commentairesBox.getChildren().add(commentContentBox);
         }
 
-        // ===== Input Field for Adding Comments =====
+        // ===== Champ pour ajouter un nouveau commentaire =====
         TextArea newCommentArea = new TextArea();
         newCommentArea.setPromptText("Write a comment...");
         newCommentArea.setWrapText(true);
@@ -639,14 +692,22 @@ private void chargerCommentaires(Article article, VBox commentairesBox) {
         newCommentArea.setStyle("-fx-border-color: #ce93d8; -fx-border-radius: 5; -fx-background-radius: 5;");
 
         Button addCommentBtn = new Button("Add Comment");
-        addCommentBtn.setStyle("-fx-background-color: #6a1b9a; -fx-text-fill: white; -fx-font-size: 14px; -fx-border-radius: 5; -fx-background-radius: 5;");
+        addCommentBtn.setStyle(
+                "-fx-background-color: #6a1b9a; -fx-text-fill: white; -fx-font-size: 14px; -fx-border-radius: 5; -fx-background-radius: 5;");
 
         addCommentBtn.setOnAction(ev -> {
             String content = newCommentArea.getText().trim();
-            int wordCount = content.isEmpty() ? 0 : content.split("\\s+").length;
+            if (content.isEmpty()) {
+                showAlert(Alert.AlertType.WARNING, "Erreur", "Le commentaire ne peut pas être vide.");
+                return;
+            }
 
-            if (wordCount < 3 || wordCount > 30) {
-                showAlert(Alert.AlertType.WARNING, "Error", "The comment must contain between 3 and 30 words.");
+            System.out.println("Debug: Checking if comment is acceptable...");
+            boolean isAcceptable = ContentModeration.isCommentAcceptable(content);
+
+            if (!isAcceptable) {
+                System.out.println("Debug: Comment is not acceptable.");
+                showAlert(Alert.AlertType.ERROR, "Commentaire rejeté", "Votre commentaire contient des propos inappropriés.");
                 return;
             }
 
@@ -661,16 +722,15 @@ private void chargerCommentaires(Article article, VBox commentairesBox) {
                         "VISIBLE",
                         LocalDateTime.now(),
                         article,
-                        currentUser
-                );
+                        currentUser);
 
-                commentaireService.create(newComment);
+                commentaireService.create(newComment); // Ajouter le nouveau commentaire dans la base de données
                 newCommentArea.clear();
-                chargerCommentaires(article, commentairesBox);
-                showAlert(Alert.AlertType.INFORMATION, "Success", "Comment added successfully!");
+                chargerCommentaires(article, commentairesBox); // Recharger les commentaires
+                showAlert(Alert.AlertType.INFORMATION, "Succès", "Commentaire ajouté avec succès !");
             } catch (Exception ex) {
                 ex.printStackTrace();
-                showAlert(Alert.AlertType.ERROR, "Error", "Failed to add comment.");
+                showAlert(Alert.AlertType.ERROR, "Erreur", "Impossible d'ajouter le commentaire.");
             }
         });
 
@@ -682,14 +742,12 @@ private void chargerCommentaires(Article article, VBox commentairesBox) {
 
     } catch (SQLException e) {
         e.printStackTrace();
-        showAlert(Alert.AlertType.ERROR, "Error", "Failed to load comments.");
+        showAlert(Alert.AlertType.ERROR, "Erreur", "Impossible de charger les commentaires.");
     }
 }
-
-
-
-private void deleteComment(Commentaire commentaire, VBox commentairesBox) {
+    private void deleteComment(Commentaire commentaire, VBox commentairesBox) {
     Alert alert = new Alert(Alert.AlertType.CONFIRMATION);
+    alert.initOwner(commentairesBox.getScene().getWindow());
     alert.setTitle("Delete Comment");
     alert.setHeaderText("Are you sure you want to delete this comment?");
     alert.setContentText("This action cannot be undone.");
@@ -699,9 +757,12 @@ private void deleteComment(Commentaire commentaire, VBox commentairesBox) {
         try {
             commentaireService.delete(commentaire.getId());
             commentairesBox.getChildren().removeIf(node -> {
-                HBox commentBox = (HBox) node;
-                Label contentLabel = (Label) commentBox.getChildren().get(0);
-                return contentLabel.getText().equals(commentaire.getContent());
+                if (node instanceof VBox) { // Ensure the node is a VBox
+                    VBox commentBox = (VBox) node;
+                    Label contentLabel = (Label) commentBox.getChildren().get(1); // Get the content label
+                    return contentLabel.getText().equals(commentaire.getContent());
+                }
+                return false;
             });
             showAlert(Alert.AlertType.INFORMATION, "Success", "Comment deleted successfully!");
         } catch (SQLException e) {
@@ -710,95 +771,107 @@ private void deleteComment(Commentaire commentaire, VBox commentairesBox) {
         }
     }
 }
-private void editComment(Commentaire commentaire) {
-    TextInputDialog dialog = new TextInputDialog(commentaire.getContent());
-    dialog.setTitle("Edit Comment");
-    dialog.setHeaderText("Modify your comment:");
-    dialog.setContentText("Comment:");
 
-    Optional<String> result = dialog.showAndWait();
-    result.ifPresent(newContent -> {
+    private void editComment(Commentaire commentaire) {
+        TextInputDialog dialog = new TextInputDialog(commentaire.getContent());
+        dialog.setTitle("Edit Comment");
+        dialog.setHeaderText("Modify your comment:");
+        dialog.setContentText("Comment:");
+
+        Optional<String> result = dialog.showAndWait();
+        result.ifPresent(newContent -> {
+            try {
+                commentaire.setContent(newContent);
+                commentaireService.update(commentaire);
+                showAlert(Alert.AlertType.INFORMATION, "Success", "Comment updated successfully!");
+            } catch (SQLException e) {
+                e.printStackTrace();
+                showAlert(Alert.AlertType.ERROR, "Error", "Failed to update comment.");
+            }
+        });
+    }
+
+    private int getFavoriCount(Article article) {
         try {
-            commentaire.setContent(newContent);
-            commentaireService.update(commentaire);
-            showAlert(Alert.AlertType.INFORMATION, "Success", "Comment updated successfully!");
+            return (int) favoriService.findAll()
+                    .stream()
+                    .filter(favori -> favori.getArticle().getId().equals(article.getId()))
+                    .count();
         } catch (SQLException e) {
             e.printStackTrace();
-            showAlert(Alert.AlertType.ERROR, "Error", "Failed to update comment.");
+            return 0;
         }
-    });
-}
-private int getFavoriCount(Article article) {
-    try {
-        return (int) favoriService.findAll()
-                .stream()
-                .filter(favori -> favori.getArticle().getId().equals(article.getId()))
-                .count();
-    } catch (SQLException e) {
-        e.printStackTrace();
-        return 0;
     }
-}
-private boolean isFavori(Article article) {
-    try {
-        UserModel currentUser = App.getCurrentUser();
-        if (currentUser == null) {
+
+    private boolean isFavori(Article article) {
+        try {
+            UserModel currentUser = App.getCurrentUser();
+            if (currentUser == null) {
+                return false;
+            }
+
+            // Vérifier si l'article est dans les favoris de l'utilisateur connecté
+            return favoriService.findByUserId((long) currentUser.getId())
+                    .stream()
+                    .anyMatch(favori -> favori.getArticle().getId().equals(article.getId()));
+        } catch (SQLException e) {
+            e.printStackTrace();
             return false;
         }
-
-        // Vérifier si l'article est dans les favoris de l'utilisateur connecté
-        return favoriService.findByUserId((long) currentUser.getId())
-                .stream()
-                .anyMatch(favori -> favori.getArticle().getId().equals(article.getId()));
-    } catch (SQLException e) {
-        e.printStackTrace();
-        return false;
     }
-}
-private String formatTimeAgo(LocalDateTime createdAt) {
-    LocalDateTime now = LocalDateTime.now();
-    long minutes = java.time.Duration.between(createdAt, now).toMinutes();
-    long hours = java.time.Duration.between(createdAt, now).toHours();
-    long days = java.time.Duration.between(createdAt, now).toDays();
 
-    if (minutes < 1) return "just now";
-    if (minutes < 60) return minutes + (minutes == 1 ? " minute ago" : " minutes ago");
-    if (hours < 24) return hours + (hours == 1 ? " hour ago" : " hours ago");
-    return days + (days == 1 ? " day ago" : " days ago");
-}
+    private String formatTimeAgo(LocalDateTime createdAt) {
+        LocalDateTime now = LocalDateTime.now();
+        long minutes = java.time.Duration.between(createdAt, now).toMinutes();
+        long hours = java.time.Duration.between(createdAt, now).toHours();
+        long days = java.time.Duration.between(createdAt, now).toDays();
 
-
-
-
-
-private void updateHeartColor(FontIcon icon, Article article) {
-    if (isFavori(article)) {
-        icon.setIconColor(javafx.scene.paint.Color.RED);
-    } else {
-        icon.setIconColor(javafx.scene.paint.Color.GRAY);
+        if (minutes < 1)
+            return "just now";
+        if (minutes < 60)
+            return minutes + (minutes == 1 ? " minute ago" : " minutes ago");
+        if (hours < 24)
+            return hours + (hours == 1 ? " hour ago" : " hours ago");
+        return days + (days == 1 ? " day ago" : " days ago");
     }
-}
 
-private void toggleFavori(Article article) {
-    try {
-        UserModel currentUser = SessionManager.getCurrentUser();
-        if (currentUser == null) {
-            showAlert(Alert.AlertType.WARNING, "Erreur", "Vous devez être connecté pour ajouter un favori.");
-            return;
-        }
-
-        Favori favori = new Favori(currentUser.getId(), article.getId());
-        if (favoriService.isFavori(favori)) {
-            favoriService.delete(favori.getId());
+    private void updateHeartColor(FontIcon icon, Article article) {
+        if (isFavori(article)) {
+            icon.setIconColor(javafx.scene.paint.Color.RED);
         } else {
-            favoriService.create(favori);
+            icon.setIconColor(javafx.scene.paint.Color.GRAY);
         }
-    } catch (SQLException e) {
-        e.printStackTrace();
-       showAlert(Alert.AlertType.WARNING, "Erreur", "Une erreur s'est produite.");
-    } catch (Exception e) {
-        e.printStackTrace();
-       showAlert(Alert.AlertType.WARNING, "Erreur", "Une erreur s'est produite.");   }
-}
+    }
+
+    private void toggleFavori(Article article) {
+        try {
+            UserModel currentUser = SessionManager.getCurrentUser();
+            if (currentUser == null) {
+                showAlert(Alert.AlertType.WARNING, "Erreur", "Vous devez être connecté pour ajouter un favori.");
+                return;
+            }
+
+            // Créer un objet Favori
+            Favori favori = new Favori(currentUser.getId(), article.getId());
+
+            // Vérifier si le favori existe
+            if (favoriService.isFavori(favori)) {
+                // Supprimer le favori
+                Favori existingFavori = favoriService.findByUserAndArticle(currentUser.getId(), article.getId());
+                if (existingFavori != null) {
+                    favoriService.delete(existingFavori.getId());
+                }
+            } else {
+                // Ajouter le favori
+                favoriService.create(favori);
+            }
+        } catch (SQLException e) {
+            e.printStackTrace();
+            showAlert(Alert.AlertType.WARNING, "Erreur", "Une erreur s'est produite.");
+        } catch (Exception e) {
+            e.printStackTrace();
+            showAlert(Alert.AlertType.WARNING, "Erreur", "Une erreur s'est produite.");
+        }
+    }
 
 }

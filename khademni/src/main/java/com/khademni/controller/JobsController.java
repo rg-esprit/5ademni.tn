@@ -2,10 +2,14 @@ package com.khademni.controller;
 
 import com.khademni.App;
 import com.khademni.model.JobModel;
+import com.khademni.utils.AIService;
 import com.khademni.utils.MyDataBase;
+import com.khademni.utils.ConversationHelper;
 import javafx.fxml.FXML;
 import javafx.fxml.FXMLLoader;
+import javafx.geometry.Insets;
 import javafx.geometry.Pos;
+import javafx.scene.Parent;
 import javafx.scene.Scene;
 import javafx.scene.control.*;
 import javafx.scene.layout.*;
@@ -16,6 +20,7 @@ import javafx.animation.*;
 import javafx.util.Duration;
 import javafx.scene.effect.DropShadow;
 import javafx.scene.paint.Color;
+import javafx.event.ActionEvent;
 
 import java.io.IOException;
 import java.sql.*;
@@ -43,6 +48,9 @@ public class JobsController {
     @FXML
     private VBox emptyStateBox;
 
+    // --- new UI fields for saved jobs tab ---
+    // saved jobs functionality uses a separate window opened via button
+
     private List<JobModel> allJobs = new ArrayList<>();
     private List<JobModel> filteredJobs = new ArrayList<>();
     private ContextMenu autocompleteMenu;
@@ -54,6 +62,10 @@ public class JobsController {
         try {
             setupComboBoxes();
             System.out.println("DEBUG: ComboBoxes setup done");
+
+            // guarantee saved_jobs table is ready before any save operations
+            ensureSavedJobsTableExists();
+
             loadJobsFromDB();
             System.out.println("DEBUG: Jobs loaded");
             setupSalarySlider();
@@ -340,11 +352,8 @@ public class JobsController {
     }
 
     private void setupSalarySlider() {
-        // Find max salary in DB or use fixed 10000 per user request
-        int maxSalary = 10000;
-
         jobSalarySlider.setMin(0);
-        jobSalarySlider.setMax(maxSalary);
+        jobSalarySlider.setMax(10000); // default; refreshSalarySliderMax() will update it
         jobSalarySlider.setValue(0);
         jobSalarySlider.setBlockIncrement(100);
         jobSalarySlider.setMajorTickUnit(1000);
@@ -355,10 +364,34 @@ public class JobsController {
             updateSalaryLabel(newVal.intValue());
             applyFilters();
         });
+        // Set max based on whatever jobs were already loaded before this call
+        refreshSalarySliderMax();
     }
 
     private void updateSalaryLabel(int value) {
         salaryFilterLabel.setText("Min Salary: " + value + " TND");
+    }
+
+    /**
+     * Recalculates the slider's max from the jobs already loaded in allJobs (no
+     * extra DB call).
+     */
+    private void refreshSalarySliderMax() {
+        if (jobSalarySlider == null)
+            return;
+        int maxInData = allJobs.stream()
+                .mapToInt(j -> extractMaxSalary(j.getSalaryRange()))
+                .max()
+                .orElse(0);
+        // Add 20% headroom so the slider feels roomy; floor at 10000
+        int newMax = Math.max(10000, (int) Math.ceil(maxInData * 1.2 / 1000.0) * 1000);
+        if (newMax != (int) jobSalarySlider.getMax()) {
+            double currentValue = jobSalarySlider.getValue();
+            jobSalarySlider.setMax(newMax);
+            jobSalarySlider.setMajorTickUnit(Math.max(1000, newMax / 5));
+            // keep current value clamped
+            jobSalarySlider.setValue(Math.min(currentValue, newMax));
+        }
     }
 
     private int extractMaxSalary(String salaryRange) {
@@ -390,8 +423,11 @@ public class JobsController {
                 return;
             }
 
-            // Load jobs with user names and emails from users table
-            String query = "SELECT j.*, u.first_name, u.last_name, u.email FROM jobs j LEFT JOIN users u ON j.user_id = u.id ORDER BY j.posted_date DESC, j.id DESC";
+            // Load jobs with user names, emails, and accepted freelancer info
+            String query = "SELECT j.*, u.first_name, u.last_name, u.email, " +
+                    "(SELECT ja.user_id FROM job_applications ja WHERE ja.job_id = j.id AND ja.status = 'ACCEPTED' LIMIT 1) as accepted_freelancer_id "
+                    +
+                    "FROM jobs j LEFT JOIN users u ON j.user_id = u.id ORDER BY j.posted_date DESC, j.id DESC";
             try (Statement stmt = conn.createStatement();
                     ResultSet rs = stmt.executeQuery(query)) {
 
@@ -409,6 +445,8 @@ public class JobsController {
             System.err.println("Error loading jobs: " + e.getMessage());
             loadSampleJobs();
         }
+        // Update the filter slider ceiling to reflect the highest salary now in allJobs
+        refreshSalarySliderMax();
     }
 
     private void loadJobsWithoutUserNames(Connection conn) throws SQLException {
@@ -434,7 +472,10 @@ public class JobsController {
                         requirements,
                         rs.getInt("user_id"),
                         "Unknown User",
-                        "");
+                        "",
+                        rs.getInt("progress"),
+                        rs.getString("status"),
+                        0);
                 allJobs.add(job);
                 filteredJobs.add(job);
             }
@@ -457,6 +498,9 @@ public class JobsController {
             userEmail = "";
         }
 
+        int progress = rs.getInt("progress");
+        String status = rs.getString("status");
+
         return new JobModel(
                 rs.getInt("id"),
                 rs.getString("title"),
@@ -470,7 +514,10 @@ public class JobsController {
                 requirements,
                 rs.getInt("user_id"),
                 userName,
-                userEmail);
+                userEmail,
+                progress,
+                status,
+                rs.getInt("accepted_freelancer_id"));
     }
 
     private void loadSampleJobs() {
@@ -625,20 +672,61 @@ public class JobsController {
         logo.getStyleClass().add("job-company-logo");
         logo.setStyle("-fx-fill: #6c0df2;");
 
-        VBox info = new VBox(4);
-        Label company = new Label(job.getCompany());
-        company.getStyleClass().add("job-company-name");
-        company.setStyle("-fx-font-size: 12; -fx-font-weight: 600; -fx-text-fill: #6c0df2;");
+        VBox titleBox = new VBox(4);
+        Label titleLabel = new Label(job.getTitle());
+        titleLabel.setStyle("-fx-font-size: 20; -fx-font-weight: 800; -fx-text-fill: #141118;");
 
-        Label title = new Label(job.getTitle());
-        title.getStyleClass().add("job-title");
-        title.setWrapText(true);
-        title.setStyle("-fx-font-size: 16; -fx-font-weight: 800; -fx-text-fill: #141118;");
+        HBox companyStatusBox = new HBox(8);
+        companyStatusBox.setAlignment(Pos.CENTER_LEFT);
+        Label companyLabel = new Label(job.getCompany());
+        companyLabel.setStyle("-fx-font-size: 15; -fx-font-weight: 600; -fx-text-fill: #6c0df2;");
 
-        info.getChildren().addAll(company, title);
-        HBox.setHgrow(info, Priority.ALWAYS);
-        header.getChildren().addAll(logo, info);
+        Label statusBadge = new Label(job.getStatus());
+        String statusColors = switch (job.getStatus().toUpperCase()) {
+            case "COMPLETED" -> "-fx-background-color: #dcfce7; -fx-text-fill: #166534;";
+            case "IN_PROGRESS" -> "-fx-background-color: #fef9c3; -fx-text-fill: #854d0e;";
+            case "CLOSED" -> "-fx-background-color: #fee2e2; -fx-text-fill: #991b1b;";
+            default -> "-fx-background-color: #f3f4f6; -fx-text-fill: #374151;";
+        };
+        statusBadge.setStyle(statusColors
+                + " -fx-font-size: 10; -fx-font-weight: 700; -fx-padding: 2 8; -fx-background-radius: 10;");
+
+        companyStatusBox.getChildren().addAll(companyLabel, statusBadge);
+        titleBox.getChildren().addAll(titleLabel, companyStatusBox);
+
+        HBox.setHgrow(titleBox, Priority.ALWAYS);
+        header.getChildren().addAll(logo, titleBox);
         card.getChildren().add(header);
+
+        // Progress Section
+        VBox progBox = new VBox(5);
+        progBox.setPadding(new Insets(0, 5, 10, 5));
+        HBox progHeader = new HBox();
+        Label progLabel = new Label("Project Advancement");
+        progLabel.setStyle("-fx-font-size: 12; -fx-font-weight: 600; -fx-text-fill: #4b5563;");
+        Region progSpacer = new Region();
+        HBox.setHgrow(progSpacer, Priority.ALWAYS);
+        Label progVal = new Label(job.getProgress() + "%");
+        progVal.setStyle("-fx-font-size: 12; -fx-font-weight: 800; -fx-text-fill: #6c0df2;");
+        progHeader.getChildren().addAll(progLabel, progSpacer, progVal);
+
+        ProgressBar pb = new ProgressBar(job.getProgress() / 100.0);
+        pb.setMaxWidth(Double.MAX_VALUE);
+        pb.setPrefHeight(8);
+        pb.setStyle(
+                "-fx-accent: #6c0df2; -fx-control-inner-background: #f3f4f6; -fx-background-radius: 10; -fx-padding: 0;");
+
+        progBox.getChildren().addAll(progHeader, pb);
+
+        // Visibility restriction: Only Owner, Admin, or the Assigned Freelancer can see
+        // progress
+        boolean canSeeProgress = isAdmin() ||
+                (App.currentUser != null && (App.currentUser.getId() == job.getUserId()
+                        || App.currentUser.getId() == job.getAcceptedFreelancerId()));
+
+        if (canSeeProgress) {
+            card.getChildren().add(progBox);
+        }
 
         // Meta
         HBox meta = new HBox(12);
@@ -722,9 +810,6 @@ public class JobsController {
         posted.getStyleClass().add("job-posted-date");
         posted.setStyle("-fx-text-fill: #999999; -fx-font-size: 11;");
 
-        Region spacer = new Region();
-        HBox.setHgrow(spacer, Priority.ALWAYS);
-
         Button save = new Button("Save");
         save.getStyleClass().add("job-save-btn");
         save.setStyle("-fx-background-color: #f0f0f0; -fx-text-fill: #333333; -fx-font-weight: 600; " +
@@ -747,11 +832,28 @@ public class JobsController {
                 "-fx-padding: 8 16 8 16; -fx-border-radius: 8; -fx-cursor: hand;");
         apply.setOnAction(e -> handleApplyJob(job));
 
+        // Message button to contact job owner
+        Button messageBtn = new Button("💬 Message");
+        messageBtn.setStyle("-fx-background-color: #3b82f6; -fx-text-fill: white; -fx-font-weight: 600; " +
+                "-fx-padding: 8 16 8 16; -fx-border-radius: 8; -fx-cursor: hand;");
+        messageBtn.setOnAction(e -> handleMessageJobOwner(job));
+
+        Region footerSpacer = new Region();
+        HBox.setHgrow(footerSpacer, Priority.ALWAYS);
+
         // t affichi edit/delete if user is the owner or admin
         if (App.currentUser != null && (App.currentUser.getId() == job.getUserId() || isAdmin())) {
-            footer.getChildren().addAll(posted, spacer, edit, delete, apply);
+            footer.getChildren().addAll(posted, footerSpacer, edit, delete, apply);
+        } else if (App.currentUser != null && App.currentUser.getId() == job.getAcceptedFreelancerId()) {
+            // Freelancer update button
+            Button updateProgBtn = new Button("⚡ Update Progress");
+            updateProgBtn.setStyle("-fx-background-color: #8b5cf6; -fx-text-fill: white; -fx-font-weight: 700; " +
+                    "-fx-padding: 8 16; -fx-background-radius: 8; -fx-cursor: hand;");
+            updateProgBtn.setOnAction(e -> showUpdateProgressDialog(job));
+            footer.getChildren().addAll(posted, footerSpacer, save, updateProgBtn);
         } else {
-            footer.getChildren().addAll(posted, spacer, save, apply);
+            // Non-owner: show Save, Message and Apply buttons
+            footer.getChildren().addAll(posted, footerSpacer, save, messageBtn, apply);
         }
 
         card.getChildren().add(footer);
@@ -830,38 +932,60 @@ public class JobsController {
         dialogPane.getButtonTypes().addAll(postButtonType, ButtonType.CANCEL);
 
         // Contenu (Form Helper)
-        VBox content = createJobForm(null);
-        content.getStyleClass().add("job-form");
-        dialogPane.setContent(content);
+        VBox formContent = createJobForm(null, false);
+        formContent.getStyleClass().add("job-form");
+
+        ScrollPane scrollPane = new ScrollPane(formContent);
+        scrollPane.setFitToWidth(true);
+        scrollPane.setPrefHeight(600);
+        scrollPane.setStyle("-fx-background-color: transparent; -fx-background: white;");
+
+        dialogPane.setContent(scrollPane);
 
         // tvalidation 9bal m tsaker
         javafx.scene.Node okButton = dialogPane.lookupButton(postButtonType);
         okButton.addEventFilter(javafx.event.ActionEvent.ACTION, event -> {
+            try {
+                JobModel job = extractJobFormData(formContent, null, false);
 
-            JobModel job = extractJobFormData(content, null);
-
-            if (!isJobValid(job)) {
+                if (!isJobValid(job)) {
+                    event.consume();
+                    showAlert(
+                            "Validation Error",
+                            """
+                                    Please check the following:
+                                    • Title / Company / Location: minimum 3 characters
+                                    • Description: minimum 10 characters
+                                    • Salary: required
+                                    """,
+                            dialog.getDialogPane().getScene().getWindow());
+                }
+            } catch (Exception ex) {
+                // prevent crash inside validation
+                ex.printStackTrace();
                 event.consume();
-                showAlert(
-                        "Validation Error",
-                        """
-                                Please check the following:
-                                • Title / Company / Location: minimum 3 characters
-                                • Description: minimum 20 characters
-                                • Salary: required
-                                """);
+                showAlert("Error", "Unexpected error in form: " + ex.getMessage());
             }
         });
 
         dialog.setResultConverter(button -> {
             if (button == postButtonType) {
-                return extractJobFormData(content, null);
+                return extractJobFormData(formContent, null, false);
             }
             return null;
         });
 
         Optional<JobModel> result = dialog.showAndWait();
-        result.ifPresent(this::insertJobToDB);
+        try {
+            if (result.isPresent()) {
+                insertJobToDB(result.get());
+            }
+        } catch (Throwable ex) {
+            // catch any unexpected runtime exception from insert logic
+            System.err.println("CRITICAL ERROR in showAddJobDialog: " + ex.getMessage());
+            ex.printStackTrace();
+            showAlert("Error", "An unexpected error occurred while posting: " + ex.getMessage());
+        }
     }
 
     private boolean isJobValid(JobModel job) {
@@ -869,7 +993,7 @@ public class JobsController {
                 && job.getTitle() != null && job.getTitle().trim().length() >= 3
                 && job.getCompany() != null && job.getCompany().trim().length() >= 3
                 && job.getLocation() != null && job.getLocation().trim().length() >= 3
-                && job.getDescription() != null && job.getDescription().trim().length() >= 20
+                && job.getDescription() != null && job.getDescription().trim().length() >= 10
                 && job.getSalaryRange() != null && !job.getSalaryRange().trim().isEmpty();
     }
 
@@ -881,9 +1005,9 @@ public class JobsController {
                 return;
             }
 
-            String query = "INSERT INTO jobs (title, company, location, description, category, salary_range, job_type, posted_date, requirements, user_id) "
+            String query = "INSERT INTO jobs (title, company, location, description, category, salary_range, job_type, posted_date, requirements, user_id, progress, status) "
                     +
-                    "VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)";
+                    "VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)";
             PreparedStatement stmt = conn.prepareStatement(query);
             stmt.setString(1, job.getTitle());
             stmt.setString(2, job.getCompany());
@@ -895,12 +1019,24 @@ public class JobsController {
             stmt.setTimestamp(8, Timestamp.valueOf(job.getPostedDate()));
             stmt.setString(9, String.join(", ", job.getRequirements()));
             stmt.setInt(10, App.currentUser != null ? App.currentUser.getId() : 1);
+            stmt.setInt(11, job.getProgress());
+            stmt.setString(12, job.getStatus());
 
             stmt.executeUpdate();
             stmt.close();
             conn.close();
 
             showAlert("Success", "Job created successfully!");
+            // clear any active filters/search so user sees the new posting
+            if (jobSearchField != null)
+                jobSearchField.clear();
+            if (jobCategoryFilter != null)
+                jobCategoryFilter.setValue("All Categories");
+            if (jobLocationFilter != null)
+                jobLocationFilter.setValue("All Locations");
+            if (jobSalarySlider != null)
+                jobSalarySlider.setValue(0);
+            filteredJobs.clear();
             loadJobsFromDB();
             displayJobs(filteredJobs);
 
@@ -930,26 +1066,33 @@ public class JobsController {
         dialogPane.getButtonTypes().addAll(editButtonType, ButtonType.CANCEL);
         dialogPane.setStyle("-fx-font-size: 12;");
 
-        VBox content = createJobForm(job);
-        dialogPane.setContent(content);
+        VBox formContent = createJobForm(job, true);
+
+        ScrollPane scrollPane = new ScrollPane(formContent);
+        scrollPane.setFitToWidth(true);
+        scrollPane.setPrefHeight(600);
+        scrollPane.setStyle("-fx-background-color: transparent; -fx-background: white;");
+
+        dialogPane.setContent(scrollPane);
 
         javafx.scene.Node okButton = dialog.getDialogPane().lookupButton(editButtonType);
         okButton.addEventFilter(javafx.event.ActionEvent.ACTION, evt -> {
-            JobModel candidate = extractJobFormData(content, job);
+            JobModel candidate = extractJobFormData(formContent, job, true);
             if (candidate.getTitle() == null || candidate.getTitle().trim().length() < 3
                     || candidate.getCompany() == null || candidate.getCompany().trim().length() < 3
                     || candidate.getLocation() == null || candidate.getLocation().trim().length() < 3
-                    || candidate.getDescription() == null || candidate.getDescription().trim().length() < 20
+                    || candidate.getDescription() == null || candidate.getDescription().trim().length() < 10
                     || candidate.getSalaryRange() == null || candidate.getSalaryRange().trim().isEmpty()) {
                 evt.consume();
                 showAlert("Validation Error",
-                        "Please provide valid Title, Company, Location (min 3 chars), Description (min 20 chars), and Salary (integer).");
+                        "Please provide valid Title, Company, Location (min 3 chars), Description (min 10 chars), and Salary (integer).",
+                        dialog.getDialogPane().getScene().getWindow());
             }
         });
 
         dialog.setResultConverter(buttonType -> {
             if (buttonType == editButtonType) {
-                return extractJobFormData(content, job);
+                return extractJobFormData(formContent, job, true);
             }
             return null;
         });
@@ -968,20 +1111,22 @@ public class JobsController {
                 return;
             }
 
-            String query = "UPDATE jobs SET title=?, company=?, location=?, description=?, category=?, salary_range=?, job_type=?, requirements=? WHERE id=?";
-            PreparedStatement stmt = conn.prepareStatement(query);
-            stmt.setString(1, job.getTitle());
-            stmt.setString(2, job.getCompany());
-            stmt.setString(3, job.getLocation());
-            stmt.setString(4, job.getDescription());
-            stmt.setString(5, job.getCategory());
-            stmt.setString(6, job.getSalaryRange());
-            stmt.setString(7, job.getJobType());
-            stmt.setString(8, String.join(", ", job.getRequirements()));
-            stmt.setInt(9, job.getId());
+            String query = "UPDATE jobs SET title=?, company=?, location=?, description=?, category=?, salary_range=?, job_type=?, requirements=?, progress=?, status=? WHERE id=?";
+            try (PreparedStatement stmt = conn.prepareStatement(query)) {
+                stmt.setString(1, job.getTitle());
+                stmt.setString(2, job.getCompany());
+                stmt.setString(3, job.getLocation());
+                stmt.setString(4, job.getDescription());
+                stmt.setString(5, job.getCategory());
+                stmt.setString(6, job.getSalaryRange());
+                stmt.setString(7, job.getJobType());
+                stmt.setString(8, String.join(", ", job.getRequirements()));
+                stmt.setInt(9, job.getProgress());
+                stmt.setString(10, job.getStatus());
+                stmt.setInt(11, job.getId());
 
-            stmt.executeUpdate();
-            stmt.close();
+                stmt.executeUpdate();
+            }
             conn.close();
 
             showAlert("Success", "Job updated successfully!");
@@ -1033,7 +1178,7 @@ public class JobsController {
     }
 
     // ==================== partie forum helper====================
-    private VBox createJobForm(JobModel editingJob) {
+    private VBox createJobForm(JobModel editingJob, boolean isEdit) {
         VBox form = new VBox(12);
         form.setStyle("-fx-padding: 20;");
 
@@ -1057,36 +1202,51 @@ public class JobsController {
         ComboBox<String> categoryCombo = new ComboBox<>();
         categoryCombo.getItems().addAll("Software Development", "Design", "Marketing", "Sales", "Business", "HR",
                 "Finance", "Other");
-        categoryCombo.setValue(editingJob != null ? editingJob.getCategory() : "Software Development");
         categoryCombo.setMaxWidth(Double.MAX_VALUE);
         categoryCombo
                 .setStyle("-fx-padding: 8; -fx-background-radius: 8; -fx-border-radius: 8; -fx-border-color: #e5e7eb;");
 
-        // Salary Slider
-        int initialSalary = 0;
-        if (editingJob != null && editingJob.getSalaryRange() != null) {
-            try {
-                // Try to parse existing salary if it's just a number
-                initialSalary = Integer.parseInt(editingJob.getSalaryRange().replaceAll("[^0-9]", ""));
-            } catch (NumberFormatException e) {
-                // ignore
-            }
+        // Custom category field (visible only when "Other" is selected)
+        TextField customCategoryField = createFormField("Enter custom category", "");
+        customCategoryField.setVisible(false);
+        customCategoryField.setManaged(false);
+
+        // Determine initial value
+        java.util.List<String> predefinedCategories = categoryCombo.getItems();
+        String existingCategory = editingJob != null ? editingJob.getCategory() : null;
+        if (existingCategory != null && !predefinedCategories.contains(existingCategory)) {
+            categoryCombo.setValue("Other");
+            customCategoryField.setText(existingCategory);
+            customCategoryField.setVisible(true);
+            customCategoryField.setManaged(true);
+        } else {
+            categoryCombo.setValue(existingCategory != null ? existingCategory : "Software Development");
         }
 
-        Slider salarySlider = new Slider(0, 5000, initialSalary);
-        salarySlider.setShowTickLabels(true);
-        salarySlider.setShowTickMarks(true);
-        salarySlider.setMajorTickUnit(1000);
-        salarySlider.setBlockIncrement(100);
-
-        Label salaryLabel = new Label("Salary: " + (int) salarySlider.getValue() + " TND");
-        salaryLabel.setStyle("-fx-font-weight: 700;");
-
-        salarySlider.valueProperty().addListener((obs, oldVal, newVal) -> {
-            salaryLabel.setText("Salary: " + newVal.intValue() + " TND");
+        categoryCombo.valueProperty().addListener((obs, oldVal, newVal) -> {
+            boolean isOther = "Other".equals(newVal);
+            customCategoryField.setVisible(isOther);
+            customCategoryField.setManaged(isOther);
+            if (!isOther)
+                customCategoryField.clear();
         });
 
-        VBox salaryBox = new VBox(5, salaryLabel, salarySlider);
+        VBox categoryBox = new VBox(6, categoryCombo, customCategoryField);
+        categoryBox.setMaxWidth(Double.MAX_VALUE);
+
+        // Salary TextField
+        String initialSalaryStr = "";
+        if (editingJob != null && editingJob.getSalaryRange() != null) {
+            initialSalaryStr = editingJob.getSalaryRange().replaceAll("[^0-9]", "");
+        }
+
+        TextField salaryField = createFormField("Salary (TND)", initialSalaryStr);
+        // Only allow digits
+        salaryField.textProperty().addListener((obs, oldVal, newVal) -> {
+            if (!newVal.matches("\\d*")) {
+                salaryField.setText(newVal.replaceAll("[^\\d]", ""));
+            }
+        });
 
         // Job Type ComboBox
         ComboBox<String> typeCombo = new ComboBox<>();
@@ -1100,35 +1260,77 @@ public class JobsController {
         descArea.setStyle("-fx-control-inner-background: #fafafa; -fx-focus-color: #6c0df2;");
         descArea.setPrefRowCount(4);
         descArea.setWrapText(true);
-        addFormLabel("Description", form);
-        form.getChildren().add(descArea);
 
         TextArea reqArea = new TextArea(editingJob != null ? String.join("\n", editingJob.getRequirements()) : "");
         reqArea.setStyle("-fx-control-inner-background: #fafafa; -fx-focus-color: #6c0df2;");
         reqArea.setPrefRowCount(4);
         reqArea.setWrapText(true);
-        addFormLabel("Requirements (one per line)", form);
+
+        Label descLabel = new Label("Description");
+        descLabel.setStyle("-fx-font-weight: 700;");
+        Button descAI = createAIButton(descArea, reqArea, "Job Description", titleField, companyField, categoryCombo);
+        HBox descHeader = new HBox(10, descLabel, descAI);
+        descHeader.setAlignment(Pos.CENTER_LEFT);
+        form.getChildren().add(descHeader);
+        form.getChildren().add(descArea);
+
+        Label reqLabel = new Label("Requirements (one per line)");
+        reqLabel.setStyle("-fx-font-weight: 700;");
+        Button reqAI = createAIButton(reqArea, null, "Job Requirements", titleField, companyField, categoryCombo);
+        HBox reqHeader = new HBox(10, reqLabel, reqAI);
+        reqHeader.setAlignment(Pos.CENTER_LEFT);
+        form.getChildren().add(reqHeader);
         form.getChildren().add(reqArea);
 
+        // Progress Slider
+        Slider progressSlider = new Slider(0, 100, editingJob != null ? editingJob.getProgress() : 0);
+        progressSlider.setShowTickLabels(true);
+        progressSlider.setShowTickMarks(true);
+        progressSlider.setMajorTickUnit(25);
+        progressSlider.setBlockIncrement(5);
+        Label progressLabel = new Label("Progress: " + (int) progressSlider.getValue() + "%");
+        progressLabel.setStyle("-fx-font-weight: 700;");
+        progressSlider.valueProperty().addListener((obs, oldVal, newVal) -> {
+            progressLabel.setText("Progress: " + newVal.intValue() + "%");
+        });
+        VBox progressBox = new VBox(5, progressLabel, progressSlider);
+
+        // Status ComboBox
+        ComboBox<String> statusCombo = new ComboBox<>();
+        statusCombo.getItems().addAll("OPEN", "IN_PROGRESS", "COMPLETED", "CLOSED");
+        statusCombo.setValue(editingJob != null ? editingJob.getStatus() : "OPEN");
+        statusCombo.setMaxWidth(Double.MAX_VALUE);
+        statusCombo
+                .setStyle("-fx-padding: 8; -fx-background-radius: 8; -fx-border-radius: 8; -fx-border-color: #e5e7eb;");
+
         // Store references for extraction
-        form.setUserData(new Object[] { titleField, companyField, locationField, categoryCombo, salarySlider, typeCombo,
-                descArea, reqArea });
+        form.setUserData(new Object[] { titleField, companyField, locationField, categoryCombo, salaryField, typeCombo,
+                descArea, reqArea, progressSlider, statusCombo, customCategoryField });
 
         form.getChildren().addAll(
                 createFormSection("Title", titleField),
                 createFormSection("Company", companyField),
                 createFormSection("Location", locationBox),
-                createFormSection("Category", categoryCombo),
-                // Salary section is self-contained so we add it directly mostly
-                salaryBox,
+                createFormSection("Category", categoryBox),
+                createFormSection("Salary (TND)", salaryField),
                 createFormSection("Job Type", typeCombo));
+
+        if (isEdit) {
+            form.getChildren().addAll(progressBox, createFormSection("Status", statusCombo));
+        }
 
         return form;
     }
 
     private void showMapPickerDialog(TextField locationField) {
         Dialog<String> dialog = new Dialog<>();
-        dialog.initOwner(App.getPrimaryStage());
+
+        // Fix for Z-order: discovery of the active modal/window owner
+        if (locationField.getScene() != null && locationField.getScene().getWindow() != null) {
+            dialog.initOwner(locationField.getScene().getWindow());
+        } else {
+            dialog.initOwner(App.getPrimaryStage());
+        }
         dialog.setTitle("Pick Location");
         dialog.setHeaderText("Click on the map to select location");
 
@@ -1334,15 +1536,9 @@ public class JobsController {
         return field;
     }
 
-    private void addFormLabel(String label, VBox container) {
-        Label l = new Label(label + ":");
-        l.setStyle("-fx-font-weight: 700;");
-        container.getChildren().add(l);
-    }
-
-    private JobModel extractJobFormData(VBox form, JobModel original) {
+    private JobModel extractJobFormData(VBox form, JobModel original, boolean isEdit) {
         Object[] fields = (Object[]) form.getUserData();
-        if (fields == null || fields.length < 8) {
+        if (fields == null || fields.length < 11) {
             // Fallback for safety, though standard flow goes through here
             return null;
         }
@@ -1351,14 +1547,25 @@ public class JobsController {
         TextField companyField = (TextField) fields[1];
         TextField locationField = (TextField) fields[2];
         ComboBox<String> categoryCombo = (ComboBox<String>) fields[3];
-        Slider salarySlider = (Slider) fields[4];
+        TextField salaryField = (TextField) fields[4];
         ComboBox<String> typeCombo = (ComboBox<String>) fields[5];
         TextArea descArea = (TextArea) fields[6];
         TextArea reqArea = (TextArea) fields[7];
+        Slider progressSlider = (Slider) fields[8];
+        ComboBox<String> statusCombo = (ComboBox<String>) fields[9];
+        TextField customCategoryField = (TextField) fields[10];
+
+        // Resolve category: use custom text when "Other" is selected
+        String categoryValue = "Other".equals(categoryCombo.getValue())
+                ? (customCategoryField.getText().trim().isEmpty() ? "Other" : customCategoryField.getText().trim())
+                : categoryCombo.getValue();
 
         String[] requirements = reqArea.getText().split("\n");
 
-        String salaryValue = String.valueOf((int) salarySlider.getValue());
+        String salaryValue = salaryField.getText().trim().isEmpty() ? "0" : salaryField.getText().trim();
+
+        int progressValue = isEdit ? (int) progressSlider.getValue() : 0;
+        String statusValue = isEdit ? statusCombo.getValue() : "OPEN";
 
         String userName = "Unknown User";
         String userEmail = "";
@@ -1373,14 +1580,17 @@ public class JobsController {
                 companyField.getText(),
                 locationField.getText(),
                 descArea.getText(),
-                categoryCombo.getValue(),
+                categoryValue,
                 salaryValue,
                 typeCombo.getValue(),
                 original != null ? original.getPostedDate() : LocalDateTime.now(),
                 requirements,
                 App.currentUser != null ? App.currentUser.getId() : 1,
                 userName,
-                userEmail);
+                userEmail,
+                progressValue,
+                statusValue,
+                original != null ? original.getAcceptedFreelancerId() : 0);
 
         return job;
     }
@@ -1420,16 +1630,300 @@ public class JobsController {
             showAlert("Authentication Required", "Please log in to save jobs");
             return;
         }
-        showAlert("Job Saved", job.getTitle() + " has been added to your saved jobs");
+
+        // insert into saved_jobs table, ignore duplicates
+        try (Connection conn = MyDataBase.getConnection()) {
+            String sql = "INSERT IGNORE INTO saved_jobs (user_id, job_id) VALUES (?, ?)";
+            try (PreparedStatement ps = conn.prepareStatement(sql)) {
+                ps.setInt(1, App.currentUser.getId());
+                ps.setInt(2, job.getId());
+                ps.executeUpdate();
+            }
+            showAlert("Job Saved", job.getTitle() + " has been added to your saved jobs");
+        } catch (Throwable e) {
+            System.err.println("ERROR in handleSaveJob: " + e.getMessage());
+            e.printStackTrace();
+            showAlert("Error", "Unable to save job: " + e.getMessage());
+        }
     }
 
     private void showAlert(String title, String msg) {
-        Alert a = new Alert(Alert.AlertType.INFORMATION);
-        a.initOwner(App.getPrimaryStage());
-        a.setTitle(title);
-        a.setHeaderText(null);
-        a.setContentText(msg);
-        a.showAndWait();
+        showAlert(title, msg, App.getPrimaryStage());
+    }
+
+    private void showAlert(String title, String msg, javafx.stage.Window owner) {
+        try {
+            Alert a = new Alert(Alert.AlertType.INFORMATION);
+            if (owner != null) {
+                a.initOwner(owner);
+            } else if (App.getPrimaryStage() != null) {
+                a.initOwner(App.getPrimaryStage());
+            }
+            a.setTitle(title);
+            a.setHeaderText(null);
+            a.setContentText(msg);
+            a.showAndWait();
+        } catch (Exception e) {
+            // fallback: print to console if alert cannot be shown
+            System.err.println("showAlert failed: " + e.getMessage());
+        }
+    }
+
+    // simple window to display saved jobs list
+    private void showSavedJobsWindow() {
+        if (App.currentUser == null) {
+            showAlert("Authentication Required", "Please log in to view saved jobs");
+            return;
+        }
+        List<JobModel> saved = loadSavedJobsForUser(App.currentUser.getId());
+        VBox container = new VBox(16);
+        container.setStyle("-fx-padding: 24 0 0 0; -fx-max-width: 900; -fx-pref-width: 900;");
+        populateContainerWithAnimation(container, saved);
+        if (saved.isEmpty()) {
+            Label none = new Label("You haven't saved any jobs yet.");
+            none.setStyle("-fx-font-size:14px; -fx-text-fill:#666;");
+            container.getChildren().add(none);
+        }
+        ScrollPane scroll = new ScrollPane(container);
+        scroll.setFitToWidth(true);
+        scroll.setFitToHeight(true);
+        scroll.setStyle("-fx-background-color: #f7f5f8; -fx-background: #f7f5f8;");
+
+        Stage stage = new Stage();
+        stage.initOwner(App.getPrimaryStage());
+        stage.initModality(Modality.APPLICATION_MODAL);
+        stage.setTitle("Saved Jobs");
+        stage.setScene(new Scene(scroll, 920, 600));
+        stage.show();
+    }
+
+    /**
+     * Creates the saved_jobs table if for some reason it wasn't created by the
+     * startup schema check. (The table is also created inside
+     * MyDataBase.checkAndFixSchema.)
+     */
+    private void ensureSavedJobsTableExists() {
+        try (Connection conn = MyDataBase.getConnection();
+                Statement stmt = conn.createStatement()) {
+            stmt.execute("CREATE TABLE IF NOT EXISTS saved_jobs ("
+                    + "user_id INT NOT NULL, job_id INT NOT NULL, "
+                    + "saved_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP, "
+                    + "PRIMARY KEY(user_id, job_id))");
+        } catch (SQLException e) {
+            System.err.println("Unable to ensure saved_jobs table: " + e.getMessage());
+        }
+    }
+
+    /**
+     * Load all jobs a user has saved. We join with the jobs table so we can
+     * re‑use the same JobModel mapping logic.
+     */
+    private List<JobModel> loadSavedJobsForUser(int userId) {
+        List<JobModel> list = new ArrayList<>();
+        try (Connection conn = MyDataBase.getConnection()) {
+            String sql = "SELECT j.*, u.first_name, u.last_name, u.email, " +
+                    "(SELECT ja.user_id FROM job_applications ja WHERE ja.job_id = j.id AND ja.status = 'ACCEPTED' LIMIT 1) as accepted_freelancer_id "
+                    +
+                    "FROM jobs j LEFT JOIN users u ON j.user_id = u.id " +
+                    "JOIN saved_jobs s ON s.job_id = j.id " +
+                    "WHERE s.user_id = ? ORDER BY s.saved_at DESC";
+            try (PreparedStatement ps = conn.prepareStatement(sql)) {
+                ps.setInt(1, userId);
+                try (ResultSet rs = ps.executeQuery()) {
+                    while (rs.next()) {
+                        list.add(mapResultSetToJob(rs));
+                    }
+                }
+            }
+        } catch (SQLException e) {
+            e.printStackTrace();
+        }
+        return list;
+    }
+
+    /**
+     * Refresh contents of the saved jobs tab (if it exists).
+     */
+    // kept for potential reuse but not used directly in single-page UI
+    private void refreshSavedJobs() {
+        // not needed when using separate window, left for compatibility
+    }
+
+    /**
+     * Utility used both for main list and saved list so we avoid duplicating
+     * animation/display logic.
+     */
+    private void populateContainerWithAnimation(VBox container, List<JobModel> jobs) {
+        container.getChildren().clear();
+        int idx = 0;
+        for (JobModel job : jobs) {
+            VBox card = createJobCard(job);
+            card.setOpacity(0);
+            card.setTranslateY(12);
+            container.getChildren().add(card);
+            FadeTransition ft = new FadeTransition(Duration.millis(420), card);
+            ft.setFromValue(0);
+            ft.setToValue(1);
+            TranslateTransition tt = new TranslateTransition(Duration.millis(420), card);
+            tt.setFromY(12);
+            tt.setToY(0);
+            ParallelTransition pt = new ParallelTransition(ft, tt);
+            pt.setDelay(Duration.millis(idx * 80));
+            pt.play();
+            idx++;
+        }
+    }
+
+    /**
+     * Handler attached to the "Saved Jobs" button; simply selects the tab and
+     * triggers a refresh.
+     */
+    @FXML
+    private void openSavedJobsTab(ActionEvent event) {
+        showSavedJobsWindow();
+    }
+
+    private void showUpdateProgressDialog(JobModel job) {
+        Dialog<AbstractMap.SimpleEntry<Integer, String>> dialog = new Dialog<>();
+        dialog.initOwner(App.getPrimaryStage());
+        dialog.setTitle("Update Work Progress");
+        dialog.setHeaderText("Report your progress for: " + job.getTitle());
+
+        DialogPane dialogPane = dialog.getDialogPane();
+        dialogPane.getStylesheets().add(getClass().getResource("/com/khademni/dialogs.css").toExternalForm());
+        dialogPane.getStyleClass().add("job-dialog");
+
+        ButtonType saveButtonType = new ButtonType("Submit Report", ButtonBar.ButtonData.OK_DONE);
+        dialogPane.getButtonTypes().addAll(saveButtonType, ButtonType.CANCEL);
+
+        VBox content = new VBox(15);
+        content.setPadding(new Insets(20));
+        content.setPrefWidth(400);
+
+        Label progLabel = new Label("Current Progress: " + job.getProgress() + "%");
+        progLabel.setStyle("-fx-font-weight: bold; -fx-font-size: 14;");
+
+        Slider slider = new Slider(0, 100, job.getProgress());
+        slider.setShowTickLabels(true);
+        slider.setShowTickMarks(true);
+        slider.setMajorTickUnit(25);
+        slider.setBlockIncrement(5);
+
+        Label newValLabel = new Label("New Progress: " + (int) slider.getValue() + "%");
+        newValLabel.setStyle("-fx-text-fill: #6c0df2; -fx-font-weight: bold;");
+        slider.valueProperty()
+                .addListener((obs, old, val) -> newValLabel.setText("New Progress: " + val.intValue() + "%"));
+
+        Label descLabel = new Label("What did you accomplish?");
+        descLabel.setStyle("-fx-font-weight: bold;");
+        TextArea descArea = new TextArea();
+        descArea.setPromptText("Describe the work you've completed...");
+        descArea.setPrefRowCount(4);
+        descArea.setWrapText(true);
+
+        content.getChildren().addAll(progLabel, slider, newValLabel, descLabel, descArea);
+        dialogPane.setContent(content);
+
+        dialog.setResultConverter(btn -> {
+            if (btn == saveButtonType) {
+                return new AbstractMap.SimpleEntry<>((int) slider.getValue(), descArea.getText());
+            }
+            return null;
+        });
+
+        dialog.showAndWait().ifPresent(result -> {
+            saveProgressUpdate(job, result.getKey(), result.getValue());
+        });
+    }
+
+    private void saveProgressUpdate(JobModel job, int newProgress, String description) {
+        if (description == null || description.trim().isEmpty()) {
+            showAlert("Input Required", "Please describe what you did.");
+            return;
+        }
+
+        try (Connection conn = MyDataBase.getConnection()) {
+            conn.setAutoCommit(false);
+            try {
+                // 1. Insert work log
+                String logSql = "INSERT INTO work_logs (job_id, freelancer_id, progress_change, description) VALUES (?, ?, ?, ?)";
+                try (PreparedStatement ps = conn.prepareStatement(logSql)) {
+                    ps.setInt(1, job.getId());
+                    ps.setInt(2, App.currentUser.getId());
+                    ps.setInt(3, newProgress);
+                    ps.setString(4, description);
+                    ps.executeUpdate();
+                }
+
+                // 2. Update job progress
+                // If progress is 100, set status to COMPLETED
+                String status = newProgress >= 100 ? "COMPLETED" : "IN_PROGRESS";
+                String jobSql = "UPDATE jobs SET progress = ?, status = ? WHERE id = ?";
+                try (PreparedStatement ps = conn.prepareStatement(jobSql)) {
+                    ps.setInt(1, newProgress);
+                    ps.setString(2, status);
+                    ps.setInt(3, job.getId());
+                    ps.executeUpdate();
+                }
+
+                conn.commit();
+                showAlert("Success", "Progress updated successfully!");
+                loadJobsFromDB();
+                displayJobs(allJobs); // uses allJobs as base for refresh
+            } catch (SQLException e) {
+                conn.rollback();
+                throw e;
+            }
+        } catch (SQLException e) {
+            e.printStackTrace();
+            showAlert("Error", "Failed to update progress: " + e.getMessage());
+        }
+    }
+
+    private Button createAIButton(TextArea target, TextArea secondaryTarget, String contextType, TextField titleF,
+            TextField companyF, ComboBox<String> categoryC) {
+        Button aiBtn = new Button("✨ AI Enhance");
+        aiBtn.setStyle(
+                "-fx-background-color: #f5f3ff; -fx-text-fill: #7c3aed; -fx-font-size: 11px; -fx-font-weight: bold; -fx-background-radius: 12; -fx-cursor: hand;");
+        aiBtn.setOnAction(e -> {
+            String original = target.getText();
+            if (original.isEmpty()) {
+                showAlert("Info", "Please type something first so I can improve it!");
+                return;
+            }
+            aiBtn.setDisable(true);
+            aiBtn.setText("⏳ Enhancing...");
+
+            java.util.Map<String, String> context = new java.util.HashMap<>();
+            context.put("contextType", contextType);
+            context.put("Job Title", titleF.getText());
+            context.put("Company", companyF.getText());
+            context.put("Category", categoryC.getValue());
+
+            AIService.rewriteProfessionally(original, context).thenAccept(improved -> {
+                javafx.application.Platform.runLater(() -> {
+                    String cleanImproved = improved.trim();
+                    if (cleanImproved.startsWith("```")) {
+                        cleanImproved = cleanImproved.replaceAll("(?s)^```(?:json)?\\s*(.*?)\\s*```$", "$1").trim();
+                    }
+
+                    if (secondaryTarget != null && cleanImproved.startsWith("{")) {
+                        try {
+                            org.json.JSONObject obj = new org.json.JSONObject(cleanImproved);
+                            target.setText(obj.optString("description", cleanImproved));
+                            secondaryTarget.setText(obj.optString("requirements", ""));
+                        } catch (Exception ex) {
+                            target.setText(cleanImproved);
+                        }
+                    } else {
+                        target.setText(cleanImproved);
+                    }
+                    aiBtn.setDisable(false);
+                    aiBtn.setText("✨ AI Enhance");
+                });
+            });
+        });
+        return aiBtn;
     }
 
     // Public static class for JS bridge
@@ -1448,6 +1942,53 @@ public class JobsController {
                 dialog.setResult(loc);
                 dialog.close();
             });
+        }
+    }
+
+    private void handleMessageJobOwner(JobModel job) {
+        if (App.currentUser == null) {
+            showAlert("Authentication Required", "Please log in to message the job owner.");
+            return;
+        }
+
+        if (job.getUserId() <= 0) {
+            showAlert("Error", "This job has no owner assigned.");
+            return;
+        }
+
+        if (job.getUserId() == App.currentUser.getId()) {
+            showAlert("Error", "You cannot message yourself.");
+            return;
+        }
+
+        try {
+            int conversationId = ConversationHelper.createOrGetConversation(
+                App.currentUser.getId(),
+                job.getUserId(),
+                "Job: " + job.getTitle()
+            );
+            openConversation(conversationId);
+        } catch (SQLException e) {
+            showAlert("Error", "Error creating conversation: " + e.getMessage());
+            e.printStackTrace();
+        }
+    }
+
+    private void openConversation(int conversationId) {
+        try {
+            FXMLLoader loader = new FXMLLoader(getClass().getResource("/com/khademni/Message.fxml"));
+            Parent root = loader.load();
+
+            MessageController messageController = loader.getController();
+            messageController.setConversationId(conversationId);
+
+            Stage stage = (Stage) jobsContainer.getScene().getWindow();
+            stage.setScene(new Scene(root));
+            stage.setTitle("Conversation");
+
+        } catch (Exception e) {
+            showAlert("Error", "Error opening conversation: " + e.getMessage());
+            e.printStackTrace();
         }
     }
 }

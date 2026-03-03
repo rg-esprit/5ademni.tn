@@ -1,14 +1,24 @@
 package com.khademni.controller;
 
 import com.khademni.App;
-import com.khademni.model.Article;
 import com.khademni.model.CategoryModel;
 import com.khademni.model.GigModel;
+import com.khademni.model.BadWordResult;
+import com.khademni.model.SpamResult;
+import com.khademni.service.BadWordDetectionService;
+import com.khademni.service.GigGenerationService;
+import com.khademni.service.SpamDetectionService;
 import com.khademni.utils.MyDataBase;
+import com.khademni.utils.FreeAIService;
+import com.khademni.utils.FlaskAPIClient;
+import com.khademni.utils.ConversationHelper;
 import javafx.fxml.FXML;
+import javafx.fxml.FXMLLoader;
 import javafx.fxml.Initializable;
 import javafx.geometry.Insets;
 import javafx.geometry.Pos;
+import javafx.scene.Parent;
+import javafx.scene.Scene;
 import javafx.scene.control.*;
 import javafx.scene.image.Image;
 import javafx.scene.image.ImageView;
@@ -42,26 +52,26 @@ public class GigController implements Initializable {
     @FXML private Label totalGigsLabel;
     @FXML private Label activeGigsLabel;
     @FXML private Label totalRevenueLabel;
-    @FXML private TilePane gigsContainer;
+    @FXML private FlowPane gigsContainer;
     @FXML private VBox emptyState;
 
     // ===== Data =====
     private List<GigModel> allGigs = new ArrayList<>();
     private List<CategoryModel> categories = new ArrayList<>();
+    private final SpamDetectionService spamDetectionService = new SpamDetectionService();
+    private final BadWordDetectionService badWordDetectionService = new BadWordDetectionService();
+    private final GigGenerationService gigGenerationService = new GigGenerationService();
 
     @Override
     public void initialize(URL url, ResourceBundle resourceBundle) {
         System.out.println("=== GigController: Starting initialization ===");
-loadGigs(); 
+
         // Check if components are initialized
         System.out.println("searchField: " + (searchField != null ? "OK" : "NULL"));
         System.out.println("filterCategoryComboBox: " + (filterCategoryComboBox != null ? "OK" : "NULL"));
         System.out.println("filterStatusComboBox: " + (filterStatusComboBox != null ? "OK" : "NULL"));
         System.out.println("gigsContainer: " + (gigsContainer != null ? "OK" : "NULL"));
-    if (filterStatusComboBox == null || filterCategoryComboBox == null || searchField == null || gigsContainer == null) {
-        System.err.println("Un ou plusieurs composants FXML ne sont pas initialisés !");
-        return;
-    }
+
         setupFilters();
         System.out.println("Filters setup complete");
 
@@ -78,12 +88,8 @@ loadGigs();
     // ==================== SETUP ====================
 
     private void setupFilters() {
-           if (filterStatusComboBox == null || filterCategoryComboBox == null || searchField == null || minPriceField == null || maxPriceField == null) {
-        System.err.println("Un ou plusieurs composants FXML ne sont pas initialisés !");
-        return;
-    }
         // Status filter
-        filterStatusComboBox.getItems().addAll("All Status", "Active", "Inactive");
+        filterStatusComboBox.getItems().addAll("All Status", "Active", "Inactive", "Expired");
         filterStatusComboBox.setValue("All Status");
 
         // Add listeners for real-time filtering
@@ -93,17 +99,17 @@ loadGigs();
         // Real-time search
         searchField.textProperty().addListener((obs, oldVal, newVal) -> applyFilters());
 
-        // Price fields listeners
-        minPriceField.textProperty().addListener((obs, oldVal, newVal) -> {
-            if (!newVal.matches("\\d*\\.?\\d*")) {
-                minPriceField.setText(oldVal);
-            }
-        });
-        maxPriceField.textProperty().addListener((obs, oldVal, newVal) -> {
-            if (!newVal.matches("\\d*\\.?\\d*")) {
-                maxPriceField.setText(oldVal);
-            }
-        });
+        // Price fields - use TextFormatter instead of setText in listener to avoid IndexOutOfBoundsException
+        minPriceField.setTextFormatter(new TextFormatter<>(change -> {
+            String newText = change.getControlNewText();
+            if (newText.isEmpty() || newText.matches("\\d*\\.?\\d*")) return change;
+            return null;
+        }));
+        maxPriceField.setTextFormatter(new TextFormatter<>(change -> {
+            String newText = change.getControlNewText();
+            if (newText.isEmpty() || newText.matches("\\d*\\.?\\d*")) return change;
+            return null;
+        }));
     }
 
     private void loadCategories() {
@@ -114,7 +120,7 @@ loadGigs();
         CategoryModel allCat = new CategoryModel(0, "All Categories", "", true);
         categories.add(allCat);
 
-        // Use 'name' as the column name (based on DatabaseTester results)
+        // Load categories using 'name' column
         String query = "SELECT id, name, description, is_active FROM category";
 
         try (Connection conn = MyDataBase.getConnection();
@@ -139,6 +145,16 @@ loadGigs();
             if (filterCategoryComboBox != null) {
                 filterCategoryComboBox.getItems().setAll(categories);
                 filterCategoryComboBox.setValue(categories.get(0));
+                // cellFactory: affiche seulement le nom
+                javafx.util.Callback<javafx.scene.control.ListView<CategoryModel>, ListCell<CategoryModel>> catCellFact =
+                    lv -> new ListCell<CategoryModel>() {
+                        @Override protected void updateItem(CategoryModel item, boolean empty) {
+                            super.updateItem(item, empty);
+                            setText(empty || item == null ? null : item.getName());
+                        }
+                    };
+                filterCategoryComboBox.setCellFactory(catCellFact);
+                filterCategoryComboBox.setButtonCell(catCellFact.call(null));
                 System.out.println("Categories set in ComboBox");
             }
 
@@ -160,11 +176,10 @@ loadGigs();
         allGigs.clear();
         System.out.println("Loading gigs...");
 
-        // Use 'name' as column name (based on DatabaseTester results)
-        // Load ALL gigs (no user_id filter)
+        // Load ALL gigs (with user_id filter)
         String query = """
             SELECT g.id, g.title, g.description, g.price, g.delivery_time,
-                   g.image, g.status, c.id as cat_id, c.name as cat_name, c.description as cat_desc
+                   g.image, g.status, g.user_id, c.id as cat_id, c.name as cat_name, c.description as cat_desc
             FROM gig g
             LEFT JOIN category c ON g.category_id = c.id
             ORDER BY g.id DESC
@@ -194,20 +209,27 @@ loadGigs();
                     category = new CategoryModel(0, "Uncategorized", "No category", true);
                 }
 
+                LocalDateTime deliveryTime = rs.getTimestamp("delivery_time").toLocalDateTime();
+                String dbStatus = rs.getString("status");
+
+                // Calculate dynamic status based on delivery time
+                String actualStatus = calculateDynamicStatus(deliveryTime, dbStatus);
+
                 GigModel gig = new GigModel(
                         rs.getInt("id"),
                         rs.getString("title"),
                         rs.getString("description"),
                         rs.getDouble("price"),
-                        rs.getTimestamp("delivery_time").toLocalDateTime(),
+                        deliveryTime,
                         rs.getString("image"),
-                        rs.getString("status")
+                        actualStatus  // Use dynamic status
                 );
                 gig.setCategory(category);
+                gig.setUserId(rs.getInt("user_id"));
 
                 allGigs.add(gig);
                 count++;
-                System.out.println("  Loaded gig: " + gig.getTitle() + " (ID: " + gig.getId() + ")");
+                System.out.println("  Loaded gig: " + gig.getTitle() + " (Status: " + actualStatus + ")");
             }
 
             System.out.println("Total gigs loaded: " + count);
@@ -219,6 +241,22 @@ loadGigs();
             e.printStackTrace();
             showError("Error loading gigs: " + e.getMessage());
         }
+    }
+
+    /**
+     * Calculate dynamic status based on delivery time
+     * If delivery_time < current time → status becomes "EXPIRED"
+     */
+    private String calculateDynamicStatus(LocalDateTime deliveryTime, String dbStatus) {
+        LocalDateTime now = LocalDateTime.now();
+
+        if (deliveryTime.isBefore(now)) {
+            System.out.println("    → Gig expired (delivery: " + deliveryTime + " < now: " + now + ")");
+            return "EXPIRED";
+        }
+
+        // Return original status from database
+        return dbStatus;
     }
 
     // ==================== FILTERS ====================
@@ -290,6 +328,7 @@ loadGigs();
         VBox card = new VBox();
         card.getStyleClass().add("gig-card");
         card.setPrefWidth(320);
+        card.setMinWidth(320);
         card.setMaxWidth(320);
         card.setStyle("-fx-cursor: hand;");
 
@@ -342,9 +381,21 @@ loadGigs();
         categoryBadge.getStyleClass().add("gig-card-category");
 
         Label statusBadge = new Label(gig.getStatus());
-        statusBadge.getStyleClass().add(
-                gig.getStatus().equalsIgnoreCase("active") ? "gig-badge-active" : "gig-badge-inactive"
-        );
+
+        // Dynamic styling based on status
+        if (gig.getStatus().equalsIgnoreCase("EXPIRED")) {
+            statusBadge.setStyle("-fx-background-color: #fee2e2; -fx-text-fill: #991b1b; " +
+                               "-fx-font-size: 11; -fx-font-weight: 700; -fx-padding: 6 12; " +
+                               "-fx-background-radius: 20;");
+        } else if (gig.getStatus().equalsIgnoreCase("active")) {
+            statusBadge.setStyle("-fx-background-color: #dcfce7; -fx-text-fill: #16a34a; " +
+                               "-fx-font-size: 11; -fx-font-weight: 700; -fx-padding: 6 12; " +
+                               "-fx-background-radius: 20;");
+        } else {
+            statusBadge.setStyle("-fx-background-color: #fef3c7; -fx-text-fill: #92400e; " +
+                               "-fx-font-size: 11; -fx-font-weight: 700; -fx-padding: 6 12; " +
+                               "-fx-background-radius: 20;");
+        }
 
         badges.getChildren().addAll(categoryBadge, statusBadge);
 
@@ -356,6 +407,9 @@ loadGigs();
         price.getStyleClass().add("gig-card-price");
         HBox.setHgrow(price, Priority.ALWAYS);
 
+        // Check if current user is owner or admin
+        boolean isOwner = isGigOwner(gig);
+        
         Button editBtn = new Button("✏️");
         editBtn.setStyle("-fx-background-color: #3b82f6; -fx-text-fill: white; " +
                         "-fx-padding: 8 12; -fx-background-radius: 6; -fx-cursor: hand;");
@@ -366,7 +420,31 @@ loadGigs();
                           "-fx-padding: 8 12; -fx-background-radius: 6; -fx-cursor: hand;");
         deleteBtn.setOnAction(e -> deleteGig(gig));
 
-        footer.getChildren().addAll(price, editBtn, deleteBtn);
+        // Message button for non-owners
+        Button messageBtn = new Button("💬");
+        messageBtn.setStyle("-fx-background-color: #10b981; -fx-text-fill: white; " +
+                          "-fx-padding: 8 12; -fx-background-radius: 6; -fx-cursor: hand;");
+        messageBtn.setOnAction(e -> handleMessageGigOwner(gig));
+
+        // Show/hide buttons based on ownership
+        if (isOwner) {
+            // Owner: show edit and delete
+            if (gig.getStatus().equalsIgnoreCase("EXPIRED")) {
+                editBtn.setDisable(true);
+                editBtn.setStyle("-fx-background-color: #9ca3af; -fx-text-fill: white; " +
+                                "-fx-padding: 8 12; -fx-background-radius: 6; -fx-opacity: 0.5;");
+                Tooltip expiredTooltip = new Tooltip("⚠️ This gig has expired and cannot be edited");
+                Tooltip.install(editBtn, expiredTooltip);
+            }
+            footer.getChildren().addAll(price, editBtn, deleteBtn);
+        } else {
+            // Non-owner: show message button (if logged in and not own gig)
+            if (App.currentUser != null) {
+                footer.getChildren().addAll(price, messageBtn);
+            } else {
+                footer.getChildren().add(price);
+            }
+        }
 
         content.getChildren().addAll(title, description, badges, new Separator(), footer);
         card.getChildren().addAll(imagePane, content);
@@ -400,63 +478,925 @@ loadGigs();
         showGigDialog(null);
     }
 
+    /**
+     * Opens the AI Gig Generation dialog.
+     * The user types a simple prompt and DeepSeek generates a full gig.
+     */
+    @FXML
+    public void showAIGenerateDialog() {
+        Dialog<ButtonType> dialog = new Dialog<>();
+        dialog.setTitle("AI Gig Generator");
+
+        VBox root = new VBox(24);
+        root.setPadding(new Insets(32));
+        root.setAlignment(Pos.TOP_CENTER);
+        root.setStyle("-fx-background-color: white; -fx-min-width: 580; -fx-max-width: 580;");
+
+        // Header
+        VBox headerBox = new VBox(8);
+        headerBox.setAlignment(Pos.CENTER);
+        Label headerLabel = new Label("\uD83E\uDD16 AI Gig Generator");
+        headerLabel.setStyle("-fx-font-size: 26; -fx-font-weight: 800; -fx-text-fill: #1e293b;");
+        Label subLabel = new Label("Describe your skill or idea and AI will create a marketplace-ready gig for you");
+        subLabel.setStyle("-fx-font-size: 14; -fx-text-fill: #64748b;");
+        subLabel.setWrapText(true);
+        subLabel.setAlignment(Pos.CENTER);
+        headerBox.getChildren().addAll(headerLabel, subLabel);
+
+        // Prompt input
+        VBox promptBox = new VBox(8);
+        promptBox.setAlignment(Pos.TOP_LEFT);
+        Label promptLabel = new Label("What can you do?");
+        promptLabel.setStyle("-fx-font-size: 14; -fx-font-weight: 600; -fx-text-fill: #374151;");
+
+        TextArea promptField = new TextArea();
+        promptField.setPromptText("e.g. \"I'm great at designing modern logos\" or \"build full-stack web apps with React and Spring Boot\"");
+        promptField.setPrefRowCount(3);
+        promptField.setWrapText(true);
+        promptField.setStyle(
+            "-fx-font-size: 14; -fx-padding: 12 16;" +
+            "-fx-background-color: #f9fafb; -fx-border-color: #e5e7eb;" +
+            "-fx-border-radius: 12; -fx-background-radius: 12; -fx-border-width: 1.5;"
+        );
+        promptBox.getChildren().addAll(promptLabel, promptField);
+
+        // Generate button
+        Button generateBtn = new Button("\u2728 Generate Gig with AI");
+        generateBtn.setMaxWidth(Double.MAX_VALUE);
+        generateBtn.setStyle(
+            "-fx-background-color: linear-gradient(to bottom right, #6366f1, #8b5cf6);" +
+            "-fx-text-fill: white; -fx-font-size: 15; -fx-font-weight: 700;" +
+            "-fx-padding: 14 32; -fx-background-radius: 12; -fx-cursor: hand;" +
+            "-fx-effect: dropshadow(gaussian, rgba(99,102,241,0.4), 12, 0, 0, 4);"
+        );
+
+        // Result area (hidden initially)
+        VBox resultBox = new VBox(16);
+        resultBox.setVisible(false);
+        resultBox.setManaged(false);
+        resultBox.setStyle(
+            "-fx-background-color: #f0fdf4; -fx-padding: 20;" +
+            "-fx-background-radius: 12; -fx-border-color: #bbf7d0;" +
+            "-fx-border-radius: 12; -fx-border-width: 1.5;"
+        );
+
+        Label resultHeader = new Label("\u2705 Generated Gig Preview");
+        resultHeader.setStyle("-fx-font-size: 16; -fx-font-weight: 700; -fx-text-fill: #166534;");
+
+        Label genTitle = new Label();
+        genTitle.setStyle("-fx-font-size: 15; -fx-font-weight: 700; -fx-text-fill: #1e293b;");
+        genTitle.setWrapText(true);
+
+        Label genDesc = new Label();
+        genDesc.setStyle("-fx-font-size: 13; -fx-text-fill: #374151;");
+        genDesc.setWrapText(true);
+
+        HBox metaBadges = new HBox(12);
+        metaBadges.setAlignment(Pos.CENTER_LEFT);
+        Label genCategory = new Label();
+        genCategory.setStyle(
+            "-fx-background-color: #ede9fe; -fx-text-fill: #6d28d9;" +
+            "-fx-font-size: 12; -fx-font-weight: 700; -fx-padding: 6 14;" +
+            "-fx-background-radius: 20;"
+        );
+        Label genPrice = new Label();
+        genPrice.setStyle(
+            "-fx-background-color: #dcfce7; -fx-text-fill: #16a34a;" +
+            "-fx-font-size: 12; -fx-font-weight: 700; -fx-padding: 6 14;" +
+            "-fx-background-radius: 20;"
+        );
+        Label genDays = new Label();
+        genDays.setStyle(
+            "-fx-background-color: #dbeafe; -fx-text-fill: #2563eb;" +
+            "-fx-font-size: 12; -fx-font-weight: 700; -fx-padding: 6 14;" +
+            "-fx-background-radius: 20;"
+        );
+        metaBadges.getChildren().addAll(genCategory, genPrice, genDays);
+
+        // Use This Gig button
+        Button useGigBtn = new Button("\uD83D\uDE80 Use This Gig");
+        useGigBtn.setMaxWidth(Double.MAX_VALUE);
+        useGigBtn.setStyle(
+            "-fx-background-color: linear-gradient(to right, #10b981, #059669);" +
+            "-fx-text-fill: white; -fx-font-size: 14; -fx-font-weight: 700;" +
+            "-fx-padding: 12 32; -fx-background-radius: 10; -fx-cursor: hand;" +
+            "-fx-effect: dropshadow(gaussian, rgba(16,185,129,0.3), 8, 0, 0, 2);"
+        );
+
+        // Regenerate button
+        Button regenBtn = new Button("\uD83D\uDD04 Regenerate");
+        regenBtn.setMaxWidth(Double.MAX_VALUE);
+        regenBtn.setStyle(
+            "-fx-background-color: #f3f4f6; -fx-text-fill: #374151;" +
+            "-fx-font-size: 13; -fx-font-weight: 600;" +
+            "-fx-padding: 10 24; -fx-background-radius: 10; -fx-cursor: hand;"
+        );
+
+        HBox actionBtns = new HBox(12, regenBtn, useGigBtn);
+        actionBtns.setAlignment(Pos.CENTER);
+        HBox.setHgrow(useGigBtn, Priority.ALWAYS);
+        HBox.setHgrow(regenBtn, Priority.ALWAYS);
+
+        resultBox.getChildren().addAll(resultHeader, genTitle, genDesc, metaBadges, actionBtns);
+
+        // Loading indicator
+        Label loadingLabel = new Label("\u23F3 Generating your gig with AI... please wait");
+        loadingLabel.setStyle("-fx-font-size: 14; -fx-text-fill: #6366f1; -fx-font-weight: 600;");
+        loadingLabel.setVisible(false);
+        loadingLabel.setManaged(false);
+
+        // Hold the generated gig reference
+        final GigGenerationService.GeneratedGig[] generatedRef = new GigGenerationService.GeneratedGig[1];
+
+        // Generate action
+        Runnable doGenerate = () -> {
+            String prompt = promptField.getText().trim();
+            if (prompt.isEmpty()) {
+                Alert alert = new Alert(Alert.AlertType.WARNING, "Please describe your skill or idea first.", ButtonType.OK);
+                alert.initOwner(dialog.getDialogPane().getScene().getWindow());
+                alert.showAndWait();
+                return;
+            }
+
+            generateBtn.setDisable(true);
+            regenBtn.setDisable(true);
+            loadingLabel.setVisible(true);
+            loadingLabel.setManaged(true);
+            resultBox.setVisible(false);
+            resultBox.setManaged(false);
+
+            new Thread(() -> {
+                try {
+                    GigGenerationService.GeneratedGig generated = gigGenerationService.generate(prompt);
+                    generatedRef[0] = generated;
+
+                    javafx.application.Platform.runLater(() -> {
+                        genTitle.setText("\uD83D\uDCBC " + generated.getTitle());
+                        genDesc.setText(generated.getDescription());
+                        genCategory.setText("\uD83C\uDFF7\uFE0F " + generated.getCategory());
+                        genPrice.setText("\uD83D\uDCB0 " + String.format("%.2f TND", generated.getPrice()));
+                        genDays.setText("\uD83D\uDCC5 " + generated.getDeliveryDays() + " days");
+
+                        resultBox.setVisible(true);
+                        resultBox.setManaged(true);
+                        loadingLabel.setVisible(false);
+                        loadingLabel.setManaged(false);
+                        generateBtn.setDisable(false);
+                        regenBtn.setDisable(false);
+                    });
+                } catch (Exception ex) {
+                    javafx.application.Platform.runLater(() -> {
+                        loadingLabel.setVisible(false);
+                        loadingLabel.setManaged(false);
+                        generateBtn.setDisable(false);
+                        regenBtn.setDisable(false);
+                        Alert alert = new Alert(Alert.AlertType.ERROR, "Generation failed: " + ex.getMessage(), ButtonType.OK);
+                        alert.initOwner(dialog.getDialogPane().getScene().getWindow());
+                        alert.showAndWait();
+                    });
+                }
+            }).start();
+        };
+
+        generateBtn.setOnAction(e -> doGenerate.run());
+        regenBtn.setOnAction(e -> doGenerate.run());
+
+        // "Use This Gig" → close this dialog, open the Create Gig dialog pre-filled
+        useGigBtn.setOnAction(e -> {
+            if (generatedRef[0] == null) return;
+            GigGenerationService.GeneratedGig gen = generatedRef[0];
+            dialog.setResult(ButtonType.OK);
+            dialog.close();
+
+            // Open the standard gig creation dialog and pre-fill with AI data
+            showGigDialogPreFilled(gen);
+        });
+
+        // Cancel button
+        Button cancelBtn = new Button("Cancel");
+        cancelBtn.setStyle(
+            "-fx-background-color: #f3f4f6; -fx-text-fill: #374151;" +
+            "-fx-font-size: 13; -fx-font-weight: 600; -fx-padding: 10 24;" +
+            "-fx-background-radius: 10; -fx-cursor: hand;"
+        );
+        cancelBtn.setOnAction(e -> {
+            dialog.setResult(ButtonType.CANCEL);
+            dialog.close();
+        });
+
+        root.getChildren().addAll(headerBox, promptBox, generateBtn, loadingLabel, resultBox, cancelBtn);
+
+        ScrollPane scrollPane = new ScrollPane(root);
+        scrollPane.setFitToWidth(true);
+        scrollPane.setStyle("-fx-background-color: transparent; -fx-background: transparent;");
+
+        DialogPane dialogPane = dialog.getDialogPane();
+        dialogPane.setContent(scrollPane);
+        dialogPane.setStyle(
+            "-fx-background-color: white; -fx-background-radius: 16;" +
+            "-fx-effect: dropshadow(gaussian, rgba(0,0,0,0.2), 40, 0, 0, 10);"
+        );
+        dialogPane.getButtonTypes().clear();
+
+        dialog.showAndWait();
+    }
+
+    /**
+     * Opens the Create Gig dialog pre-filled with AI-generated content.
+     */
+    private void showGigDialogPreFilled(GigGenerationService.GeneratedGig generated) {
+        Dialog<ButtonType> dialog = new Dialog<>();
+        dialog.setTitle("Create AI-Generated Gig");
+
+        // Re-use showGigDialog but we need to pre-fill, so we call showGigDialog(null)
+        // and then set fields. Since showGigDialog is monolithic, we call it and inject via Platform.runLater.
+        // A cleaner approach: create a temporary GigModel to pass to showGigDialog's edit path.
+
+        // We create a "virtual" gig (id=0 signals new gig) with AI-generated fields
+        GigModel aiGig = new GigModel();
+        aiGig.setId(0); // new gig
+        aiGig.setTitle(generated.getTitle());
+        aiGig.setDescription(generated.getDescription());
+        aiGig.setPrice(generated.getPrice());
+
+        // Map AI category to an existing CategoryModel
+        String aiCat = generated.getCategory().toLowerCase();
+        CategoryModel matchedCat = null;
+        for (CategoryModel cat : categories) {
+            if (cat.getId() == 0) continue;
+            String catLower = cat.getName().toLowerCase();
+            if (catLower.contains(aiCat) || aiCat.contains(catLower)
+                    || (aiCat.contains("dev") && catLower.contains("dev"))
+                    || (aiCat.contains("design") && catLower.contains("design"))
+                    || (aiCat.contains("market") && catLower.contains("market"))
+                    || (aiCat.contains("writ") && catLower.contains("writ"))
+                    || (aiCat.contains("video") && catLower.contains("video"))
+                    || (aiCat.contains("data") && catLower.contains("data"))
+                    || (aiCat.contains("music") && catLower.contains("music"))
+                    || (aiCat.contains("business") && catLower.contains("business"))) {
+                matchedCat = cat;
+                break;
+            }
+        }
+        aiGig.setCategory(matchedCat != null ? matchedCat : (categories.size() > 1 ? categories.get(1) : null));
+
+        // Set delivery time based on AI-suggested days
+        aiGig.setDeliveryTime(LocalDateTime.now().plusDays(generated.getDeliveryDays()));
+        aiGig.setStatus("active");
+        aiGig.setImage("");
+
+        // Call the standard gig dialog in "edit" mode with the AI gig
+        // The save logic will detect id==0 and treat it as a new insert
+        showGigDialogForAI(aiGig);
+    }
+
+    /**
+     * Opens the standard gig creation dialog pre-filled with AI-generated data.
+     * Behaves like showGigDialog(null) but with pre-populated fields.
+     */
+    private void showGigDialogForAI(GigModel aiGig) {
+        showGigDialog(aiGig, true);
+    }
+
     private void showEditGigDialog(GigModel gig) {
         showGigDialog(gig);
     }
 
     private void showGigDialog(GigModel gigToEdit) {
-        Dialog<GigModel> dialog = new Dialog<>();
-        dialog.setTitle(gigToEdit == null ? "Add New Gig" : "Edit Gig");
-        dialog.setHeaderText(gigToEdit == null ? "Create a new service offering" : "Update your gig");
+        showGigDialog(gigToEdit, false);
+    }
 
-        // Buttons
-        ButtonType saveButtonType = new ButtonType("Save", ButtonBar.ButtonData.OK_DONE);
-        dialog.getDialogPane().getButtonTypes().addAll(saveButtonType, ButtonType.CANCEL);
+    private void showGigDialog(GigModel gigToEdit, boolean isAIGenerated) {
+        // If AI-generated with id==0, treat as new gig creation (pre-filled)
+        GigModel effectiveGigToEdit = (isAIGenerated && gigToEdit != null && gigToEdit.getId() == 0) ? gigToEdit : gigToEdit;
+        boolean isNewGig = (isAIGenerated && effectiveGigToEdit != null && effectiveGigToEdit.getId() == 0);
 
-        // Form
-        GridPane grid = new GridPane();
-        grid.setHgap(15);
-        grid.setVgap(15);
-        grid.setPadding(new Insets(20));
-        grid.setStyle("-fx-background-color: white;");
+        Dialog<ButtonType> dialog = new Dialog<>();
+        dialog.setTitle(isNewGig ? "Create AI-Generated Gig" : (effectiveGigToEdit == null ? "Add New Gig" : "Edit Gig"));
 
-        TextField titleField = new TextField();
-        titleField.setPromptText("Enter gig title");
-        if (gigToEdit != null) titleField.setText(gigToEdit.getTitle());
+        // Scrollable content wrapper
+        ScrollPane scrollPane = new ScrollPane();
+        scrollPane.setFitToWidth(true);
+        scrollPane.setStyle("-fx-background-color: transparent; -fx-background: transparent;");
 
-        TextArea descField = new TextArea();
-        descField.setPromptText("Describe your service...");
+        // Custom Dialog Content
+        VBox dialogContent = new VBox(24);
+        dialogContent.setAlignment(Pos.TOP_LEFT);
+        dialogContent.setPadding(new Insets(32));
+        dialogContent.setStyle(
+            "-fx-background-color: white;" +
+            "-fx-min-width: 650;" +
+            "-fx-max-width: 650;"
+        );
+
+        // Header
+        VBox headerBox = new VBox(8);
+        headerBox.setAlignment(Pos.TOP_LEFT);
+        Label titleLabel = new Label(gigToEdit == null ? "💼 Create New Gig" : "✎ Edit Gig");
+        titleLabel.setStyle(
+            "-fx-font-size: 26;" +
+            "-fx-font-weight: 700;" +
+            "-fx-text-fill: #1e293b;"
+        );
+
+        Label subtitleLabel = new Label(gigToEdit == null ?
+            "Create a new service offering for clients to purchase" :
+            "Update your gig information");
+        subtitleLabel.setStyle(
+            "-fx-font-size: 14;" +
+            "-fx-text-fill: #64748b;"
+        );
+        subtitleLabel.setWrapText(true);
+
+        headerBox.getChildren().addAll(titleLabel, subtitleLabel);
+
+        // Form Fields
+        VBox formBox = new VBox(20);
+        formBox.setAlignment(Pos.TOP_LEFT);
+        formBox.setFillWidth(true);
+
+        // Create references for components (will be initialized below)
+        final ComboBox<CategoryModel>[] categoryComboRef = new ComboBox[1];
+        final TextField[] priceFieldRef = new TextField[1]; // ← Pour accès dans autoPredictPrice
+
+        // Title Field
+        VBox titleBox = new VBox(8);
+        titleBox.setAlignment(Pos.TOP_LEFT);
+        Label titleFieldLabel = new Label("Gig Title *");
+        titleFieldLabel.setStyle("-fx-font-size: 13; -fx-font-weight: 600; -fx-text-fill: #374151;");
+
+        TextField titleField = new TextField(gigToEdit != null ? gigToEdit.getTitle() : "");
+        titleField.setPromptText("I will create a professional website for you");
+        titleField.setStyle(
+            "-fx-font-size: 14; -fx-padding: 12 16;" +
+            "-fx-background-color: #f9fafb; -fx-border-color: #e5e7eb;" +
+            "-fx-border-radius: 10; -fx-background-radius: 10; -fx-border-width: 1.5;"
+        );
+
+        Label titleError = new Label();
+        titleError.setStyle("-fx-text-fill: #ef4444; -fx-font-size: 12;");
+        titleError.setVisible(false);
+        titleError.setManaged(false);
+
+        titleBox.getChildren().addAll(titleFieldLabel, titleField, titleError);
+
+        // Description Field
+        VBox descBox = new VBox(8);
+        descBox.setAlignment(Pos.TOP_LEFT);
+        Label descFieldLabel = new Label("Description *");
+        descFieldLabel.setStyle("-fx-font-size: 13; -fx-font-weight: 600; -fx-text-fill: #374151;");
+
+        TextArea descField = new TextArea(gigToEdit != null ? gigToEdit.getDescription() : "");
+        descField.setPromptText("Describe your service in detail...");
         descField.setPrefRowCount(4);
-        if (gigToEdit != null) descField.setText(gigToEdit.getDescription());
+        descField.setWrapText(true);
+        descField.setStyle(
+            "-fx-font-size: 14; -fx-padding: 12 16;" +
+            "-fx-background-color: #f9fafb; -fx-border-color: #e5e7eb;" +
+            "-fx-border-radius: 10; -fx-background-radius: 10; -fx-border-width: 1.5;"
+        );
 
-        TextField priceField = new TextField();
-        priceField.setPromptText("0.00");
-        if (gigToEdit != null) priceField.setText(String.valueOf(gigToEdit.getPrice()));
+        // Generate Description Button
+        Button generateDescBtn = new Button("✨ Generate Description with AI");
+        generateDescBtn.setStyle(
+            "-fx-background-color: linear-gradient(to right, #10b981, #059669);" +
+            "-fx-text-fill: white;" +
+            "-fx-font-size: 13;" +
+            "-fx-font-weight: 600;" +
+            "-fx-padding: 10 20;" +
+            "-fx-background-radius: 8;" +
+            "-fx-cursor: hand;" +
+            "-fx-effect: dropshadow(gaussian, rgba(16,185,129,0.3), 8, 0, 0, 2);"
+        );
+        generateDescBtn.setMaxWidth(Double.MAX_VALUE);
+        generateDescBtn.setOnAction(e -> {
+            String title = titleField.getText().trim();
+            if (title.isEmpty()) {
+                showError("Please enter a gig title first!");
+                return;
+            }
+
+            String categoryName = "General";
+            if (categoryComboRef[0] != null && categoryComboRef[0].getValue() != null) {
+                categoryName = categoryComboRef[0].getValue().getName();
+            }
+
+            generateDescBtn.setDisable(true);
+            generateDescBtn.setText("⏳ Generating with AI...");
+
+            final String finalCategoryName = categoryName;
+
+            // Run in background thread
+            new Thread(() -> {
+                try {
+                    System.out.println("🚀 Starting FREE AI generation for gig...");
+                    System.out.println("   Title: " + title);
+                    System.out.println("   Category: " + finalCategoryName);
+
+                    // Utilise le service AI GRATUIT (pas besoin de quota/crédit)
+                    com.khademni.utils.FreeAIService freeAI = new com.khademni.utils.FreeAIService();
+                    String generatedDesc = freeAI.generateGigDescription(title, finalCategoryName);
+
+                    System.out.println("✅ AI generation completed!");
+
+                    // Update UI on JavaFX thread
+                    javafx.application.Platform.runLater(() -> {
+                        descField.setText(generatedDesc);
+                        generateDescBtn.setDisable(false);
+                        generateDescBtn.setText("✨ Generate Description with AI");
+                        showSuccess("Description generated with FREE AI! ✨");
+                    });
+                } catch (Exception ex) {
+                    System.err.println("❌ Error during AI generation:");
+                    ex.printStackTrace();
+
+                    javafx.application.Platform.runLater(() -> {
+                        generateDescBtn.setDisable(false);
+                        generateDescBtn.setText("✨ Generate Description with AI");
+                        showError("Error generating description: " + ex.getMessage());
+                    });
+                }
+            }).start();
+        });
+
+        Label descError = new Label();
+        descError.setStyle("-fx-text-fill: #ef4444; -fx-font-size: 12;");
+        descError.setVisible(false);
+        descError.setManaged(false);
+
+        descBox.getChildren().addAll(descFieldLabel, descField, generateDescBtn, descError);
+
+        // Price & Category Row
+        HBox priceAndCategoryBox = new HBox(16);
+        priceAndCategoryBox.setAlignment(Pos.TOP_LEFT);
+
+        // Price Field
+        VBox priceBox = new VBox(8);
+        priceBox.setAlignment(Pos.TOP_LEFT);
+        HBox.setHgrow(priceBox, Priority.ALWAYS);
+        Label priceFieldLabel = new Label("Price (TND) *");
+        priceFieldLabel.setStyle("-fx-font-size: 13; -fx-font-weight: 600; -fx-text-fill: #374151;");
+
+        TextField priceField = new TextField(gigToEdit != null ? String.valueOf(gigToEdit.getPrice()) : "");
+        priceFieldRef[0] = priceField; // ← Stocker la référence pour autoPredictPrice
+        priceField.setPromptText("Minimum 10.00 DT");
+        priceField.setStyle(
+            "-fx-font-size: 14; -fx-padding: 12 16;" +
+            "-fx-background-color: #f9fafb; -fx-border-color: #e5e7eb;" +
+            "-fx-border-radius: 10; -fx-background-radius: 10; -fx-border-width: 1.5;"
+        );
+        // Flag thread-safe pour désactiver le listener pendant l'auto-remplissage par IA
+        final java.util.concurrent.atomic.AtomicBoolean aiSettingPrice = new java.util.concurrent.atomic.AtomicBoolean(false);
+        // Use TextFormatter to safely filter input without recursive setText calls
+        priceField.setTextFormatter(new TextFormatter<>(change -> {
+            if (aiSettingPrice.get()) return change; // Allow AI to set any value
+            String newText = change.getControlNewText();
+            if (newText.isEmpty() || newText.matches("\\d*\\.?\\d*")) {
+                return change; // Accept valid input
+            }
+            return null; // Reject invalid input
+        }));
+
+        Label priceError = new Label();
+        priceError.setStyle("-fx-text-fill: #ef4444; -fx-font-size: 12;");
+        priceError.setVisible(false);
+        priceError.setManaged(false);
+
+        // 🤖 Label hint IA (affiché sous le champ prix quand l'IA suggère un prix)
+        Label aiPriceHint = new Label();
+        aiPriceHint.setStyle(
+            "-fx-text-fill: #16a34a; -fx-font-size: 12; -fx-font-weight: 600;" +
+            "-fx-background-color: #f0fdf4; -fx-padding: 4 8;" +
+            "-fx-background-radius: 6; -fx-border-color: #bbf7d0; -fx-border-radius: 6;"
+        );
+        aiPriceHint.setVisible(false);
+        aiPriceHint.setManaged(false);
+        aiPriceHint.setWrapText(true);
+
+        priceBox.getChildren().addAll(priceFieldLabel, priceField, aiPriceHint, priceError);
+
+        // Category Field
+        VBox categoryBox = new VBox(8);
+        categoryBox.setAlignment(Pos.TOP_LEFT);
+        HBox.setHgrow(categoryBox, Priority.ALWAYS);
+        Label categoryFieldLabel = new Label("Category *");
+        categoryFieldLabel.setStyle("-fx-font-size: 13; -fx-font-weight: 600; -fx-text-fill: #374151;");
 
         ComboBox<CategoryModel> categoryCombo = new ComboBox<>();
-        categoryCombo.getItems().setAll(categories.subList(1, categories.size())); // Skip "All"
-        if (gigToEdit != null && gigToEdit.getCategory() != null) {
-            categoryCombo.setValue(gigToEdit.getCategory());
-        }
+        categoryComboRef[0] = categoryCombo; // Store reference for generate button
+        categoryCombo.setMaxWidth(Double.MAX_VALUE);
+        categoryCombo.setPromptText("Select a category");
+        List<CategoryModel> filteredCats = categories.stream().filter(c -> c.getId() != 0).toList();
+        categoryCombo.getItems().setAll(filteredCats);
 
+        // cellFactory: affiche seulement le nom
+        javafx.util.Callback<javafx.scene.control.ListView<CategoryModel>, ListCell<CategoryModel>> cellFactory =
+            lv -> new ListCell<CategoryModel>() {
+                @Override protected void updateItem(CategoryModel item, boolean empty) {
+                    super.updateItem(item, empty);
+                    setText(empty || item == null ? null : item.getName());
+                }
+            };
+        categoryCombo.setCellFactory(cellFactory);
+        categoryCombo.setButtonCell(cellFactory.call(null));
+
+        // Sélection en mode édition: matcher par ID
+        if (gigToEdit != null && gigToEdit.getCategory() != null) {
+            final int editCatId = gigToEdit.getCategory().getId();
+            filteredCats.stream()
+                .filter(c -> c.getId() == editCatId)
+                .findFirst()
+                .ifPresent(categoryCombo::setValue);
+        }
+        categoryCombo.setStyle(
+            "-fx-background-color: #f9fafb; -fx-border-color: #e5e7eb;" +
+            "-fx-border-radius: 10; -fx-background-radius: 10;"
+        );
+
+        Label categoryError = new Label();
+        categoryError.setStyle("-fx-text-fill: #ef4444; -fx-font-size: 12;");
+        categoryError.setVisible(false);
+        categoryError.setManaged(false);
+
+        categoryBox.getChildren().addAll(categoryFieldLabel, categoryCombo, categoryError);
+
+        // Référence pour DatePicker (déclaré avant autoPredictPrice car autoPredictPrice en a besoin)
+        final DatePicker[] deliveryDatePickerRef = new DatePicker[1];
+
+        // 💰 AUTO-SUGGESTION DE PRIX: Prédiction basée sur catégorie + description
+        // Définit le Runnable APRÈS l'initialisation de priceField et categoryCombo
+        final Label[] aiPriceHintRef = {aiPriceHint};
+        Runnable autoPredictPrice = () -> {
+            String desc = descField.getText().trim();
+            CategoryModel selectedCategory = categoryComboRef[0].getValue();
+
+            if (selectedCategory != null && desc.length() >= 10) {
+                System.out.println("💰 Prédiction automatique de prix...");
+                System.out.println("   Catégorie DB: " + selectedCategory.getName());
+
+                // Mapper le nom DB -> nom ML model
+                String dbCatName = selectedCategory.getName().toLowerCase();
+                String mlCategory;
+                if (dbCatName.contains("dev") || dbCatName.contains("code") || dbCatName.contains("program")
+                    || dbCatName.contains("web") || dbCatName.contains("app") || dbCatName.contains("software")
+                    || dbCatName.contains("deploy") || dbCatName.contains("automati") || dbCatName.contains("backend")
+                    || dbCatName.contains("frontend") || dbCatName.contains("full")) {
+                    mlCategory = "Development";
+                } else if (dbCatName.contains("design") || dbCatName.contains("graphic") || dbCatName.contains("logo")
+                    || dbCatName.contains("ui") || dbCatName.contains("ux") || dbCatName.contains("photo")) {
+                    mlCategory = "Design";
+                } else if (dbCatName.contains("market") || dbCatName.contains("seo") || dbCatName.contains("social")
+                    || dbCatName.contains("ads") || dbCatName.contains("campaign")) {
+                    mlCategory = "Marketing";
+                } else if (dbCatName.contains("writ") || dbCatName.contains("blog") || dbCatName.contains("content")
+                    || dbCatName.contains("copy") || dbCatName.contains("article")) {
+                    mlCategory = "Writing";
+                } else if (dbCatName.contains("video") || dbCatName.contains("film") || dbCatName.contains("animat")
+                    || dbCatName.contains("motion") || dbCatName.contains("edit")) {
+                    mlCategory = "Video";
+                } else if (dbCatName.contains("game") || dbCatName.contains("unity") || dbCatName.contains("unreal")) {
+                    mlCategory = "Development";
+                } else if (dbCatName.contains("n8n") || dbCatName.contains("workflow") || dbCatName.contains("operation")) {
+                    mlCategory = "Development";
+                } else {
+                    mlCategory = "Development"; // par défaut
+                }
+
+                System.out.println("   Catégorie ML: " + mlCategory);
+                System.out.println("   Description length: " + desc.length());
+
+                // ─── Références capturées (JavaFX thread, pas besoin de Platform.runLater ici) ───
+                final Label hintLabel = aiPriceHintRef[0];
+                final String finalMlCategory = mlCategory;
+                final int descLen = desc.length();
+
+                // Calculer le nombre de jours depuis le DatePicker (sur JavaFX thread)
+                final int deliveryDays;
+                if (deliveryDatePickerRef[0] != null && deliveryDatePickerRef[0].getValue() != null) {
+                    long days = java.time.temporal.ChronoUnit.DAYS.between(
+                        java.time.LocalDate.now(), deliveryDatePickerRef[0].getValue());
+                    deliveryDays = (int) Math.max(1, days);
+                } else {
+                    deliveryDays = 7;
+                }
+                System.out.println("   Delivery days: " + deliveryDays);
+
+                // ─── ÉTAPE 1 : Prix local INSTANTANÉ (JavaFX thread, pas de délai) ─────────────
+                double localPrice = Math.max(computeLocalPrice(finalMlCategory, descLen, deliveryDays), 10.0);
+                System.out.println("💵 Prix local instantané: " + localPrice + " TND → affiché immédiatement");
+                if (priceFieldRef[0] != null) {
+                    aiSettingPrice.set(true);
+                    priceFieldRef[0].setText(String.format(java.util.Locale.US, "%.2f", localPrice));
+                    aiSettingPrice.set(false);
+                    priceFieldRef[0].setStyle(
+                        "-fx-font-size: 14; -fx-padding: 12 16;" +
+                        "-fx-background-color: #f0fdf4; -fx-border-color: #22c55e;" +
+                        "-fx-border-radius: 10; -fx-background-radius: 10; -fx-border-width: 2;"
+                    );
+                }
+                if (hintLabel != null) {
+                    hintLabel.setText(String.format("🤖 AI estimate: %.2f TND (refining...)", localPrice));
+                    hintLabel.setVisible(true);
+                    hintLabel.setManaged(true);
+                }
+
+                // ─── ÉTAPE 2 : Raffiner avec l'API Flask en background ───────────────────────
+                final double localPriceFinal = localPrice;
+                new Thread(() -> {
+                    try {
+                        double apiPrice = FlaskAPIClient.predictPrice(finalMlCategory, descLen, deliveryDays);
+                        // Si le modèle Flask retourne un prix fixe suspect (modèle non entraîné), garder le local
+                        if (Math.abs(apiPrice - 1523.55) < 0.5) {
+                            System.out.println("⚠️  Prix Flask fixe détecté → prix local conservé: " + localPriceFinal);
+                            javafx.application.Platform.runLater(() -> {
+                                if (hintLabel != null) {
+                                    hintLabel.setText(String.format("🤖 AI (local estimate): %.2f TND", localPriceFinal));
+                                    hintLabel.setVisible(true);
+                                    hintLabel.setManaged(true);
+                                }
+                            });
+                        } else {
+                            final double refinedPrice = Math.max(apiPrice, 10.0);
+                            System.out.println("💵 Prix raffiné API Flask: " + refinedPrice + " TND");
+                            javafx.application.Platform.runLater(() -> {
+                                if (priceFieldRef[0] != null) {
+                                    aiSettingPrice.set(true);
+                                    priceFieldRef[0].setText(String.format(java.util.Locale.US, "%.2f", refinedPrice));
+                                    aiSettingPrice.set(false);
+                                    priceFieldRef[0].setStyle(
+                                        "-fx-font-size: 14; -fx-padding: 12 16;" +
+                                        "-fx-background-color: #ecfdf5; -fx-border-color: #10b981;" +
+                                        "-fx-border-radius: 10; -fx-background-radius: 10; -fx-border-width: 2;"
+                                    );
+                                    System.out.println("✅ Prix ML affiché dans l'interface: " + refinedPrice + " TND");
+                                }
+                                if (hintLabel != null) {
+                                    hintLabel.setText(String.format("✅ AI (ML model): %.2f TND", refinedPrice));
+                                    hintLabel.setVisible(true);
+                                    hintLabel.setManaged(true);
+                                }
+                            });
+                        }
+                    } catch (Exception apiEx) {
+                        System.out.println("⚠️  API Flask indisponible → prix local conservé: " + localPriceFinal);
+                        javafx.application.Platform.runLater(() -> {
+                            if (hintLabel != null) {
+                                hintLabel.setText(String.format("🤖 AI (local estimate): %.2f TND", localPriceFinal));
+                                hintLabel.setVisible(true);
+                                hintLabel.setManaged(true);
+                            }
+                        });
+                    }
+                }).start();
+            }
+        };
+
+        // 🤖 AUTO-CLASSIFICATION: Prédiction de catégorie basée sur le titre
+        // Définit le Runnable APRÈS l'initialisation de categoryComboRef
+        Runnable autoPredictCategory = () -> {
+            String title = titleField.getText().trim();
+            String desc = descField.getText().trim();
+
+            // Fonctionne avec titre seul (5+ caractères) OU titre + description
+            if (!title.isEmpty() && title.length() >= 5) {
+                System.out.println("🤖 Classification automatique de catégorie...");
+                System.out.println("   Titre: " + title);
+                if (!desc.isEmpty()) {
+                    System.out.println("   Description: " + desc);
+                }
+
+                try {
+                    FreeAIService freeAI = new FreeAIService();
+                    String predicted = freeAI.predictCategory(title, desc);
+
+                    if (predicted != null && categoryComboRef[0] != null) {
+                        System.out.println("🎯 Catégorie prédite: " + predicted);
+
+                        // Trouve la catégorie par correspondance flexible
+                        CategoryModel matchedCategory = null;
+
+                        // 1. Essai correspondance exacte (ignore case)
+                        for (CategoryModel cat : categoryComboRef[0].getItems()) {
+                            if (cat.getName().equalsIgnoreCase(predicted)) {
+                                matchedCategory = cat;
+                                System.out.println("   ✓ Correspondance exacte: " + cat.getName());
+                                break;
+                            }
+                        }
+
+                        // 2. Si pas trouvé, essai correspondance partielle (basé sur dataset réel)
+                        if (matchedCategory == null) {
+                            String predictedLower = predicted.toLowerCase();
+                            for (CategoryModel cat : categoryComboRef[0].getItems()) {
+                                String catNameLower = cat.getName().toLowerCase();
+
+                                // Correspondance intelligente basée sur les 5 catégories principales du dataset
+                                boolean matches = false;
+
+                                // DESIGN (18 exemples dans dataset)
+                                if (predictedLower.contains("design") && catNameLower.contains("design")) matches = true;
+                                if (predictedLower.contains("graphic") && catNameLower.contains("graph")) matches = true;
+                                if (predictedLower.contains("logo") && catNameLower.contains("design")) matches = true;
+                                if (predictedLower.contains("ui") && catNameLower.contains("design")) matches = true;
+
+                                // DEVELOPMENT (15 exemples dans dataset)
+                                if (predictedLower.contains("development") && catNameLower.contains("dev")) matches = true;
+                                if (predictedLower.contains("web") && catNameLower.contains("web")) matches = true;
+                                if (predictedLower.contains("front") && catNameLower.contains("front")) matches = true;
+                                if (predictedLower.contains("back") && catNameLower.contains("back")) matches = true;
+                                if (predictedLower.contains("mobile") && catNameLower.contains("mobile")) matches = true;
+                                if (predictedLower.contains("app") && catNameLower.contains("dev")) matches = true;
+
+                                // MARKETING (9 exemples dans dataset)
+                                if (predictedLower.contains("marketing") && catNameLower.contains("market")) matches = true;
+                                if (predictedLower.contains("seo") && catNameLower.contains("market")) matches = true;
+                                if (predictedLower.contains("social") && catNameLower.contains("market")) matches = true;
+
+                                // WRITING (7 exemples dans dataset)
+                                if (predictedLower.contains("writing") && catNameLower.contains("writ")) matches = true;
+                                if (predictedLower.contains("content") && catNameLower.contains("writ")) matches = true;
+
+                                // VIDEO (9 exemples dans dataset)
+                                if (predictedLower.contains("video") && catNameLower.contains("video")) matches = true;
+                                if (predictedLower.contains("animation") && catNameLower.contains("video")) matches = true;
+                                if (predictedLower.contains("editing") && catNameLower.contains("video")) matches = true;
+
+                                // AUTOMATION/DATA (bonus)
+                                if (predictedLower.contains("automation") && catNameLower.contains("autom")) matches = true;
+                                if (predictedLower.contains("data") && catNameLower.contains("data")) matches = true;
+
+                                if (matches) {
+                                    matchedCategory = cat;
+                                    System.out.println("   ✓ Correspondance partielle: " + cat.getName() + " ≈ " + predicted);
+                                    break;
+                                }
+                            }
+                        }
+
+                        // 3. Sélectionne la catégorie trouvée
+                        if (matchedCategory != null) {
+                            CategoryModel finalCat = matchedCategory;
+                            javafx.application.Platform.runLater(() -> {
+                                categoryComboRef[0].setValue(finalCat);
+                                System.out.println("✅ Catégorie auto-sélectionnée: " + finalCat.getName());
+                                showSuccess("🤖 Catégorie suggérée: " + finalCat.getName());
+                            });
+                        } else {
+                            System.out.println("⚠️  Catégorie '" + predicted + "' non trouvée dans la liste");
+                            System.out.println("   Catégories disponibles:");
+                            for (CategoryModel cat : categoryComboRef[0].getItems()) {
+                                System.out.println("   - " + cat.getName());
+                            }
+                        }
+                    } else {
+                        if (predicted == null) {
+                            System.out.println("⚠️  Aucune catégorie détectée (mots-clés insuffisants)");
+                        }
+                    }
+                } catch (Exception e) {
+                    System.err.println("❌ Erreur lors de la classification: " + e.getMessage());
+                    e.printStackTrace();
+                }
+            }
+        };
+
+        // Écoute les changements de titre (délai via Timer, compatible Dialog)
+        final java.util.concurrent.atomic.AtomicReference<java.util.Timer> titleTimerRef =
+            new java.util.concurrent.atomic.AtomicReference<>(null);
+        titleField.textProperty().addListener((obs, old, newVal) -> {
+            if (newVal != null && newVal.trim().length() >= 5) {
+                java.util.Timer oldT = titleTimerRef.getAndSet(null);
+                if (oldT != null) oldT.cancel();
+                java.util.Timer t = new java.util.Timer("cat-title", true);
+                titleTimerRef.set(t);
+                t.schedule(new java.util.TimerTask() {
+                    @Override public void run() {
+                        javafx.application.Platform.runLater(autoPredictCategory);
+                    }
+                }, 800L);
+            }
+        });
+
+        // Écoute les changements de description (délai via Timer, compatible Dialog)
+        final java.util.concurrent.atomic.AtomicReference<java.util.Timer> descTimerRef =
+            new java.util.concurrent.atomic.AtomicReference<>(null);
+
+        // 💰 Timer Java pour prédiction prix (plus fiable dans Dialog que PauseTransition)
+        final java.util.concurrent.atomic.AtomicReference<java.util.Timer> priceTimerRef =
+            new java.util.concurrent.atomic.AtomicReference<>(null);
+
+        // Helper pour déclencher la prédiction de prix avec délai
+        final Runnable schedulePricePrediction = () -> {
+            java.util.Timer old2 = priceTimerRef.getAndSet(null);
+            if (old2 != null) old2.cancel();
+            java.util.Timer t = new java.util.Timer("price-predict", true);
+            priceTimerRef.set(t);
+            t.schedule(new java.util.TimerTask() {
+                @Override public void run() {
+                    javafx.application.Platform.runLater(autoPredictPrice);
+                }
+            }, 1000L);
+        };
+
+        descField.textProperty().addListener((obs, old, newVal) -> {
+            if (titleField.getText() != null && titleField.getText().trim().length() >= 5) {
+                java.util.Timer oldD = descTimerRef.getAndSet(null);
+                if (oldD != null) oldD.cancel();
+                java.util.Timer dt = new java.util.Timer("cat-desc", true);
+                descTimerRef.set(dt);
+                dt.schedule(new java.util.TimerTask() {
+                    @Override public void run() {
+                        javafx.application.Platform.runLater(autoPredictCategory);
+                    }
+                }, 800L);
+            }
+
+            // 💰 Déclenche aussi la prédiction de prix si conditions remplies
+            if (newVal != null && newVal.trim().length() >= 10 && categoryComboRef[0] != null && categoryComboRef[0].getValue() != null) {
+                schedulePricePrediction.run();
+            }
+        });
+
+        // 💰 Écoute les changements de catégorie pour la prédiction de prix
+        categoryComboRef[0].valueProperty().addListener((obs, oldVal, newVal) -> {
+            if (newVal != null && descField.getText() != null && descField.getText().trim().length() >= 10) {
+                schedulePricePrediction.run();
+            }
+        });
+
+        priceAndCategoryBox.getChildren().addAll(priceBox, categoryBox);
+
+        // Delivery Date & Time
+        VBox deliveryBox = new VBox(8);
+        deliveryBox.setAlignment(Pos.TOP_LEFT);
+        Label deliveryFieldLabel = new Label("Delivery Date & Time *");
+        deliveryFieldLabel.setStyle("-fx-font-size: 13; -fx-font-weight: 600; -fx-text-fill: #374151;");
+
+        HBox dateTimeBox = new HBox(12);
+        dateTimeBox.setAlignment(Pos.CENTER_LEFT);
         DatePicker deliveryDatePicker = new DatePicker();
-        Spinner<Integer> deliveryHourSpinner = new Spinner<>(0, 23, 12);
+        deliveryDatePicker.setPromptText("Select date");
+        deliveryDatePickerRef[0] = deliveryDatePicker; // Stocker référence pour autoPredictPrice
         if (gigToEdit != null) {
             deliveryDatePicker.setValue(gigToEdit.getDeliveryTime().toLocalDate());
+        }
+        deliveryDatePicker.setStyle("-fx-background-color: #f9fafb; -fx-border-color: #e5e7eb; -fx-border-radius: 10; -fx-background-radius: 10;");
+        HBox.setHgrow(deliveryDatePicker, Priority.ALWAYS);
+        // Listener: re-déclenche la prédiction de prix si desc + catégorie déjà remplis
+        deliveryDatePicker.valueProperty().addListener((obs, oldDate, newDate) -> {
+            if (newDate != null && categoryComboRef[0] != null
+                    && categoryComboRef[0].getValue() != null
+                    && descField.getText() != null
+                    && descField.getText().trim().length() >= 10) {
+                schedulePricePrediction.run();
+            }
+        });
+
+        Spinner<Integer> deliveryHourSpinner = new Spinner<>(0, 23, 12);
+        deliveryHourSpinner.setPrefWidth(100);
+        if (gigToEdit != null) {
             deliveryHourSpinner.getValueFactory().setValue(gigToEdit.getDeliveryTime().getHour());
         }
+        deliveryHourSpinner.setStyle("-fx-background-color: #f9fafb;");
 
-        TextField imageField = new TextField();
-        imageField.setPromptText("Image URL or path");
+        Label hourLabel = new Label("h");
+        hourLabel.setStyle("-fx-font-size: 14; -fx-text-fill: #6b7280;");
+
+        dateTimeBox.getChildren().addAll(deliveryDatePicker, deliveryHourSpinner, hourLabel);
+
+        Label dateError = new Label();
+        dateError.setStyle("-fx-text-fill: #ef4444; -fx-font-size: 12;");
+        dateError.setVisible(false);
+        dateError.setManaged(false);
+
+        deliveryBox.getChildren().addAll(deliveryFieldLabel, dateTimeBox, dateError);
+
+        // Image Upload
+        VBox imageBox = new VBox(8);
+        imageBox.setAlignment(Pos.TOP_LEFT);
+        Label imageFieldLabel = new Label("Image");
+        imageFieldLabel.setStyle("-fx-font-size: 13; -fx-font-weight: 600; -fx-text-fill: #374151;");
+
+        TextField imageField = new TextField(gigToEdit != null ? gigToEdit.getImage() : "");
+        imageField.setPromptText("Image path or URL");
         imageField.setEditable(false);
-        if (gigToEdit != null) imageField.setText(gigToEdit.getImage());
+        imageField.setStyle(
+            "-fx-font-size: 14; -fx-padding: 12 16;" +
+            "-fx-background-color: #f9fafb; -fx-border-color: #e5e7eb;" +
+            "-fx-border-radius: 10; -fx-background-radius: 10; -fx-border-width: 1.5;"
+        );
 
-        Button browseBtn = new Button("Browse...");
+        Button browseBtn = new Button("📁 Browse Files");
+        browseBtn.setStyle(
+            "-fx-background-color: #f3f4f6; -fx-text-fill: #374151;" +
+            "-fx-font-size: 13; -fx-font-weight: 600; -fx-padding: 10 20;" +
+            "-fx-background-radius: 8; -fx-cursor: hand;"
+        );
         browseBtn.setOnAction(e -> {
             FileChooser fileChooser = new FileChooser();
-            fileChooser.setTitle("Select Image");
-            fileChooser.getExtensionFilters().addAll(
-                    new FileChooser.ExtensionFilter("Image Files", "*.png", "*.jpg", "*.jpeg", "*.gif")
+            fileChooser.setTitle("Select Gig Image");
+            fileChooser.getExtensionFilters().add(
+                new FileChooser.ExtensionFilter("Image Files", "*.png", "*.jpg", "*.jpeg", "*.gif")
             );
             File file = fileChooser.showOpenDialog(dialog.getOwner());
             if (file != null) {
@@ -464,238 +1404,301 @@ loadGigs();
             }
         });
 
+        HBox imageBrowseBox = new HBox(12, imageField, browseBtn);
+        imageBrowseBox.setAlignment(Pos.CENTER_LEFT);
+        HBox.setHgrow(imageField, Priority.ALWAYS);
+
+        imageBox.getChildren().addAll(imageFieldLabel, imageBrowseBox);
+
+        // Status
+        VBox statusBox = new VBox(8);
+        statusBox.setAlignment(Pos.TOP_LEFT);
+        Label statusFieldLabel = new Label("Status");
+        statusFieldLabel.setStyle("-fx-font-size: 13; -fx-font-weight: 600; -fx-text-fill: #374151;");
+
         ComboBox<String> statusCombo = new ComboBox<>();
         statusCombo.getItems().addAll("active", "inactive");
         statusCombo.setValue(gigToEdit != null ? gigToEdit.getStatus() : "active");
+        statusCombo.setMaxWidth(200);
+        statusCombo.setStyle("-fx-background-color: #f9fafb; -fx-border-color: #e5e7eb; -fx-border-radius: 10; -fx-background-radius: 10;");
 
-        // Error labels (always visible with min height)
-        Label titleError = new Label();
-        titleError.setStyle("-fx-text-fill: #ef4444; -fx-font-size: 12; -fx-font-weight: 600;");
-        titleError.setMinHeight(18);
-        titleError.setWrapText(true);
+        statusBox.getChildren().addAll(statusFieldLabel, statusCombo);
 
-        Label descError = new Label();
-        descError.setStyle("-fx-text-fill: #ef4444; -fx-font-size: 12; -fx-font-weight: 600;");
-        descError.setMinHeight(18);
-        descError.setWrapText(true);
-
-        Label priceError = new Label();
-        priceError.setStyle("-fx-text-fill: #ef4444; -fx-font-size: 12; -fx-font-weight: 600;");
-        priceError.setMinHeight(18);
-        priceError.setWrapText(true);
-
-        Label categoryError = new Label();
-        categoryError.setStyle("-fx-text-fill: #ef4444; -fx-font-size: 12; -fx-font-weight: 600;");
-        categoryError.setMinHeight(18);
-        categoryError.setWrapText(true);
-
-        Label dateError = new Label();
-        dateError.setStyle("-fx-text-fill: #ef4444; -fx-font-size: 12; -fx-font-weight: 600;");
-        dateError.setMinHeight(18);
-        dateError.setWrapText(true);
-
-        // Layout
-        int row = 0;
-        grid.add(new Label("Title:"), 0, row);
-        grid.add(titleField, 1, row++);
-        grid.add(titleError, 1, row++);
-
-        grid.add(new Label("Description:"), 0, row);
-        grid.add(descField, 1, row++);
-        grid.add(descError, 1, row++);
-
-        grid.add(new Label("Price (TND):"), 0, row);
-        grid.add(priceField, 1, row++);
-        grid.add(priceError, 1, row++);
-
-        grid.add(new Label("Category:"), 0, row);
-        grid.add(categoryCombo, 1, row++);
-        grid.add(categoryError, 1, row++);
-
-        grid.add(new Label("Delivery Date:"), 0, row);
-        HBox dateBox = new HBox(10, deliveryDatePicker, new Label("Hour:"), deliveryHourSpinner);
-        grid.add(dateBox, 1, row++);
-        grid.add(dateError, 1, row++);
-
-        grid.add(new Label("Image:"), 0, row);
-        HBox imageBox = new HBox(10, imageField, browseBtn);
-        HBox.setHgrow(imageField, Priority.ALWAYS);
-        grid.add(imageBox, 1, row++);
-
-        grid.add(new Label("Status:"), 0, row);
-        grid.add(statusCombo, 1, row++);
-
-        dialog.getDialogPane().setContent(grid);
-
-        // Disable Save button initially and enable it when form is valid
-        Button saveButton = (Button) dialog.getDialogPane().lookupButton(saveButtonType);
-
-        // Validation function
+        // Validation Function (must be defined BEFORE adding listeners)
         Runnable validateForm = () -> {
-            boolean valid = true;
+            boolean titleValid = true;
+            boolean descValid = true;
+            boolean priceValid = true;
+            boolean categoryValid = true;
+            boolean dateValid = true;
 
-            // Clear errors
-            titleError.setText("");
-            descError.setText("");
-            priceError.setText("");
-            categoryError.setText("");
-            dateError.setText("");
-
-            // Validate Title
+            // Title
             if (titleField.getText().trim().isEmpty()) {
                 titleError.setText("✗ Title is required");
-                valid = false;
+                titleError.setVisible(true);
+                titleError.setManaged(true);
+                titleValid = false;
+            } else {
+                titleError.setVisible(false);
+                titleError.setManaged(false);
             }
 
-            // Validate Description
+            // Description
             if (descField.getText().trim().isEmpty()) {
                 descError.setText("✗ Description is required");
-                valid = false;
+                descError.setVisible(true);
+                descError.setManaged(true);
+                descValid = false;
+            } else {
+                descError.setVisible(false);
+                descError.setManaged(false);
             }
 
-            // Validate Price
+            // Price
             try {
-                double price = Double.parseDouble(priceField.getText().trim());
-                if (price <= 0) {
-                    priceError.setText("✗ Price must be greater than 0");
-                    valid = false;
+                double price = Double.parseDouble(priceField.getText().trim().replace(',', '.'));
+                if (price < 10.0) {
+                    priceError.setText("✗ Minimum price is 10.00 TND");
+                    priceError.setVisible(true);
+                    priceError.setManaged(true);
+                    priceValid = false;
+                } else {
+                    priceError.setVisible(false);
+                    priceError.setManaged(false);
                 }
             } catch (NumberFormatException e) {
-                if (!priceField.getText().trim().isEmpty()) {
-                    priceError.setText("✗ Invalid price format");
-                }
-                valid = false;
+                priceError.setText("✗ Invalid price format");
+                priceError.setVisible(true);
+                priceError.setManaged(true);
+                priceValid = false;
             }
 
-            // Validate Category
+            // Category
             if (categoryCombo.getValue() == null) {
-                categoryError.setText("✗ Please select a category");
-                valid = false;
+                categoryError.setText("✗ Category is required");
+                categoryError.setVisible(true);
+                categoryError.setManaged(true);
+                categoryValid = false;
+            } else {
+                categoryError.setVisible(false);
+                categoryError.setManaged(false);
             }
 
-            // Validate Date
+            // Date
             if (deliveryDatePicker.getValue() == null) {
                 dateError.setText("✗ Delivery date is required");
-                valid = false;
+                dateError.setVisible(true);
+                dateError.setManaged(true);
+                dateValid = false;
+            } else if (deliveryDatePicker.getValue().isBefore(java.time.LocalDate.now())) {
+                dateError.setText("✗ Delivery date must be in the future");
+                dateError.setVisible(true);
+                dateError.setManaged(true);
+                dateValid = false;
             } else {
-                LocalDateTime deliveryTime = LocalDateTime.of(
-                        deliveryDatePicker.getValue(),
-                        java.time.LocalTime.of(deliveryHourSpinner.getValue(), 0)
-                );
-                if (deliveryTime.isBefore(LocalDateTime.now())) {
-                    dateError.setText("✗ Delivery time must be in the future");
-                    valid = false;
-                }
+                dateError.setVisible(false);
+                dateError.setManaged(false);
             }
-
-            saveButton.setDisable(!valid);
         };
 
-        // Add listeners for real-time validation
-        titleField.textProperty().addListener((obs, oldVal, newVal) -> validateForm.run());
-        descField.textProperty().addListener((obs, oldVal, newVal) -> validateForm.run());
-        priceField.textProperty().addListener((obs, oldVal, newVal) -> validateForm.run());
-        categoryCombo.valueProperty().addListener((obs, oldVal, newVal) -> validateForm.run());
-        deliveryDatePicker.valueProperty().addListener((obs, oldVal, newVal) -> validateForm.run());
-        deliveryHourSpinner.valueProperty().addListener((obs, oldVal, newVal) -> validateForm.run());
+        // Add listeners
+        titleField.textProperty().addListener((obs, old, newVal) -> validateForm.run());
+        descField.textProperty().addListener((obs, old, newVal) -> validateForm.run());
+        priceField.textProperty().addListener((obs, old, newVal) -> validateForm.run());
+        categoryComboRef[0].valueProperty().addListener((obs, old, newVal) -> validateForm.run());
+        deliveryDatePicker.valueProperty().addListener((obs, old, newVal) -> validateForm.run());
 
-        // Initial validation
-        validateForm.run();
+        // Assemble form (AFTER validation is defined)
+        formBox.getChildren().addAll(titleBox, descBox, priceAndCategoryBox, deliveryBox, imageBox, statusBox);
 
-        // Result conversion
-        dialog.setResultConverter(dialogButton -> {
-            if (dialogButton == saveButtonType) {
-                // Create/Update Gig
-                LocalDateTime deliveryTime = LocalDateTime.of(
-                        deliveryDatePicker.getValue(),
-                        java.time.LocalTime.of(deliveryHourSpinner.getValue(), 0)
-                );
+        // Separator
+        Separator separator = new Separator();
+        separator.setStyle("-fx-background-color: #e5e7eb;");
 
-                double price = Double.parseDouble(priceField.getText().trim());
+        // Action Buttons
+        HBox buttonBox = new HBox(12);
+        buttonBox.setAlignment(Pos.CENTER_RIGHT);
 
-                GigModel gig = new GigModel(
-                        gigToEdit != null ? gigToEdit.getId() : 0,
-                        titleField.getText().trim(),
-                        descField.getText().trim(),
-                        price,
-                        deliveryTime,
-                        imageField.getText().trim(),
-                        statusCombo.getValue()
-                );
-                gig.setCategory(categoryCombo.getValue());
-
-                return gig;
-            }
-            return null;
+        Button cancelBtn = new Button("Cancel");
+        cancelBtn.setStyle(
+            "-fx-background-color: #f3f4f6; -fx-text-fill: #374151;" +
+            "-fx-font-size: 14; -fx-font-weight: 600; -fx-padding: 12 32;" +
+            "-fx-background-radius: 10; -fx-cursor: hand;"
+        );
+        cancelBtn.setOnAction(e -> {
+            dialog.setResult(ButtonType.CANCEL);
+            dialog.close();
         });
 
-        Optional<GigModel> result = dialog.showAndWait();
-        result.ifPresent(gig -> {
-            if (gigToEdit == null) {
-                saveGig(gig);
-            } else {
-                updateGig(gig);
+        Button saveBtn = new Button(isNewGig ? "🤖 Publish AI Gig" : (gigToEdit == null ? "💼 Create Gig" : "💾 Save Changes"));
+        saveBtn.setStyle(
+            "-fx-background-color: linear-gradient(to bottom right, #6366f1, #8b5cf6);" +
+            "-fx-text-fill: white; -fx-font-size: 14; -fx-font-weight: 700;" +
+            "-fx-padding: 12 32; -fx-background-radius: 10; -fx-cursor: hand;" +
+            "-fx-effect: dropshadow(gaussian, rgba(99,102,241,0.3), 12, 0, 0, 4);"
+        );
+        saveBtn.setOnAction(e -> {
+            validateForm.run();
+
+            String title = titleField.getText().trim();
+            String desc = descField.getText().trim();
+            String priceStr = priceField.getText().trim();
+            CategoryModel category = categoryCombo.getValue();
+            java.time.LocalDate date = deliveryDatePicker.getValue();
+            int hour = deliveryHourSpinner.getValue();
+            String image = imageField.getText().trim();
+            String status = statusCombo.getValue();
+
+            if (!title.isEmpty() && !desc.isEmpty() && category != null && date != null) {
+                try {
+                    double price = Double.parseDouble(priceStr.replace(',', '.'));
+                    if (price >= 10.0 && !date.isBefore(java.time.LocalDate.now())) {
+                        LocalDateTime deliveryTime = LocalDateTime.of(date, java.time.LocalTime.of(hour, 0));
+
+                        // Spam detection: analyze gig content before saving
+                        GigModel gigToValidate = new GigModel();
+                        gigToValidate.setTitle(title);
+                        gigToValidate.setDescription(desc);
+                        gigToValidate.setPrice(price);
+                        SpamResult spamResult = spamDetectionService.analyze(gigToValidate);
+
+                        if (spamResult.isSpam()) {
+                            // Block the save and show spam reasons to the user via an Alert
+                            // (showError writes to the main page label which is hidden behind this dialog)
+                            String reasons = String.join("\n• ", spamResult.getReasons());
+                            System.out.println("SPAM BLOCKED: score=" + spamResult.getSpamScore() + " reasons=" + spamResult.getReasons());
+
+                            Alert spamAlert = new Alert(Alert.AlertType.WARNING);
+                            spamAlert.setTitle("Spam Detected");
+                            spamAlert.setHeaderText("Your gig was flagged as spam (score: " + spamResult.getSpamScore() + "/" + 100 + ")");
+                            spamAlert.setContentText("Reasons:\n• " + reasons + "\n\nPlease revise your gig content and try again.");
+                            spamAlert.initOwner(dialog.getDialogPane().getScene().getWindow());
+                            spamAlert.showAndWait();
+                            return;
+                        }
+
+                        // Bad word detection: AI-powered content moderation via DeepSeek
+                        BadWordResult badWordResult = badWordDetectionService.analyze(title, desc);
+
+                        if (badWordResult.hasBadWords()
+                                && !"LOW".equalsIgnoreCase(badWordResult.getSeverity())
+                                && !"NONE".equalsIgnoreCase(badWordResult.getSeverity())) {
+                            String flaggedWords = badWordResult.getDetectedWords().isEmpty()
+                                    ? "(detected by AI analysis)"
+                                    : String.join(", ", badWordResult.getDetectedWords());
+                            System.out.println("BAD WORDS BLOCKED: severity=" + badWordResult.getSeverity()
+                                    + " words=" + badWordResult.getDetectedWords());
+
+                            Alert badWordAlert = new Alert(Alert.AlertType.ERROR);
+                            badWordAlert.setTitle("Inappropriate Content Detected");
+                            badWordAlert.setHeaderText("Severity: " + badWordResult.getSeverity());
+                            badWordAlert.setContentText(
+                                    "Your gig contains inappropriate language that violates our community guidelines.\n\n"
+                                    + "Flagged: " + flaggedWords + "\n\n"
+                                    + "Reason: " + badWordResult.getExplanation() + "\n\n"
+                                    + "Please remove the offensive content and try again.");
+                            badWordAlert.initOwner(dialog.getDialogPane().getScene().getWindow());
+                            badWordAlert.showAndWait();
+                            return;
+                        }
+
+                        if (saveGig(isNewGig ? null : gigToEdit, title, desc, price, deliveryTime, image, status, category.getId())) {
+                            dialog.setResult(ButtonType.OK);
+                            dialog.close();
+                            loadGigs();
+                            updateStats();
+                        }
+                    }
+                } catch (NumberFormatException ex) {
+                    // Invalid price format already handled
+                }
             }
         });
+
+        buttonBox.getChildren().addAll(cancelBtn, saveBtn);
+
+        // Assemble Dialog
+        dialogContent.getChildren().addAll(headerBox, formBox, separator, buttonBox);
+        scrollPane.setContent(dialogContent);
+
+        DialogPane dialogPane = dialog.getDialogPane();
+        dialogPane.setContent(scrollPane);
+        dialogPane.setStyle(
+            "-fx-background-color: white;" +
+            "-fx-background-radius: 16;" +
+            "-fx-effect: dropshadow(gaussian, rgba(0,0,0,0.2), 40, 0, 0, 10);"
+        );
+
+        // Remove default buttons
+        dialogPane.getButtonTypes().clear();
+
+        // 🚀 En mode édition : déclencher la prédiction de prix immédiatement
+        // (catégorie + description déjà remplis via gigToEdit)
+        if (gigToEdit != null) {
+            final Runnable spp = schedulePricePrediction;
+            javafx.application.Platform.runLater(() -> {
+                if (descField.getText() != null && descField.getText().trim().length() >= 10
+                        && categoryComboRef[0] != null && categoryComboRef[0].getValue() != null) {
+                    spp.run();
+                }
+            });
+        }
+
+        dialog.showAndWait();
     }
 
-    private void saveGig(GigModel gig) {
-        // Insert without user_id
-        String query = """
-            INSERT INTO gig (title, description, price, delivery_time, image, status, category_id)
-            VALUES (?, ?, ?, ?, ?, ?, ?)
-        """;
+    private boolean saveGig(GigModel gigToEdit, String title, String desc, double price, LocalDateTime deliveryTime,
+                           String image, String status, int categoryId) {
+        String query;
+        int currentUserId = App.currentUser != null ? App.currentUser.getId() : 1;
+
+        if (gigToEdit == null) {
+            // Create new gig - include user_id
+            query = """
+                INSERT INTO gig (title, description, price, delivery_time, image, status, category_id, user_id)
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+            """;
+        } else {
+            // Update existing gig - keep existing user_id
+            query = """
+                UPDATE gig 
+                SET title = ?, description = ?, price = ?, delivery_time = ?, image = ?, status = ?, category_id = ?
+                WHERE id = ?
+            """;
+        }
 
         try (Connection conn = MyDataBase.getConnection();
              PreparedStatement ps = conn.prepareStatement(query)) {
 
-            ps.setString(1, gig.getTitle());
-            ps.setString(2, gig.getDescription());
-            ps.setDouble(3, gig.getPrice());
-            ps.setTimestamp(4, Timestamp.valueOf(gig.getDeliveryTime()));
-            ps.setString(5, gig.getImage());
-            ps.setString(6, gig.getStatus());
-            ps.setInt(7, gig.getCategory().getId());
+            ps.setString(1, title);
+            ps.setString(2, desc);
+            ps.setDouble(3, price);
+            ps.setTimestamp(4, Timestamp.valueOf(deliveryTime));
+            ps.setString(5, image.isEmpty() ? null : image);
+            ps.setString(6, status);
+            ps.setInt(7, categoryId);
+
+            if (gigToEdit == null) {
+                ps.setInt(8, currentUserId);
+            } else {
+                ps.setInt(8, gigToEdit.getId());
+            }
 
             ps.executeUpdate();
-            showSuccess("Gig added successfully! 🎉");
-            loadGigs();
-            updateStats();
+
+            if (gigToEdit == null) {
+                showSuccess("✅ Gig created successfully! 🎉");
+            } else {
+                showSuccess("✅ Gig updated successfully! 💾");
+            }
+
+            return true;
 
         } catch (SQLException e) {
             System.err.println("ERROR saving gig: " + e.getMessage());
             e.printStackTrace();
-            showError("Error saving gig: " + e.getMessage());
-        }
-    }
-
-    private void updateGig(GigModel gig) {
-        String query = """
-            UPDATE gig
-            SET title = ?, description = ?, price = ?, delivery_time = ?,
-                image = ?, status = ?, category_id = ?
-            WHERE id = ?
-        """;
-
-        try (Connection conn = MyDataBase.getConnection();
-             PreparedStatement ps = conn.prepareStatement(query)) {
-
-            ps.setString(1, gig.getTitle());
-            ps.setString(2, gig.getDescription());
-            ps.setDouble(3, gig.getPrice());
-            ps.setTimestamp(4, Timestamp.valueOf(gig.getDeliveryTime()));
-            ps.setString(5, gig.getImage());
-            ps.setString(6, gig.getStatus());
-            ps.setInt(7, gig.getCategory().getId());
-            ps.setInt(8, gig.getId());
-
-            ps.executeUpdate();
-            showSuccess("Gig updated successfully! ✓");
-            loadGigs();
-            updateStats();
-
-        } catch (SQLException e) {
-            showError("Error updating gig: " + e.getMessage());
+            showError("❌ Error saving gig: " + e.getMessage());
+            return false;
         }
     }
 
@@ -789,82 +1792,93 @@ loadGigs();
         }
     }
 
-public void loadGigsByArticle(Article article) {
-    allGigs.clear();
-    System.out.println("Chargement des gigs liés à l'article : " + article.getTitle());
+    /**
+     * Calcul local du prix si l'API Flask est indisponible.
+     * Basé sur des règles simples: catégorie + longueur description + jours livraison.
+     */
+    private double computeLocalPrice(String mlCategory, int descLen, int deliveryDays) {
+        // Base price par catégorie (tunisian freelance market)
+        double base;
+        double perChar;
+        double perDay;
+        switch (mlCategory) {
+            case "Development": base = 300; perChar = 2.5; perDay = 40; break;
+            case "Design":      base = 100; perChar = 1.2; perDay = 25; break;
+            case "Marketing":   base = 150; perChar = 1.5; perDay = 30; break;
+            case "Video":      base = 120; perChar = 1.3; perDay = 35; break;
+            case "Writing":    base =  50; perChar = 0.8; perDay = 10; break;
+            default:            base = 200; perChar = 1.5; perDay = 30; break;
+        }
+        // Formule: base + longueur × perChar + jours × perDay
+        double price = base + (perChar * descLen) + (perDay * deliveryDays);
+        // Arrondir à 2 décimales
+        price = Math.round(price * 100.0) / 100.0;
+        System.out.println("   [Local] cat=" + mlCategory
+            + " base=" + base
+            + " descLen=" + descLen + " (+" + String.format("%.0f", perChar * descLen) + ")"
+            + " days=" + deliveryDays + " (+" + String.format("%.0f", perDay * deliveryDays) + ")"
+            + " → prix=" + String.format("%.2f", price) + " TND");
+        return price;
+    }
 
-    String query = """
-        SELECT g.id, g.title, g.description, g.price, g.delivery_time,
-               g.image, g.status, c.id as cat_id, c.name as cat_name, c.description as cat_desc
-        FROM gig g
-        LEFT JOIN category c ON g.category_id = c.id
-        WHERE g.article_id = ?
-        ORDER BY g.id DESC
-    """;
+    private boolean isGigOwner(GigModel gig) {
+        if (App.currentUser == null) {
+            return false;
+        }
+        return gig.getUserId() > 0 && gig.getUserId() == App.currentUser.getId();
+    }
 
-    try (Connection conn = MyDataBase.getConnection();
-         PreparedStatement ps = conn.prepareStatement(query)) {
+    private boolean isAdmin() {
+        return App.currentUser != null && App.currentUser.isIsAdmin();
+    }
 
-        ps.setLong(1, article.getId());
-
-        ResultSet rs = ps.executeQuery();
-
-        while (rs.next()) {
-            CategoryModel category = new CategoryModel(
-                    rs.getInt("cat_id"),
-                    rs.getString("cat_name"),
-                    rs.getString("cat_desc"),
-                    true
-            );
-
-            GigModel gig = new GigModel(
-                    rs.getInt("id"),
-                    rs.getString("title"),
-                    rs.getString("description"),
-                    rs.getDouble("price"),
-                    rs.getTimestamp("delivery_time").toLocalDateTime(),
-                    rs.getString("image"),
-                    rs.getString("status")
-            );
-            gig.setCategory(category);
-
-            allGigs.add(gig);
+    private void handleMessageGigOwner(GigModel gig) {
+        if (App.currentUser == null) {
+            showError("Please log in to message the gig owner");
+            return;
         }
 
-        applyFilters();
+        if (gig.getUserId() <= 0) {
+            showError("This gig has no owner assigned");
+            return;
+        }
 
-    } catch (SQLException e) {
-        e.printStackTrace();
-        showError("Erreur lors du chargement des gigs liés.");
+        if (gig.getUserId() == App.currentUser.getId()) {
+            showError("You cannot message yourself");
+            return;
+        }
+
+        try {
+            int conversationId = ConversationHelper.createOrGetConversation(
+                App.currentUser.getId(),
+                gig.getUserId(),
+                "Gig: " + gig.getTitle()
+            );
+            openConversation(conversationId);
+        } catch (SQLException e) {
+            showError("Error creating conversation: " + e.getMessage());
+            e.printStackTrace();
+        }
+    }
+
+    private void openConversation(int conversationId) {
+        try {
+            FXMLLoader loader = new FXMLLoader(getClass().getResource("/com/khademni/Message.fxml"));
+            Parent root = loader.load();
+
+            MessageController messageController = loader.getController();
+            messageController.setConversationId(conversationId);
+
+            Stage stage = (Stage) gigsContainer.getScene().getWindow();
+            stage.setScene(new Scene(root));
+            stage.setTitle("Conversation");
+
+        } catch (Exception e) {
+            showError("Error opening conversation: " + e.getMessage());
+            e.printStackTrace();
+        }
     }
 }
-
-
-    
-}
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
 
 
 

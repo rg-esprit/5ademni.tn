@@ -9,16 +9,17 @@ USE appdb;
 -- 1. users
 -- ------------------------------------------------------------
 CREATE TABLE IF NOT EXISTS users (
-    id            INT AUTO_INCREMENT PRIMARY KEY,
-    first_name    VARCHAR(100)  NOT NULL,
-    last_name     VARCHAR(100)  NOT NULL,
-    date_of_birth DATE          NOT NULL,
-    balance       DOUBLE        NOT NULL DEFAULT 0.0,
-    email         VARCHAR(255)  NOT NULL UNIQUE,
-    password      VARCHAR(255)  NOT NULL,
-    is_admin      TINYINT(1)    NOT NULL DEFAULT 0,
-    profile_img   VARCHAR(500)  NOT NULL DEFAULT '',
-    bio           TEXT
+    id             INT AUTO_INCREMENT PRIMARY KEY,
+    first_name     VARCHAR(100)  NOT NULL,
+    last_name      VARCHAR(100)  NOT NULL,
+    date_of_birth  DATE          NOT NULL,
+    balance        DOUBLE        NOT NULL DEFAULT 0.0,
+    email          VARCHAR(255)  NOT NULL UNIQUE,
+    password       VARCHAR(255)  NOT NULL,
+    is_admin       TINYINT(1)    NOT NULL DEFAULT 0,
+    profile_img    VARCHAR(500)  NOT NULL DEFAULT '',
+    bio            TEXT,
+    face_embedding JSON          NULL COMMENT '128-dim Facenet embedding stored as JSON array'
 );
 
 -- ------------------------------------------------------------
@@ -91,4 +92,16 @@ CREATE TABLE IF NOT EXISTS paiments (
     date_paiement  DATE          NOT NULL DEFAULT (CURDATE()),
     methode        VARCHAR(100)  NOT NULL DEFAULT 'Flouci',
     CONSTRAINT fk_paiments_contrat FOREIGN KEY (contrat_id) REFERENCES contrats(id) ON DELETE CASCADE
+);
+
+-- ------------------------------------------------------------
+-- 7. saved_jobs (user favorites)
+-- ------------------------------------------------------------
+CREATE TABLE IF NOT EXISTS saved_jobs (
+    user_id INT NOT NULL,
+    job_id  INT NOT NULL,
+    saved_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    PRIMARY KEY (user_id, job_id),
+    CONSTRAINT fk_saved_user FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE,
+    CONSTRAINT fk_saved_job  FOREIGN KEY (job_id)  REFERENCES jobs(id)  ON DELETE CASCADE
 );

@@ -23,7 +23,8 @@
         <VBox alignment="CENTER" spacing="8" style="-fx-padding: 0 0 40 0;">
             <StackPane styleClass="logo-box" prefWidth="40" prefHeight="40" maxWidth="40"
                 maxHeight="40">
-                <FontIcon iconLiteral="fas-book-open" iconSize="24" iconColor="white" styleClass="icon-logo"/>
+                <FontIcon iconLiteral="fas-book-open" iconSize="24" iconColor="white"
+                    styleClass="icon-logo" />
             </StackPane>
             <Label text="5ademni.tn" styleClass="brand-title" />
         </VBox>
@@ -144,17 +145,21 @@
                     </StackPane>
                 </VBox>
 
-                <!-- Profile Image URL Field -->
+                <!-- Profile Image Upload -->
                 <VBox spacing="8">
-                    <Label text="Profile Image URL (optional)" styleClass="field-label" />
-                    <StackPane styleClass="input-wrapper">
-                        <HBox alignment="CENTER_LEFT" styleClass="input-container">
-                            <FontIcon iconLiteral="fas-image" styleClass="input-icon" />
-                            <TextField fx:id="signupProfileImgField"
-                                promptText="https://example.com/avatar.png"
-                                styleClass="input-field" HBox.hgrow="ALWAYS" />
-                        </HBox>
-                    </StackPane>
+                    <Label text="Profile Image (optional)" styleClass="field-label" />
+                    <TextField fx:id="signupProfileImgField" visible="false" managed="false" />
+                    <HBox spacing="12" alignment="CENTER_LEFT">
+                        <Button text="Choose Image" onAction="#onSignupChooseImage"
+                            styleClass="button-secondary" graphicTextGap="8"
+                            style="-fx-background-color: #2d2b55; -fx-text-fill: #c4c0ff; -fx-border-color: #4a47a3; -fx-border-width: 1; -fx-border-radius: 8; -fx-background-radius: 8; -fx-padding: 10 20; -fx-cursor: hand; -fx-font-weight: 600;">
+                            <graphic>
+                                <FontIcon iconLiteral="fas-upload" iconColor="#6c63ff" iconSize="14" />
+                            </graphic>
+                        </Button>
+                        <Label fx:id="signupImgStatusLabel" text="No image selected"
+                            style="-fx-text-fill: #a0a0a0; -fx-font-size: 13;" />
+                    </HBox>
                 </VBox>
 
                 <!-- Bio Field -->
@@ -171,6 +176,15 @@
                     onAction="#onSignUp" maxWidth="Infinity" graphicTextGap="8">
                     <graphic>
                         <FontIcon iconLiteral="fas-arrow-right" styleClass="btn-icon-arrow" />
+                    </graphic>
+                </Button>
+
+                <!-- Enroll Face ID (available after account is created) -->
+                <Button text="Enroll Face ID (optional)" onAction="#onEnrollFace"
+                    maxWidth="Infinity" graphicTextGap="10"
+                    style="-fx-background-color: #1e1e3a; -fx-text-fill: #a0a0d0; -fx-border-color: #3a3a6a; -fx-border-width: 1; -fx-border-radius: 10; -fx-background-radius: 10; -fx-padding: 12 0 12 0; -fx-font-size: 14; -fx-font-weight: 600; -fx-cursor: hand;">
+                    <graphic>
+                        <FontIcon iconLiteral="fas-camera" iconColor="#6c63ff" iconSize="16" />
                     </graphic>
                 </Button>
             </VBox>
