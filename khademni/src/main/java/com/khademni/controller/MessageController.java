@@ -172,6 +172,13 @@ public class MessageController {
 
         disableButtons(true);
 
+        // Pick up conversation opened via the conversation list
+        int pending = App.getPendingConversationId();
+        if (pending != -1) {
+            App.setPendingConversationId(-1); // consume it
+            setConversationId(pending);
+        }
+
         System.out.println("MessageController initialisé");
     }
 
@@ -1522,13 +1529,7 @@ public class MessageController {
             webSocketClient.close();
         }
         try {
-            FXMLLoader loader = new FXMLLoader(getClass().getResource("/com/khademni/Conversation.fxml"));
-            Parent root = loader.load();
-
-            Stage stage = (Stage) btnRetour.getScene().getWindow();
-            stage.setScene(new Scene(root));
-            stage.setTitle("Mes Conversations");
-
+            App.setRoot("Conversation");
         } catch (IOException e) {
             showError("Erreur retour");
         }

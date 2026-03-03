@@ -21,6 +21,7 @@ public class App extends Application {
     private static Scene scene;
     private static Stage primaryStage;
     public static UserModel currentUser;
+    private static int pendingConversationId = -1;
 
     @Override
     public void start(Stage stage) throws IOException {
@@ -101,6 +102,14 @@ public class App extends Application {
 
     public static Stage getPrimaryStage() {
         return primaryStage;
+    }
+
+    public static void setPendingConversationId(int id) {
+        pendingConversationId = id;
+    }
+
+    public static int getPendingConversationId() {
+        return pendingConversationId;
     }
 
 }
