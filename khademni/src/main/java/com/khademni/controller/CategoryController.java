@@ -443,6 +443,7 @@ public class CategoryController {
             return null;
         });
 
+        dialog.initOwner(categoriesContainer.getScene().getWindow());
         Optional<CategoryModel> res = dialog.showAndWait();
         if (res.isPresent()) {
             CategoryModel cat = res.get();
