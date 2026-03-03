@@ -1,6 +1,6 @@
 package com.khademni;
 
-
+import com.khademni.utils.MyDataBase;
 import javafx.application.Application;
 import javafx.fxml.FXMLLoader;
 import javafx.scene.Parent;
@@ -13,7 +13,6 @@ import com.khademni.utils.SessionManager;
 
 import java.io.IOException;
 
-
 /**
  * JavaFX App
  */
@@ -25,6 +24,7 @@ public class App extends Application {
 
     @Override
     public void start(Stage stage) throws IOException {
+        MyDataBase.init();
         primaryStage = stage;
 
         scene = new Scene(loadFXML("login"), 540, 700);
@@ -64,7 +64,20 @@ public class App extends Application {
             primaryStage.setTitle("5ademni.tn — Chat");
             scene.getStylesheets().add(App.class.getResource("Message.css").toExternalForm());
         }
+        
+        // Only set full screen if it's not already, to avoid focus issues
+        if (!primaryStage.isFullScreen()) {
+            primaryStage.setFullScreen(true);
+        }
+    }
         primaryStage.setFullScreen(true);
+=======
+
+        // Only set full screen if it's not already, to avoid focus issues
+        if (!primaryStage.isFullScreen()) {
+            primaryStage.setFullScreen(true);
+        }
+>>>>>>> origin/Gestion_jobs
     }
 
     private static Parent loadFXML(String fxml) throws IOException {

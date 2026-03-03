@@ -14,6 +14,9 @@ module com.khademni {
     requires org.json; 
     
     requires org.kordamp.ikonli.materialdesign2;
+    requires org.json;
+    requires twilio;
+    requires java.desktop;
 
     opens com.khademni to javafx.fxml;
     opens com.khademni.controller to javafx.fxml;

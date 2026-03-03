@@ -2,6 +2,7 @@ package com.khademni.controller;
 
 import com.khademni.App;
 import com.khademni.model.JobModel;
+import com.khademni.utils.AIService;
 import com.khademni.utils.MyDataBase;
 import javafx.event.ActionEvent;
 import javafx.fxml.FXML;
@@ -12,6 +13,7 @@ import javafx.scene.control.*;
 import javafx.scene.layout.BorderPane;
 import javafx.scene.layout.HBox;
 import javafx.scene.layout.Priority;
+import javafx.scene.layout.Region;
 import javafx.scene.layout.VBox;
 import javafx.stage.Modality;
 import javafx.stage.Stage;
@@ -56,7 +58,10 @@ public class JobsManagementController {
                 return;
             }
 
-            String query = "SELECT j.*, u.first_name, u.last_name, u.email FROM jobs j LEFT JOIN users u ON j.user_id = u.id ORDER BY j.posted_date DESC, j.id DESC";
+            String query = "SELECT j.*, u.first_name, u.last_name, u.email, " +
+                    "(SELECT ja.user_id FROM job_applications ja WHERE ja.job_id = j.id AND ja.status = 'ACCEPTED' LIMIT 1) as accepted_freelancer_id "
+                    +
+                    "FROM jobs j LEFT JOIN users u ON j.user_id = u.id ORDER BY j.posted_date DESC, j.id DESC";
             Statement statement = conn.createStatement();
             ResultSet resultSet = statement.executeQuery(query);
 
@@ -72,6 +77,8 @@ public class JobsManagementController {
                 LocalDateTime postedDate = resultSet.getTimestamp("posted_date").toLocalDateTime();
                 String requirementsJson = resultSet.getString("requirements");
                 int userId = resultSet.getInt("user_id");
+                int progress = resultSet.getInt("progress");
+                String status = resultSet.getString("status");
 
                 String[] requirements = requirementsJson != null ? requirementsJson.split(",\\s*") : new String[0];
 
@@ -89,7 +96,8 @@ public class JobsManagementController {
 
                 JobModel job = new JobModel(id, title, company, location, description,
                         category, salaryRange, jobType, postedDate,
-                        requirements, userId, userName, userEmail);
+                        requirements, userId, userName, userEmail, progress, status,
+                        resultSet.getInt("accepted_freelancer_id"));
                 allJobs.add(job);
             }
 
@@ -172,13 +180,48 @@ public class JobsManagementController {
         VBox titleBox = new VBox(4);
         Label titleLabel = new Label(job.getTitle());
         titleLabel.setStyle("-fx-font-size: 18; -fx-font-weight: 800; -fx-text-fill: #141118;");
+
+        HBox companyStatusBox = new HBox(8);
+        companyStatusBox.setAlignment(Pos.CENTER_LEFT);
         Label companyLabel = new Label(job.getCompany());
         companyLabel.setStyle("-fx-font-size: 14; -fx-font-weight: 600; -fx-text-fill: #6c0df2;");
-        titleBox.getChildren().addAll(titleLabel, companyLabel);
+
+        Label statusBadge = new Label(job.getStatus());
+        String statusColors = switch (job.getStatus().toUpperCase()) {
+            case "COMPLETED" -> "-fx-background-color: #dcfce7; -fx-text-fill: #166534;";
+            case "IN_PROGRESS" -> "-fx-background-color: #fef9c3; -fx-text-fill: #854d0e;";
+            case "CLOSED" -> "-fx-background-color: #fee2e2; -fx-text-fill: #991b1b;";
+            default -> "-fx-background-color: #f3f4f6; -fx-text-fill: #374151;";
+        };
+        statusBadge.setStyle(statusColors
+                + " -fx-font-size: 10; -fx-font-weight: 700; -fx-padding: 2 8; -fx-background-radius: 10;");
+
+        companyStatusBox.getChildren().addAll(companyLabel, statusBadge);
+        titleBox.getChildren().addAll(titleLabel, companyStatusBox);
         HBox.setHgrow(titleBox, Priority.ALWAYS);
 
         headerBox.getChildren().add(titleBox);
         row.getChildren().add(headerBox);
+
+        // Progress Bar
+        VBox progBox = new VBox(4);
+        HBox progHeader = new HBox();
+        Label progLabel = new Label("Progress");
+        progLabel.setStyle("-fx-font-size: 11; -fx-font-weight: 600; -fx-text-fill: #666666;");
+        Label progValue = new Label(job.getProgress() + "%");
+        progValue.setStyle("-fx-font-size: 11; -fx-font-weight: 700; -fx-text-fill: #6c0df2;");
+        Region spacer = new Region();
+        HBox.setHgrow(spacer, Priority.ALWAYS);
+        progHeader.getChildren().addAll(progLabel, spacer, progValue);
+
+        ProgressBar pb = new ProgressBar(job.getProgress() / 100.0);
+        pb.setMaxWidth(Double.MAX_VALUE);
+        pb.setPrefHeight(6);
+        // Custom progress bar style
+        pb.setStyle("-fx-accent: #6c0df2; -fx-control-inner-background: #f3f4f6;");
+
+        progBox.getChildren().addAll(progHeader, pb);
+        row.getChildren().add(progBox);
 
         // Info Row: Location, Type, Salary
         HBox infoBox = new HBox(16);
@@ -262,69 +305,82 @@ public class JobsManagementController {
         ButtonType postButtonType = new ButtonType("Post", ButtonBar.ButtonData.OK_DONE);
         dialogPane.getButtonTypes().addAll(postButtonType, ButtonType.CANCEL);
 
-        VBox content = createJobForm(null);
-        dialogPane.setContent(content);
+        VBox formContent = createJobForm(null, false);
+        ScrollPane scrollPane = new ScrollPane(formContent);
+        scrollPane.setFitToWidth(true);
+        scrollPane.setPrefHeight(600);
+        dialogPane.setContent(scrollPane);
 
         javafx.scene.Node okButton = dialog.getDialogPane().lookupButton(postButtonType);
         okButton.addEventFilter(ActionEvent.ACTION, evt -> {
-            JobModel candidate = extractJobFormData(content, null);
+            JobModel candidate = extractJobFormData(formContent, null, false);
             if (candidate.getTitle() == null || candidate.getTitle().trim().length() < 3
                     || candidate.getCompany() == null || candidate.getCompany().trim().length() < 3
                     || candidate.getLocation() == null || candidate.getLocation().trim().length() < 3
-                    || candidate.getDescription() == null || candidate.getDescription().trim().length() < 20
+                    || candidate.getDescription() == null || candidate.getDescription().trim().length() < 10
                     || candidate.getSalaryRange() == null || candidate.getSalaryRange().trim().isEmpty()) {
                 evt.consume();
+                // Use the dialog's window as owner for the validation alert
                 showAlert(Alert.AlertType.ERROR, "Validation",
-                        "Please provide valid Title, Company, Location (min 3 chars), Description (min 20 chars), and Salary (must be a valid integer).");
+                        "Please provide valid Title, Company, Location (min 3 chars), Description (min 10 chars), and Salary (must be a valid integer).",
+                        dialog.getDialogPane().getScene().getWindow());
             }
         });
 
         dialog.setResultConverter(buttonType -> {
             if (buttonType == postButtonType) {
-                return extractJobFormData(content, null);
+                return extractJobFormData(formContent, null, false);
             }
             return null;
         });
 
-        Optional<JobModel> result = dialog.showAndWait();
-        if (result.isPresent()) {
-            insertJobToDB(result.get());
+        try {
+            Optional<JobModel> result = dialog.showAndWait();
+            if (result.isPresent()) {
+                insertJobToDB(result.get());
+            }
+        } catch (Throwable ex) {
+            System.err.println("CRITICAL ERROR in showAddJobDialog: " + ex.getMessage());
+            ex.printStackTrace();
+            showAlert(Alert.AlertType.ERROR, "Error", "An unexpected error occurred: " + ex.getMessage());
         }
     }
 
     private void insertJobToDB(JobModel job) {
-        try {
-            Connection conn = MyDataBase.getConnection();
+        try (Connection conn = MyDataBase.getConnection()) {
             if (conn == null) {
                 showAlert(Alert.AlertType.ERROR, "Database Error", "Unable to connect to database");
                 return;
             }
 
-            String query = "INSERT INTO jobs (title, company, location, description, category, salary_range, job_type, posted_date, requirements, user_id) "
+            String query = "INSERT INTO jobs (title, company, location, description, category, salary_range, job_type, posted_date, requirements, user_id, progress, status) "
                     +
-                    "VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)";
-            PreparedStatement stmt = conn.prepareStatement(query);
-            stmt.setString(1, job.getTitle());
-            stmt.setString(2, job.getCompany());
-            stmt.setString(3, job.getLocation());
-            stmt.setString(4, job.getDescription());
-            stmt.setString(5, job.getCategory());
-            stmt.setString(6, job.getSalaryRange());
-            stmt.setString(7, job.getJobType());
-            stmt.setTimestamp(8, Timestamp.valueOf(job.getPostedDate()));
-            stmt.setString(9, String.join(", ", job.getRequirements()));
-            stmt.setInt(10, App.currentUser != null ? App.currentUser.getId() : 1);
+                    "VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)";
+            try (PreparedStatement stmt = conn.prepareStatement(query)) {
+                stmt.setString(1, job.getTitle());
+                stmt.setString(2, job.getCompany());
+                stmt.setString(3, job.getLocation());
+                stmt.setString(4, job.getDescription());
+                stmt.setString(5, job.getCategory());
+                stmt.setString(6, job.getSalaryRange());
+                stmt.setString(7, job.getJobType());
+                stmt.setTimestamp(8, Timestamp.valueOf(job.getPostedDate()));
+                stmt.setString(9, String.join(", ", job.getRequirements()));
+                stmt.setInt(10, App.currentUser != null ? App.currentUser.getId() : 1);
+                stmt.setInt(11, job.getProgress());
+                stmt.setString(12, job.getStatus());
 
-            stmt.executeUpdate();
-            stmt.close();
-            conn.close();
+                stmt.executeUpdate();
+            }
 
             showAlert(Alert.AlertType.INFORMATION, "Success", "Job created successfully!");
             loadAllJobs();
             displayJobsTable();
 
-        } catch (SQLException e) {
-            showAlert(Alert.AlertType.ERROR, "Database Error", "Error creating job: " + e.getMessage());
+        } catch (Throwable e) {
+            System.err.println("ERROR in insertJobToDB: " + e.getMessage());
+            e.printStackTrace();
+            showAlert(Alert.AlertType.ERROR, "Error", "Error creating job: " + e.getMessage());
         }
     }
 
@@ -342,12 +398,15 @@ public class JobsManagementController {
         ButtonType editButtonType = new ButtonType("Edit", ButtonBar.ButtonData.OK_DONE);
         dialogPane.getButtonTypes().addAll(editButtonType, ButtonType.CANCEL);
 
-        VBox content = createJobForm(job);
-        dialogPane.setContent(content);
+        VBox formContent = createJobForm(job, true);
+        ScrollPane scrollPane = new ScrollPane(formContent);
+        scrollPane.setFitToWidth(true);
+        scrollPane.setPrefHeight(600);
+        dialogPane.setContent(scrollPane);
 
         javafx.scene.Node okButtonEdit = dialog.getDialogPane().lookupButton(editButtonType);
         okButtonEdit.addEventFilter(ActionEvent.ACTION, evt -> {
-            JobModel candidate = extractJobFormData(content, job);
+            JobModel candidate = extractJobFormData(formContent, job, true);
             if (candidate.getTitle() == null || candidate.getTitle().trim().length() < 3
                     || candidate.getCompany() == null || candidate.getCompany().trim().length() < 3
                     || candidate.getLocation() == null || candidate.getLocation().trim().length() < 3
@@ -361,47 +420,55 @@ public class JobsManagementController {
 
         dialog.setResultConverter(buttonType -> {
             if (buttonType == editButtonType) {
-                return extractJobFormData(content, job);
+                return extractJobFormData(formContent, job, true);
             }
             return null;
         });
 
-        Optional<JobModel> result = dialog.showAndWait();
-        if (result.isPresent()) {
-            updateJobInDB(result.get());
+        try {
+            Optional<JobModel> result = dialog.showAndWait();
+            if (result.isPresent()) {
+                updateJobInDB(result.get());
+            }
+        } catch (Throwable ex) {
+            System.err.println("CRITICAL ERROR in showEditJobDialog: " + ex.getMessage());
+            ex.printStackTrace();
+            showAlert(Alert.AlertType.ERROR, "Error", "An unexpected error occurred: " + ex.getMessage());
         }
     }
 
     private void updateJobInDB(JobModel job) {
-        try {
-            Connection conn = MyDataBase.getConnection();
+        try (Connection conn = MyDataBase.getConnection()) {
             if (conn == null) {
                 showAlert(Alert.AlertType.ERROR, "Database Error", "Unable to connect to database");
                 return;
             }
 
-            String query = "UPDATE jobs SET title=?, company=?, location=?, description=?, category=?, salary_range=?, job_type=?, requirements=? WHERE id=?";
-            PreparedStatement stmt = conn.prepareStatement(query);
-            stmt.setString(1, job.getTitle());
-            stmt.setString(2, job.getCompany());
-            stmt.setString(3, job.getLocation());
-            stmt.setString(4, job.getDescription());
-            stmt.setString(5, job.getCategory());
-            stmt.setString(6, job.getSalaryRange());
-            stmt.setString(7, job.getJobType());
-            stmt.setString(8, String.join(", ", job.getRequirements()));
-            stmt.setInt(9, job.getId());
+            String query = "UPDATE jobs SET title=?, company=?, location=?, description=?, category=?, salary_range=?, job_type=?, requirements=?, progress=?, status=? WHERE id=?";
+            try (PreparedStatement stmt = conn.prepareStatement(query)) {
+                stmt.setString(1, job.getTitle());
+                stmt.setString(2, job.getCompany());
+                stmt.setString(3, job.getLocation());
+                stmt.setString(4, job.getDescription());
+                stmt.setString(5, job.getCategory());
+                stmt.setString(6, job.getSalaryRange());
+                stmt.setString(7, job.getJobType());
+                stmt.setString(8, String.join(", ", job.getRequirements()));
+                stmt.setInt(9, job.getProgress());
+                stmt.setString(10, job.getStatus());
+                stmt.setInt(11, job.getId());
 
-            stmt.executeUpdate();
-            stmt.close();
-            conn.close();
+                stmt.executeUpdate();
+            }
 
             showAlert(Alert.AlertType.INFORMATION, "Success", "Job updated successfully!");
             loadAllJobs();
             displayJobsTable();
 
-        } catch (SQLException e) {
-            showAlert(Alert.AlertType.ERROR, "Database Error", "Error updating job: " + e.getMessage());
+        } catch (Throwable e) {
+            System.err.println("ERROR in updateJobInDB: " + e.getMessage());
+            e.printStackTrace();
+            showAlert(Alert.AlertType.ERROR, "Error", "Error updating job: " + e.getMessage());
         }
     }
 
@@ -508,7 +575,7 @@ public class JobsManagementController {
     }
 
     // ==================== FORM HELPERS ====================
-    private VBox createJobForm(JobModel editingJob) {
+    private VBox createJobForm(JobModel editingJob, boolean isEdit) {
         VBox form = new VBox(12);
         form.setStyle("-fx-padding: 20;");
 
@@ -524,19 +591,52 @@ public class JobsManagementController {
         descArea.setStyle("-fx-control-inner-background: #fafafa; -fx-focus-color: #6c0df2;");
         descArea.setPrefRowCount(4);
         descArea.setWrapText(true);
-        addFormLabel("Description", form);
-        form.getChildren().add(descArea);
 
         TextArea reqArea = new TextArea(editingJob != null ? String.join("\n", editingJob.getRequirements()) : "");
         reqArea.setStyle("-fx-control-inner-background: #fafafa; -fx-focus-color: #6c0df2;");
         reqArea.setPrefRowCount(4);
         reqArea.setWrapText(true);
-        addFormLabel("Requirements (one per line)", form);
+
+        HBox descHeader = new HBox(10, new Label("Description:"),
+                createAIButton(descArea, reqArea, "Job Description", titleField, companyField, categoryField));
+        descHeader.setAlignment(Pos.CENTER_LEFT);
+        descHeader.getChildren().get(0).setStyle("-fx-font-weight: 700;");
+        form.getChildren().add(descHeader);
+        form.getChildren().add(descArea);
+
+        HBox reqHeader = new HBox(10, new Label("Requirements (one per line):"),
+                createAIButton(reqArea, null, "Job Requirements", titleField, companyField, categoryField));
+        reqHeader.setAlignment(Pos.CENTER_LEFT);
+        reqHeader.getChildren().get(0).setStyle("-fx-font-weight: 700;");
+        form.getChildren().add(reqHeader);
         form.getChildren().add(reqArea);
+
+        // --- Progress & Status Section (Hidden in Add mode) ---
+        Slider progSlider = new Slider(0, 100, editingJob != null ? editingJob.getProgress() : 0);
+        progSlider.setShowTickLabels(true);
+        progSlider.setShowTickMarks(true);
+        Label progValLabel = new Label((int) progSlider.getValue() + "%");
+        progSlider.valueProperty().addListener((obs, old, val) -> progValLabel.setText(val.intValue() + "%"));
+        HBox progBox = new HBox(10, progSlider, progValLabel);
+        progBox.setAlignment(Pos.CENTER_LEFT);
+
+        ComboBox<String> statusCombo = new ComboBox<>();
+        statusCombo.getItems().addAll("OPEN", "IN_PROGRESS", "COMPLETED", "CLOSED");
+        statusCombo.setValue(editingJob != null ? editingJob.getStatus() : "OPEN");
+        statusCombo.setMaxWidth(Double.MAX_VALUE);
+        statusCombo
+                .setStyle("-fx-padding: 8; -fx-background-radius: 8; -fx-border-radius: 8; -fx-border-color: #e5e7eb;");
+
+        if (isEdit) {
+            addFormLabel("Work Progress (%)", form);
+            form.getChildren().add(progBox);
+            addFormLabel("Job Status", form);
+            form.getChildren().add(statusCombo);
+        }
 
         // Store fields for later extraction
         form.setUserData(new Object[] { titleField, companyField, locationField, categoryField, salaryField, typeField,
-                descArea, reqArea });
+                descArea, reqArea, progSlider, statusCombo });
 
         form.getChildren().addAll(
                 createFormSection("Title", titleField),
@@ -602,12 +702,10 @@ public class JobsManagementController {
         container.getChildren().add(l);
     }
 
-    private JobModel extractJobFormData(VBox form, JobModel original) {
+    private JobModel extractJobFormData(VBox form, JobModel original, boolean isEdit) {
         Object[] fields = (Object[]) form.getUserData();
-        if (fields == null || fields.length < 8) {
-
-            return extractFromFormChildren(form, original);
-        }
+        if (fields == null || fields.length < 10)
+            return null;
 
         TextField titleField = (TextField) fields[0];
         TextField companyField = (TextField) fields[1];
@@ -617,10 +715,15 @@ public class JobsManagementController {
         TextField typeField = (TextField) fields[5];
         TextArea descArea = (TextArea) fields[6];
         TextArea reqArea = (TextArea) fields[7];
+        Slider progSlider = (Slider) fields[8];
+        ComboBox<String> statusCombo = (ComboBox<String>) fields[9];
 
         String[] requirements = reqArea.getText().split("\n");
 
-        JobModel job = new JobModel(
+        int progress = isEdit ? (int) progSlider.getValue() : 0;
+        String status = isEdit ? statusCombo.getValue() : "OPEN";
+
+        return new JobModel(
                 original != null ? original.getId() : 0,
                 titleField.getText(),
                 companyField.getText(),
@@ -631,39 +734,12 @@ public class JobsManagementController {
                 typeField.getText(),
                 original != null ? original.getPostedDate() : LocalDateTime.now(),
                 requirements,
-                App.currentUser != null ? App.currentUser.getId() : 1);
-
-        return job;
-    }
-
-    private JobModel extractFromFormChildren(VBox form, JobModel original) {
-
-        List<TextField> textFields = new ArrayList<>();
-        List<TextArea> textAreas = new ArrayList<>();
-
-        for (javafx.scene.Node node : form.getChildren()) {
-            if (node instanceof TextField) {
-                textFields.add((TextField) node);
-            } else if (node instanceof TextArea) {
-                textAreas.add((TextArea) node);
-            }
-        }
-
-        String[] requirements = !textAreas.isEmpty() && textAreas.size() > 1 ? textAreas.get(1).getText().split("\n")
-                : new String[0];
-
-        return new JobModel(
-                original != null ? original.getId() : 0,
-                textFields.size() > 0 ? textFields.get(0).getText() : "",
-                textFields.size() > 1 ? textFields.get(1).getText() : "",
-                textFields.size() > 2 ? textFields.get(2).getText() : "",
-                textAreas.size() > 0 ? textAreas.get(0).getText() : "",
-                textFields.size() > 3 ? textFields.get(3).getText() : "",
-                textFields.size() > 4 ? textFields.get(4).getText() : "",
-                textFields.size() > 5 ? textFields.get(5).getText() : "",
-                original != null ? original.getPostedDate() : LocalDateTime.now(),
-                requirements,
-                App.currentUser != null ? App.currentUser.getId() : 1);
+                App.currentUser != null ? App.currentUser.getId() : (original != null ? original.getUserId() : 1),
+                original != null ? original.getUserName() : "Admin",
+                original != null ? original.getUserEmail() : "admin@khademni.tn",
+                progress,
+                status,
+                original != null ? original.getAcceptedFreelancerId() : 0);
     }
 
     private String formatPostedDate(LocalDateTime dateTime) {
@@ -723,11 +799,66 @@ public class JobsManagementController {
 
     // ==================== UTILITIES ====================
     private void showAlert(Alert.AlertType type, String title, String message) {
+        showAlert(type, title, message, App.getPrimaryStage());
+    }
+
+    private void showAlert(Alert.AlertType type, String title, String message, javafx.stage.Window owner) {
         Alert alert = new Alert(type);
-        alert.initOwner(App.getPrimaryStage());
+        if (owner != null) {
+            alert.initOwner(owner);
+        } else {
+            alert.initOwner(App.getPrimaryStage());
+        }
         alert.setTitle(title);
         alert.setHeaderText(null);
         alert.setContentText(message);
         alert.showAndWait();
+    }
+
+    private Button createAIButton(TextArea target, TextArea secondaryTarget, String contextType, TextField titleF,
+            TextField companyF, TextField categoryF) {
+        Button aiBtn = new Button("✨ AI Enhance");
+        aiBtn.setStyle(
+                "-fx-background-color: #f5f3ff; -fx-text-fill: #7c3aed; -fx-font-size: 11px; -fx-font-weight: bold; -fx-background-radius: 12; -fx-cursor: hand;");
+        aiBtn.setOnAction(e -> {
+            String original = target.getText();
+            if (original.isEmpty()) {
+                showAlert(Alert.AlertType.INFORMATION, "Info", "Please type something first so I can improve it!",
+                        null);
+                return;
+            }
+            aiBtn.setDisable(true);
+            aiBtn.setText("⏳ Enhancing...");
+
+            java.util.Map<String, String> context = new java.util.HashMap<>();
+            context.put("contextType", contextType);
+            context.put("Job Title", titleF.getText());
+            context.put("Company", companyF.getText());
+            context.put("Category", categoryF.getText());
+
+            AIService.rewriteProfessionally(original, context).thenAccept(improved -> {
+                javafx.application.Platform.runLater(() -> {
+                    String cleanImproved = improved.trim();
+                    if (cleanImproved.startsWith("```")) {
+                        cleanImproved = cleanImproved.replaceAll("(?s)^```(?:json)?\\s*(.*?)\\s*```$", "$1").trim();
+                    }
+
+                    if (secondaryTarget != null && cleanImproved.startsWith("{")) {
+                        try {
+                            org.json.JSONObject obj = new org.json.JSONObject(cleanImproved);
+                            target.setText(obj.optString("description", cleanImproved));
+                            secondaryTarget.setText(obj.optString("requirements", ""));
+                        } catch (Exception ex) {
+                            target.setText(cleanImproved);
+                        }
+                    } else {
+                        target.setText(cleanImproved);
+                    }
+                    aiBtn.setDisable(false);
+                    aiBtn.setText("✨ AI Enhance");
+                });
+            });
+        });
+        return aiBtn;
     }
 }
