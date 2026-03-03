@@ -1,0 +1,60 @@
+/* ============================================
+   5ademni.tn — Conversation Page Styles
+   ============================================ */
+
+.conversation-root {
+    -fx-font-family: "Inter", "Segoe UI", "Helvetica Neue", Arial, sans-serif;
+    -fx-background-color: #f7f5f8;
+}
+
+.conversation-scroll {
+    -fx-background-color: #f7f5f8;
+}
+
+.conversation-list {
+    -fx-background-color: white;
+    -fx-border-color: #f3f4f6;
+    -fx-border-width: 1;
+}
+
+.conv-item:hover {
+    -fx-background-color: #f9fafb;
+}
+
+.conv-title {
+    -fx-font-size: 15;
+    -fx-font-weight: bold;
+    -fx-text-fill: #141118;
+}
+
+.conv-subtitle {
+    -fx-font-size: 13;
+    -fx-text-fill: #6b7280;
+}
+
+.conv-time {
+    -fx-font-size: 11;
+    -fx-text-fill: #9ca3af;
+}
+
+.unread-badge {
+    -fx-background-color: #ef4444;
+    -fx-text-fill: white;
+    -fx-font-weight: bold;
+    -fx-min-width: 22;
+    -fx-min-height: 22;
+    -fx-background-radius: 11;
+    -fx-alignment: center;
+    -fx-font-size: 11;
+}
+
+.conv-avatar {
+    -fx-background-color: #2563eb;
+    -fx-text-fill: white;
+    -fx-font-weight: bold;
+    -fx-min-width: 45;
+    -fx-min-height: 45;
+    -fx-background-radius: 25;
+    -fx-alignment: center;
+    -fx-font-size: 16;
+}

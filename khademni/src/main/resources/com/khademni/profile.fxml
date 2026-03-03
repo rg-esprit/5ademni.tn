@@ -3,7 +3,10 @@
 <?import javafx.scene.control.*?>
 <?import javafx.scene.layout.*?>
 <?import javafx.scene.shape.*?>
+<?import javafx.scene.image.ImageView?>
+<?import javafx.scene.image.Image?>
 <?import javafx.geometry.Insets?>
+<?import org.kordamp.ikonli.javafx.FontIcon?>
 
 <ScrollPane xmlns="http://javafx.com/javafx/17" xmlns:fx="http://javafx.com/fxml/1"
     fx:controller="com.khademni.controller.UserController"
@@ -38,6 +41,9 @@
                         styleClass="avatar-container">
                         <Circle radius="50" styleClass="avatar-circle" />
                         <Label fx:id="profileAvatarInitials" text="JD" styleClass="avatar-initials" />
+                        <ImageView fx:id="profileAvatarImage" fitWidth="100" fitHeight="100"
+                            preserveRatio="true" visible="false" managed="false">
+                        </ImageView>
                     </StackPane>
 
                     <!-- Name & Email Display -->
@@ -55,10 +61,9 @@
                         <Label fx:id="profileBalanceLabel" text="0.00" styleClass="balance-amount" />
                     </HBox>
                 </VBox>
-<!-- Action Buttons -->
-<HBox spacing="16" alignment="CENTER_RIGHT" style="-fx-padding: 12 0 0 0;">
+<HBox spacing="16" alignment="CENTER" style="-fx-padding: 12 0 0 0;">
     <Button text="Mes Favoris" onAction="#onShowFavoris" styleClass="profile-save-btn" />
-   </HBox>
+</HBox>
 
                 <!-- Separator -->
                 <Separator style="-fx-padding: 0;" />
@@ -105,12 +110,21 @@
                             styleClass="profile-textarea" prefRowCount="4" wrapText="true" />
                     </VBox>
 
-                    <!-- Profile Image URL -->
+                    <!-- Profile Image Upload -->
                     <VBox spacing="8">
-                        <Label text="Profile Image URL" styleClass="profile-field-label" />
-                        <TextField fx:id="profileImgField"
-                            promptText="https://example.com/avatar.png"
-                            styleClass="profile-input" />
+                        <Label text="Profile Image" styleClass="profile-field-label" />
+                        <TextField fx:id="profileImgField" visible="false" managed="false" />
+                        <HBox spacing="12" alignment="CENTER_LEFT">
+                            <Button text="Change Image" onAction="#onProfileChooseImage"
+                                style="-fx-background-color: #2d2b55; -fx-text-fill: #c4c0ff; -fx-border-color: #4a47a3; -fx-border-width: 1; -fx-border-radius: 8; -fx-background-radius: 8; -fx-padding: 10 20; -fx-cursor: hand; -fx-font-weight: 600;">
+                                <graphic>
+                                    <FontIcon iconLiteral="fas-upload" iconColor="#6c63ff"
+                                        iconSize="14" />
+                                </graphic>
+                            </Button>
+                            <Label fx:id="profileImgStatusLabel" text="No image selected"
+                                style="-fx-text-fill: #a0a0a0; -fx-font-size: 13;" />
+                        </HBox>
                     </VBox>
 
                     <!-- Action Buttons -->
@@ -121,6 +135,8 @@
                             styleClass="profile-delete-btn"
                             style="-fx-background-color: #dc2626; -fx-text-fill: white;" />
                         <Region HBox.hgrow="ALWAYS" />
+                        <Button text="Enroll / Update Face ID" onAction="#onEnrollFace"
+                            style="-fx-background-color: #1e1e3a; -fx-text-fill: #a0a0d0; -fx-border-color: #3a3a6a; -fx-border-width: 1; -fx-border-radius: 8; -fx-background-radius: 8; -fx-padding: 10 16 10 16; -fx-font-size: 13; -fx-cursor: hand;" />
                         <Button text="Cancel" onAction="#onProfileCancel"
                             styleClass="profile-cancel-btn" />
                         <Button text="Save Changes" onAction="#onProfileSave"

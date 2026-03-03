@@ -1,10 +1,17 @@
 package com.khademni.controller;
 
 import java.io.IOException;
+import java.io.InputStream;
 
 import com.khademni.App;
+import com.khademni.model.UserModel;
+import com.khademni.utils.VercelBlobUploader;
 
 import javafx.fxml.FXML;
+import javafx.scene.control.Label;
+import javafx.scene.image.Image;
+import javafx.scene.image.ImageView;
+import javafx.scene.shape.Circle;
 
 public class HeaderController {
 
@@ -12,13 +19,58 @@ public class HeaderController {
     private javafx.scene.control.Hyperlink jobsManagementLink;
 
     @FXML
+    private Label headerAvatarInitials;
+
+    @FXML
+    private ImageView headerAvatarImage;
+
+    @FXML
     public void initialize() {
-        if (App.getCurrentUser() != null && App.getCurrentUser().isIsAdmin()) {
-            jobsManagementLink.setVisible(true);
-            jobsManagementLink.setManaged(true);
-        } else {
-            jobsManagementLink.setVisible(false);
-            jobsManagementLink.setManaged(false);
+        // Jobs Management link is always visible for both admins and regular users
+        // It redirects to admin panel if user is admin, otherwise shows access denied
+        
+        loadHeaderAvatar();
+    }
+
+    private void loadHeaderAvatar() {
+        UserModel user = App.getCurrentUser();
+        if (user == null) return;
+
+        // Set initials
+        if (headerAvatarInitials != null) {
+            String initials = "";
+            if (user.getFirstName() != null && !user.getFirstName().isEmpty())
+                initials += user.getFirstName().charAt(0);
+            if (user.getLastName() != null && !user.getLastName().isEmpty())
+                initials += user.getLastName().charAt(0);
+            headerAvatarInitials.setText(initials.toUpperCase());
+        }
+
+        // Load profile image from Vercel Blob
+        String imgUrl = user.getProfileImg();
+        if (headerAvatarImage != null && imgUrl != null && !imgUrl.isBlank()) {
+            Thread loader = new Thread(() -> {
+                try {
+                    InputStream is = VercelBlobUploader.downloadAsStream(imgUrl);
+                    javafx.application.Platform.runLater(() -> {
+                        Image img = new Image(is, 40, 40, true, true);
+                        headerAvatarImage.setImage(img);
+                        Circle clip = new Circle(20, 20, 20);
+                        headerAvatarImage.setClip(clip);
+                        headerAvatarImage.setVisible(true);
+                        headerAvatarImage.setManaged(true);
+                        // Hide initials + gradient circle behind image
+                        if (headerAvatarInitials != null) {
+                            headerAvatarInitials.setVisible(false);
+                            headerAvatarInitials.setManaged(false);
+                        }
+                    });
+                } catch (Exception e) {
+                    System.err.println("Failed to load header avatar: " + e.getMessage());
+                }
+            }, "header-avatar-loader");
+            loader.setDaemon(true);
+            loader.start();
         }
     }
 
@@ -46,7 +98,11 @@ public class HeaderController {
 
     @FXML
     private void goToJobsAdmin() throws IOException {
-        App.setRoot("jobs-management");
+        if (App.getCurrentUser() != null && App.getCurrentUser().isIsAdmin()) {
+            App.setRoot("jobs-management");
+        } else {
+            App.setRoot("jobs");
+        }
     }
 
     @FXML
@@ -56,7 +112,7 @@ public class HeaderController {
 
     @FXML
     private void goToMessages() throws IOException {
-        // App.setRoot("messages");
+        App.setRoot("Conversation");
     }
 
     @FXML
@@ -79,5 +135,15 @@ public class HeaderController {
     @FXML
     private void goToArticles() throws IOException {
         App.setRoot("Article/ArticlesPublications");
+    }
+
+    @FXML
+    private void goToCategory() throws IOException {
+        App.setRoot("category");
+    }
+
+    @FXML
+    private void goToGig() throws IOException {
+        App.setRoot("gig");
     }
 }

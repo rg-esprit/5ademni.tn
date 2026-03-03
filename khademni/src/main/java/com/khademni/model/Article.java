@@ -14,21 +14,25 @@ public class Article {
     private String status;
 
     private LocalDateTime createdAt;
-private String imagePath; 
+    private String imagePath;
     private List<Commentaire> commentaires;
 
     public Article() {
 
     }
 
-public Article(Long id, String title, String content, String status, LocalDateTime createdAt, String imagePath) {
-    this.id = id;
-    this.title = title;
-    this.content = content;
-    this.status = status;
-    this.createdAt = createdAt;
-    this.imagePath = imagePath;
-}
+    public Article(Long id) {
+        this.id = id;
+    }
+
+    public Article(Long id, String title, String content, String status, LocalDateTime createdAt, String imagePath) {
+        this.id = id;
+        this.title = title;
+        this.content = content;
+        this.status = status;
+        this.createdAt = createdAt;
+        this.imagePath = imagePath;
+    }
 
     public Long getId() {
         return id;
@@ -71,12 +75,12 @@ public Article(Long id, String title, String content, String status, LocalDateTi
     }
 
     public String getImagePath() {
-    return imagePath;
-}
+        return imagePath;
+    }
 
-public void setImagePath(String imagePath) {
-    this.imagePath = imagePath;
-}
+    public void setImagePath(String imagePath) {
+        this.imagePath = imagePath;
+    }
 
     public List<Commentaire> getCommentaires() {
         return commentaires;
