@@ -1168,6 +1168,7 @@ public class MessageController {
 
         delete.setOnAction(e -> {
             Alert alert = new Alert(Alert.AlertType.CONFIRMATION);
+            alert.initOwner(btnRetour.getScene().getWindow());
             alert.setTitle("Confirmation");
             alert.setHeaderText("Supprimer ce message ?");
             alert.setContentText("Cette action est irréversible.");
@@ -1248,6 +1249,7 @@ public class MessageController {
                         showError("Erreur lecture: " + ex.getMessage());
 
                         Alert alert = new Alert(Alert.AlertType.INFORMATION);
+                        alert.initOwner(playBtn.getScene().getWindow());
                         alert.setTitle("Fichier audio");
                         alert.setHeaderText("Chemin du fichier:");
                         alert.setContentText(file.getAbsolutePath());
@@ -1439,6 +1441,7 @@ public class MessageController {
     private void showConversationInfo() {
         if (currentConversationId != -1) {
             Alert alert = new Alert(Alert.AlertType.INFORMATION);
+            alert.initOwner(btnInfo.getScene().getWindow());
             alert.setTitle("Informations conversation");
             alert.setHeaderText("Conversation #" + currentConversationId);
 

@@ -875,6 +875,7 @@ private void onShowFavoris() {
 
 private void showAlert(Alert.AlertType type, String title, String message) {
     Alert alert = new Alert(type);
+    alert.initOwner(App.getPrimaryStage());
     alert.setTitle(title);
     alert.setHeaderText(null);
     alert.setContentText(message);

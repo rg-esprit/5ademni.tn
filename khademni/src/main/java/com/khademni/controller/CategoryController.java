@@ -477,6 +477,7 @@ public class CategoryController {
 
     private void deleteCategory(CategoryModel category) {
         Alert alert = new Alert(Alert.AlertType.CONFIRMATION);
+        alert.initOwner(categoriesContainer.getScene().getWindow());
         alert.setTitle("Delete Category");
         alert.setHeaderText("Are you sure you want to delete this category?");
         alert.setContentText("Delete: " + category.getName() + "?");
@@ -517,6 +518,7 @@ public class CategoryController {
 
     @FXML public void onExit() {
         Alert a = new Alert(Alert.AlertType.CONFIRMATION);
+        a.initOwner(categoriesContainer.getScene().getWindow());
         a.setTitle("Exit");
         a.setHeaderText("Exit the application?");
         a.setContentText("Are you sure you want to exit?");
