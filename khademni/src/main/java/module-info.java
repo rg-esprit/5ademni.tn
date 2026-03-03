@@ -2,6 +2,7 @@ module com.khademni {
     requires javafx.controls;
     requires javafx.fxml;
     requires javafx.web;
+    requires javafx.media;
     requires jdk.jsobject;
     requires java.net.http;
     requires javafx.graphics;

@@ -6,11 +6,8 @@ import com.khademni.utils.MyDataBase;
 import javafx.collections.FXCollections;
 import javafx.collections.ObservableList;
 import javafx.fxml.FXML;
-import javafx.fxml.FXMLLoader;
 import javafx.geometry.Insets;
 import javafx.geometry.Pos;
-import javafx.scene.Parent;
-import javafx.scene.Scene;
 import javafx.scene.control.*;
 import javafx.scene.control.Button;
 import javafx.scene.control.Dialog;
@@ -21,7 +18,6 @@ import javafx.scene.layout.HBox;
 import javafx.scene.layout.Priority;
 import javafx.scene.layout.Region;
 import javafx.scene.layout.VBox;
-import javafx.stage.Stage;
 
 import java.io.IOException;
 import java.sql.*;
@@ -346,16 +342,8 @@ public class ConversationController {
         int convId = (int) selected.getUserData();
 
         try {
-            FXMLLoader loader = new FXMLLoader(getClass().getResource("/com/khademni/Message.fxml"));
-            Parent root = loader.load();
-
-            MessageController messageController = loader.getController();
-            messageController.setConversationId(convId);
-
-            Stage stage = (Stage) listConversations.getScene().getWindow();
-            stage.setScene(new Scene(root));
-            stage.setTitle("Conversation");
-
+            App.setPendingConversationId(convId);
+            App.setRoot("Message");
         } catch (IOException e) {
             showError("Erreur ouverture chat");
             e.printStackTrace();
