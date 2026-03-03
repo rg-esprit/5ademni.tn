@@ -93,6 +93,7 @@ public class ArticlePublicationController {
     private void showCommentCard(Article article) {
         commentCard.setVisible(true);
         commentCard.setManaged(true);
+        commentCard.setTranslateY(0);
         mainContainer.setDisable(true); // Disable the main content
         mainContainer.setStyle("-fx-opacity: 0.3;"); // Dim the main content
         chargerCommentaires(article, commentContainer); // Load comments for the selected article
@@ -125,7 +126,7 @@ public class ArticlePublicationController {
 
     private void showAlert(Alert.AlertType type, String title, String message) {
         Alert alert = new Alert(type);
-        alert.initOwner(rootPane.getScene().getWindow());
+        alert.initOwner(mainContent.getScene().getWindow());
         alert.setTitle(title);
         alert.setHeaderText(null);
         alert.setContentText(message);
@@ -542,19 +543,25 @@ private void ajouterCommentaire() {
     private List<GigModel> findGigsByKeywords(List<String> keywords) throws SQLException {
         List<GigModel> gigs = new ArrayList<>();
 
+        if (keywords.isEmpty()) {
+            return gigs;
+        }
+
         // Construire une requête SQL dynamique avec des mots-clés
         StringBuilder queryBuilder = new StringBuilder("""
                     SELECT g.id, g.title, g.description, g.price, g.delivery_time, g.image, g.status
                     FROM gig g
-                    WHERE
+                    WHERE g.status = 'active'
                 """);
 
+        queryBuilder.append(" AND (");
         for (int i = 0; i < keywords.size(); i++) {
             queryBuilder.append("LOWER(g.title) LIKE ? OR LOWER(g.description) LIKE ?");
             if (i < keywords.size() - 1) {
                 queryBuilder.append(" OR ");
             }
         }
+        queryBuilder.append(")");
 
         try (Connection conn = MyDataBase.getConnection();
                 PreparedStatement ps = conn.prepareStatement(queryBuilder.toString())) {
@@ -581,7 +588,7 @@ private void ajouterCommentaire() {
 
                 // Calculer le score de pertinence
                 double relevanceScore = calculateRelevanceScore(gig, keywords);
-                gig.setRelevanceScore(relevanceScore); // Ajoutez un champ `relevanceScore` dans `GigModel`
+                gig.setRelevanceScore(relevanceScore);
 
                 gigs.add(gig);
             }

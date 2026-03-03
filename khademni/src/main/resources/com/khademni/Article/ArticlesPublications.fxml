@@ -76,20 +76,18 @@
                             </ScrollPane>
                      </VBox>
 
-                     <!-- Carte des Gigs -->
-                     <VBox fx:id="gigsCard"
-                            alignment="TOP_CENTER"
-                            spacing="15"
-                            style="-fx-padding: 15; 
+                      <!-- Carte des Gigs -->
+                      <VBox fx:id="gigsCard"
+                             alignment="TOP_CENTER"
+                             spacing="15"
+                             style="-fx-padding: 15; 
              -fx-background-color: white; 
              -fx-background-radius: 15; 
              -fx-effect: dropshadow(gaussian, rgba(0, 0, 0, 0.2), 8, 0, 0, 4);"
-                            visible="false"
-                            managed="false"
-                            translateX="600"
-                             translateY="-1500"
-                            maxWidth="500"
-                            maxHeight="1500">
+                             visible="false"
+                             managed="false"
+                             maxWidth="500"
+                             maxHeight="1500">
                             <Button text="Masquer"
                                    style="-fx-background-color: #d32f2f; 
                    -fx-text-fill: white; 
