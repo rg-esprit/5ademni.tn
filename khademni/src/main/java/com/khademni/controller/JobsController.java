@@ -4,10 +4,12 @@ import com.khademni.App;
 import com.khademni.model.JobModel;
 import com.khademni.utils.AIService;
 import com.khademni.utils.MyDataBase;
+import com.khademni.utils.ConversationHelper;
 import javafx.fxml.FXML;
 import javafx.fxml.FXMLLoader;
 import javafx.geometry.Insets;
 import javafx.geometry.Pos;
+import javafx.scene.Parent;
 import javafx.scene.Scene;
 import javafx.scene.control.*;
 import javafx.scene.layout.*;
@@ -830,6 +832,12 @@ public class JobsController {
                 "-fx-padding: 8 16 8 16; -fx-border-radius: 8; -fx-cursor: hand;");
         apply.setOnAction(e -> handleApplyJob(job));
 
+        // Message button to contact job owner
+        Button messageBtn = new Button("💬 Message");
+        messageBtn.setStyle("-fx-background-color: #3b82f6; -fx-text-fill: white; -fx-font-weight: 600; " +
+                "-fx-padding: 8 16 8 16; -fx-border-radius: 8; -fx-cursor: hand;");
+        messageBtn.setOnAction(e -> handleMessageJobOwner(job));
+
         Region footerSpacer = new Region();
         HBox.setHgrow(footerSpacer, Priority.ALWAYS);
 
@@ -844,7 +852,8 @@ public class JobsController {
             updateProgBtn.setOnAction(e -> showUpdateProgressDialog(job));
             footer.getChildren().addAll(posted, footerSpacer, save, updateProgBtn);
         } else {
-            footer.getChildren().addAll(posted, footerSpacer, save, apply);
+            // Non-owner: show Save, Message and Apply buttons
+            footer.getChildren().addAll(posted, footerSpacer, save, messageBtn, apply);
         }
 
         card.getChildren().add(footer);
@@ -1933,6 +1942,53 @@ public class JobsController {
                 dialog.setResult(loc);
                 dialog.close();
             });
+        }
+    }
+
+    private void handleMessageJobOwner(JobModel job) {
+        if (App.currentUser == null) {
+            showAlert("Authentication Required", "Please log in to message the job owner.");
+            return;
+        }
+
+        if (job.getUserId() <= 0) {
+            showAlert("Error", "This job has no owner assigned.");
+            return;
+        }
+
+        if (job.getUserId() == App.currentUser.getId()) {
+            showAlert("Error", "You cannot message yourself.");
+            return;
+        }
+
+        try {
+            int conversationId = ConversationHelper.createOrGetConversation(
+                App.currentUser.getId(),
+                job.getUserId(),
+                "Job: " + job.getTitle()
+            );
+            openConversation(conversationId);
+        } catch (SQLException e) {
+            showAlert("Error", "Error creating conversation: " + e.getMessage());
+            e.printStackTrace();
+        }
+    }
+
+    private void openConversation(int conversationId) {
+        try {
+            FXMLLoader loader = new FXMLLoader(getClass().getResource("/com/khademni/Message.fxml"));
+            Parent root = loader.load();
+
+            MessageController messageController = loader.getController();
+            messageController.setConversationId(conversationId);
+
+            Stage stage = (Stage) jobsContainer.getScene().getWindow();
+            stage.setScene(new Scene(root));
+            stage.setTitle("Conversation");
+
+        } catch (Exception e) {
+            showAlert("Error", "Error opening conversation: " + e.getMessage());
+            e.printStackTrace();
         }
     }
 }

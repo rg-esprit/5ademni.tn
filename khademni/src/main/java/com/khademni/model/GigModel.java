@@ -14,6 +14,7 @@ public class GigModel {
     private String status;
     private CategoryModel category;
     private double relevanceScore;
+    private int userId;
 
     public GigModel() {}
 
@@ -112,6 +113,14 @@ public class GigModel {
 
     public void setRelevanceScore(double relevanceScore) {
         this.relevanceScore = relevanceScore;
+    }
+
+    public int getUserId() {
+        return userId;
+    }
+
+    public void setUserId(int userId) {
+        this.userId = userId;
     }
 
     // toString
