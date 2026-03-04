@@ -2,6 +2,7 @@ package com.khademni.model;
 
 import javafx.beans.property.*;
 import java.time.LocalDate;
+
 public class PaimentModel {
     private IntegerProperty id;
     private IntegerProperty contratId;
@@ -9,7 +10,7 @@ public class PaimentModel {
     private ObjectProperty<LocalDate> datePaiement;
     private StringProperty methode; // Flouci
 
-    public void PaiementModel() {
+    public PaimentModel() {
         this.id = new SimpleIntegerProperty();
         this.contratId = new SimpleIntegerProperty();
         this.montant = new SimpleDoubleProperty();
@@ -17,7 +18,8 @@ public class PaimentModel {
         this.methode = new SimpleStringProperty();
     }
 
-    public void PaiementModel(int contratId, double montant) {
+    public PaimentModel(int contratId, double montant) {
+        this.id = new SimpleIntegerProperty();
         this.contratId = new SimpleIntegerProperty(contratId);
         this.montant = new SimpleDoubleProperty(montant);
         this.datePaiement = new SimpleObjectProperty<>(LocalDate.now());
@@ -27,6 +29,4 @@ public class PaimentModel {
     public int getContratId() { return contratId.get(); }
     public double getMontant() { return montant.get(); }
     public String getMethode() { return methode.get(); }
-
-
 }

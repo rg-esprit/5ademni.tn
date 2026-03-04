@@ -124,6 +124,41 @@ public class MyDataBase {
             } catch (SQLException e) {
                 System.out.println("Note: Gig user_id migration skipped: " + e.getMessage());
             }
+
+            // ---- Contrats: rename old singular table if it exists ----
+            try {
+                stmt.execute("ALTER TABLE contrat RENAME TO contrats");
+                System.out.println("Schema update: renamed contrat -> contrats.");
+            } catch (SQLException e) {
+                // Table already named contrats or doesn't exist — OK
+                System.out.println("Note: contrat rename skipped (likely already correct).");
+            }
+
+            // ---- Contrats: ensure new columns exist ----
+            try {
+                stmt.execute("ALTER TABLE contrats ADD COLUMN IF NOT EXISTS titre VARCHAR(255) DEFAULT ''");
+                stmt.execute("ALTER TABLE contrats ADD COLUMN IF NOT EXISTS prix DOUBLE DEFAULT 0.0");
+                stmt.execute("ALTER TABLE contrats ADD COLUMN IF NOT EXISTS statut VARCHAR(50) DEFAULT 'EN_ATTENTE'");
+                stmt.execute("ALTER TABLE contrats ADD COLUMN IF NOT EXISTS num_telephone VARCHAR(20) DEFAULT NULL");
+                System.out.println("Schema update: ensured contrats columns (titre, prix, statut, num_telephone).");
+            } catch (SQLException e) {
+                System.out.println("Note: contrats columns update skipped: " + e.getMessage());
+            }
+
+            // ---- Payments table for Stripe ----
+            try {
+                stmt.execute("CREATE TABLE IF NOT EXISTS payments ("
+                        + "id INT AUTO_INCREMENT PRIMARY KEY, "
+                        + "contrat_id INT NOT NULL, "
+                        + "stripe_session_id VARCHAR(500), "
+                        + "amount DOUBLE NOT NULL, "
+                        + "status VARCHAR(50) NOT NULL DEFAULT 'PAID', "
+                        + "created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP, "
+                        + "FOREIGN KEY (contrat_id) REFERENCES contrats(id) ON DELETE CASCADE)");
+                System.out.println("Schema update: ensured payments table exists.");
+            } catch (SQLException e) {
+                System.out.println("Note: payments table creation skipped: " + e.getMessage());
+            }
         } catch (SQLException e) {
             System.err.println("Error during schema check: " + e.getMessage());
         }

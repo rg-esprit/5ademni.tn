@@ -146,4 +146,9 @@ public class HeaderController {
     private void goToGig() throws IOException {
         App.setRoot("gig");
     }
+
+    @FXML
+    private void goToContrats() throws IOException {
+        App.setRoot("contrat");
+    }
 }
