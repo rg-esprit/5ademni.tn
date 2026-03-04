@@ -286,6 +286,7 @@ public class PaiementController {
      */
     private void showPaymentFailurePage() {
         Stage failureStage = new Stage();
+        failureStage.initOwner(App.getPrimaryStage());
         failureStage.initModality(Modality.APPLICATION_MODAL);
         failureStage.setTitle("Echec du Paiement");
 
@@ -334,6 +335,7 @@ public class PaiementController {
      */
     private void showPaymentSuccessPage() {
         Stage successStage = new Stage();
+        successStage.initOwner(App.getPrimaryStage());
         successStage.initModality(Modality.APPLICATION_MODAL);
         successStage.setTitle("Paiement avec Succes");
 
@@ -417,6 +419,7 @@ public class PaiementController {
 
             try {
                 Stage webStage = new Stage();
+                webStage.initOwner(App.getPrimaryStage());
                 webStage.initModality(Modality.APPLICATION_MODAL);
                 webStage.setTitle("Paiement Stripe");
 
@@ -575,6 +578,7 @@ public class PaiementController {
 
     private void showAlert(Alert.AlertType type, String title, String content) {
         Alert alert = new Alert(type);
+        alert.initOwner(App.getPrimaryStage());
         alert.setTitle(title);
         alert.setHeaderText(null);
         alert.setContentText(content);
