@@ -1,52 +1,132 @@
 package com.khademni.model;
 
-import javafx.beans.property.*;
 import java.time.LocalDate;
 
 public class ContratModel {
 
-    private SimpleIntegerProperty id;
-    private SimpleIntegerProperty clientId;
-    private SimpleIntegerProperty freelancerId;
-    private ObjectProperty<LocalDate> dateContrat;
-    private StringProperty description;
+    private int idContrat;
+    private int idClient;
+    private int idFreelancer;
+    private String clientName;
+    private String freelancerName;
+    private String titre;
+    private String description;
+    private double prix;
+    private LocalDate dateContrat;
+    private String statut;
+    private String numTelephone;
 
-    // Constructeur vide
     public ContratModel() {
-        this.id = new SimpleIntegerProperty();
-        this.clientId = new SimpleIntegerProperty();
-        this.freelancerId = new SimpleIntegerProperty();
-        this.dateContrat = new SimpleObjectProperty<>();
-        this.description = new SimpleStringProperty();
     }
 
-    // Constructeur avec paramètres
-    public ContratModel(int id, int clientId, int freelancerId, LocalDate dateContrat, String description) {
-        this.id = new SimpleIntegerProperty(id);
-        this.clientId = new SimpleIntegerProperty(clientId);
-        this.freelancerId = new SimpleIntegerProperty(freelancerId);
-        this.dateContrat = new SimpleObjectProperty<>(dateContrat);
-        this.description = new SimpleStringProperty(description);
+    public ContratModel(int idContrat, int idClient, int idFreelancer,
+            String clientName, String freelancerName, String titre, String description, double prix,
+            LocalDate dateContrat, String statut) {
+        this.idContrat = idContrat;
+        this.idClient = idClient;
+        this.idFreelancer = idFreelancer;
+        this.clientName = clientName;
+        this.freelancerName = freelancerName;
+        this.titre = titre;
+        this.description = description;
+        this.prix = prix;
+        this.dateContrat = dateContrat;
+        this.statut = statut;
     }
 
-    // Getters
-    public int getId() { return id.get(); }
-    public int getClientId() { return clientId.get(); }
-    public int getFreelancerId() { return freelancerId.get(); }
-    public LocalDate getDateContrat() { return dateContrat.get(); }
-    public String getDescription() { return description.get(); }
+    public ContratModel(int idContrat, int idClient, int idFreelancer,
+            String clientName, String freelancerName, String titre, String description, double prix,
+            LocalDate dateContrat, String statut, String numTelephone) {
+        this(idContrat, idClient, idFreelancer, clientName, freelancerName,
+                titre, description, prix, dateContrat, statut);
+        this.numTelephone = numTelephone;
+    }
 
-    // Setters
-    public void setId(int id) { this.id.set(id); }
-    public void setClientId(int clientId) { this.clientId.set(clientId); }
-    public void setFreelancerId(int freelancerId) { this.freelancerId.set(freelancerId); }
-    public void setDateContrat(LocalDate dateContrat) { this.dateContrat.set(dateContrat); }
-    public void setDescription(String description) { this.description.set(description); }
+    public int getIdContrat() {
+        return idContrat;
+    }
 
-    // Properties
-    public IntegerProperty idProperty() { return id; }
-    public IntegerProperty clientIdProperty() { return clientId; }
-    public IntegerProperty freelancerIdProperty() { return freelancerId; }
-    public ObjectProperty<LocalDate> dateContratProperty() { return dateContrat; }
-    public StringProperty descriptionProperty() { return description; }
+    public void setIdContrat(int idContrat) {
+        this.idContrat = idContrat;
+    }
+
+    public int getIdClient() {
+        return idClient;
+    }
+
+    public void setIdClient(int idClient) {
+        this.idClient = idClient;
+    }
+
+    public int getIdFreelancer() {
+        return idFreelancer;
+    }
+
+    public void setIdFreelancer(int idFreelancer) {
+        this.idFreelancer = idFreelancer;
+    }
+
+    public String getClientName() {
+        return clientName;
+    }
+
+    public void setClientName(String clientName) {
+        this.clientName = clientName;
+    }
+
+    public String getFreelancerName() {
+        return freelancerName;
+    }
+
+    public void setFreelancerName(String freelancerName) {
+        this.freelancerName = freelancerName;
+    }
+
+    public String getTitre() {
+        return titre;
+    }
+
+    public void setTitre(String titre) {
+        this.titre = titre;
+    }
+
+    public String getDescription() {
+        return description;
+    }
+
+    public void setDescription(String description) {
+        this.description = description;
+    }
+
+    public double getPrix() {
+        return prix;
+    }
+
+    public void setPrix(double prix) {
+        this.prix = prix;
+    }
+
+    public LocalDate getDateContrat() {
+        return dateContrat;
+    }
+
+    public void setDateContrat(LocalDate dateContrat) {
+        this.dateContrat = dateContrat;
+    }
+
+    public String getStatut() {
+        return statut;
+    }
+
+    public void setStatut(String statut) {
+        this.statut = statut;
+    }
+
+    public String getNumTelephone() {
+        return numTelephone;
+    }
+
+    public void setNumTelephone(String numTelephone) {
+        this.numTelephone = numTelephone;
+    }
 }

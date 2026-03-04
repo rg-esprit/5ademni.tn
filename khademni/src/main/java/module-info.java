@@ -8,6 +8,7 @@ module com.khademni {
     requires javafx.graphics;
     requires java.sql;
     requires java.desktop;
+    requires java.prefs;
     requires mysql.connector.j;
     requires org.kordamp.ikonli.javafx;
     requires org.kordamp.ikonli.material2;
@@ -17,10 +18,14 @@ module com.khademni {
     requires org.kordamp.ikonli.materialdesign2;
     requires twilio;
     requires com.google.gson;
+    requires com.fasterxml.jackson.databind;
+    requires stripe.java;
+    requires com.github.librepdf.openpdf;
 
     opens com.khademni to javafx.fxml;
     opens com.khademni.controller to javafx.fxml;
     opens com.khademni.model to javafx.fxml;
+    opens com.khademni.service to javafx.fxml;
 
     exports com.khademni;
     exports com.khademni.controller;

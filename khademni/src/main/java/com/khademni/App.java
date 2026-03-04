@@ -2,6 +2,7 @@ package com.khademni;
 
 import com.khademni.utils.MyDataBase;
 import javafx.application.Application;
+import javafx.application.HostServices;
 import javafx.fxml.FXMLLoader;
 import javafx.scene.Parent;
 import javafx.scene.Scene;
@@ -20,11 +21,13 @@ public class App extends Application {
 
     private static Scene scene;
     private static Stage primaryStage;
+    private static Application appInstance;
     public static UserModel currentUser;
     private static int pendingConversationId = -1;
 
     @Override
     public void start(Stage stage) throws IOException {
+        appInstance = this;
         MyDataBase.init();
         primaryStage = stage;
 
@@ -73,6 +76,15 @@ public class App extends Application {
         } else if (fxml.equals("Message")) {
             primaryStage.setTitle("5ademni.tn — Chat");
             scene.getStylesheets().add(App.class.getResource("Message.css").toExternalForm());
+        } else if (fxml.equals("contrat")) {
+            primaryStage.setTitle("5ademni.tn — Contracts");
+            scene.getStylesheets().add(App.class.getResource("contrat.css").toExternalForm());
+        } else if (fxml.equals("paiement")) {
+            primaryStage.setTitle("5ademni.tn — Payments");
+            scene.getStylesheets().add(App.class.getResource("contrat.css").toExternalForm());
+        } else if (fxml.equals("paiement_form")) {
+            primaryStage.setTitle("5ademni.tn — Payment Form");
+            scene.getStylesheets().add(App.class.getResource("contrat.css").toExternalForm());
         }
         
         // Only set full screen if it's not already, to avoid focus issues
@@ -110,6 +122,10 @@ public class App extends Application {
 
     public static int getPendingConversationId() {
         return pendingConversationId;
+    }
+
+    public static HostServices getAppHostServices() {
+        return appInstance != null ? appInstance.getHostServices() : null;
     }
 
 }
