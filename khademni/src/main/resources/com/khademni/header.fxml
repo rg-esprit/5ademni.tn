@@ -71,6 +71,8 @@
                 style="-fx-font-size: 14px; -fx-font-weight: 600; -fx-text-fill: #141118;" />
             <Hyperlink text="Reviews" onAction="#goToReviews"
                 style="-fx-font-size: 14px; -fx-font-weight: 600; -fx-text-fill: #141118;" />
+            <Hyperlink text="Contracts" onAction="#goToContrats"
+                style="-fx-font-size: 14px; -fx-font-weight: 600; -fx-text-fill: #141118;" />
         </HBox>
 
         <!-- Profile Section with Separator -->

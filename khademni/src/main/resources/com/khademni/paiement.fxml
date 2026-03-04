@@ -1,0 +1,51 @@
+<?xml version="1.0" encoding="UTF-8"?>
+
+<?import javafx.scene.control.*?>
+<?import javafx.scene.layout.*?>
+<?import javafx.geometry.Insets?>
+
+<ScrollPane xmlns="http://javafx.com/javafx/17" xmlns:fx="http://javafx.com/fxml/1"
+    fx:controller="com.khademni.controller.PaiementController"
+    fitToWidth="true" fitToHeight="false" styleClass="bento-root"
+    stylesheets="@contrat.css">
+
+    <VBox alignment="TOP_CENTER" spacing="0" styleClass="bento-root">
+        
+        <!-- Global Header -->
+        <fx:include source="header.fxml" />
+
+        <VBox alignment="TOP_CENTER" spacing="48" style="-fx-padding: 60 40 100 40;">
+            
+            <!-- Bento Header -->
+            <VBox alignment="CENTER" spacing="12">
+                <Label text="TRANSACTIONS SECURISEES" styleClass="kinetic-label-small" />
+                <Label text="Paiements des Contrats" styleClass="bento-title" />
+                <Label text="Finalisez vos contrats et reglez les paiements via Stripe" 
+                       style="-fx-text-fill: #6b7280; -fx-font-size: 16;" />
+            </VBox>
+
+            <!-- Bento Grid -->
+            <FlowPane fx:id="bentoGrid" hgap="24" vgap="24" alignment="TOP_CENTER" 
+                      prefWrapLength="1200" maxWidth="1200" />
+
+            <!-- Floating Action Bar -->
+            <HBox fx:id="floatingActionBar" alignment="CENTER" spacing="20" visible="false" managed="false"
+                  style="-fx-background-color: rgba(0,0,0,0.8); -fx-padding: 16 32; -fx-background-radius: 100; 
+                         -fx-border-color: rgba(108, 92, 231, 1.0); -fx-border-width: 2;">
+                <ComboBox fx:id="currencyCombo" promptText="Devise"
+                          style="-fx-background-color: #2a2a2a; -fx-background-radius: 50; -fx-text-fill: white; -fx-font-weight: bold; -fx-padding: 8 16;" />
+                <Label fx:id="convertedAmountLabel" text=""
+                       style="-fx-text-fill: #a5b4fc; -fx-font-size: 14; -fx-font-weight: 700;" />
+                <Button fx:id="payBtn" text="Pay with Stripe" styleClass="button-primary" onAction="#handlePay" 
+                        style="-fx-background-radius: 100; -fx-background-color: #6c5ce7; -fx-padding: 12 40;" />
+                <Button text="Cancel" onAction="#goToContrats" 
+                        style="-fx-background-color: transparent; -fx-text-fill: #999; -fx-font-weight: bold;" />
+            </HBox>
+
+            <!-- Footer -->
+            <VBox alignment="CENTER" style="-fx-padding: 24 0 0 0;">
+                <Label text="2026 5ademni.tn. All rights reserved." styleClass="footer-text" />
+            </VBox>
+        </VBox>
+    </VBox>
+</ScrollPane>

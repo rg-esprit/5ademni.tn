@@ -76,8 +76,12 @@ CREATE TABLE IF NOT EXISTS contrats (
     id             INT AUTO_INCREMENT PRIMARY KEY,
     client_id      INT           NOT NULL,
     freelancer_id  INT           NOT NULL,
+    titre          VARCHAR(255)  DEFAULT '',
     date_contrat   DATE          NOT NULL,
     description    TEXT,
+    prix           DOUBLE        DEFAULT 0.0,
+    statut         VARCHAR(50)   DEFAULT 'EN_ATTENTE',
+    num_telephone  VARCHAR(20)   DEFAULT NULL,
     CONSTRAINT fk_contrats_client     FOREIGN KEY (client_id)     REFERENCES users(id) ON DELETE CASCADE,
     CONSTRAINT fk_contrats_freelancer FOREIGN KEY (freelancer_id) REFERENCES users(id) ON DELETE CASCADE
 );
@@ -95,7 +99,20 @@ CREATE TABLE IF NOT EXISTS paiments (
 );
 
 -- ------------------------------------------------------------
--- 7. saved_jobs (user favorites)
+-- 7. payments (Stripe)
+-- ------------------------------------------------------------
+CREATE TABLE IF NOT EXISTS payments (
+    id                INT AUTO_INCREMENT PRIMARY KEY,
+    contrat_id        INT           NOT NULL,
+    stripe_session_id VARCHAR(500),
+    amount            DOUBLE        NOT NULL,
+    status            VARCHAR(50)   NOT NULL DEFAULT 'PAID',
+    created_at        TIMESTAMP     DEFAULT CURRENT_TIMESTAMP,
+    CONSTRAINT fk_payments_contrat FOREIGN KEY (contrat_id) REFERENCES contrats(id) ON DELETE CASCADE
+);
+
+-- ------------------------------------------------------------
+-- 8. saved_jobs (user favorites)
 -- ------------------------------------------------------------
 CREATE TABLE IF NOT EXISTS saved_jobs (
     user_id INT NOT NULL,
