@@ -20,3 +20,16 @@ face_backend/.venv*/
 
 # HTML
 html files
+
+# Symfony app
+khademni-web/.env.local
+khademni-web/.env.local.php
+khademni-web/.env.*.local
+khademni-web/config/secrets/prod/prod.decrypt.private.php
+khademni-web/public/bundles/
+khademni-web/var/
+khademni-web/vendor/
+khademni-web/phpunit.xml
+khademni-web/.phpunit.cache/
+khademni-web/public/assets/
+khademni-web/assets/vendor/
