@@ -1,0 +1,54 @@
+{% extends 'base.html.twig' %}
+
+{% block title %}Sign In | 5ademni.tn{% endblock %}
+{% block body_class %}auth-body{% endblock %}
+
+{% block body %}
+    <main class="auth-shell">
+        <section class="auth-card">
+            <div class="auth-brand">
+                <span class="brand-mark brand-mark-large">5</span>
+                <h1>Welcome Back</h1>
+                <p>Sign in to continue to your account.</p>
+            </div>
+
+            {% if error %}
+                <div class="form-banner form-banner-error">{{ error.messageKey|trans(error.messageData, 'security') }}</div>
+            {% endif %}
+
+            <form method="post" class="form-grid">
+                <input type="hidden" name="_csrf_token" value="{{ csrf_token('authenticate') }}">
+
+                <div class="field-group">
+                    <label for="login_email">Email</label>
+                    <input id="login_email" class="text-input" type="email" name="email" value="{{ last_username }}" autocomplete="email" required autofocus>
+                </div>
+
+                <div class="field-group">
+                    <label for="login_password">Password</label>
+                    <input id="login_password" class="text-input" type="password" name="password" autocomplete="current-password" required>
+                </div>
+
+                <button class="primary-button" type="submit">Sign In</button>
+            </form>
+
+            <div class="divider"><span>or continue with Face ID</span></div>
+
+            <section class="face-panel">
+                <form method="post" action="{{ path('app_face_login') }}" enctype="multipart/form-data" class="form-grid face-form">
+                    <input type="hidden" name="_token" value="{{ face_login_csrf_token }}">
+
+                    <div class="field-group">
+                        <label for="face_login_frames">Face ID Photos</label>
+                        <input id="face_login_frames" class="file-input" type="file" name="frames[]" accept="image/*" capture="user" multiple required>
+                        <p class="helper-text">Upload or capture several clear photos of your face, then continue.</p>
+                    </div>
+
+                    <button class="secondary-button" type="submit">Face ID Login</button>
+                </form>
+            </section>
+
+            <p class="auth-switch">New here? <a href="{{ path('app_signup') }}">Create account</a></p>
+        </section>
+    </main>
+{% endblock %}

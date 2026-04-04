@@ -1,0 +1,76 @@
+{% extends 'base.html.twig' %}
+
+{% block title %}Create Account | 5ademni.tn{% endblock %}
+{% block body_class %}auth-body{% endblock %}
+
+{% block body %}
+    <main class="auth-shell auth-shell-wide">
+        <section class="auth-card auth-card-wide">
+            <div class="auth-brand auth-brand-left">
+                <span class="brand-mark brand-mark-large">5</span>
+                <h1>Create Account</h1>
+                <p>Create your account and get started.</p>
+            </div>
+
+            {% if not avatar_uploads_enabled %}
+                <div class="form-banner">Profile image upload is temporarily unavailable.</div>
+            {% endif %}
+
+            {{ form_start(registration_form, {attr: {class: 'form-grid'}}) }}
+                <div class="form-row-two">
+                    <div class="field-group">
+                        {{ form_label(registration_form.firstName) }}
+                        {{ form_widget(registration_form.firstName, {attr: {class: 'text-input', placeholder: 'John'}}) }}
+                        {{ form_errors(registration_form.firstName) }}
+                    </div>
+                    <div class="field-group">
+                        {{ form_label(registration_form.lastName) }}
+                        {{ form_widget(registration_form.lastName, {attr: {class: 'text-input', placeholder: 'Doe'}}) }}
+                        {{ form_errors(registration_form.lastName) }}
+                    </div>
+                </div>
+
+                <div class="field-group">
+                    {{ form_label(registration_form.dateOfBirth) }}
+                    {{ form_widget(registration_form.dateOfBirth, {attr: {class: 'text-input'}}) }}
+                    {{ form_errors(registration_form.dateOfBirth) }}
+                </div>
+
+                <div class="field-group">
+                    {{ form_label(registration_form.email) }}
+                    {{ form_widget(registration_form.email, {attr: {class: 'text-input', placeholder: 'name@company.com'}}) }}
+                    {{ form_errors(registration_form.email) }}
+                </div>
+
+                <div class="form-row-two">
+                    <div class="field-group">
+                        {{ form_label(registration_form.plainPassword.first) }}
+                        {{ form_widget(registration_form.plainPassword.first, {attr: {class: 'text-input'}}) }}
+                        {{ form_errors(registration_form.plainPassword.first) }}
+                    </div>
+                    <div class="field-group">
+                        {{ form_label(registration_form.plainPassword.second) }}
+                        {{ form_widget(registration_form.plainPassword.second, {attr: {class: 'text-input'}}) }}
+                        {{ form_errors(registration_form.plainPassword.second) }}
+                    </div>
+                </div>
+
+                <div class="field-group">
+                    {{ form_label(registration_form.profileImageFile) }}
+                    {{ form_widget(registration_form.profileImageFile, {attr: {class: 'file-input'}}) }}
+                    {{ form_errors(registration_form.profileImageFile) }}
+                </div>
+
+                <div class="field-group">
+                    {{ form_label(registration_form.bio) }}
+                    {{ form_widget(registration_form.bio, {attr: {class: 'textarea-input', placeholder: 'Tell us about yourself'}}) }}
+                    {{ form_errors(registration_form.bio) }}
+                </div>
+
+                <button class="primary-button" type="submit">Create Account</button>
+            {{ form_end(registration_form) }}
+
+            <p class="auth-switch">Already have an account? <a href="{{ path('app_login') }}">Sign in</a></p>
+        </section>
+    </main>
+{% endblock %}
