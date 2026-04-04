@@ -1,0 +1,139 @@
+{% extends 'base.html.twig' %}
+
+{% block title %}My Profile | 5ademni.tn{% endblock %}
+
+{% block body %}
+    <div class="page-shell">
+        {% include 'partials/_header.html.twig' %}
+
+        <main class="page-content">
+            <section class="profile-hero">
+                <div class="profile-avatar profile-avatar-large">
+                    {% if avatar_proxy_enabled %}
+                        <img src="{{ path('app_my_avatar', {v: app.user.avatarVersion}) }}" alt="{{ app.user.displayName }}">
+                    {% else %}
+                        <span>{{ app.user.initials }}</span>
+                    {% endif %}
+                </div>
+
+                <div>
+                    <p class="eyebrow">My Profile</p>
+                    <h1>{{ app.user.displayName }}</h1>
+                    <p class="muted-copy">{{ app.user.email }}</p>
+                </div>
+
+                <div class="profile-stat-group">
+                    <div class="profile-stat">
+                        <span>Balance</span>
+                        <strong>${{ app.user.balance|number_format(2, '.', ',') }}</strong>
+                    </div>
+                    <div class="profile-stat">
+                        <span>Face ID</span>
+                        <strong>{{ app.user.hasFaceEnrollment ? 'Enrolled' : 'Not enrolled' }}</strong>
+                    </div>
+                </div>
+            </section>
+
+            <section class="profile-layout">
+                <article class="panel">
+                    <div class="panel-heading">
+                        <h2>Account Details</h2>
+                        <p>Keep your account details up to date.</p>
+                    </div>
+
+                    {{ form_start(profile_form, {attr: {class: 'form-grid'}}) }}
+                        <div class="form-row-two">
+                            <div class="field-group">
+                                {{ form_label(profile_form.firstName) }}
+                                {{ form_widget(profile_form.firstName, {attr: {class: 'text-input'}}) }}
+                                {{ form_errors(profile_form.firstName) }}
+                            </div>
+                            <div class="field-group">
+                                {{ form_label(profile_form.lastName) }}
+                                {{ form_widget(profile_form.lastName, {attr: {class: 'text-input'}}) }}
+                                {{ form_errors(profile_form.lastName) }}
+                            </div>
+                        </div>
+
+                        <div class="field-group">
+                            {{ form_label(profile_form.email) }}
+                            {{ form_widget(profile_form.email, {attr: {class: 'text-input'}}) }}
+                            {{ form_errors(profile_form.email) }}
+                        </div>
+
+                        <div class="field-group">
+                            {{ form_label(profile_form.dateOfBirth) }}
+                            {{ form_widget(profile_form.dateOfBirth, {attr: {class: 'text-input'}}) }}
+                            {{ form_errors(profile_form.dateOfBirth) }}
+                        </div>
+
+                        <div class="field-group">
+                            {{ form_label(profile_form.bio) }}
+                            {{ form_widget(profile_form.bio, {attr: {class: 'textarea-input'}}) }}
+                            {{ form_errors(profile_form.bio) }}
+                        </div>
+
+                        <div class="field-group">
+                            {{ form_label(profile_form.profileImageFile) }}
+                            {{ form_widget(profile_form.profileImageFile, {attr: {class: 'file-input'}}) }}
+                            {{ form_errors(profile_form.profileImageFile) }}
+                        </div>
+
+                        <div class="inline-actions">
+                            <a class="ghost-button" href="{{ path('app_logout') }}">Sign Out</a>
+                            <button class="primary-button" type="submit">Save Changes</button>
+                        </div>
+                    {{ form_end(profile_form) }}
+                </article>
+
+                <aside class="sidebar-stack">
+                    <section class="panel face-panel">
+                        <div class="panel-heading">
+                            <h2>Face ID</h2>
+                            <p>Set up Face ID for quicker access to your account.</p>
+                        </div>
+
+                        <form method="post" action="{{ path('app_face_enroll') }}" enctype="multipart/form-data" class="form-grid face-form">
+                            <input type="hidden" name="_token" value="{{ face_enroll_csrf_token }}">
+
+                            <div class="field-group">
+                                <label for="face_enroll_frames">Face ID Photos</label>
+                                <input id="face_enroll_frames" class="file-input" type="file" name="frames[]" accept="image/*" capture="user" multiple required>
+                                <p class="helper-text">
+                                    {% if app.user.hasFaceEnrollment %}
+                                        Upload new photos to replace your current Face ID.
+                                    {% else %}
+                                        Upload or capture several clear photos to set up Face ID.
+                                    {% endif %}
+                                </p>
+                            </div>
+
+                            <button class="secondary-button" type="submit">Enroll / Update Face ID</button>
+                        </form>
+                    </section>
+
+                    <section class="panel">
+                        <div class="panel-heading">
+                            <h2>Reviews</h2>
+                            <p>Open the user reviews area to read feedback about you and manage the reviews you gave.</p>
+                        </div>
+
+                        <a class="ghost-button" href="{{ path('app_reviews') }}">Open Reviews</a>
+                    </section>
+
+                    <section class="panel danger-panel">
+                        <div class="panel-heading">
+                            <h2>Delete Account</h2>
+                            <p>This permanently deletes your account and signs you out.</p>
+                        </div>
+
+                        <form method="post" action="{{ path('app_profile_delete') }}">
+                            <input type="hidden" name="_token" value="{{ delete_csrf_token }}">
+                            <button class="danger-button" type="submit">Delete Account</button>
+                        </form>
+                    </section>
+                </aside>
+            </section>
+        </main>
+    </div>
+{% endblock %}
