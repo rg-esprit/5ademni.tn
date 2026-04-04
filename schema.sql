@@ -122,3 +122,15 @@ CREATE TABLE IF NOT EXISTS saved_jobs (
     CONSTRAINT fk_saved_user FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE,
     CONSTRAINT fk_saved_job  FOREIGN KEY (job_id)  REFERENCES jobs(id)  ON DELETE CASCADE
 );
+
+-- ------------------------------------------------------------
+-- 9. work_logs
+-- ------------------------------------------------------------
+CREATE TABLE IF NOT EXISTS work_logs (
+    id INT AUTO_INCREMENT PRIMARY KEY,
+    job_id INT NOT NULL,
+    freelancer_id INT NOT NULL,
+    progress_change INT NOT NULL,
+    description TEXT,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
