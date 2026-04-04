@@ -22,6 +22,7 @@ face_backend/.venv*/
 html files
 
 # Symfony app
+!khademni-web/.env
 khademni-web/.env.local
 khademni-web/.env.local.php
 khademni-web/.env.*.local

@@ -1,0 +1,257 @@
+{% extends 'base.html.twig' %}
+
+{% block title %}Reviews | 5ademni.tn{% endblock %}
+
+{% block body %}
+    <div class="page-shell">
+        {% include 'partials/_header.html.twig' %}
+
+        <main class="page-content">
+            <section class="review-hero">
+                <div>
+                    <p class="eyebrow">Reviews</p>
+                    <h1>Share feedback and see what users say about you</h1>
+                    <p class="muted-copy">Write reviews, manage your feedback, and see what others think of your work.</p>
+                </div>
+
+                <div class="review-metrics">
+                    <div class="profile-stat">
+                        <span>Reviews About You</span>
+                        <strong>{{ received_reviews_count }}</strong>
+                    </div>
+                    <div class="profile-stat">
+                        <span>Reviews You Gave</span>
+                        <strong>{{ given_reviews_count }}</strong>
+                    </div>
+                </div>
+            </section>
+
+            <section class="profile-layout review-layout">
+                <article class="panel review-form-panel">
+                    <div class="panel-heading">
+                        <h2>{{ editing_review ? 'Edit Review' : 'Write a Review' }}</h2>
+                        <p>{{ editing_review ? 'Update one of your existing reviews.' : 'Search for another user, rate them, and leave public feedback.' }}</p>
+                    </div>
+
+                    {% if form_error %}
+                        <div class="form-banner form-banner-error">{{ form_error }}</div>
+                    {% endif %}
+
+                    {% if not editing_review and not selected_target %}
+                        <form method="get" action="{{ path('app_reviews') }}" class="review-search-form">
+                            <input type="hidden" name="filter_q" value="{{ review_filters.query }}">
+                            <input type="hidden" name="filter_rating" value="{{ review_filters.rating ?? '' }}">
+                            <input type="hidden" name="received_page" value="{{ received_pagination.page }}">
+                            <input type="hidden" name="given_page" value="{{ given_pagination.page }}">
+
+                            <div class="field-group">
+                                <label for="review-user-search">Search for a user</label>
+                                <div class="review-search-row">
+                                    <input id="review-user-search" type="text" name="user_search" class="text-input" placeholder="Type a name or email..." value="{{ user_search }}" autocomplete="off">
+                                    <button class="secondary-button review-search-button" type="submit">Search</button>
+                                </div>
+                                <p class="helper-text">Find the person you want to review by name or email.</p>
+                            </div>
+                        </form>
+
+                        {% if user_search|length >= 2 %}
+                            <div class="review-search-results">
+                                {% for result in search_results %}
+                                    <a class="search-result-item" href="{{ path('app_reviews', review_query|merge({user_search: user_search, selected_user: result.id})) }}">
+                                        <span class="search-result-avatar">{{ result.initials }}</span>
+                                        <span class="search-result-copy">
+                                            <strong>{{ result.displayName }}</strong>
+                                            <small>{{ result.email }}</small>
+                                        </span>
+                                    </a>
+                                {% else %}
+                                    <div class="search-results-empty">No matching users found.</div>
+                                {% endfor %}
+                            </div>
+                        {% endif %}
+                    {% endif %}
+
+                    {% if selected_target %}
+                        <div class="selected-user-card">
+                            <div class="selected-user-avatar">{{ selected_target.initials }}</div>
+                            <div class="selected-user-copy">
+                                <strong>{{ selected_target.displayName }}</strong>
+                                <small>{{ selected_target.email }}</small>
+                            </div>
+                            {% if not editing_review %}
+                                <a class="ghost-button compact-button" href="{{ path('app_reviews', user_search ? review_query|merge({user_search: user_search}) : review_query) }}">Change</a>
+                            {% endif %}
+                        </div>
+                    {% endif %}
+
+                    <form method="post" action="{{ path('app_reviews_save') }}" class="form-grid">
+                        <input type="hidden" name="_token" value="{{ csrf_token('review_form') }}">
+                        <input type="hidden" name="review_id" value="{{ form_data.review_id ?? '' }}">
+                        <input type="hidden" name="freelancer_id" value="{{ form_data.freelancer_id ?? '' }}">
+                        <input type="hidden" name="filter_q" value="{{ review_filters.query }}">
+                        <input type="hidden" name="filter_rating" value="{{ review_filters.rating ?? '' }}">
+                        <input type="hidden" name="received_page" value="{{ received_pagination.page }}">
+                        <input type="hidden" name="given_page" value="{{ given_pagination.page }}">
+                        <input type="hidden" name="user_search" value="{{ user_search }}">
+
+                        <div class="field-group">
+                            <label>Rating</label>
+                            <div class="review-stars">
+                                {% for value in 5..1 %}
+                                    <input id="rating-{{ value }}" type="radio" name="rating" value="{{ value }}" {% if form_data.rating == value %}checked{% endif %}>
+                                    <label for="rating-{{ value }}" title="{{ value }} stars"></label>
+                                {% endfor %}
+                            </div>
+                        </div>
+
+                        <div class="field-group">
+                            <label for="ai_prompt">AI Assist</label>
+                            <div class="review-ai-row">
+                                <input id="ai_prompt" type="text" name="ai_prompt" class="text-input" placeholder="Describe what to say and AI will write it..." value="{{ form_data.ai_prompt }}">
+                                <button class="secondary-button review-ai-button" type="submit" name="review_action" value="generate_ai">Generate</button>
+                            </div>
+                            <p class="review-ai-status">Need help drafting? Describe the experience and generate a starting point.</p>
+                        </div>
+
+                        <div class="field-group">
+                            <label for="review_text">Your Review</label>
+                            <textarea id="review_text" name="review_text" class="textarea-input" rows="5" placeholder="Share your experience...">{{ form_data.review_text }}</textarea>
+                        </div>
+
+                        <div class="inline-actions review-form-actions">
+                            {% if editing_review %}
+                                <a class="ghost-button" href="{{ path('app_reviews', review_query) }}">Cancel Edit</a>
+                            {% endif %}
+                            <button class="primary-button" type="submit" name="review_action" value="save">{{ editing_review ? 'Update Review' : 'Submit Review' }}</button>
+                        </div>
+                    </form>
+                </article>
+
+                <aside class="sidebar-stack review-sidebar">
+                    <section class="panel review-filter-panel">
+                        <div class="panel-heading">
+                            <h2>Filter Reviews</h2>
+                            <p>Search by person, review text, or rating. Filters apply to both review lists.</p>
+                        </div>
+
+                        <form method="get" action="{{ path('app_reviews') }}" class="review-filter-form">
+                            <div class="field-group">
+                                <label for="reviews_filter_q">Search</label>
+                                <input id="reviews_filter_q" type="text" name="filter_q" class="text-input" value="{{ review_filters.query }}" placeholder="Name, email, or review text">
+                            </div>
+
+                            <div class="field-group">
+                                <label for="reviews_filter_rating">Rating</label>
+                                <select id="reviews_filter_rating" name="filter_rating" class="text-input select-input">
+                                    <option value="">All ratings</option>
+                                    {% for value in 1..5 %}
+                                        <option value="{{ value }}" {% if review_filters.rating == value %}selected{% endif %}>{{ value }} star{{ value > 1 ? 's' : '' }}</option>
+                                    {% endfor %}
+                                </select>
+                            </div>
+
+                            <div class="inline-actions review-filter-actions">
+                                <a class="ghost-button" href="{{ path('app_reviews') }}">Reset</a>
+                                <button class="primary-button" type="submit">Apply Filters</button>
+                            </div>
+                        </form>
+                    </section>
+
+                    <section class="panel">
+                        <div class="panel-heading">
+                            <h2>Reviews About You</h2>
+                            <p>Feedback others have left for you. {{ received_pagination.total }} matching result{{ received_pagination.total == 1 ? '' : 's' }}.</p>
+                        </div>
+
+                        <div class="review-card-grid">
+                            {% for review in received_pagination.items %}
+                                <article class="review-card">
+                                    <div class="review-card-top">
+                                        <div class="review-card-avatar">{{ review.client.initials }}</div>
+                                        <div>
+                                            <strong>{{ review.client.displayName }}</strong>
+                                            <div class="review-stars-inline">
+                                                {% for star in 1..5 %}
+                                                    {{ star <= review.rating ? '★' : '☆' }}
+                                                {% endfor %}
+                                            </div>
+                                        </div>
+                                    </div>
+                                    <p>{{ review.reviewText }}</p>
+                                </article>
+                            {% else %}
+                                <p class="empty-state">No received reviews match the current filters.</p>
+                            {% endfor %}
+                        </div>
+
+                        {% if received_pagination.pages > 1 %}
+                            <div class="pagination-bar">
+                                {% if received_pagination.has_previous %}
+                                    <a class="ghost-button compact-button" href="{{ path('app_reviews', review_query|merge({received_page: received_pagination.page - 1, given_page: given_pagination.page})) }}">Previous</a>
+                                {% endif %}
+                                <span class="pagination-copy">Page {{ received_pagination.page }} of {{ received_pagination.pages }}</span>
+                                {% if received_pagination.has_next %}
+                                    <a class="ghost-button compact-button" href="{{ path('app_reviews', review_query|merge({received_page: received_pagination.page + 1, given_page: given_pagination.page})) }}">Next</a>
+                                {% endif %}
+                            </div>
+                        {% endif %}
+                    </section>
+
+                    <section class="panel">
+                        <div class="panel-heading">
+                            <h2>Reviews You Gave</h2>
+                            <p>Reviews you have written that you can still edit or delete. {{ given_pagination.total }} matching result{{ given_pagination.total == 1 ? '' : 's' }}.</p>
+                        </div>
+
+                        <div class="review-card-grid">
+                            {% for review in given_pagination.items %}
+                                <article class="review-card">
+                                    <div class="review-card-top review-card-top-actions">
+                                        <div class="review-card-head">
+                                            <div class="review-card-avatar">{{ review.freelancer.initials }}</div>
+                                            <div>
+                                                <strong>{{ review.freelancer.displayName }}</strong>
+                                                <div class="review-stars-inline">
+                                                    {% for star in 1..5 %}
+                                                        {{ star <= review.rating ? '★' : '☆' }}
+                                                    {% endfor %}
+                                                </div>
+                                            </div>
+                                        </div>
+
+                                        <div class="review-card-actions">
+                                            <a class="ghost-button compact-button" href="{{ path('app_reviews', review_query|merge({edit: review.id})) }}">Edit</a>
+                                            <form method="post" action="{{ path('app_reviews_delete', {id: review.id}) }}">
+                                                <input type="hidden" name="_token" value="{{ csrf_token('delete_review_' ~ review.id) }}">
+                                                <input type="hidden" name="filter_q" value="{{ review_filters.query }}">
+                                                <input type="hidden" name="filter_rating" value="{{ review_filters.rating ?? '' }}">
+                                                <input type="hidden" name="received_page" value="{{ received_pagination.page }}">
+                                                <input type="hidden" name="given_page" value="{{ given_pagination.page }}">
+                                                <button class="danger-button compact-button" type="submit">Delete</button>
+                                            </form>
+                                        </div>
+                                    </div>
+                                    <p>{{ review.reviewText }}</p>
+                                </article>
+                            {% else %}
+                                <p class="empty-state">No given reviews match the current filters.</p>
+                            {% endfor %}
+                        </div>
+
+                        {% if given_pagination.pages > 1 %}
+                            <div class="pagination-bar">
+                                {% if given_pagination.has_previous %}
+                                    <a class="ghost-button compact-button" href="{{ path('app_reviews', review_query|merge({received_page: received_pagination.page, given_page: given_pagination.page - 1})) }}">Previous</a>
+                                {% endif %}
+                                <span class="pagination-copy">Page {{ given_pagination.page }} of {{ given_pagination.pages }}</span>
+                                {% if given_pagination.has_next %}
+                                    <a class="ghost-button compact-button" href="{{ path('app_reviews', review_query|merge({received_page: received_pagination.page, given_page: given_pagination.page + 1})) }}">Next</a>
+                                {% endif %}
+                            </div>
+                        {% endif %}
+                    </section>
+                </aside>
+            </section>
+        </main>
+    </div>
+{% endblock %}
