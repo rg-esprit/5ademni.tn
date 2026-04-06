@@ -1,0 +1,22 @@
+{% extends 'base.html.twig' %}
+
+{% block title %}Gigs pour {{ article.title }}{% endblock %}
+
+{% block body %}
+<h1>Gigs pour l'article : {{ article.title }}</h1>
+
+<div class="gigs-container">
+    {% for gig in gigs %}
+        <div class="gig-card">
+            <h2>{{ gig.title }}</h2>
+            <p>{{ gig.description }}</p>
+            <p>Prix : {{ gig.price }} €</p>
+            <p>Livraison : {{ gig.deliveryTime|date('d/m/Y H:i') }}</p>
+            <p>Status : {{ gig.status }}</p>
+           
+        </div>
+    {% else %}
+        <p>Aucun gig trouvé pour cet article.</p>
+    {% endfor %}
+</div><p>Debug: {{ gigs|length }} gigs found.</p>
+{% endblock %}
