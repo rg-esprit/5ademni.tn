@@ -1,0 +1,346 @@
+{# filepath: c:\Users\MSI\Desktop\projet pi dev\my_project_Symfony\templates\article\list.html.twig #}
+{% extends 'base.html.twig' %}
+
+{% block title %}Liste des articles
+{% endblock %}
+
+{% block stylesheets %}
+	<style>
+		.panel {
+			background: #fff;
+			border: 1px solid #ece7fb;
+			border-radius: 16px;
+			box-shadow: 0 8px 24px rgba(124, 58, 237, .08);
+			padding: 16px;
+		}
+		.table-wrap {
+			overflow: auto;
+			border: 1px solid #f0ebff;
+			border-radius: 12px;
+		}
+		table {
+			width: 100%;
+			border-collapse: separate;
+			border-spacing: 0;
+			min-width: 900px;
+			background: #fff;
+		}
+		thead th {
+			position: sticky;
+			top: 0;
+			z-index: 1;
+			background: #faf8ff;
+			color: #6f6291;
+			font-weight: 700;
+			font-size: 13px;
+			text-transform: uppercase;
+			letter-spacing: 0.02em;
+			border-bottom: 1px solid #ece7fb;
+		}
+		th,
+		td {
+			padding: 12px 14px;
+			text-align: left
+		}
+		tbody tr {
+			transition: background 0.15s ease
+		}
+		tbody tr:nth-child(even) {
+			background: #fcfbff
+		}
+		tbody tr:hover {
+			background: #f5f1ff
+		}
+		td {
+			border-bottom: 1px solid #f4efff
+		}
+
+		.badge {
+			display: inline-flex;
+			align-items: center;
+			gap: 6px;
+			padding: 4px 10px;
+			border-radius: 999px;
+			font-size: 12px;
+			font-weight: 700;
+		}
+		.badge::before {
+			content: '';
+			width: 7px;
+			height: 7px;
+			border-radius: 50%;
+		}
+		.badge-ok {
+			background: #e8f7ee;
+			color: #1f8a4b
+		}
+		.badge-ok::before {
+			background: #22c55e
+		}
+		.badge-off {
+			background: #fdecec;
+			color: #b42323
+		}
+		.badge-off::before {
+			background: #ef4444
+		}
+
+		.actions {
+			display: flex;
+			gap: 8px;
+			align-items: center
+		}
+		.btn {
+			border: none;
+			border-radius: 10px;
+			padding: 8px 12px;
+			cursor: pointer;
+			font-weight: 600;
+		}
+		.btn-ghost {
+			background: #efeaff;
+			color: #4b2ca3;
+			border: 1px solid #d9ccff;
+			text-decoration: none;
+			display: inline-block;
+		}
+		.btn-danger {
+			background: #ef4444;
+			color: #fff
+		}
+		.btn-danger:hover {
+			background: #dc2626
+		}
+		.search-filter {
+			display: flex;
+			justify-content: space-between;
+			align-items: center;
+			margin-bottom: 20px;
+			gap: 10px;
+		}
+
+		.search-form {
+			display: flex;
+			align-items: center;
+			gap: 10px;
+			width: 100%;
+		}
+
+		.search-input {
+			flex: 1;
+			padding: 10px;
+			border: 1px solid #d1d5db;
+			border-radius: 8px;
+			font-size: 14px;
+		}
+
+		.filter-select {
+			padding: 10px;
+			border: 1px solid #d1d5db;
+			border-radius: 8px;
+			font-size: 14px;
+			background: white;
+			color: #374151;
+		}
+
+		.btn-search {
+			background-color: #7c3aed;
+			color: white;
+			border: none;
+			border-radius: 8px;
+			padding: 10px 20px;
+			cursor: pointer;
+			font-size: 14px;
+			font-weight: bold;
+			transition: background-color 0.3s ease, transform 0.2s ease;
+		}
+
+		.btn-search:hover {
+			background-color: #5b21b6;
+			transform: translateY(-2px);
+		}
+		.btn-add {
+			display: inline-flex;
+			align-items: center;
+			gap: 6px;
+
+			background: linear-gradient(135deg, #7c3aed, #a78bfa);
+			color: white;
+
+			border: none;
+			border-radius: 10px;
+			padding: 8px 14px; /* Réduit de 12px 18px à 8px 14px */
+
+			font-weight: 600;
+			font-size: 13px; /* Réduit de 14px à 13px */
+
+			cursor: pointer;
+			box-shadow: 0 4px 12px rgba(124, 58, 237, 0.25); /* Ombre réduite */
+
+			transition: all 0.3s ease;
+			position: relative;
+			overflow: hidden;
+			text-decoration: none;
+		}
+
+		/* ICON */
+		.btn-add .icon {
+			font-size: 16px;
+			transition: transform 0.3s ease;
+		}
+
+		/* HOVER EFFECT */
+		.btn-add:hover {
+			transform: translateY(-2px) scale(1.02); /* Effet réduit */
+			box-shadow: 0 8px 20px rgba(124, 58, 237, 0.35);
+		}
+
+		/* ICON ROTATION */
+		.btn-add:hover .icon {
+			transform: rotate(90deg);
+		}
+
+		/* CLICK EFFECT */
+		.btn-add:active {
+			transform: scale(0.95);
+		}
+
+		/* GLOW ANIMATION */
+		.btn-add::after {
+			content: '';
+			position: absolute;
+			top: 0;
+			left: -100%;
+			width: 20%;
+			height: 100%;
+			background: linear-gradient(120deg,transparent,rgba(255,255,255,.4),transparent);
+			transition: 0.4s;
+		}
+		.header-container {
+			display: flex;
+			justify-content: space-between;
+			align-items: center;
+			margin-bottom: 20px;
+		}
+
+		.header-container h1 {
+			margin: 0;
+		}
+	</style>
+{% endblock %}
+
+{% block body %}
+	<div class="page">
+		<div class="header-container">
+			<h1>Liste des articles</h1>
+			<a href="{{ path('article_new') }}" class="btn-add">
+				<span class="icon">＋</span>
+				<span>Ajouter</span>
+			</a>
+		</div>
+		<div class="search-filter">
+			<form method="GET" action="{{ path('article_list') }}" class="search-form">
+				<input type="text" name="search" placeholder="Rechercher un titre..." value="{{ app.request.get('search') }}" class="search-input">
+				<select name="status" class="filter-select">
+					<option value="">Tous</option>
+					<option value="VISIBLE" {% if app.request.get('status') == 'VISIBLE' %} selected {% endif %}>Visible</option>
+					<option value="MASQUE" {% if app.request.get('status') == 'MASQUE' %} selected {% endif %}>Masqué</option>
+				</select>
+
+			</form>
+		</div>
+
+		<div class="panel table-wrap">
+			<table>
+				<thead>
+					<tr>
+						<th>ID</th>
+						<th>Titre</th>
+						<th>Status</th>
+						<th>Date</th>
+						<th>Favoris</th>
+						<th>Commentaires</th>
+						<th>Actions</th>
+					</tr>
+				</thead>
+				<tbody>
+					{% for row in rows %}
+						{% set article = row[0] %}
+						<tr>
+							<td>#{{ article.id }}</td>
+							<td>{{ article.title }}</td>
+							<td>
+								{% if article.status == 'VISIBLE' %}
+									<span class="badge badge-ok">VISIBLE</span>
+								{% else %}
+									<span class="badge badge-off">MASQUE</span>
+								{% endif %}
+							</td>
+							<td>{{ article.createdAt ? article.createdAt|date('Y-m-d H:i') : '' }}</td>
+							<td>{{ row.favorisCount }}</td>
+							<td>{{ row.commentairesCount }}</td>
+							<td class="actions">
+								<a class="btn btn-ghost" href="{{ path('article_edit', {id: article.id}) }}">Modifier</a>
+								<form method="POST" action="{{ path('article_delete', {id: article.id}) }}" onsubmit="return confirm('Voulez-vous vraiment supprimer cet article ?');">
+									<input type="hidden" name="_token" value="{{ csrf_token('delete_article_' ~ article.id) }}">
+									<button class="btn btn-danger" type="submit">Supprimer</button>
+								</form>
+							</td>
+						</tr>
+					{% else %}
+						<tr>
+							<td colspan="7">Aucun article.</td>
+						</tr>
+					{% endfor %}
+				</tbody>
+			</table>
+		</div>
+	</div>
+	<script>
+		document.addEventListener('DOMContentLoaded', function () {
+const searchInput = document.querySelector('.search-input');
+const filterSelect = document.querySelector('.filter-select');
+const searchForm = document.querySelector('.search-form');
+
+// Soumettre le formulaire lorsque le champ de recherche change
+searchInput.addEventListener('input', function () {
+searchForm.submit();
+});
+
+// Soumettre le formulaire lorsque le filtre change
+filterSelect.addEventListener('change', function () {
+searchForm.submit();
+});
+});
+	</script>
+	<script>
+		document.addEventListener('DOMContentLoaded', function () {
+const deleteForms = document.querySelectorAll('.delete-form');
+
+deleteForms.forEach(form => {
+form.addEventListener('submit', function (event) {
+event.preventDefault(); // Empêche l'envoi du formulaire
+
+const articleTitle = form.getAttribute('data-title');
+const confirmation = confirm (`Voulez-vous vraiment supprimer l'article "${articleTitle}" ?`);
+
+if (confirmation) {
+fetch(form.action, {
+method: 'POST',
+body: new FormData(form)
+}).then(response => {
+if (response.ok) {
+alert('La suppression a été effectuée avec succès.');
+window.location.reload(); // Recharge la page pour mettre à jour la liste
+} else {
+alert('Une erreur est survenue lors de la suppression.');
+}
+}).catch(() => {
+alert('Une erreur est survenue lors de la suppression.');
+});
+}
+});
+});
+});
+	</script>
+{% endblock %}

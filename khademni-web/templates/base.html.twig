@@ -1,14 +1,358 @@
+{# filepath: c:\Users\MSI\Desktop\projet pi dev\my_project_Symfony\templates\base.html.twig #}
 <!DOCTYPE html>
-<html>
-    <head>
-        <meta charset="UTF-8">
-        <meta name="viewport" content="width=device-width, initial-scale=1">
-        <title>{% block title %}5ademni.tn{% endblock %}</title>
-        <link rel="stylesheet" href="{{ asset('styles/app.css') }}">
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <title>{% block title %}Dashboard{% endblock %}</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+<link rel="icon" type="image/png" href="{{ asset('images/logo.png') }}">
+    <style>
+        :root{
+            --bg:#f5f7ff;
+            --panel:#ffffff;
+            --text:#1f2a44;
+            --muted:#7c86a2;
+            --border:#e6ebff;
+
+            --blue:#3b82f6;
+            --blue-soft:#dbeafe;
+            --violet:#7c3aed;
+            --violet-soft:#ede9fe;
+
+            --shadow:0 10px 30px rgba(76,81,191,.12);
+            --radius:16px;
+            --sidebar-w:240px;
+            --sidebar-w-collapsed:78px;
+        }
+
+        *{box-sizing:border-box}
+        body{
+            margin:0;
+            font-family: Inter, "Segoe UI", Arial, sans-serif;
+            background:linear-gradient(135deg,#f6f9ff,#eef2ff);
+            color:var(--text);
+        }
+
+        .app{
+               --sidebar-current: var(--sidebar-w); 
+            display:grid;
+            grid-template-columns:var(--sidebar-w) 1fr;
+            min-height:100vh;
+            transition:grid-template-columns .25s ease;
+        }
+        .app.is-collapsed{ grid-template-columns:var(--sidebar-w-collapsed) 1fr; }
+
+        .sidebar{
+            background:linear-gradient(180deg,#fff 0%,#f5f3ff 100%);
+            border-right:1px solid var(--border);
+            padding:16px 12px;
+            position:sticky; top:0; height:100vh;
+            overflow:auto;
+        }
+
+        .brand{
+            display:flex; align-items:center; gap:10px;
+            font-weight:700; font-size:20px; margin:6px 8px 18px; color:var(--violet);
+        }
+        .logo{
+            width:38px; height:38px; object-fit:contain; border-radius:10px;
+            background:#fff; box-shadow:0 4px 14px rgba(124,58,237,.15);
+            padding:4px;
+        }
+
+        .menu-title{font-size:12px;color:var(--muted);margin:12px 10px 6px;text-transform:uppercase}
+        .menu a{
+            display:flex;align-items:center;gap:10px;
+            color:var(--text);text-decoration:none;
+            padding:10px 12px;border-radius:12px;margin:6px 4px;
+        }
+        .menu a:hover{ background:var(--blue-soft); }
+        .menu a.active{
+            background:linear-gradient(90deg,var(--blue-soft),var(--violet-soft));
+            color:#1e1b4b;font-weight:600;
+        }
+
+        .app.is-collapsed .label{ display:none; }
+
+        .content-wrap{  grid-column:2;
+        padding:78px 20px 20px; /* réduit l'espace vide du haut */
+    }
+
+        .topbar{
+            position:fixed;
+        top:12px;
+        left:calc(var(--sidebar-current) + 20px);
+        width: 80%; 
+        z-index:1100;
+
+        background:var(--panel);
+        border:1px solid var(--border);
+        border-radius:14px;
+        box-shadow:var(--shadow);
+        padding:12px 16px;
+
+        display:flex;
+        justify-content:space-between;
+        align-items:center;
+        }
+
+        .topbar-left{display:flex;align-items:center;gap:10px}
+        .toggle-btn{
+            border:1px solid var(--border);
+            background:#fff;
+            border-radius:10px;
+            padding:8px 10px;
+            cursor:pointer;
+        }
+        .toggle-btn:hover{ background:linear-gradient(90deg,var(--blue-soft),var(--violet-soft)); }
+
+        .search{
+            border:1px solid var(--border);
+            background:#f8faff;
+            border-radius:999px;
+            padding:10px 14px;
+            width:320px; max-width:45vw;
+        }
+
+        .page{
+            max-width:1200px;
+            margin:0 auto;
+        
+        }
+           .page > :first-child{
+        margin-top:0; /* enlève marge haute du premier élément */
+    }
+        .page-card{
+            background:#fff;
+            border:1px solid var(--border);
+            border-radius:var(--radius);
+            box-shadow:var(--shadow);
+            padding:16px;
+        }
+
+        @media (max-width: 900px){
+            .app{ grid-template-columns:1fr; }
+            .sidebar{
+                position:fixed; left:0; top:0; z-index:1000; width:240px;
+                transform:translateX(-100%); transition:.25s;
+            }
+            .app.is-open .sidebar{ transform:translateX(0); }
+            .search{ width:180px; }
+        }
+ .alert {
+    position: fixed;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    z-index: 9999;
+    padding: 20px 40px 20px 20px;
+    border-radius: 10px;
+    font-size: 16px;
+    text-align: center;
+    animation: fadeIn 0.5s ease-in-out;
+}
+
+/* bouton X */
+.close-alert {
+    position: absolute;
+    top: 8px;
+    right: 12px;
+    font-size: 20px;
+    cursor: pointer;
+    color: white;
+    font-weight: bold;
+    transition: 0.3s;
+}
+
+.close-alert:hover {
+    transform: scale(1.2);
+}
+
+ .alert {
+    transition: opacity 0.3s ease;
+}
+   .alert-success {
+        background-color: #4caf50;
+        color: white;
+    }
+
+    .alert-error {
+        background-color: #f44336;
+        color: white;
+    }
+
+    @keyframes fadeIn {
+        from {
+            opacity: 0;
+        }
+    
+        to {
+            opacity: 1;
+        }
+    }
         {% block stylesheets %}{% endblock %}
-    </head>
-    <body class="{% block body_class %}app-body{% endblock %}">
-        {% include 'partials/_flashes.html.twig' %}
+    </style>
+</head>
+<script>
+    document.addEventListener('DOMContentLoaded', () => {
+        const sidebarToggle = document.getElementById('sidebarToggle');
+        const appLayout = document.getElementById('appLayout');
+
+        sidebarToggle.addEventListener('click', () => {
+            appLayout.classList.toggle('is-collapsed');
+        });
+    });
+</script>
+<body>
+<div id="appLayout" class="app">
+    {% include 'INC/sidebar.html.twig' %}
+    <main class="content-wrap">
+        {% include 'INC/navbar.html.twig' %}
         {% block body %}{% endblock %}
-    </body>
+    </main>
+</div>
+{% for label, messages in app.flashes %}
+    <div class="alert alert-{{ label }}">
+        <span class="close-alert">&times;</span>
+        {% for message in messages %}
+            <p>{{ message }}</p>
+        {% endfor %}
+    </div>
+{% endfor %}
+<script>
+    function confirmDelete(event, message, deleteUrl) {
+        event.preventDefault();
+
+        // Créer une alerte personnalisée
+        const alertOverlay = document.createElement('div');
+        alertOverlay.style.position = 'fixed';
+        alertOverlay.style.top = '0';
+        alertOverlay.style.left = '0';
+        alertOverlay.style.width = '100%';
+        alertOverlay.style.height = '100%';
+        alertOverlay.style.backgroundColor = 'rgba(0, 0, 0, 0.5)';
+        alertOverlay.style.display = 'flex';
+        alertOverlay.style.justifyContent = 'center';
+        alertOverlay.style.alignItems = 'center';
+        alertOverlay.style.zIndex = '10000';
+
+        const alertBox = document.createElement('div');
+        alertBox.style.backgroundColor = '#fff';
+        alertBox.style.padding = '20px';
+        alertBox.style.borderRadius = '8px';
+        alertBox.style.boxShadow = '0 4px 6px rgba(0, 0, 0, 0.1)';
+        alertBox.style.textAlign = 'center';
+        alertBox.style.width = '300px';
+
+        const alertMessage = document.createElement('p');
+        alertMessage.textContent = message;
+        alertMessage.style.marginBottom = '20px';
+
+        const confirmButton = document.createElement('button');
+        confirmButton.textContent = 'Confirmer';
+        confirmButton.style.backgroundColor = '#4caf50';
+        confirmButton.style.color = '#fff';
+        confirmButton.style.border = 'none';
+        confirmButton.style.padding = '10px 20px';
+        confirmButton.style.borderRadius = '4px';
+        confirmButton.style.cursor = 'pointer';
+        confirmButton.style.marginRight = '10px';
+
+        const cancelButton = document.createElement('button');
+        cancelButton.textContent = 'Annuler';
+        cancelButton.style.backgroundColor = '#f44336';
+        cancelButton.style.color = '#fff';
+        cancelButton.style.border = 'none';
+        cancelButton.style.padding = '10px 20px';
+        cancelButton.style.borderRadius = '4px';
+        cancelButton.style.cursor = 'pointer';
+
+        // Ajouter les boutons et le message à l'alerte
+        alertBox.appendChild(alertMessage);
+        alertBox.appendChild(confirmButton);
+        alertBox.appendChild(cancelButton);
+        alertOverlay.appendChild(alertBox);
+        document.body.appendChild(alertOverlay);
+
+        // Actions des boutons
+        confirmButton.addEventListener('click', () => {
+            // Rediriger vers l'URL de suppression
+            window.location.href = deleteUrl;
+
+            // Supprimer l'alerte
+            document.body.removeChild(alertOverlay);
+
+            // Afficher une alerte de confirmation
+            showAlert('L\'article a été supprimé avec succès.', 'success');
+        });
+
+        cancelButton.addEventListener('click', () => {
+            // Supprimer l'alerte
+            document.body.removeChild(alertOverlay);
+        });
+    }
+
+    function showAlert(message, type) {
+        const alert = document.createElement('div');
+        alert.className = `alert alert-${type}`;
+        alert.innerHTML = `
+            <span class="close-alert">&times;</span>
+            <p>${message}</p>
+        `;
+
+        document.body.appendChild(alert);
+
+        // Fermer l'alerte après 3 secondes
+        setTimeout(() => {
+            alert.style.opacity = '0';
+            setTimeout(() => alert.remove(), 300);
+        }, 3000);
+
+        // Ajouter un bouton pour fermer l'alerte
+        alert.querySelector('.close-alert').addEventListener('click', () => {
+            alert.style.opacity = '0';
+            setTimeout(() => alert.remove(), 300);
+        });
+    }
+</script>
+<script>
+    document.addEventListener('DOMContentLoaded', () => {
+        const commentForms = document.querySelectorAll('form[action*="comment_add"]');
+        commentForms.forEach(form => {
+            form.addEventListener('submit', (event) => {
+                const textarea = form.querySelector('textarea[name="content"]');
+                const comment = textarea.value.trim();
+                const wordCount = comment.split(/\s+/).filter(word => word.length > 0).length;
+
+                if (wordCount < 3) {
+                    event.preventDefault();
+                    showAlert('Votre commentaire doit contenir au moins 3 mots.', 'error');
+                }
+            });
+        });
+    });
+
+    function showAlert(message, type) {
+        const alert = document.createElement('div');
+        alert.className = `alert alert-${type}`;
+        alert.textContent = message;
+
+        document.body.appendChild(alert);
+
+        setTimeout(() => {
+            alert.remove();
+        }, 3000);
+    }
+    document.addEventListener('DOMContentLoaded', () => {
+    document.querySelectorAll('.close-alert').forEach(btn => {
+        btn.addEventListener('click', () => {
+            const alert = btn.closest('.alert');
+            alert.style.opacity = '0';
+            setTimeout(() => alert.remove(), 300);
+        });
+    });
+});
+</script>
+{% block javascripts %}{% endblock %}
+</body>
 </html>
