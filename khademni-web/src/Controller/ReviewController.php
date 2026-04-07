@@ -58,6 +58,7 @@ class ReviewController extends AbstractController
             ];
         } else {
             $selectedTarget = $this->resolveSelectedTarget($request->query->getInt('selected_user'), $user, $userRepository);
+            $formData['freelancer_id'] = $selectedTarget?->getId();
             $searchResults = $this->loadSearchResults($userSearch, $user, $userRepository, $selectedTarget);
         }
 
