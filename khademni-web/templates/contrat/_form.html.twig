@@ -1,0 +1,48 @@
+{{ form_start(form) }}
+    <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 20px;">
+        <div>
+            {{ form_label(form.clientId) }}
+            {{ form_widget(form.clientId) }}
+            {{ form_errors(form.clientId) }}
+        </div>
+        <div>
+            {{ form_label(form.freelancerId) }}
+            {{ form_widget(form.freelancerId) }}
+            {{ form_errors(form.freelancerId) }}
+        </div>
+    </div>
+    
+    <div style="margin-top: 15px;">
+        {{ form_label(form.titre) }}
+        {{ form_widget(form.titre) }}
+        {{ form_errors(form.titre) }}
+    </div>
+    
+    <div style="margin-top: 15px;">
+        {{ form_label(form.description) }}
+        {{ form_widget(form.description) }}
+        {{ form_errors(form.description) }}
+    </div>
+    
+    <div style="display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 20px; margin-top: 15px;">
+        <div>
+            {{ form_label(form.prix) }}
+            {{ form_widget(form.prix) }}
+            {{ form_errors(form.prix) }}
+        </div>
+        <div>
+            {{ form_label(form.dateContrat) }}
+            {{ form_widget(form.dateContrat) }}
+            {{ form_errors(form.dateContrat) }}
+        </div>
+        <div>
+            {{ form_label(form.numTelephone) }}
+            {{ form_widget(form.numTelephone) }}
+            {{ form_errors(form.numTelephone) }}
+        </div>
+    </div>
+    
+    <div style="margin-top: 30px; text-align: right;">
+        <button class="button-primary">{{ button_label|default('Enregistrer') }}</button>
+    </div>
+{{ form_end(form) }}

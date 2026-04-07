@@ -1,0 +1,76 @@
+{% extends 'base.html.twig' %}
+
+{% block title %}Contrats{% endblock %}
+
+{% block stylesheets %}
+    {{ parent() }}
+    <link rel="stylesheet" href="{{ asset('css/contrat_web.css') }}">
+{% endblock %}
+
+{% block body %}
+<div class="bento-root">
+    <div class="top-bar">
+        <div>
+            <span class="kinetic-label-small">SaaS 2026 // BENTO</span>
+            <h1 class="bento-title">Contrats</h1>
+        </div>
+        
+        <div style="display: flex; gap: 15px; align-items: center;">
+            <a href="{{ path('app_home') }}" class="button-primary" style="background-color: #1a1a1a;">🏠 Accueil</a>
+            <form method="get" action="{{ path('app_contrat_index') }}">
+                <div class="floating-search" style="margin-bottom: 0;">
+                    <input type="text" name="search" value="{{ search }}" placeholder="Rechercher des contrats...">
+                    <button type="submit" style="background: none; border: none; cursor: pointer;">🔍</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <div class="flex-between" style="margin-bottom: 24px;">
+        <span style="color: #6b7280; font-weight: 500;">{{ contrats|length }} contrats trouvés</span>
+        <a href="{{ path('app_contrat_new') }}" class="button-primary">+ Nouveau Contrat</a>
+    </div>
+
+    <div class="bento-grid-container">
+        {% for contrat in contrats %}
+            <div class="glass-card">
+                <div class="flex-between" style="margin-bottom: 15px;">
+                    <span class="squishy-badge {{ contrat.statut == 'PAYE' ? 'success' : 'warning' }}">
+                        {{ contrat.statut }}
+                    </span>
+                    <span style="font-size: 13px; color: #9ca3af; font-weight: 600;">#{{ contrat.id }}</span>
+                </div>
+                
+                <h2 class="bento-card-title">{{ contrat.titre }}</h2>
+                <div class="kinetic-label-small">
+                    CLIENT: {{ contrat.clientId }} | FREELANCER: {{ contrat.freelancerId }}
+                </div>
+                
+                <p class="bento-card-desc">
+                    {{ contrat.description|slice(0, 80) }}{{ contrat.description|length > 80 ? '...' : '' }}
+                </p>
+                
+                <div style="margin-bottom: 20px;">
+                    <span style="font-size: 13px; color: #6b7280;">Date: {{ contrat.dateContrat ? contrat.dateContrat|date('d/m/Y') : '' }}</span>
+                </div>
+                
+                <div class="flex-between">
+                    <span class="cyber-price">{{ contrat.prix }} TND</span>
+                    
+                    <div style="display: flex; gap: 8px;">
+                        <a href="{{ path('app_contrat_edit', {'id': contrat.id}) }}" class="button-primary" style="height: 35px; padding: 0 15px; font-size: 13px;">✏️ Editer</a>
+                        {% if contrat.statut != 'PAYE' %}
+                            <a href="{{ path('app_contrat_pay', {'id': contrat.id}) }}" class="button-primary" style="height: 35px; padding: 0 15px; font-size: 13px; background-color: #10b981;">💳 Payer</a>
+                        {% endif %}
+                        <a href="{{ path('app_contrat_export_pdf', {'id': contrat.id}) }}" target="_blank" class="button-primary" style="height: 35px; padding: 0 15px; font-size: 13px; background-color: #3b82f6;">📄 PDF</a>
+                    </div>
+                </div>
+            </div>
+        {% else %}
+            <div class="glass-card" style="grid-column: 1 / -1; text-align: center; padding: 50px;">
+                <p style="color: #9ca3af; font-size: 18px;">Aucun contrat trouvé.</p>
+            </div>
+        {% endfor %}
+    </div>
+</div>
+{% endblock %}
