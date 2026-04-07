@@ -51,4 +51,22 @@ class UserRepository extends ServiceEntityRepository
             ->getQuery()
             ->getResult();
     }
+
+    /**
+     * @return User[]
+     */
+    public function searchAdminUsers(string $query): array
+    {
+        $pattern = '%'.strtolower(trim($query)).'%';
+
+        return $this->createQueryBuilder('user')
+            ->andWhere('LOWER(user.firstName) LIKE :pattern OR LOWER(user.lastName) LIKE :pattern OR LOWER(user.email) LIKE :pattern OR LOWER(CONCAT(user.firstName, :space, user.lastName)) LIKE :pattern')
+            ->setParameter('pattern', $pattern)
+            ->setParameter('space', ' ')
+            ->orderBy('user.firstName', 'ASC')
+            ->addOrderBy('user.lastName', 'ASC')
+            ->addOrderBy('user.id', 'ASC')
+            ->getQuery()
+            ->getResult();
+    }
 }

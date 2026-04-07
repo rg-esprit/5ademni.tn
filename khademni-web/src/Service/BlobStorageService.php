@@ -32,20 +32,43 @@ class BlobStorageService
         $extension = $file->guessExtension();
         $pathname = 'avatars/'.bin2hex(random_bytes(16)).($extension ? '.'.$extension : '');
 
-        $response = $this->httpClient->request('PUT', self::API_URL.'/?pathname='.$pathname, [
-            'headers' => [
-                'Authorization' => 'Bearer '.$this->blobReadWriteToken,
-                'x-api-version' => '12',
-                'x-vercel-blob-access' => 'private',
-                'x-content-type' => $file->getMimeType() ?: 'application/octet-stream',
-                'Content-Type' => 'application/octet-stream',
-            ],
-            'body' => fopen($file->getPathname(), 'rb'),
-        ]);
+        $response = null;
+        $statusCode = 0;
 
-        $statusCode = $response->getStatusCode();
+        for ($attempt = 1; $attempt <= 3; ++$attempt) {
+            try {
+                $response = $this->httpClient->request('PUT', self::API_URL.'/?pathname='.$pathname, [
+                    'headers' => [
+                        'Authorization' => 'Bearer '.$this->blobReadWriteToken,
+                        'x-api-version' => '12',
+                        'x-vercel-blob-access' => 'private',
+                        'x-content-type' => $file->getMimeType() ?: 'application/octet-stream',
+                        'Content-Type' => 'application/octet-stream',
+                    ],
+                    'body' => fopen($file->getPathname(), 'rb'),
+                ]);
 
-        if (!in_array($statusCode, [200, 201], true)) {
+                $statusCode = $response->getStatusCode();
+            } catch (TransportExceptionInterface $exception) {
+                if ($attempt < 3) {
+                    continue;
+                }
+
+                throw new \RuntimeException('Avatar upload failed because Vercel Blob is unreachable.', previous: $exception);
+            }
+
+            if (in_array($statusCode, [200, 201], true)) {
+                break;
+            }
+
+            if ($attempt < 3 && (429 === $statusCode || $statusCode >= 500)) {
+                continue;
+            }
+
+            throw new \RuntimeException('Avatar upload failed with HTTP '.$statusCode.'.');
+        }
+
+        if (null === $response || !in_array($statusCode, [200, 201], true)) {
             throw new \RuntimeException('Avatar upload failed with HTTP '.$statusCode.'.');
         }
 

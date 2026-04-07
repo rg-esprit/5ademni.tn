@@ -109,21 +109,17 @@ textarea {
 }
 
 .brand-mark {
-    display: inline-grid;
-    place-items: center;
+    display: block;
     width: 42px;
     height: 42px;
-    border-radius: 14px;
-    background: linear-gradient(135deg, var(--primary), #9f72ff);
-    color: #fff;
-    font-weight: 800;
-    box-shadow: 0 18px 30px rgba(108, 13, 242, 0.25);
+    flex-shrink: 0;
+    object-fit: contain;
+    filter: drop-shadow(0 16px 24px rgba(108, 13, 242, 0.22));
 }
 
 .brand-mark-large {
     width: 56px;
     height: 56px;
-    font-size: 1.2rem;
 }
 
 .auth-brand h1,
@@ -769,6 +765,74 @@ textarea {
     flex-wrap: wrap;
 }
 
+.checkbox-row {
+    display: grid;
+    grid-template-columns: auto minmax(0, 1fr);
+    gap: 12px;
+    align-items: start;
+}
+
+.checkbox-row input {
+    margin-top: 4px;
+}
+
+.checkbox-help,
+.admin-user-note,
+.admin-user-meta {
+    margin: 0;
+    color: var(--muted);
+}
+
+.checkbox-help {
+    font-size: 0.92rem;
+}
+
+.admin-user-badges,
+.admin-user-meta {
+    display: flex;
+    gap: 10px;
+    flex-wrap: wrap;
+}
+
+.admin-user-meta {
+    margin-top: 14px;
+    font-size: 0.95rem;
+}
+
+.status-pill {
+    display: inline-flex;
+    align-items: center;
+    min-height: 32px;
+    padding: 0 12px;
+    border-radius: 999px;
+    background: rgba(108, 13, 242, 0.08);
+    color: #47256f;
+    font-size: 0.88rem;
+    font-weight: 700;
+}
+
+.status-pill-primary {
+    background: rgba(108, 13, 242, 0.14);
+}
+
+.status-pill-accent {
+    background: rgba(15, 23, 42, 0.08);
+    color: #0f172a;
+}
+
+.admin-user-card-grid {
+    gap: 14px;
+}
+
+.admin-user-card-top,
+.admin-user-card-actions {
+    justify-content: space-between;
+}
+
+.admin-user-card form {
+    margin: 0;
+}
+
 .review-stars-inline {
     margin-top: 4px;
     color: #f59e0b;
@@ -860,6 +924,10 @@ ul {
     .selected-user-card {
         align-items: flex-start;
         flex-direction: column;
+    }
+
+    .checkbox-row {
+        grid-template-columns: 1fr;
     }
 
     .review-ai-row,

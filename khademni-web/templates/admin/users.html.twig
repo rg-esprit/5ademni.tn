@@ -1,0 +1,210 @@
+{% extends 'base.html.twig' %}
+
+{% block title %}Users Admin | 5ademni.tn{% endblock %}
+
+{% block body %}
+    <div class="page-shell">
+        {% include 'partials/_header.html.twig' %}
+
+        <main class="page-content">
+            <section class="review-hero admin-user-hero">
+                <div>
+                    <p class="eyebrow">Admin Backoffice</p>
+                    <h1>Users Dashboard</h1>
+                    <p class="placeholder-copy">Create accounts, update key profile fields, and remove users from one small admin area.</p>
+                </div>
+
+                <div class="review-metrics">
+                    <div class="profile-stat">
+                        <span>Total Users</span>
+                        <strong>{{ user_stats.total }}</strong>
+                    </div>
+                    <div class="profile-stat">
+                        <span>Admins</span>
+                        <strong>{{ user_stats.admins }}</strong>
+                    </div>
+                    <div class="profile-stat">
+                        <span>Face ID Enrolled</span>
+                        <strong>{{ user_stats.face_enrolled }}</strong>
+                    </div>
+                </div>
+            </section>
+
+            <section class="profile-layout review-layout admin-user-layout">
+                <article class="panel review-form-panel admin-user-form-panel">
+                    <div class="panel-heading">
+                        <h2>{{ editing_user ? 'Edit User' : 'Create User' }}</h2>
+                        <p>
+                            {% if editing_user %}
+                                Updating {{ editing_user.displayName ?: editing_user.email }}.
+                            {% else %}
+                                Add a new user account directly from the backoffice.
+                            {% endif %}
+                        </p>
+                    </div>
+
+                    {{ form_start(admin_user_form, {
+                        action: path('app_admin_users', editing_user ? {edit: editing_user.id, q: search_query} : (search_query ? {q: search_query} : {})),
+                        attr: {class: 'form-grid'}
+                    }) }}
+                        <div class="form-row-two">
+                            <div class="field-group">
+                                {{ form_label(admin_user_form.firstName) }}
+                                {{ form_widget(admin_user_form.firstName, {attr: {class: 'text-input'}}) }}
+                                {{ form_errors(admin_user_form.firstName) }}
+                            </div>
+                            <div class="field-group">
+                                {{ form_label(admin_user_form.lastName) }}
+                                {{ form_widget(admin_user_form.lastName, {attr: {class: 'text-input'}}) }}
+                                {{ form_errors(admin_user_form.lastName) }}
+                            </div>
+                        </div>
+
+                        <div class="form-row-two">
+                            <div class="field-group">
+                                {{ form_label(admin_user_form.email) }}
+                                {{ form_widget(admin_user_form.email, {attr: {class: 'text-input'}}) }}
+                                {{ form_errors(admin_user_form.email) }}
+                            </div>
+                            <div class="field-group">
+                                {{ form_label(admin_user_form.dateOfBirth) }}
+                                {{ form_widget(admin_user_form.dateOfBirth, {attr: {class: 'text-input'}}) }}
+                                {{ form_errors(admin_user_form.dateOfBirth) }}
+                            </div>
+                        </div>
+
+                        <div class="form-row-two">
+                            <div class="field-group">
+                                {{ form_label(admin_user_form.balance) }}
+                                {{ form_widget(admin_user_form.balance, {attr: {class: 'text-input'}}) }}
+                                {{ form_errors(admin_user_form.balance) }}
+                            </div>
+                            <div class="field-group">
+                                {{ form_label(admin_user_form.profileImg) }}
+                                {{ form_widget(admin_user_form.profileImg, {attr: {class: 'text-input', placeholder: 'https://...'}}) }}
+                                {{ form_errors(admin_user_form.profileImg) }}
+                            </div>
+                        </div>
+
+                        <div class="field-group">
+                            {{ form_label(admin_user_form.bio) }}
+                            {{ form_widget(admin_user_form.bio, {attr: {class: 'textarea-input'}}) }}
+                            {{ form_errors(admin_user_form.bio) }}
+                        </div>
+
+                        <div class="form-row-two">
+                            <div class="field-group">
+                                {{ form_label(admin_user_form.plainPassword.first) }}
+                                {{ form_widget(admin_user_form.plainPassword.first, {attr: {class: 'text-input'}}) }}
+                                {{ form_errors(admin_user_form.plainPassword.first) }}
+                            </div>
+                            <div class="field-group">
+                                {{ form_label(admin_user_form.plainPassword.second) }}
+                                {{ form_widget(admin_user_form.plainPassword.second, {attr: {class: 'text-input'}}) }}
+                                {{ form_errors(admin_user_form.plainPassword.second) }}
+                            </div>
+                        </div>
+                        {{ form_errors(admin_user_form.plainPassword) }}
+
+                        <div class="checkbox-row">
+                            {{ form_widget(admin_user_form.isAdmin) }}
+                            <div>
+                                {{ form_label(admin_user_form.isAdmin) }}
+                                <p class="checkbox-help">Grant access to admin-only web routes and backoffice pages.</p>
+                                {{ form_errors(admin_user_form.isAdmin) }}
+                            </div>
+                        </div>
+
+                        <div class="checkbox-row">
+                            {{ form_widget(admin_user_form.clearFaceEmbedding) }}
+                            <div>
+                                {{ form_label(admin_user_form.clearFaceEmbedding) }}
+                                <p class="checkbox-help">
+                                    {% if editing_user and editing_user.hasFaceEnrollment %}
+                                        This user currently has Face ID data saved.
+                                    {% else %}
+                                        No Face ID data is currently stored for this user.
+                                    {% endif %}
+                                </p>
+                                {{ form_errors(admin_user_form.clearFaceEmbedding) }}
+                            </div>
+                        </div>
+
+                        <div class="inline-actions">
+                            {% if editing_user %}
+                                <a class="ghost-button" href="{{ path('app_admin_users', search_query ? {q: search_query} : {}) }}">Cancel</a>
+                            {% endif %}
+                            <button class="primary-button" type="submit">{{ editing_user ? 'Save User' : 'Create User' }}</button>
+                        </div>
+                    {{ form_end(admin_user_form) }}
+                </article>
+
+                <aside class="sidebar-stack admin-user-sidebar">
+                    <section class="panel">
+                        <div class="panel-heading">
+                            <h2>Manage Users</h2>
+                            <p>Search by name or email, then edit or remove accounts.</p>
+                        </div>
+
+                        <form method="get" action="{{ path('app_admin_users') }}" class="review-search-form admin-user-search-form">
+                            <div class="review-search-row">
+                                <input class="text-input" type="search" name="q" value="{{ search_query }}" placeholder="Search users by name or email">
+                                <button class="secondary-button review-search-button" type="submit">Search</button>
+                            </div>
+                        </form>
+
+                        <div class="review-card-grid admin-user-card-grid">
+                            {% for managed_user in listed_users %}
+                                <article class="review-card admin-user-card">
+                                    <div class="review-card-top review-card-top-actions admin-user-card-top">
+                                        <div class="review-card-head">
+                                            <span class="review-card-avatar">{{ managed_user.initials }}</span>
+                                            <div class="selected-user-copy">
+                                                <strong>{{ managed_user.displayName ?: managed_user.email }}</strong>
+                                                <small>{{ managed_user.email }}</small>
+                                            </div>
+                                        </div>
+
+                                        <div class="admin-user-badges">
+                                            <span class="status-pill {{ managed_user.isAdmin ? 'status-pill-primary' : '' }}">{{ managed_user.isAdmin ? 'Admin' : 'User' }}</span>
+                                            <span class="status-pill">{{ managed_user.hasFaceEnrollment ? 'Face ID' : 'No Face ID' }}</span>
+                                            {% if app.user and managed_user.id == app.user.id %}
+                                                <span class="status-pill status-pill-accent">You</span>
+                                            {% endif %}
+                                        </div>
+                                    </div>
+
+                                    <div class="admin-user-meta">
+                                        <span>ID #{{ managed_user.id }}</span>
+                                        <span>Born {{ managed_user.dateOfBirth ? managed_user.dateOfBirth|date('Y-m-d') : 'n/a' }}</span>
+                                        <span>Balance ${{ managed_user.balance|number_format(2, '.', ',') }}</span>
+                                    </div>
+
+                                    {% if managed_user.bio %}
+                                        <p>{{ managed_user.bio }}</p>
+                                    {% endif %}
+
+                                    <div class="review-card-actions admin-user-card-actions">
+                                        <a class="ghost-button" href="{{ path('app_admin_users', {edit: managed_user.id, q: search_query}) }}">Edit</a>
+
+                                        {% if app.user and managed_user.id == app.user.id %}
+                                            <span class="admin-user-note">Delete your own account from the profile page.</span>
+                                        {% else %}
+                                            <form method="post" action="{{ path('app_admin_users_delete', {id: managed_user.id}) }}">
+                                                <input type="hidden" name="_token" value="{{ csrf_token('delete_admin_user_' ~ managed_user.id) }}">
+                                                <input type="hidden" name="q" value="{{ search_query }}">
+                                                <button class="danger-button" type="submit">Delete</button>
+                                            </form>
+                                        {% endif %}
+                                    </div>
+                                </article>
+                            {% else %}
+                                <p class="empty-state">No users match the current search.</p>
+                            {% endfor %}
+                        </div>
+                    </section>
+                </aside>
+            </section>
+        </main>
+    </div>
+{% endblock %}
