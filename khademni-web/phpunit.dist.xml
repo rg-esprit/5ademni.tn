@@ -15,6 +15,10 @@
         <ini name="error_reporting" value="-1" />
         <server name="APP_ENV" value="test" force="true" />
         <server name="SHELL_VERBOSITY" value="-1" />
+
+        <!-- ###+ stripe/stripe-php ### -->
+        <env name="STRIPE_SECRET_KEY" value="sk_test_***"/>
+        <!-- ###- stripe/stripe-php ### -->
     </php>
 
     <testsuites>

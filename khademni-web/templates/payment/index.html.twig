@@ -1,0 +1,56 @@
+{% extends 'base.html.twig' %}
+
+{% block title %}Paiements{% endblock %}
+
+{% block stylesheets %}
+    {{ parent() }}
+    <link rel="stylesheet" href="{{ asset('css/contrat_web.css') }}">
+{% endblock %}
+
+{% block body %}
+<div class="bento-root">
+    <div class="top-bar">
+        <div>
+            <span class="kinetic-label-small">SaaS 2026 // PAYMENTS</span>
+            <h1 class="bento-title">Historique des Paiements</h1>
+        </div>
+        <a href="{{ path('app_contrat_index') }}" class="button-primary" style="background-color: #6c5ce7;">Contrats</a>
+    </div>
+
+    <div class="glass-card" style="padding: 0; overflow: hidden;">
+        <table style="width: 100%; border-collapse: collapse;">
+            <thead style="background-color: #f9fafb;">
+                <tr>
+                    <th style="padding: 16px; text-align: left; font-size: 12px; font-weight: 700; color: #6b7280; text-transform: uppercase;">ID</th>
+                    <th style="padding: 16px; text-align: left; font-size: 12px; font-weight: 700; color: #6b7280; text-transform: uppercase;">Contrat</th>
+                    <th style="padding: 16px; text-align: left; font-size: 12px; font-weight: 700; color: #6b7280; text-transform: uppercase;">Montant</th>
+                    <th style="padding: 16px; text-align: left; font-size: 12px; font-weight: 700; color: #6b7280; text-transform: uppercase;">Status</th>
+                    <th style="padding: 16px; text-align: left; font-size: 12px; font-weight: 700; color: #6b7280; text-transform: uppercase;">Date</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for payment in payments %}
+                    <tr style="border-top: 1px solid #f3f4f6;">
+                        <td style="padding: 16px; font-size: 14px; color: #1a1a1a;">#{{ payment.id }}</td>
+                        <td style="padding: 16px; font-size: 14px; color: #1a1a1a;">
+                            {{ payment.contrat ? payment.contrat.titre : 'N/A' }} 
+                            <span style="color: #9ca3af; font-size: 12px;">(#{{ payment.contrat ? payment.contrat.id : '?' }})</span>
+                        </td>
+                        <td style="padding: 16px; font-size: 14px; font-weight: 700; color: #6c5ce7;">{{ payment.amount }} TND</td>
+                        <td style="padding: 16px;">
+                            <span class="squishy-badge {{ payment.status == 'PAID' ? 'success' : 'warning' }}">
+                                {{ payment.status }}
+                            </span>
+                        </td>
+                        <td style="padding: 16px; font-size: 14px; color: #6b7280;">{{ payment.createdAt ? payment.createdAt|date('d/m/Y H:i') : '' }}</td>
+                    </tr>
+                {% else %}
+                    <tr>
+                        <td colspan="5" style="padding: 40px; text-align: center; color: #9ca3af;">Aucun paiement enregistré.</td>
+                    </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+</div>
+{% endblock %}

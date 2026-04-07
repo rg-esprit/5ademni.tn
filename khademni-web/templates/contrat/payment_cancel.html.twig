@@ -1,0 +1,25 @@
+{% extends 'base.html.twig' %}
+
+{% block title %}Paiement Annulé{% endblock %}
+
+{% block stylesheets %}
+    {{ parent() }}
+    <link rel="stylesheet" href="{{ asset('css/contrat_web.css') }}">
+{% endblock %}
+
+{% block body %}
+<div class="bento-root" style="display: flex; justify-content: center; align-items: center; min-height: 80vh;">
+    <div class="glass-card" style="text-align: center; max-width: 500px; padding: 50px;">
+        <div style="font-size: 60px; margin-bottom: 20px;">❌</div>
+        <h1 class="bento-card-title" style="color: #ef4444; font-size: 32px;">Paiement Annulé</h1>
+        <p class="bento-card-desc" style="font-size: 16px; margin-top: 20px;">
+            Le processus de paiement pour le contrat <strong>#{{ contrat.id }}</strong> a été annulé ou a échoué. Aucun montant n'a été débité.
+        </p>
+        
+        <div style="margin-top: 40px;">
+            <a href="{{ path('app_contrat_index') }}" class="button-primary" style="background-color: #6c5ce7;">← Retour aux contrats</a>
+            <a href="{{ path('app_contrat_pay', {'id': contrat.id}) }}" class="button-primary" style="background-color: #10b981; margin-left: 10px;">💳  Réessayer</a>
+        </div>
+    </div>
+</div>
+{% endblock %}
