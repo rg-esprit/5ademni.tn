@@ -7,6 +7,7 @@ use App\Entity\JobApplication;
 use App\Entity\User;
 use App\Repository\JobApplicationRepository;
 use App\Repository\JobRepository;
+use App\Repository\WorkLogRepository;
 use Doctrine\ORM\EntityManagerInterface;
 use Symfony\Bundle\FrameworkBundle\Controller\AbstractController;
 use Symfony\Component\HttpFoundation\Request;
@@ -24,8 +25,13 @@ class JobManagementController extends AbstractController
             return $this->redirectToRoute('app_login');
         }
 
-        $jobs = $jobRepository->findPostedByUser($user);
-        $totalSaves = $jobRepository->countTotalSavesForUserJobs($user);
+        if ($this->isGranted('ROLE_ADMIN')) {
+            $jobs = $jobRepository->findBy([], ['postedDate' => 'DESC']);
+            $totalSaves = $jobRepository->countAllSaves();
+        } else {
+            $jobs = $jobRepository->findPostedByUser($user);
+            $totalSaves = $jobRepository->countTotalSavesForUserJobs($user);
+        }
 
         return $this->render('job_management/index.html.twig', [
             'jobs' => $jobs,
@@ -34,10 +40,10 @@ class JobManagementController extends AbstractController
     }
 
     #[Route('/{id<\d+>}/applications', name: 'app_management_job_applications', methods: ['GET'])]
-    public function jobApplications(Job $job, JobApplicationRepository $applicationRepository): Response
+    public function jobApplications(Job $job, JobApplicationRepository $applicationRepository, WorkLogRepository $workLogRepository): Response
     {
         $user = $this->getUser();
-        if (!$user instanceof User || $job->getUser() !== $user) {
+        if (!$user instanceof User || (!$this->isGranted('ROLE_ADMIN') && $job->getUser() !== $user)) {
             throw $this->createAccessDeniedException('You are not allowed to view these applications.');
         }
 
@@ -53,7 +59,7 @@ class JobManagementController extends AbstractController
 
         $totalProgress = 0;
         if ($acceptedApp) {
-            $totalProgress = $this->container->get('App\Repository\WorkLogRepository')->getTotalProgressForJobAndFreelancer($job, $acceptedApp->getUser());
+            $totalProgress = $workLogRepository->getTotalProgressForJobAndFreelancer($job, $acceptedApp->getUser());
         }
 
         return $this->render('job_management/applications.html.twig', [
@@ -70,7 +76,7 @@ class JobManagementController extends AbstractController
         $user = $this->getUser();
         $job = $application->getJob();
 
-        if (!$user instanceof User || $job->getUser() !== $user) {
+        if (!$user instanceof User || (!$this->isGranted('ROLE_ADMIN') && $job->getUser() !== $user)) {
             throw $this->createAccessDeniedException('You are not allowed to manage this application.');
         }
 

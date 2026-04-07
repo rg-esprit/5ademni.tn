@@ -81,49 +81,64 @@ class JobController extends AbstractController
         $form = $this->createForm(JobType::class, $job);
         $form->handleRequest($request);
 
+        $backUrl = $request->query->get('back_url', $request->headers->get('referer', $this->generateUrl('app_management_jobs_index')));
+
         if ($form->isSubmitted() && $form->isValid()) {
             $entityManager->persist($job);
             $entityManager->flush();
 
             $this->addFlash('success', 'Job posting created successfully.');
 
-            return $this->redirectToRoute('app_management_jobs_index', [], Response::HTTP_SEE_OTHER);
+            return $this->redirect($request->request->get('back_url', $backUrl));
         }
 
         return $this->render('job/form.html.twig', [
-            'job'     => $job,
-            'form'    => $form->createView(),
-            'is_edit' => false,
+            'job'      => $job,
+            'form'     => $form->createView(),
+            'is_edit'  => false,
+            'back_url' => $backUrl,
         ]);
     }
 
     #[Route('/{id<\d+>}', name: 'app_job_show', methods: ['GET'])]
-    public function show(Job $job): Response
+    public function show(Job $job, JobApplicationRepository $applicationRepository): Response
     {
-        return $this->render('job/show.html.twig', ['job' => $job]);
+        $user = $this->getUser();
+        $existingApplication = null;
+        if ($user instanceof User) {
+            $existingApplication = $applicationRepository->findByJobAndUser($job, $user);
+        }
+
+        return $this->render('job/show.html.twig', [
+            'job' => $job,
+            'existing_application' => $existingApplication,
+        ]);
     }
 
     #[Route('/{id<\d+>}/edit', name: 'app_job_edit', methods: ['GET', 'POST'])]
     public function edit(Request $request, Job $job, EntityManagerInterface $entityManager): Response
     {
         $user = $this->getUser();
-        if (!$user instanceof User || $job->getUser() !== $user) {
+        if (!$user instanceof User || (!$this->isGranted('ROLE_ADMIN') && $job->getUser() !== $user)) {
             throw $this->createAccessDeniedException('You are not allowed to edit this job posting.');
         }
 
         $form = $this->createForm(JobType::class, $job);
         $form->handleRequest($request);
 
+        $backUrl = $request->query->get('back_url', $request->headers->get('referer', $this->generateUrl('app_management_jobs_index')));
+
         if ($form->isSubmitted() && $form->isValid()) {
             $entityManager->flush();
             $this->addFlash('success', 'Job posting updated successfully.');
-            return $this->redirectToRoute('app_management_jobs_index', [], Response::HTTP_SEE_OTHER);
+            return $this->redirect($request->request->get('back_url', $backUrl));
         }
 
         return $this->render('job/form.html.twig', [
-            'job'     => $job,
-            'form'    => $form->createView(),
-            'is_edit' => true,
+            'job'      => $job,
+            'form'     => $form->createView(),
+            'is_edit'  => true,
+            'back_url' => $backUrl,
         ]);
     }
 
@@ -131,9 +146,11 @@ class JobController extends AbstractController
     public function delete(Request $request, Job $job, EntityManagerInterface $entityManager): Response
     {
         $user = $this->getUser();
-        if (!$user instanceof User || $job->getUser() !== $user) {
+        if (!$user instanceof User || (!$this->isGranted('ROLE_ADMIN') && $job->getUser() !== $user)) {
             throw $this->createAccessDeniedException('You are not allowed to delete this job posting.');
         }
+
+        $referer = $request->headers->get('referer', $this->generateUrl('app_management_jobs_index'));
 
         if ($this->isCsrfTokenValid('delete' . $job->getId(), $request->request->get('_token'))) {
             $entityManager->remove($job);
@@ -141,7 +158,7 @@ class JobController extends AbstractController
             $this->addFlash('success', 'Job posting deleted successfully.');
         }
 
-        return $this->redirectToRoute('app_management_jobs_index', [], Response::HTTP_SEE_OTHER);
+        return $this->redirect($referer);
     }
 
     #[Route('/{id<\d+>}/save', name: 'app_job_save', methods: ['POST'])]

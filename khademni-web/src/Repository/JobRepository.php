@@ -37,12 +37,14 @@ class JobRepository extends ServiceEntityRepository
     ): array {
         $qb = $this->createQueryBuilder('j')
             ->leftJoin('j.applications', 'a')
-            ->addSelect('COUNT(a.id) AS HIDDEN appCount');
+            ->leftJoin('j.savedByUsers', 's')
+            ->addSelect('COUNT(DISTINCT a.id) AS HIDDEN appCount')
+            ->addSelect('COUNT(DISTINCT s.id) AS HIDDEN saveCount');
 
         if ($query !== '') {
             $pattern = '%' . strtolower($query) . '%';
             $qb->andWhere(
-                'LOWER(j.title) LIKE :q OR LOWER(j.company) LIKE :q OR LOWER(j.description) LIKE :q OR LOWER(j.requirements) LIKE :q'
+                'LOWER(j.title) LIKE :q OR LOWER(j.company) LIKE :q OR LOWER(j.location) LIKE :q'
             )->setParameter('q', $pattern);
         }
 
@@ -64,9 +66,9 @@ class JobRepository extends ServiceEntityRepository
         $qb->groupBy('j.id');
 
         match ($sort) {
-            'oldest'       => $qb->orderBy('j.postedDate', 'ASC'),
-            'most_applied' => $qb->orderBy('appCount', 'DESC'),
-            default        => $qb->orderBy('j.postedDate', 'DESC'),
+            'oldest'     => $qb->orderBy('j.postedDate', 'ASC'),
+            'most_liked' => $qb->orderBy('saveCount', 'DESC'),
+            default      => $qb->orderBy('j.postedDate', 'DESC'),
         };
 
         $results = $qb->getQuery()->getResult();
@@ -94,6 +96,16 @@ class JobRepository extends ServiceEntityRepository
             ->join('u.savedJobs', 'j')
             ->where('j.user = :owner')
             ->setParameter('owner', $user)
+            ->getQuery()
+            ->getSingleScalarResult();
+    }
+
+    public function countAllSaves(): int
+    {
+        return (int) $this->getEntityManager()->createQueryBuilder()
+            ->select('COUNT(u.id)')
+            ->from(User::class, 'u')
+            ->join('u.savedJobs', 'j')
             ->getQuery()
             ->getSingleScalarResult();
     }

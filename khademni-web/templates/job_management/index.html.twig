@@ -95,13 +95,27 @@
                         <p style="font-size:1.1rem; font-weight:800; margin:0 0 .3rem;">
                             <a href="{{ path('app_job_show', {id: job.id}) }}" style="color:#111827; text-decoration:none; transition:color .2s;" onmouseover="this.style.color='#4f46e5'" onmouseout="this.style.color='#111827'">{{ job.title }}</a>
                         </p>
-                        <p class="muted-copy" style="font-size:.88rem; margin:0 0 .75rem;">
-                            🏢 {{ job.company }} &bull; 📍 {{ job.location }} &bull; 📅 {{ job.postedDate|date('M d, Y') }}
+                        <div style="display:flex; flex-wrap:wrap; gap:.4rem 1rem; font-size:.84rem; color:#6b7280; margin:.4rem 0 .6rem;">
+                            <span>🏢 {{ job.company }}</span>
+                            <span>📍 {{ job.location }}</span>
+                            {% if job.salaryRange %}<span>💰 {{ job.salaryRange }}</span>{% endif %}
+                            <span title="{{ job.postedDate|date('M d, Y H:i') }}">🕒 {{ job.postedAgo }}</span>
+                            {% if is_granted('ROLE_ADMIN') %}
+                                <span style="background:#f3f4f6; color:#1f2937; padding:0 .4rem; border-radius:4px; font-weight:700; font-size:.75rem;">👤 Owner: {{ job.user.displayName }}</span>
+                            {% endif %}
+                        </div>
+
+                        <p style="font-size:.86rem; color:#4b5563; line-height:1.6; margin:0 0 .8rem; overflow:hidden; max-height:2.8rem;">
+                            {{ job.description|striptags|slice(0,150) ~ '...' }}
                         </p>
+
                         <div style="display:flex; gap:.5rem; flex-wrap:wrap;">
                             {% if job.jobType %}<span class="posting-badge">{{ job.jobType }}</span>{% endif %}
                             <span class="posting-badge orange">{{ job.category }}</span>
                             <span class="posting-badge" style="background:#f3f4f6; color:#4b5563;">👥 {{ job.applications|length }} Applicants</span>
+                            {% if job.hasAcceptedApplication() %}
+                                <span class="posting-badge" style="background:#dcfce7; color:#166534; border:1px solid #166534;">✅ Freelancer Hired</span>
+                            {% endif %}
                         </div>
                     </div>
 

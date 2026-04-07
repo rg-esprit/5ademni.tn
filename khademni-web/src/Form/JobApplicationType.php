@@ -16,6 +16,9 @@ class JobApplicationType extends AbstractType
 {
     public function buildForm(FormBuilderInterface $builder, array $options): void
     {
+        $application = $options['data'] ?? null;
+        $isEdit = $application && $application->getId() && $application->getCvPath();
+
         $builder
             ->add('title', TextType::class, [
                 'constraints' => [new NotBlank(['message' => 'Please enter a title for your application'])],
@@ -27,18 +30,21 @@ class JobApplicationType extends AbstractType
             ])
             ->add('cvFile', FileType::class, [
                 'label' => 'Upload CV (PDF file)',
-                'mapped' => false, // This is not mapped to the JobApplication entity natively
-                'required' => false,
-                'constraints' => [
-                    new File([
-                        'maxSize' => '5120k', // 5MB max
-                        'mimeTypes' => [
-                            'application/pdf',
-                            'application/x-pdf',
-                        ],
-                        'mimeTypesMessage' => 'Please upload a valid PDF document',
-                    ])
-                ],
+                'mapped' => false,
+                'required' => !$isEdit,
+                'constraints' => array_merge(
+                    $isEdit ? [] : [new NotBlank(['message' => 'Please upload your CV (PDF document)'])],
+                    [
+                        new File([
+                            'maxSize' => '5120k', // 5MB max
+                            'mimeTypes' => [
+                                'application/pdf',
+                                'application/x-pdf',
+                            ],
+                            'mimeTypesMessage' => 'Please upload a valid PDF document',
+                        ])
+                    ]
+                ),
             ])
         ;
     }
