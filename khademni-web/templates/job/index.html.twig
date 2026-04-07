@@ -159,7 +159,7 @@
                 <div class="search-grid" style="grid-template-columns: 2fr 1fr 1fr 1.5fr auto;">
                     <div class="sf">
                         <label for="sq">Keywords</label>
-                        <input id="sq" type="text" name="q" value="{{ query }}" placeholder="Title, company, skills, requirements...">
+                        <input id="sq" type="text" name="q" value="{{ query }}" placeholder="Title, company, location...">
                     </div>
                     <div class="sf">
                         <label for="scat">Category</label>
@@ -245,7 +245,7 @@
                     <select id="sort" name="sort" onchange="this.form.submit()" style="padding:.4rem .8rem; border:1.5px solid #e5e7eb; border-radius:.5rem; font-size:.85rem; outline:none; background:#fff; cursor:pointer;">
                         <option value="newest" {% if sort == 'newest' %}selected{% endif %}>Newest First</option>
                         <option value="oldest" {% if sort == 'oldest' %}selected{% endif %}>Oldest First</option>
-                        <option value="most_applied" {% if sort == 'most_applied' %}selected{% endif %}>Most Applied (Most Liked)</option>
+                        <option value="most_liked" {% if sort == 'most_liked' %}selected{% endif %}>Most Liked (Saved Jobs)</option>
                     </select>
                 </form>
             </div>
@@ -269,9 +269,13 @@
                                     <span title="{{ job.postedDate|date('M d, Y H:i') }}">🕒 {{ job.postedAgo }}</span>
                                 </div>
                                 <p style="font-size:.86rem;color:#4b5563;line-height:1.6;margin:.4rem 0 .65rem;overflow:hidden;max-height:2.8rem;">{{ job.description|striptags|slice(0,170) ~ '...' }}</p>
-                                <div style="display:flex;gap:.4rem;flex-wrap:wrap;">
+                                <div style="display:flex;gap:.4rem;flex-wrap:wrap;align-items:center;">
                                     {% if job.jobType %}<span class="badge">{{ job.jobType }}</span>{% endif %}
                                     <span class="badge b">{{ job.category }}</span>
+                                    <span class="badge" style="background:#f3f4f6; color:#4b5563;">👥 {{ job.applications|length }} Applicants</span>
+                                    {% if job.hasAcceptedApplication() %}
+                                        <span class="badge" style="background:#dcfce7; color:#166534; border:1px solid #166534;">✓ Work in Progress</span>
+                                    {% endif %}
                                 </div>
                             </div>
                             <div style="display:flex;flex-direction:column;align-items:flex-end;gap:.55rem;flex-shrink:0;">
@@ -374,11 +378,21 @@
                                 {% endif %}
                                 <span class="status-pill" style="color:{{ sc }}; background:{{ sbg }};">{{ app.status }}</span>
 
-                                {% if app.status == 'ACCEPTED' %}
-                                    <a class="btn-view" href="{{ path('app_job_progress', {id:app.job.id}) }}">📊 Log Progress</a>
-                                {% else %}
-                                    <a class="btn-save" href="{{ path('app_job_show', {id:app.job.id}) }}">View Job</a>
-                                {% endif %}
+                                <div style="display:flex; gap:.4rem; align-items:center;">
+                                    <a class="btn-view" href="{{ path('app_job_application_show', {id:app.id}) }}">🔍 View</a>
+                                    
+                                    {% if app.status == 'PENDING' %}
+                                        <a class="btn-save" href="{{ path('app_job_application_edit', {id:app.id}) }}" title="Edit Application">✏</a>
+                                        <form method="POST" action="{{ path('app_job_application_delete', {id:app.id}) }}" onsubmit="return confirm('Delete this application?');" style="display:inline;">
+                                            <input type="hidden" name="_token" value="{{ csrf_token('delete_application' ~ app.id) }}">
+                                            <button type="submit" class="btn-save" style="border:none; color:#dc2626;" title="Delete Application">🗑</button>
+                                        </form>
+                                    {% endif %}
+
+                                    {% if app.status == 'ACCEPTED' %}
+                                        <a class="btn-view" href="{{ path('app_job_progress', {id:app.job.id}) }}" style="background:#10b981;">📊 Progress</a>
+                                    {% endif %}
+                                </div>
                             </div>
                         </div>
                     {% endfor %}

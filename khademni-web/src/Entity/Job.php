@@ -53,6 +53,7 @@ class Job
     {
         $this->postedDate = new \DateTime();
         $this->applications = new ArrayCollection();
+        $this->savedByUsers = new ArrayCollection();
     }
 
     public function getId(): ?int
@@ -181,17 +182,31 @@ class Job
     }
 
     /**
-     * @var \Doctrine\Common\Collections\Collection<int, JobApplication>
+     * @var Collection<int, JobApplication>
      */
     #[ORM\OneToMany(mappedBy: 'job', targetEntity: JobApplication::class, cascade: ['remove'])]
-    private \Doctrine\Common\Collections\Collection $applications;
+    private Collection $applications;
 
     /**
-     * @return \Doctrine\Common\Collections\Collection<int, JobApplication>
+     * @var Collection<int, User>
      */
-    public function getApplications(): \Doctrine\Common\Collections\Collection
+    #[ORM\ManyToMany(targetEntity: User::class, mappedBy: 'savedJobs')]
+    private Collection $savedByUsers;
+
+    /**
+     * @return Collection<int, JobApplication>
+     */
+    public function getApplications(): Collection
     {
         return $this->applications;
+    }
+
+    /**
+     * @return Collection<int, User>
+     */
+    public function getSavedByUsers(): Collection
+    {
+        return $this->savedByUsers;
     }
 
     public function getPostedAgo(): string
@@ -206,5 +221,25 @@ class Job
         if ($diff->i > 0) return $diff->i . ' minute' . ($diff->i > 1 ? 's' : '') . ' ago';
         
         return 'just now';
+    }
+
+    public function hasAcceptedApplication(): bool
+    {
+        foreach ($this->applications as $application) {
+            if ($application->getStatus() === 'ACCEPTED') {
+                return true;
+            }
+        }
+        return false;
+    }
+
+    public function getAcceptedApplication(): ?JobApplication
+    {
+        foreach ($this->applications as $application) {
+            if ($application->getStatus() === 'ACCEPTED') {
+                return $application;
+            }
+        }
+        return null;
     }
 }

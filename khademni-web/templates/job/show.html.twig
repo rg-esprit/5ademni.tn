@@ -114,6 +114,23 @@
                             </div>
                             <a class="btn-primary-full" href="{{ path('app_management_job_applications', {id: job.id}) }}">📋 View Applications</a>
                             <a class="btn-ghost-full" href="{{ path('app_job_edit', {id: job.id}) }}" style="margin-top:.6rem;">✏ Edit Posting</a>
+                        {% elseif existing_application %}
+                            <div style="background:#fef3c7; border:1.5px solid #fde68a; border-radius:.6rem; padding:1.25rem; text-align:center; margin-bottom:1rem;">
+                                <div style="font-size:1.5rem; margin-bottom:.5rem;">📨</div>
+                                <h3 style="font-size:1rem; font-weight:800; color:#92400e; margin-bottom:.3rem;">Already Applied</h3>
+                                <p style="font-size:.84rem; color:#b45309; margin:0 0 1rem;">
+                                    You have already sent your application for this position. Status: <strong>{{ existing_application.status }}</strong>
+                                </p>
+                                <a class="btn-primary-full" href="{{ path('app_job_application_show', {id: existing_application.id}) }}">🔍 View My Application</a>
+                            </div>
+                        {% elseif job.hasAcceptedApplication() %}
+                            <div style="background:#f0fdf4; border:1.5px solid #bbf7d0; border-radius:.6rem; padding:1rem; text-align:center;">
+                                <div style="font-size:1.5rem; margin-bottom:.5rem;">✅</div>
+                                <h3 style="font-size:1rem; font-weight:800; color:#166534; margin-bottom:.3rem;">Position Filled</h3>
+                                <p style="font-size:.84rem; color:#14532d; margin:0;">
+                                    A freelancer has been accepted for this position. Work is currently in progress.
+                                </p>
+                            </div>
                         {% else %}
                             <a class="btn-primary-full" href="{{ path('app_job_apply', {id: job.id}) }}">🚀 Apply Now</a>
 

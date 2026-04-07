@@ -83,4 +83,99 @@ class JobApplicationController extends AbstractController
         ]);
     }
 
+    #[Route('/applications/{id<\d+>}', name: 'app_job_application_show', methods: ['GET'])]
+    public function show(JobApplication $application): Response
+    {
+        $user = $this->getUser();
+        if (!$user instanceof User || $application->getUser() !== $user) {
+            throw $this->createAccessDeniedException('You are not allowed to view this application.');
+        }
+
+        return $this->render('job_application/show.html.twig', [
+            'application' => $application,
+        ]);
+    }
+
+    #[Route('/applications/{id<\d+>}/edit', name: 'app_job_application_edit', methods: ['GET', 'POST'])]
+    public function edit(Request $request, JobApplication $application, EntityManagerInterface $entityManager, SluggerInterface $slugger): Response
+    {
+        $user = $this->getUser();
+        if (!$user instanceof User || $application->getUser() !== $user) {
+            throw $this->createAccessDeniedException('You are not allowed to edit this application.');
+        }
+
+        if ($application->getStatus() !== 'PENDING') {
+            $this->addFlash('warning', 'Only pending applications can be edited.');
+            return $this->redirectToRoute('app_job_application_show', ['id' => $application->getId()]);
+        }
+
+        $form = $this->createForm(JobApplicationType::class, $application);
+        $form->handleRequest($request);
+
+        if ($form->isSubmitted() && $form->isValid()) {
+            /** @var UploadedFile $cvFile */
+            $cvFile = $form->get('cvFile')->getData();
+
+            if ($cvFile) {
+                // Remove old CV if exists
+                if ($application->getCvPath()) {
+                    $oldCvPath = $this->getParameter('kernel.project_dir') . '/public/' . $application->getCvPath();
+                    if (file_exists($oldCvPath)) {
+                        unlink($oldCvPath);
+                    }
+                }
+
+                $originalFilename = pathinfo($cvFile->getClientOriginalName(), PATHINFO_FILENAME);
+                $safeFilename = $slugger->slug($originalFilename);
+                $newFilename = $safeFilename.'-'.uniqid().'.'.$cvFile->guessExtension();
+
+                try {
+                    $cvDirectory = $this->getParameter('kernel.project_dir') . '/public/uploads/cv';
+                    $cvFile->move($cvDirectory, $newFilename);
+                    $application->setCvPath('uploads/cv/' . $newFilename);
+                } catch (FileException $e) {
+                    $this->addFlash('error', 'There was an error uploading your CV.');
+                }
+            }
+
+            $entityManager->flush();
+            $this->addFlash('success', 'Your application has been updated successfully.');
+            return $this->redirectToRoute('app_job_applications_my');
+        }
+
+        return $this->render('job_application/edit.html.twig', [
+            'application' => $application,
+            'form' => $form->createView(),
+        ]);
+    }
+
+    #[Route('/applications/{id<\d+>}/delete', name: 'app_job_application_delete', methods: ['POST'])]
+    public function delete(Request $request, JobApplication $application, EntityManagerInterface $entityManager): Response
+    {
+        $user = $this->getUser();
+        if (!$user instanceof User || $application->getUser() !== $user) {
+            throw $this->createAccessDeniedException('You are not allowed to delete this application.');
+        }
+
+        if ($application->getStatus() !== 'PENDING') {
+            $this->addFlash('warning', 'Only pending applications can be deleted.');
+            return $this->redirectToRoute('app_job_applications_my');
+        }
+
+        if ($this->isCsrfTokenValid('delete_application' . $application->getId(), $request->request->get('_token'))) {
+            // Remove CV file if exists
+            if ($application->getCvPath()) {
+                $cvPath = $this->getParameter('kernel.project_dir') . '/public/' . $application->getCvPath();
+                if (file_exists($cvPath)) {
+                    unlink($cvPath);
+                }
+            }
+
+            $entityManager->remove($application);
+            $entityManager->flush();
+            $this->addFlash('success', 'Your application has been deleted.');
+        }
+
+        return $this->redirectToRoute('app_job_applications_my');
+    }
 }
