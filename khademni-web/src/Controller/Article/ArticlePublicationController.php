@@ -19,46 +19,62 @@ use Symfony\Component\HttpFoundation\Response;
 use Symfony\Component\Routing\Attribute\Route;
 use Symfony\Component\Validator\Validator\ValidatorInterface;
 
+use Pagerfanta\Pagerfanta;
+use Pagerfanta\Doctrine\ORM\QueryAdapter ;
+
 #[Route('/publications')]
 class ArticlePublicationController extends AbstractController
 {
-    #[Route('', name: 'article_publications', methods: ['GET'])]
-    public function index(
-        Request $request,
-        ArticleRepository $articleRepository,
-        FavoriRepository $favoriRepository,
-        CommentaireRepository $commentaireRepository
-    ): Response {
-        $sort = $request->query->get('sort', 'favoris');
-        $articles = $articleRepository->findVisibleOrderedBy($sort);
+  
+#[Route('', name: 'article_publications', methods: ['GET'])]
+public function index(
+    Request $request,
+    ArticleRepository $articleRepository,
+    FavoriRepository $favoriRepository,
+    CommentaireRepository $commentaireRepository
+): Response {
+    $sort = $request->query->get('sort', 'favoris');
+    $page = $request->query->getInt('page', 1); // Récupérer le numéro de la page
 
-        $articleIds = array_map(fn(Article $a) => $a->getId(), $articles);
-        $favoriCounts = $favoriRepository->countByArticleIds($articleIds);
-        $commentCounts = $commentaireRepository->countByArticleIds($articleIds);
+    // Créer une requête paginée
+    $queryBuilder = $articleRepository->createQueryBuilderForVisibleOrderedBy($sort);
+    $pagination = new Pagerfanta(new QueryAdapter($queryBuilder));
+    $pagination->setMaxPerPage(5); // Afficher 5 articles par page
+    $pagination->setCurrentPage($page);
 
-        $commentsByArticle = [];
-        foreach ($articles as $article) {
-            $commentsByArticle[$article->getId()] = $commentaireRepository->findVisibleByArticle($article);
-        }
+    $articles = $pagination->getCurrentPageResults();
 
-        $currentUser = $this->getCurrentAppUser();
-        $userFavoris = [];
-        if ($currentUser) {
-            foreach ($favoriRepository->findArticleIdsByUser($currentUser, $articleIds) as $id) {
-                $userFavoris[(int) $id] = true;
-            }
-        }
-
-        return $this->render('article/publications.html.twig', [
-            'articles' => $articles,
-            'sort' => $sort,
-            'favoriCounts' => $favoriCounts,
-            'commentCounts' => $commentCounts,
-            'commentsByArticle' => $commentsByArticle,
-            'userFavoris' => $userFavoris,
-            'currentUser' => $currentUser,
-        ]);
+     $articleIds = [];
+    foreach ($articles as $a) {
+        $articleIds[] = $a->getId();
     }
+    $favoriCounts = $favoriRepository->countByArticleIds($articleIds);
+    $commentCounts = $commentaireRepository->countByArticleIds($articleIds);
+
+    $commentsByArticle = [];
+    foreach ($articles as $article) {
+        $commentsByArticle[$article->getId()] = $commentaireRepository->findVisibleByArticle($article);
+    }
+
+    $currentUser = $this->getCurrentAppUser();
+    $userFavoris = [];
+    if ($currentUser) {
+        foreach ($favoriRepository->findArticleIdsByUser($currentUser, $articleIds) as $id) {
+            $userFavoris[(int) $id] = true;
+        }
+    }
+
+    return $this->render('article/publications.html.twig', [
+        'articles' => $articles,
+        'pagination' => $pagination, // Passer la pagination au template
+        'sort' => $sort,
+        'favoriCounts' => $favoriCounts,
+        'commentCounts' => $commentCounts,
+        'commentsByArticle' => $commentsByArticle,
+        'userFavoris' => $userFavoris,
+        'currentUser' => $currentUser,
+    ]);
+}
 
 
 

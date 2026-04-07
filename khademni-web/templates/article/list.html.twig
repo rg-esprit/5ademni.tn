@@ -111,38 +111,82 @@
 		.btn-danger:hover {
 			background: #dc2626
 		}
-		.search-filter {
-			display: flex;
-			justify-content: space-between;
-			align-items: center;
-			margin-bottom: 20px;
-			gap: 10px;
-		}
+	.search-filter {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 20px;
+    gap: 12px;
+}
 
-		.search-form {
-			display: flex;
-			align-items: center;
-			gap: 10px;
-			width: 100%;
-		}
+.search-form {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    width: 100%;
+}
 
-		.search-input {
-			flex: 1;
-			padding: 10px;
-			border: 1px solid #d1d5db;
-			border-radius: 8px;
-			font-size: 14px;
-		}
+/* 🔍 Search box */
+.search-box {
+    position: relative;
+    flex: 1;
+}
 
-		.filter-select {
-			padding: 10px;
-			border: 1px solid #d1d5db;
-			border-radius: 8px;
-			font-size: 14px;
-			background: white;
-			color: #374151;
-		}
+.search-input {
+    width: 100%;
+    padding: 12px 45px 12px 14px;
+    border-radius: 12px;
+    border: 1px solid #e5e7eb;
+    font-size: 14px;
+    background: #fafafa;
+    transition: all 0.3s ease;
+}
 
+.search-input:focus {
+    outline: none;
+    border-color: #7c3aed;
+    background: #fff;
+    box-shadow: 0 0 0 3px rgba(124, 58, 237, 0.1);
+}
+
+/* 🔍 Button icon inside input */
+.search-btn {
+    position: absolute;
+    right: 8px;
+    top: 50%;
+    transform: translateY(-50%);
+    background: #7c3aed;
+    border: none;
+    color: white;
+    border-radius: 10px;
+    padding: 6px 8px;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.search-btn:hover {
+    background: #5b21b6;
+}
+
+/* 🎯 Filter select */
+.filter-select {
+    padding: 11px 14px;
+    border-radius: 12px;
+    border: 1px solid #e5e7eb;
+    background: #fafafa;
+    cursor: pointer;
+    transition: 0.3s;
+}
+
+.filter-select:focus {
+    outline: none;
+    border-color: #7c3aed;
+    background: #fff;
+}
+
+		 
 		.btn-search {
 			background-color: #7c3aed;
 			color: white;
@@ -239,16 +283,34 @@
 			</a>
 		</div>
 		<div class="search-filter">
-			<form method="GET" action="{{ path('article_list') }}" class="search-form">
-				<input type="text" name="search" placeholder="Rechercher un titre..." value="{{ app.request.get('search') }}" class="search-input">
-				<select name="status" class="filter-select">
-					<option value="">Tous</option>
-					<option value="VISIBLE" {% if app.request.get('status') == 'VISIBLE' %} selected {% endif %}>Visible</option>
-					<option value="MASQUE" {% if app.request.get('status') == 'MASQUE' %} selected {% endif %}>Masqué</option>
-				</select>
+    <form method="GET" action="{{ path('article_list') }}" class="search-form">
 
-			</form>
-		</div>
+        <div class="search-box">
+            <input 
+                type="text" 
+                name="search" 
+                placeholder="Rechercher un article..." 
+                value="{{ app.request.get('search') }}"
+                class="search-input"
+            >
+
+            <button type="submit" class="search-btn">
+                <!-- ICON MODERNE (SVG) -->
+                <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2">
+                    <circle cx="8" cy="8" r="6"></circle>
+                    <line x1="13" y1="13" x2="17" y2="17"></line>
+                </svg>
+            </button>
+        </div>
+
+        <select name="status" class="filter-select" onchange="this.form.submit()">
+            <option value="">Tous</option>
+            <option value="VISIBLE" {% if app.request.get('status') == 'VISIBLE' %} selected {% endif %}>Visible</option>
+            <option value="MASQUE" {% if app.request.get('status') == 'MASQUE' %} selected {% endif %}>Masqué</option>
+        </select>
+
+    </form>
+</div>
 
 		<div class="panel table-wrap">
 			<table>
@@ -296,51 +358,6 @@
 			</table>
 		</div>
 	</div>
-	<script>
-		document.addEventListener('DOMContentLoaded', function () {
-const searchInput = document.querySelector('.search-input');
-const filterSelect = document.querySelector('.filter-select');
-const searchForm = document.querySelector('.search-form');
+	
 
-// Soumettre le formulaire lorsque le champ de recherche change
-searchInput.addEventListener('input', function () {
-searchForm.submit();
-});
-
-// Soumettre le formulaire lorsque le filtre change
-filterSelect.addEventListener('change', function () {
-searchForm.submit();
-});
-});
-	</script>
-	<script>
-		document.addEventListener('DOMContentLoaded', function () {
-const deleteForms = document.querySelectorAll('.delete-form');
-
-deleteForms.forEach(form => {
-form.addEventListener('submit', function (event) {
-event.preventDefault(); // Empêche l'envoi du formulaire
-
-const articleTitle = form.getAttribute('data-title');
-const confirmation = confirm (`Voulez-vous vraiment supprimer l'article "${articleTitle}" ?`);
-
-if (confirmation) {
-fetch(form.action, {
-method: 'POST',
-body: new FormData(form)
-}).then(response => {
-if (response.ok) {
-alert('La suppression a été effectuée avec succès.');
-window.location.reload(); // Recharge la page pour mettre à jour la liste
-} else {
-alert('Une erreur est survenue lors de la suppression.');
-}
-}).catch(() => {
-alert('Une erreur est survenue lors de la suppression.');
-});
-}
-});
-});
-});
-	</script>
 {% endblock %}

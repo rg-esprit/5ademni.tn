@@ -91,4 +91,27 @@ class ArticleRepository extends ServiceEntityRepository
 
         return $qb->getQuery()->getResult();
     }
+
+  
+    public function createQueryBuilderForVisibleOrderedBy(string $sort): \Doctrine\ORM\QueryBuilder
+    {
+        $qb = $this->createQueryBuilder('a')
+            ->leftJoin('a.favoris', 'f')
+            ->leftJoin('a.commentaires', 'c')
+            ->where('UPPER(a.status) = :status')
+            ->setParameter('status', 'VISIBLE')
+            ->groupBy('a.id');
+
+        if ($sort === 'favoris') {
+            $qb->addSelect('COUNT(DISTINCT f.id) AS HIDDEN sortCount')
+               ->orderBy('sortCount', 'DESC');
+        } elseif ($sort === 'commentaires') {
+            $qb->addSelect('COUNT(DISTINCT c.id) AS HIDDEN sortCount')
+               ->orderBy('sortCount', 'DESC');
+        } else {
+            $qb->orderBy('a.createdAt', 'DESC');
+        }
+
+        return $qb;
+    }
 }
