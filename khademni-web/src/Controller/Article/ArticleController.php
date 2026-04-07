@@ -149,16 +149,21 @@ class ArticleController extends AbstractController
 
 
 
-    #[Route('/{id}/delete', name: 'article_delete', methods: ['POST'])]
-    public function delete(Article $article, Request $request, EntityManagerInterface $em): Response
-    {
-        if ($this->isCsrfTokenValid('delete_article_' . $article->getId(), (string) $request->request->get('_token'))) {
-            $em->remove($article);
-            $em->flush();
-        }
+#[Route('/{id}/delete', name: 'article_delete', methods: ['POST'])]
+public function delete(Article $article, Request $request, EntityManagerInterface $em): Response
+{
+    // Vérifiez le token CSRF pour éviter les suppressions non autorisées
+    if ($this->isCsrfTokenValid('delete_article_' . $article->getId(), (string) $request->request->get('_token'))) {
+        $em->remove($article);
+        $em->flush();
 
-        return $this->redirectToRoute('article_index');
+        $this->addFlash('success', 'Article supprimé avec succès.');
+    } else {
+        $this->addFlash('error', 'Échec de la suppression de l\'article.');
     }
+
+    return $this->redirectToRoute('article_index');
+}
 
     #[Route('/articles/dashboard', name: 'article_dashboard', methods: ['GET'])]
     public function dashboard(

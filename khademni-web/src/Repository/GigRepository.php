@@ -13,16 +13,34 @@ class GigRepository extends ServiceEntityRepository
         parent::__construct($registry, Gig::class);
     }
 
-    public function findByArticleKeywords(string $keywords): array
+  
+public function findByArticleKeywords(string $keywords): array
 {
-    $words = explode(' ', $keywords);
+    // Diviser les mots-clés en un tableau
+    $words = array_filter(explode(' ', $keywords), function ($word) {
+        return strlen($word) > 2; // Ignorer les mots trop courts (moins de 3 caractères)
+    });
+
+    // Créer une requête
     $qb = $this->createQueryBuilder('g');
 
+    // Ajouter des conditions pour chaque mot-clé
     foreach ($words as $index => $word) {
-        $qb->orWhere('g.title LIKE :word' . $index)
-           ->orWhere('g.description LIKE :word' . $index)
+        $qb->orWhere('LOWER(g.title) LIKE LOWER(:word' . $index . ')')
+           ->orWhere('LOWER(g.description) LIKE LOWER(:word' . $index . ')')
            ->setParameter('word' . $index, '%' . $word . '%');
     }
+
+    // Ajouter un tri par pertinence (par exemple, en fonction du nombre de correspondances)
+    $qb->addSelect('(
+        CASE 
+            WHEN LOWER(g.title) LIKE :exactMatch THEN 1
+            ELSE 0
+        END
+    ) AS HIDDEN relevance')
+       ->setParameter('exactMatch', '%' . strtolower($keywords) . '%')
+       ->orderBy('relevance', 'DESC')
+       ->addOrderBy('g.title', 'ASC');
 
     return $qb->getQuery()->getResult();
 }

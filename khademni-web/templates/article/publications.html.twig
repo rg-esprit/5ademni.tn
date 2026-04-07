@@ -6,25 +6,22 @@
 {% block body %}
 <div class="page">
 	<div class="filter-buttons">
-		<h1>Articles</h1>
-		<div class="filters">
-			<a class="btn filter-btn {{ sort == 'favoris' ? 'active' : '' }}" href="{{ path('article_publications', {sort: 'favoris'}) }}">
-				<div class="icon-wrap">
-					<svg viewbox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-						<path d="M12 21.35l-1.45-1.32C5.4 15.36 2 12.28 2 8.5 2 5.42 4.42 3 7.5 3c1.74 0 3.41.81 4.5 2.09C13.09 3.81 14.76 3 16.5 3 19.58 3 22 5.42 22 8.5c0 3.78-3.4 6.86-8.55 11.54L12 21.35z"></path>
-					</svg>
-				</div>
-				Tri Favoris
-			</a>
-			<a class="btn filter-btn {{ sort == 'commentaires' ? 'active' : '' }}" href="{{ path('article_publications', {sort: 'commentaires'}) }}">
-				<div class="icon-wrap">
-					<svg viewbox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-						<path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"></path>
-					</svg>
-				</div>
-				Tri Commentaires
-			</a>
-		</div>
+    <h1>Articles</h1>
+    <div class="filters">
+        <a class="btn filter-btn {{ sort == 'favoris' ? 'active' : '' }}" href="{{ path('article_publications', {sort: 'favoris'}) }}">
+            <svg viewbox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <path d="M12 21.35l-1.45-1.32C5.4 15.36 2 12.28 2 8.5 2 5.42 4.42 3 7.5 3c1.74 0 3.41.81 4.5 2.09C13.09 3.81 14.76 3 16.5 3 19.58 3 22 5.42 22 8.5c0 3.78-3.4 6.86-8.55 11.54L12 21.35z"></path>
+            </svg>
+            Favoris
+        </a>
+        <a class="btn filter-btn {{ sort == 'commentaires' ? 'active' : '' }}" href="{{ path('article_publications', {sort: 'commentaires'}) }}">
+            <svg viewbox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"></path>
+            </svg>
+            Commentaires
+        </a>
+    </div>
+</div>
 	</div>
 
 	{% for article in articles %}
@@ -85,15 +82,15 @@
 
 					<span class="icon-wrap">
 						<form method="POST" action="{{ path('article_publication_toggle_favorite', {id: article.id}) }}">
-    <input type="hidden" name="_token" value="{{ csrf_token('favorite_' ~ article.id) }}">
-    {% set isFavori = currentUser ? (userFavoris[article.id]|default(false)) : (favoriCounts[article.id]|default(0) > 0) %}
-    <button class="icon-wrap btn-favorite {{ isFavori ? 'favori-active' : 'favori-inactive' }}" type="submit">
+      <input type="hidden" name="_token" value="{{ csrf_token('favorite_' ~ article.id) }}">
+      {% set isFavori = currentUser ? (userFavoris[article.id]|default(false)) : (favoriCounts[article.id]|default(0) > 0) %}
+        <button class="icon-wrap btn-favorite {{ isFavori ? 'favori-active' : 'favori-inactive' }}" type="submit">
         <svg viewbox="0 0 24 24" fill="currentColor" stroke="currentColor" stroke-width="2">
             <path d="M12 21.35l-1.45-1.32C5.4 15.36 2 12.28 2 8.5 2 5.42 4.42 3 7.5 3c1.74 0 3.41.81 4.5 2.09C13.09 3.81 14.76 3 16.5 3 19.58 3 22 5.42 22 8.5c0 3.78-3.4 6.86-8.55 11.54L12 21.35z"></path>
         </svg>
         <span>{{ favoriCounts[article.id]|default(0) }}</span>
-    </button>
-</form>
+             </button>
+                  </form>
 
 						{# VUES (STATIC POUR L’INSTANT) #}
 						<div class="action-btn">
@@ -107,11 +104,11 @@
 						</div>
 
 						<button class="btn btn-comments" onclick="toggleComments({{ article.id }})">
-    <svg class="icon" viewbox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <svg class="icon" viewbox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
         <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"></path>
-    </svg>
-    {{ commentCounts[article.id]|default(0) }}
-</button>
+                 </svg>
+                 {{ commentCounts[article.id]|default(0) }}
+              </button>
 					</span>
 
 				</div>
@@ -195,10 +192,10 @@
 								{# 🔹 Zone édition cachée #}
 								<div class="edit-zone" id="edit-zone-{{ comment.id }}">
 									<form method="POST" action="{{ path('article_publication_comment_edit', { id: comment.id }) }}">
-    <input type="hidden" name="_token" value="{{ csrf_token('comment_edit_' ~ comment.id) }}">
-    <textarea name="content">{{ comment.content }}</textarea>
-    <button type="submit" class="btn btn-edit">Modifier</button>
-</form>
+                <input type="hidden" name="_token" value="{{ csrf_token('comment_edit_' ~ comment.id) }}">
+              <textarea name="content">{{ comment.content }}</textarea>
+                   <button type="submit" class="btn btn-edit">Modifier</button>
+             </form>
 								</div>
 
 							</div>
@@ -218,6 +215,21 @@
 	{% else %}
 		<p>Aucun article visible.</p>
 	{% endfor %}
+	<div class="pagination">
+    {% if pagination.hasPreviousPage %}
+        <a href="{{ path('article_publications', {page: pagination.previousPage, sort: sort}) }}" class="page-link">Précédent</a>
+    {% endif %}
+
+    {% for page in 1..pagination.nbPages %}
+        <a href="{{ path('article_publications', {page: page, sort: sort}) }}" class="page-link {{ page == pagination.currentPage ? 'active' : '' }}">
+            {{ page }}
+        </a>
+    {% endfor %}
+
+    {% if pagination.hasNextPage %}
+        <a href="{{ path('article_publications', {page: pagination.nextPage, sort: sort}) }}" class="page-link">Suivant</a>
+    {% endif %}
+</div>
 </div>
 <script>
 	function toggleComments(articleId) {
@@ -253,6 +265,33 @@ zone.style.display = "block";
 								  
 								</script>
 								<style>
+
+								.pagination {
+    display: flex;
+    justify-content: center;
+    margin-top: 20px;
+    gap: 10px;
+}
+
+.page-link {
+    padding: 8px 12px;
+    border: 1px solid #ddd;
+    border-radius: 5px;
+    text-decoration: none;
+    color: #6b7280;
+    transition: background-color 0.3s, color 0.3s;
+}
+
+.page-link.active {
+    background-color: #6c0df2;
+    color: #fff;
+    font-weight: bold;
+}
+
+.page-link:hover {
+    background-color: #ede9fe;
+    color: #6c0df2;
+}
 								body {
 								    background: #f5f7fb;
 								}
@@ -359,18 +398,7 @@ zone.style.display = "block";
 			    white-space: nowrap;
 			}
 								/* Header */
-								.filter-buttons {
-								    display: flex;
-								    justify-content: space-between;
-								    align-items: center;
-								    margin-bottom: 25px;
-								}
-								
-								.filter-buttons h1 {
-								    font-size: 26px;
-								    font-weight: 600;
-								    color: #1f2937;
-								}
+							
 								.card-actions {
 					    display: flex;
 					    flex-direction: column;
@@ -402,30 +430,82 @@ zone.style.display = "block";
 					    font-size: 13px;
 					    color: #374151;
 					}
-								/* Buttons */
-								.filter-btn {
-								    display: flex;
-								    align-items: center;
-								    gap: 8px;
-								    padding: 10px 18px;
-								    border-radius: 12px;
-								    background: white;
-								    color: #7c3aed;
-								    border: 1px solid #e5e7eb;
-								    font-weight: 500;
-								    transition: 0.3s;
-								}
-								
-								.filter-btn.active {
-								    background: linear-gradient(135deg, #7c3aed, #a78bfa);
-								    color: white;
-								    border: none;
-								}
-								
-								.filter-btn:hover {
-								    transform: translateY(-2px);
-								    box-shadow: 0 6px 15px rgba(124, 58, 237, 0.2);
-								}
+/* Conteneur des boutons de filtrage */
+.filter-buttons {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 20px;
+}
+
+/* Conteneur des filtres */
+.filters {
+    display: flex;
+    gap: 15px; /* Espacement entre les boutons */
+}
+
+/* Boutons de filtrage */
+.filter-btn {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+    padding: 10px 20px;
+    border-radius: 25px; /* Boutons arrondis */
+    background: #f3f4f6;
+    color: #6b7280;
+    border: 1px solid #e5e7eb;
+    font-weight: 500;
+    font-size: 14px;
+    transition: all 0.3s ease;
+    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+}
+
+.filter-btn svg {
+    width: 20px;
+    height: 20px;
+    stroke: #6b7280;
+    transition: stroke 0.3s ease;
+}
+
+/* Bouton actif */
+.filter-btn.active {
+    background: linear-gradient(135deg, #7c3aed, #a78bfa);
+    color: white;
+    border: none;
+    box-shadow: 0 4px 10px rgba(124, 58, 237, 0.4);
+}
+
+.filter-btn.active svg {
+    stroke: white;
+}
+
+/* Effet au survol */
+.filter-btn:hover {
+    background: #ede9fe;
+    color: #7c3aed;
+    transform: translateY(-2px);
+    box-shadow: 0 6px 15px rgba(124, 58, 237, 0.2);
+}
+
+.filter-btn:hover svg {
+    stroke: #7c3aed;
+}
+
+.icon-wrap {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.icon-wrap svg {
+    width: 20px;
+    height: 20px;
+    stroke: #7c3aed;
+    transition: stroke 0.3s;
+}
+
+
 								
 								/* CARD */
 								.card {
@@ -583,11 +663,25 @@ zone.style.display = "block";
 }
 
 .btn-favorite.favori-active span {
-    color: #e63946; /* Rouge pour les favoris actifs */
+    color: #7c3aed; /* Rouge pour les favoris actifs */
 }
 
 .btn-favorite.favori-inactive span {
     color: #6b7280; /* Gris pour les favoris inactifs */
+}
+.btn-favorite.favori-active svg {
+    fill: #7c3aed;   /* rouge */
+    stroke: #7c3aed;
+}
+
+.btn-favorite.favori-inactive svg {
+    fill: none;
+    stroke: #6b7280;
+}
+
+/* Hover (optionnel stylé) */
+.btn-favorite:hover svg {
+    transform: scale(1.2);
 }
 								
 								/* COMMENTS BUTTON */
