@@ -17,6 +17,7 @@ face_backend/.venv*/
 
 # Logs
 /tmp/uvicorn.log
+.playwright-mcp/
 
 # HTML
 html files

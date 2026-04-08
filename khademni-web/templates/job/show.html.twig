@@ -1,0 +1,168 @@
+{% extends 'base.html.twig' %}
+
+{% block title %}{{ job.title }} — {{ job.company }} | 5ademni.tn{% endblock %}
+
+{% block body %}
+<style>
+@keyframes fadeUp { from{opacity:0;transform:translateY(18px)} to{opacity:1;transform:translateY(0)} }
+.anim-1 { animation: fadeUp .4s ease both; }
+.anim-2 { animation: fadeUp .4s ease .08s both; }
+.anim-3 { animation: fadeUp .4s ease .16s both; }
+
+.detail-badge {
+    display:inline-flex; align-items:center; gap:.35rem;
+    padding:.35rem .85rem; border-radius:999px;
+    font-size:.8rem; font-weight:700; background:#ede9fe; color:#5b21b6;
+}
+.detail-badge.blue { background:#dbeafe; color:#1d4ed8; }
+.detail-badge.green { background:#dcfce7; color:#166534; }
+
+.info-row {
+    display:flex; flex-wrap:wrap; gap:.6rem 1.4rem;
+    font-size:.88rem; color:#6b7280; margin:.75rem 0 1.25rem;
+}
+.info-row span { display:flex; align-items:center; gap:.3rem; }
+
+.apply-box {
+    position:sticky; top:1.5rem;
+    display:flex; flex-direction:column; gap:1rem;
+}
+
+.btn-primary-full {
+    display:block; text-align:center;
+    background:#6366f1; color:#fff; border:none; border-radius:.6rem;
+    padding:.75rem 1.25rem; font-size:1rem; font-weight:700;
+    cursor:pointer; text-decoration:none;
+    transition:background .2s, transform .15s, box-shadow .2s;
+}
+.btn-primary-full:hover {
+    background:#4f46e5; transform:translateY(-2px);
+    box-shadow:0 6px 18px rgba(99,102,241,.35);
+}
+.btn-ghost-full {
+    display:block; text-align:center;
+    background:#fff; color:#374151; border:1.5px solid #e5e7eb; border-radius:.6rem;
+    padding:.65rem 1.25rem; font-size:.9rem; font-weight:600;
+    cursor:pointer; text-decoration:none;
+    transition:all .2s;
+}
+.btn-ghost-full:hover { border-color:#a5b4fc; color:#6366f1; background:#f5f3ff; }
+.btn-ghost-full.saved { border-color:#ec4899; color:#ec4899; background:#fff0f6; }
+
+.section-divider {
+    font-size:.72rem; font-weight:800; text-transform:uppercase;
+    letter-spacing:.1em; color:#6366f1;
+    padding-bottom:.5rem; border-bottom:2px solid #ede9fe;
+    margin:1.75rem 0 1rem;
+}
+.prose { font-size:.95rem; line-height:1.8; color:#374151; white-space:pre-wrap; }
+</style>
+
+<div class="page-shell">
+    {% include 'partials/_header.html.twig' %}
+
+    <main class="page-content">
+        <p style="margin-bottom:1rem;" class="anim-1">
+            <a href="{{ path('app_job_index') }}" style="color:#6b7280; text-decoration:none; font-size:.88rem;">← Back to Jobs</a>
+        </p>
+
+        <div style="display:grid; grid-template-columns:1fr 290px; gap:1.75rem; align-items:start;">
+
+            {# ── Main content ── #}
+            <article class="panel anim-1">
+                {# Header #}
+                <div style="display:flex; justify-content:space-between; align-items:flex-start; gap:1rem; flex-wrap:wrap;">
+                    <div>
+                        <p class="eyebrow" style="margin-bottom:.3rem;">{{ job.category }}</p>
+                        <h1 style="font-size:1.8rem; font-weight:800; margin:0 0 .4rem;">{{ job.title }}</h1>
+                        <p style="font-size:1.05rem; color:#6366f1; font-weight:600; margin:0;">{{ job.company }}</p>
+                    </div>
+                    <div style="display:flex; gap:.5rem; flex-wrap:wrap;">
+                        {% if job.jobType %}<span class="detail-badge">🏷 {{ job.jobType }}</span>{% endif %}
+                        {% if job.salaryRange %}<span class="detail-badge blue">💰 {{ job.salaryRange }}</span>{% endif %}
+                    </div>
+                </div>
+
+                <div class="info-row">
+                    <span>📍 {{ job.location }}</span>
+                    <span>📅 Posted {{ job.postedDate|date('M d, Y') }}</span>
+                    <span>👤 by {{ job.user.displayName }}</span>
+                </div>
+
+                {# Description #}
+                <p class="section-divider">Job Description</p>
+                <div class="prose">{{ job.description }}</div>
+
+                {# Requirements #}
+                {% if job.requirements %}
+                    <p class="section-divider">Requirements & Skills</p>
+                    <div class="prose">{{ job.requirements }}</div>
+                {% endif %}
+            </article>
+
+            {# ── Apply sidebar ── #}
+            <div class="apply-box anim-2">
+                <section class="panel">
+                    <div class="panel-heading">
+                        <h2>Interested?</h2>
+                    </div>
+
+                    {% if app.user %}
+                        {% if job.user == app.user %}
+                            <div style="background:#f0f9ff; border:1.5px solid #bae6fd; border-radius:.5rem; padding:.85rem; font-size:.88rem; color:#0369a1; margin-bottom:1rem;">
+                                You posted this job.
+                            </div>
+                            <a class="btn-primary-full" href="{{ path('app_management_job_applications', {id: job.id}) }}">📋 View Applications</a>
+                            <a class="btn-ghost-full" href="{{ path('app_job_edit', {id: job.id}) }}" style="margin-top:.6rem;">✏ Edit Posting</a>
+                        {% elseif existing_application %}
+                            <div style="background:#fef3c7; border:1.5px solid #fde68a; border-radius:.6rem; padding:1.25rem; text-align:center; margin-bottom:1rem;">
+                                <div style="font-size:1.5rem; margin-bottom:.5rem;">📨</div>
+                                <h3 style="font-size:1rem; font-weight:800; color:#92400e; margin-bottom:.3rem;">Already Applied</h3>
+                                <p style="font-size:.84rem; color:#b45309; margin:0 0 1rem;">
+                                    You have already sent your application for this position. Status: <strong>{{ existing_application.status }}</strong>
+                                </p>
+                                <a class="btn-primary-full" href="{{ path('app_job_application_show', {id: existing_application.id}) }}">🔍 View My Application</a>
+                            </div>
+                        {% elseif job.hasAcceptedApplication() %}
+                            <div style="background:#f0fdf4; border:1.5px solid #bbf7d0; border-radius:.6rem; padding:1rem; text-align:center;">
+                                <div style="font-size:1.5rem; margin-bottom:.5rem;">✅</div>
+                                <h3 style="font-size:1rem; font-weight:800; color:#166534; margin-bottom:.3rem;">Position Filled</h3>
+                                <p style="font-size:.84rem; color:#14532d; margin:0;">
+                                    A freelancer has been accepted for this position. Work is currently in progress.
+                                </p>
+                            </div>
+                        {% else %}
+                            <a class="btn-primary-full" href="{{ path('app_job_apply', {id: job.id}) }}">🚀 Apply Now</a>
+
+                            <form method="POST" action="{{ path('app_job_save', {id: job.id}) }}" style="margin-top:.6rem;">
+                                <input type="hidden" name="_token" value="{{ csrf_token('save_job_' ~ job.id) }}">
+                                <button type="submit" class="btn-ghost-full {% if app.user.savedJobs.contains(job) %}saved{% endif %}" style="width:100%;">
+                                    {{ app.user.savedJobs.contains(job) ? '❤ Remove from Saved' : '♡ Save Job' }}
+                                </button>
+                            </form>
+
+                            <p class="muted-copy" style="font-size:.8rem; text-align:center; margin:.75rem 0 0;">
+                                Attach your CV on the next step.
+                            </p>
+                        {% endif %}
+                    {% else %}
+                        <p class="muted-copy" style="margin-bottom:1rem; font-size:.88rem;">Login to apply for this position.</p>
+                        <a class="btn-primary-full" href="{{ path('app_login') }}">Login to Apply</a>
+                    {% endif %}
+                </section>
+
+                <section class="panel anim-3">
+                    <div class="panel-heading"><h2>About the Recruiter</h2></div>
+                    <div style="display:flex; align-items:center; gap:.75rem;">
+                        <div class="review-card-avatar" style="flex-shrink:0;">{{ job.user.initials }}</div>
+                        <div>
+                            <strong>{{ job.user.displayName }}</strong>
+                            <p class="muted-copy" style="margin:.1rem 0 0; font-size:.8rem; word-break:break-all;">{{ job.user.email }}</p>
+                        </div>
+                    </div>
+                </section>
+            </div>
+        </div>
+    </main>
+</div>
+{% endblock %}

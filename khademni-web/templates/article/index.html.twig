@@ -1,0 +1,159 @@
+{# filepath: c:\Users\MSI\Desktop\projet pi dev\my_project_Symfony\templates\article\index.html.twig #}
+{% extends 'base.html.twig' %}
+
+{% block title %}Gestion des articles{% endblock %}
+
+{% block stylesheets %}
+<style>
+.grid{
+    display:grid;
+    grid-template-columns:repeat(4,minmax(0,1fr));
+    gap:14px;
+    margin-bottom:16px;
+}
+.card, .panel{
+    background:#fff;
+    border:1px solid #ece7fb;
+    border-radius:16px;
+    box-shadow:0 8px 24px rgba(124,58,237,.08);
+}
+.card{padding:14px}
+.card h3{margin:0 0 8px 0;color:#7e739a;font-size:14px}
+.stat{font-size:26px;font-weight:700;color:#4b2ca3}
+
+.panel{padding:16px;margin-bottom:16px}
+.form-grid{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+input, textarea, select{
+    width:100%;padding:10px;border-radius:10px;
+    border:1px solid #e7defd;background:#faf8ff;color:#2c2240;
+}
+textarea{min-height:100px;grid-column:1/-1}
+
+.btn{
+    border:none;border-radius:10px;padding:9px 12px;cursor:pointer;font-weight:600;
+}
+.btn-primary{background:#7c3aed;color:#fff}
+.btn-danger{background:#ef4444;color:#fff}
+.btn-ghost{background:#efeaff;color:#4b2ca3;border:1px solid #d9ccff;text-decoration:none;display:inline-block}
+
+.table-wrap{overflow:auto}
+table{width:100%;border-collapse:collapse}
+th,td{padding:10px;border-bottom:1px solid #f0ebff;text-align:left}
+th{color:#7e739a;font-weight:600}
+
+.badge{padding:4px 8px;border-radius:999px;font-size:12px}
+.badge-ok{background:#e8f7ee;color:#1f8a4b}
+.badge-off{background:#fdecec;color:#b42323}
+.actions{display:flex;gap:8px;align-items:center}
+
+.charts{
+    display:grid;
+    grid-template-columns:1fr 1fr;
+    gap:14px;
+}
+.charts .panel:last-child{grid-column:1/-1}
+
+@media (max-width: 1000px){
+    .grid{grid-template-columns:1fr 1fr}
+}
+@media (max-width: 700px){
+    .grid,.charts{grid-template-columns:1fr}
+    .charts .panel:last-child{grid-column:auto}
+    .form-grid{grid-template-columns:1fr}
+}
+</style>
+{% endblock %}
+
+{% block body %}
+<div class="page">
+    <h1 style="margin:0 0 14px 0;">Gestion des articles</h1>
+
+    <div class="grid">
+        <div class="card"><h3>Total Articles</h3><div class="stat">{{ rows|length }}</div></div>
+        <div class="card"><h3>Articles visibles</h3><div class="stat">{{ statusStats.VISIBLE|default(0) }}</div></div>
+        <div class="card"><h3>Articles masqués</h3><div class="stat">{{ statusStats.MASQUE|default(0) }}</div></div>
+        <div class="card"><h3>Total interactions</h3><div class="stat">{{ favorisData|reduce((c,v)=>c+v,0) + commentairesData|reduce((c,v)=>c+v,0) }}</div></div>
+    </div>
+
+    <div class="panel" id="add-form">
+        <h2 style="margin-top:0;">Ajouter un article</h2>
+        <form method="post" action="{{ path('article_new') }}" enctype="multipart/form-data">
+            <div class="form-grid">
+                <input type="text" name="title" placeholder="Titre" required>
+                <select name="status" required>
+                    <option value="VISIBLE">VISIBLE</option>
+                    <option value="MASQUE">MASQUE</option>
+                </select>
+                <textarea name="content" placeholder="Contenu" required></textarea>
+                <input type="file" name="image" accept="image/*" style="grid-column:1/-1;">
+            </div>
+            <div style="margin-top:10px;"><button class="btn btn-primary" type="submit">Ajouter</button></div>
+        </form>
+    </div>
+
+    <div class="panel table-wrap">
+        <h2 style="margin-top:0;">Liste des articles</h2>
+        <table>
+            <thead>
+            <tr><th>ID</th><th>Titre</th><th>Status</th><th>Date</th><th>Favoris</th><th>Commentaires</th><th>Actions</th></tr>
+            </thead>
+            <tbody>
+            {% for row in rows %}
+                {% set article = row[0] %}
+                <tr>
+                    <td>{{ article.id }}</td>
+                    <td>{{ article.title }}</td>
+                    <td>
+                        {% if article.status == 'VISIBLE' %}
+                            <span class="badge badge-ok">VISIBLE</span>
+                        {% else %}
+                            <span class="badge badge-off">MASQUE</span>
+                        {% endif %}
+                    </td>
+                    <td>{{ article.createdAt ? article.createdAt|date('Y-m-d H:i') : '' }}</td>
+                    <td>{{ row.favorisCount }}</td>
+                    <td>{{ row.commentairesCount }}</td>
+                    <td class="actions">
+                        <a class="btn btn-ghost" href="{{ path('article_edit', {id: article.id}) }}">Modifier</a>
+                        <form method="post" action="{{ path('article_delete', {id: article.id}) }}" style="display:inline;">
+                            <input type="hidden" name="_token" value="{{ csrf_token('delete_article_' ~ article.id) }}">
+                            <button class="btn btn-danger" type="submit" onclick="return confirm('Supprimer cet article ?')">Supprimer</button>
+                        </form>
+                    </td>
+                </tr>
+            {% else %}
+                <tr><td colspan="7">Aucun article.</td></tr>
+            {% endfor %}
+            </tbody>
+        </table>
+    </div>
+
+    <div class="charts">
+        <div class="panel"><canvas id="statusPie"></canvas></div>
+        <div class="panel"><canvas id="favorisBar"></canvas></div>
+        <div class="panel"><canvas id="commentairesBar"></canvas></div>
+    </div>
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+<script>
+const labels = {{ chartLabels|json_encode|raw }};
+const favorisData = {{ favorisData|json_encode|raw }};
+const commentairesData = {{ commentairesData|json_encode|raw }};
+const statusVisible = {{ statusStats.VISIBLE|default(0) }};
+const statusMasque = {{ statusStats.MASQUE|default(0) }};
+
+new Chart(document.getElementById('statusPie'), {
+    type: 'doughnut',
+    data: { labels: ['VISIBLE', 'MASQUE'], datasets: [{ data: [statusVisible, statusMasque] }] }
+});
+new Chart(document.getElementById('favorisBar'), {
+    type: 'bar',
+    data: { labels, datasets: [{ label: 'Favoris', data: favorisData }] }
+});
+new Chart(document.getElementById('commentairesBar'), {
+    type: 'line',
+    data: { labels, datasets: [{ label: 'Commentaires', data: commentairesData, tension: .35 }] }
+});
+</script>
+{% endblock %}

@@ -1,0 +1,182 @@
+{% extends 'base.html.twig' %}
+
+{% block title %}Membres de la discussion | 5ademni.tn{% endblock %}
+
+{% block body %}
+    <div class="page-shell">
+        {% include 'partials/_header.html.twig' %}
+
+        <main class="page-content">
+            <section class="page-card">
+                <div class="page-card-header">
+                    <div>
+                        <p class="eyebrow">Gestion de la discussion</p>
+                        <h1>{{ conversation.getTitle() }}</h1>
+                        <p class="meta">Visualisez les membres de cette conversation et accédez rapidement aux messages.</p>
+                    </div>
+                    <div>
+                        <a class="secondary-button" href="{{ path('app_message_thread', {id: conversation.getId()}) }}">Ouvrir la discussion</a>
+                        <a class="primary-button" href="{{ path('app_conversations') }}">Retour aux conversations</a>
+                    </div>
+                </div>
+
+                <div class="table-responsive">
+                    <table class="data-table">
+                        <thead>
+                            <tr>
+                                <th>Rôle</th>
+                                <th>Nom</th>
+                                <th>Email</th>
+                                {% if is_granted('ROLE_ADMIN') %}
+                                    <th>Actions</th>
+                                {% endif %}
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for member in conversation.getMembers() %}
+                                <tr>
+                                    <td>{{ member.getRole() }}</td>
+                                    <td>{{ member.getUser() ? member.getUser().getDisplayName() : 'Aucun' }}</td>
+                                    <td>{{ member.getUser() ? member.getUser().getEmail() : '—' }}</td>
+                                    {% if is_granted('ROLE_ADMIN') %}
+                                        <td>
+                                            {% if member.getRole() not in ['CLIENT', 'FREELANCE'] and member.getUser() %}
+                                                <form method="post" class="inline-form">
+                                                    <input type="hidden" name="_token" value="{{ csrf_token('conversation_manage_' ~ conversation.getId()) }}" />
+                                                    <input type="hidden" name="action" value="remove_member" />
+                                                    <input type="hidden" name="member_user" value="{{ member.getUser().getId() }}" />
+                                                    <button class="danger-button compact-button" type="submit">🗑️ Retirer</button>
+                                                </form>
+                                            {% else %}
+                                                —
+                                            {% endif %}
+                                        </td>
+                                    {% endif %}
+                                </tr>
+                            {% else %}
+                                <tr>
+                                    <td colspan="{{ is_granted('ROLE_ADMIN') ? 4 : 3 }}">Aucun membre enregistré pour cette conversation.</td>
+                                </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+
+                {% if is_granted('ROLE_ADMIN') %}
+                    <section class="member-management-grid">
+                        <div class="member-actions">
+                            <h2>Actions rapides</h2>
+                            <p class="helper-text">Gérer les rôles et membres de la conversation.</p>
+
+                            <div class="action-buttons">
+                                <form method="post" class="inline-form">
+                                    <input type="hidden" name="_token" value="{{ csrf_token('conversation_manage_' ~ conversation.getId()) }}" />
+                                    <input type="hidden" name="action" value="swap_roles" />
+                                    <button class="secondary-button compact-button" type="submit">🔄 Inverser les rôles</button>
+                                </form>
+                            </div>
+                        </div>
+
+                        <div class="member-remove">
+                            <h3>Retirer un membre</h3>
+                            <p class="helper-text">Retirer des participants additionnels de la conversation.</p>
+
+                            {% set removableMembers = [] %}
+                            {% for member in conversation.getMembers() %}
+                                {% if member.getRole() not in ['CLIENT', 'FREELANCE'] and member.getUser() %}
+                                    {% set removableMembers = removableMembers|merge([member]) %}
+                                {% endif %}
+                            {% endfor %}
+
+                            {% if removableMembers is empty %}
+                                <p class="helper-text">Aucun participant supplémentaire n’est disponible pour être retiré.</p>
+                            {% else %}
+                                <form method="post" class="remove-member-form">
+                                    <input type="hidden" name="_token" value="{{ csrf_token('conversation_manage_' ~ conversation.getId()) }}" />
+                                    <input type="hidden" name="action" value="remove_member" />
+
+                                    <div class="field-group">
+                                        <label for="removeMember">Participant à retirer</label>
+                                        <select id="removeMember" name="member_user" class="text-input" required>
+                                            {% for member in removableMembers %}
+                                                <option value="{{ member.getUser().getId() }}">{{ member.getUser().getDisplayName() }} ({{ member.getRole() }})</option>
+                                            {% endfor %}
+                                        </select>
+                                    </div>
+
+                                    <button class="danger-button compact-button" type="submit">🗑️ Retirer le membre</button>
+                                </form>
+                            {% endif %}
+                        </div>
+
+                        <div class="member-add">
+                            <h3>Ajouter un membre</h3>
+                            {% if availableUsers is empty %}
+                                <p class="helper-text">Aucun utilisateur disponible pour être ajouté à cette conversation.</p>
+                            {% else %}
+                                <form method="post" class="add-member-form">
+                                    <input type="hidden" name="_token" value="{{ csrf_token('conversation_manage_' ~ conversation.getId()) }}" />
+                                    <input type="hidden" name="action" value="add_member" />
+
+                                    <div class="field-group">
+                                        <label for="addUser">Nouvel utilisateur</label>
+                                        <select id="addUser" name="new_user" class="text-input" required>
+                                            {% for user in availableUsers %}
+                                                <option value="{{ user.getId() }}">{{ user.getDisplayName() }} — {{ user.getEmail() }}</option>
+                                            {% endfor %}
+                                        </select>
+                                    </div>
+
+                                    <button class="primary-button compact-button" type="submit">➕ Ajouter le membre</button>
+                                </form>
+                            {% endif %}
+                        </div>
+
+                        <div class="member-replace">
+                            <h3>Remplacer un membre</h3>
+                            {% if availableUsers is empty %}
+                                <p class="helper-text">Aucun autre utilisateur disponible pour remplacer un membre.</p>
+                            {% else %}
+                                <form method="post" class="replace-member-form">
+                                    <input type="hidden" name="_token" value="{{ csrf_token('conversation_manage_' ~ conversation.getId()) }}" />
+                                    <input type="hidden" name="action" value="replace_member" />
+
+                                    <div class="field-group">
+                                        <label for="role">Rôle à remplacer</label>
+                                        <select id="role" name="role" class="text-input">
+                                            {% if conversation.getClient() %}
+                                                <option value="client">Client ({{ conversation.getClient().getDisplayName() }})</option>
+                                            {% endif %}
+                                            {% if conversation.getFreelance() %}
+                                                <option value="freelance">Freelance ({{ conversation.getFreelance().getDisplayName() }})</option>
+                                            {% endif %}
+                                        </select>
+                                    </div>
+
+                                    <div class="field-group">
+                                        <label for="newUser">Nouvel utilisateur</label>
+                                        <select id="newUser" name="new_user" class="text-input" required>
+                                            {% for user in availableUsers %}
+                                                <option value="{{ user.getId() }}">{{ user.getDisplayName() }} — {{ user.getEmail() }}</option>
+                                            {% endfor %}
+                                        </select>
+                                    </div>
+
+                                    <button class="primary-button compact-button" type="submit">🔄 Remplacer le membre</button>
+                                </form>
+                            {% endif %}
+                        </div>
+                    </section>
+                {% else %}
+                    <div class="page-note">
+                        <p>Seuls les administrateurs peuvent modifier les participants de cette conversation.</p>
+                    </div>
+                {% endif %}
+
+                <div class="page-note">
+                    <p>Cette conversation prend en charge plusieurs participants. Ajoutez autant de membres supplémentaires que nécessaire.</p>
+                </div>
+            </section>
+        </main>
+    </div>
+{% endblock %}

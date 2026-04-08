@@ -1,0 +1,129 @@
+{% extends 'base.html.twig' %}
+
+{% block title %}{{ is_edit ? 'Edit Gig' : 'Create Gig' }} | 5ademni.tn{% endblock %}
+
+{% block stylesheets %}
+    <link rel="stylesheet" href="{{ asset('styles/gig.css') }}">
+{% endblock %}
+
+{% block body %}
+    <div class="page-shell gig-page">
+        {% include 'partials/_header.html.twig' %}
+
+        <main class="gig-form-main">
+            <section class="gig-form-card">
+                <header>
+                    <h1>{{ is_edit ? 'Edit Gig' : 'Create New Gig' }}</h1>
+                    <p>{{ is_edit ? 'Update your gig information.' : 'Create a new service offering for clients.' }}</p>
+                </header>
+
+                {% if is_expired %}
+                    <div class="form-banner form-banner-error">This gig is expired and cannot be edited.</div>
+                {% endif %}
+
+                {% if errors.global is defined %}
+                    <div class="form-banner form-banner-error">{{ errors.global }}</div>
+                {% endif %}
+
+                {% if ai_status %}
+                    <div class="form-banner">{{ ai_status }}</div>
+                {% endif %}
+
+                <form method="post" class="gig-form-grid">
+                    <input type="hidden" name="_token" value="{{ csrf_token('gig_form') }}">
+
+                    <section class="ai-prompt-panel">
+                        <h2>AI Generator</h2>
+                        <label>
+                            <span>Prompt</span>
+                            <textarea name="ai_prompt" rows="3" placeholder="Describe your skill or offer...">{{ values.ai_prompt }}</textarea>
+                            {% if errors.ai_prompt is defined %}<small class="field-error">{{ errors.ai_prompt }}</small>{% endif %}
+                        </label>
+                        <button class="btn-gradient" type="submit" name="form_action" value="generate_gig">Generate Full Gig with AI</button>
+                    </section>
+
+                    <section class="gig-form-fields">
+                        <label>
+                            <span>Gig Title</span>
+                            <input type="text" name="title" value="{{ values.title }}" placeholder="I will create...">
+                            {% if errors.title is defined %}<small class="field-error">{{ errors.title }}</small>{% endif %}
+                        </label>
+
+                        <label>
+                            <span>Description</span>
+                            <textarea name="description" rows="6" placeholder="Describe your service in detail...">{{ values.description }}</textarea>
+                            {% if errors.description is defined %}<small class="field-error">{{ errors.description }}</small>{% endif %}
+                        </label>
+
+                        <div class="gig-inline-actions">
+                            <button class="btn-secondary" type="submit" name="form_action" value="generate_description">Generate Description with AI</button>
+                            <button class="btn-secondary" type="submit" name="form_action" value="suggest_category">Suggest Category</button>
+                            <button class="btn-secondary" type="submit" name="form_action" value="suggest_price">Suggest Price</button>
+                        </div>
+
+                        <div class="gig-grid-two">
+                            <label>
+                                <span>Price (TND)</span>
+                                <input type="text" name="price" value="{{ values.price }}" placeholder="Minimum 10.00">
+                                {% if errors.price is defined %}<small class="field-error">{{ errors.price }}</small>{% endif %}
+                            </label>
+
+                            <label>
+                                <span>Category</span>
+                                <select name="category_id">
+                                    <option value="">Select a category</option>
+                                    {% for category in categories %}
+                                        <option value="{{ category.id }}" {% if values.category_id == category.id %}selected{% endif %}>{{ category.name }}</option>
+                                    {% endfor %}
+                                </select>
+                                {% if errors.category_id is defined %}<small class="field-error">{{ errors.category_id }}</small>{% endif %}
+                            </label>
+
+                            <div class="category-request-box">
+                                <p>Category not available? Suggest one</p>
+                                <div class="category-request-row">
+                                    <input type="text" name="requested_category_name" value="{{ values.requested_category_name|default('') }}" placeholder="Suggest a new category">
+                                    <button class="btn-soft" type="submit" name="form_action" value="request_category">Request Category</button>
+                                </div>
+                                {% if errors.requested_category_name is defined %}<small class="field-error">{{ errors.requested_category_name }}</small>{% endif %}
+                            </div>
+                        </div>
+
+                        <div class="gig-grid-two">
+                            <label>
+                                <span>Delivery Date</span>
+                                <input type="date" name="delivery_date" value="{{ values.delivery_date }}">
+                                {% if errors.delivery_date is defined %}<small class="field-error">{{ errors.delivery_date }}</small>{% endif %}
+                            </label>
+
+                            <label>
+                                <span>Delivery Hour</span>
+                                <input type="number" min="0" max="23" name="delivery_hour" value="{{ values.delivery_hour }}">
+                            </label>
+                        </div>
+
+                        <div class="gig-grid-two">
+                            <label>
+                                <span>Image URL</span>
+                                <input type="text" name="image" value="{{ values.image }}" placeholder="https://...">
+                            </label>
+
+                            <label>
+                                <span>Status</span>
+                                <select name="status">
+                                    <option value="active" {% if values.status == 'active' %}selected{% endif %}>Active</option>
+                                    <option value="inactive" {% if values.status == 'inactive' %}selected{% endif %}>Inactive</option>
+                                </select>
+                            </label>
+                        </div>
+                    </section>
+
+                    <footer class="gig-form-footer">
+                        <a class="btn-soft" href="{{ path('app_gigs') }}">Back to Gigs</a>
+                        <button class="btn-primary" type="submit" name="form_action" value="save" {% if is_expired %}disabled{% endif %}>{{ is_edit ? 'Save Changes' : 'Create Gig' }}</button>
+                    </footer>
+                </form>
+            </section>
+        </main>
+    </div>
+{% endblock %}

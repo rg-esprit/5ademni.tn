@@ -1,0 +1,78 @@
+{% extends 'base.html.twig' %}
+
+{% block title %}Edit Application | 5ademni.tn{% endblock %}
+
+{% block body %}
+<style>
+@keyframes fadeUp { from{opacity:0;transform:translateY(18px)} to{opacity:1;transform:translateY(0)} }
+.anim-1 { animation: fadeUp .4s ease both; }
+
+.form-field { margin-bottom: 1.5rem; }
+.form-field label { display:block; font-size:.8rem; font-weight:700; color:#374151; text-transform:uppercase; letter-spacing:.05em; margin-bottom:.4rem; }
+.form-field .text-input, .form-field .textarea-input, .form-field .file-input {
+    width:100%; box-sizing:border-box; padding:.65rem .95rem; border:1.5px solid #e5e7eb; border-radius:.5rem;
+    font-size:.93rem; color:#111; background:#f9fafb; transition:all .2s; outline:none;
+}
+.form-field .text-input:focus, .form-field .textarea-input:focus, .form-field .file-input:focus {
+    border-color:#6366f1; background:#fff; box-shadow: 0 0 0 3px rgba(99,102,241,.15);
+}
+
+.cv-current {
+    display:flex; align-items:center; gap:.75rem;
+    padding:.75rem; background:#f5f3ff; border:1.5px dashed #c4b5fd; border-radius:.5rem;
+    margin-bottom:1rem; font-size:.85rem; color:#5b21b6;
+}
+</style>
+
+<div class="page-shell">
+    {% include 'partials/_header.html.twig' %}
+
+    <main class="page-content">
+        <div style="margin-bottom:1.5rem;" class="anim-1">
+            <a href="{{ path('app_job_application_show', {id: application.id}) }}" style="color:#6b7280; text-decoration:none; font-size:.88rem;">← Back to Details</a>
+        </div>
+
+        <div style="max-width:800px; margin:0 auto;" class="anim-1">
+            <article class="panel">
+                <div class="panel-heading">
+                    <p class="eyebrow" style="margin-bottom:.3rem;">Modify Your Submission</p>
+                    <h1 style="font-size:1.8rem; font-weight:800; margin:0 0 .4rem;">Edit Application</h1>
+                    <p style="font-size:1rem; color:#6366f1; font-weight:600; margin:0;">{{ application.job.title }} &bull; {{ application.job.company }}</p>
+                </div>
+
+                {{ form_start(form) }}
+                    <div class="form-field">
+                        {{ form_label(form.title) }}
+                        {{ form_widget(form.title, {attr: {class: 'text-input'}}) }}
+                        {{ form_errors(form.title) }}
+                    </div>
+
+                    <div class="form-field">
+                        {{ form_label(form.description) }}
+                        {{ form_widget(form.description, {attr: {class: 'textarea-input'}}) }}
+                        {{ form_errors(form.description) }}
+                    </div>
+
+                    <div class="form-field">
+                        <label>Curriculum Vitae (PDF)</label>
+                        {% if application.cvPath %}
+                            <div class="cv-current">
+                                <span>📄 Current CV is attached</span>
+                                <a href="{{ asset(application.cvPath) }}" target="_blank" style="color:#6366f1; font-weight:700; text-decoration:none; margin-left:auto;">View Current</a>
+                            </div>
+                        {% endif %}
+                        <p style="font-size:.82rem; color:#6b7280; margin-bottom:.5rem;">Upload a new CV to replace the existing one (optional).</p>
+                        {{ form_widget(form.cvFile, {attr: {class: 'file-input'}}) }}
+                        {{ form_errors(form.cvFile) }}
+                    </div>
+
+                    <div class="inline-actions" style="margin-top:2rem; padding-top:1.5rem; border-top:1px solid #e5e7eb;">
+                        <button type="button" class="ghost-button" onclick="history.back()">Cancel</button>
+                        <button type="submit" class="primary-button">💾 Save Changes</button>
+                    </div>
+                {{ form_end(form) }}
+            </article>
+        </div>
+    </main>
+</div>
+{% endblock %}

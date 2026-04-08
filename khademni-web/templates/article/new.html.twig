@@ -1,0 +1,215 @@
+{% extends 'base.html.twig' %}
+
+{% block title %}Ajouter un article{% endblock %}
+
+{% block stylesheets %}
+    {{ parent() }}
+   <style>
+.page-header{
+    display:flex;
+    justify-content:space-between;
+    align-items:center;
+    margin-bottom:14px;
+}
+
+.page-header h1{
+    margin:0;
+}
+
+.panel{
+    background:#fff;
+    border:1px solid #ece7fb;
+    border-radius:16px;
+    box-shadow:0 8px 24px rgba(124,58,237,.08);
+    padding:18px;
+}
+
+.form-grid{
+    display:grid;
+    grid-template-columns:1fr 1fr;
+    gap:12px;
+}
+
+.form-group{
+    display:flex;
+    flex-direction:column;
+}
+
+input, textarea, select{
+    width:100%;
+    padding:10px 12px;
+    border-radius:10px;
+    border:1px solid #e7defd;
+    background:#faf8ff;
+    color:#2c2240;
+    font:inherit;
+}
+
+input:focus, textarea:focus, select:focus{
+    outline:none;
+    border-color:#7c3aed;
+    background:#fff;
+}
+
+textarea{
+    min-height:130px;
+    grid-column:1/-1;
+    resize:vertical;
+}
+
+.full{
+    grid-column:1/-1;
+}
+
+.actions{
+    display:flex;
+    gap:10px;
+    margin-top:14px;
+}
+
+.btn{
+    border:none;
+    border-radius:10px;
+    padding:9px 14px;
+    cursor:pointer;
+    font-weight:600;
+    text-decoration:none;
+    display:inline-block;
+}
+
+.btn-primary{
+    background:#7c3aed;
+    color:#fff;
+}
+
+.btn-primary:hover{
+    background:#6d28d9;
+}
+
+.btn-ghost{
+    background:#efeaff;
+    color:#4b2ca3;
+    border:1px solid #d9ccff;
+}
+
+.error{
+    border:2px solid red !important;
+}
+
+.error-message{
+    display:none;
+    color:red;
+    font-size:12px;
+    margin-top:5px;
+}
+
+/* Responsive */
+@media (max-width: 760px){
+    .form-grid{
+        grid-template-columns:1fr;
+    }
+}
+</style>
+{% endblock %}
+
+{% block body %}
+<div class="page">
+    <div class="page-header">
+        <h1>Ajouter un article</h1>
+    </div>
+
+    <div class="panel">
+       {{ form_start(form, {
+    'attr': {
+        'id': 'article-form',
+        'enctype': 'multipart/form-data',
+        'novalidate': 'novalidate'
+    }
+}) }}
+            <div class="form-grid">
+                <div class="form-group">
+                    {{ form_label(form.title) }}
+                    {{ form_widget(form.title, {'attr': {'class': 'form-control', 'placeholder': 'Titre de l\'article'}}) }}
+                    <div class="error-message" id="error-title"></div>
+                </div>
+
+                <div class="form-group">
+                    {{ form_label(form.status) }}
+                    {{ form_widget(form.status, {'attr': {'class': 'form-control'}}) }}
+                    <div class="error-message" id="error-status"></div>
+                </div>
+
+                <div class="form-group">
+                    {{ form_label(form.content) }}
+                    {{ form_widget(form.content, {'attr': {'class': 'form-control', 'placeholder': 'Contenu de l\'article'}}) }}
+                    <div class="error-message" id="error-content"></div>
+                </div>
+
+                <div class="form-group">
+                    {{ form_label(form.image) }}
+                    {{ form_widget(form.image, {'attr': {'class': 'form-control'}}) }}
+             
+                </div>
+            </div>
+
+            <div class="actions">
+                <button class="btn btn-primary" type="submit">Ajouter</button>
+                <a class="btn btn-ghost" href="{{ path('article_index') }}">Annuler</a>
+            </div>
+        {{ form_end(form) }}
+    </div>
+</div>
+
+<script>
+   document.addEventListener('DOMContentLoaded', () => {
+    const form = document.getElementById('article-form');
+
+    const title = form.querySelector('[name="article[title]"]');
+    const status = form.querySelector('[name="article[status]"]');
+    const content = form.querySelector('[name="article[content]"]');
+    const image = form.querySelector('[name="article[image]"]');
+
+    form.addEventListener('submit', (e) => {
+    let valid = true;
+
+    // reset
+    document.querySelectorAll('.error-message').forEach(el => {
+        el.style.display = 'none';
+        el.textContent = '';
+    });
+
+    document.querySelectorAll('.form-control').forEach(el => {
+        el.classList.remove('error');
+    });
+
+    // TITLE
+    if (title.value.trim().length < 4) {
+        showError(title, 'Le titre doit contenir au moins 4 caractères');
+        valid = false;
+    }
+
+    // STATUS
+    if (!status.value) {
+        showError(status, 'Veuillez choisir un statut');
+        valid = false;
+    }
+
+    // CONTENT
+   if (content.value.trim().length < 10) {
+    showError(content, 'Le contenu doit contenir au moins 10 caractères');
+    valid = false;
+}
+
+
+    if (!valid) e.preventDefault();
+});
+
+    function showError(input, message) {
+        const errorDiv = input.closest('.form-group').querySelector('.error-message');
+        errorDiv.textContent = message;
+        errorDiv.style.display = 'block';
+        input.classList.add('error');
+    }
+});
+</script>
+{% endblock %}
