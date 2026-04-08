@@ -136,7 +136,7 @@
                                                         <button class="btn-icon delete" type="submit">Delete</button>
                                                     </form>
                                                 {% else %}
-                                                    <a class="btn-icon message" href="{{ path('app_module_placeholder', {slug: 'messages'}) }}">Message</a>
+                                                    <a class="btn-icon message" href="{{ card.user_id ? path('app_conversation_new', {recipient: card.user_id}) : path('app_conversations') }}">Message</a>
                                                 {% endif %}
                                             </div>
                                         </div>

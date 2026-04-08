@@ -48,7 +48,7 @@ class User implements UserInterface, PasswordAuthenticatedUserInterface
     #[ORM\Column(name: 'face_embedding', type: Types::JSON, nullable: true, options: ['comment' => '128-dim Facenet embedding stored as JSON array'])]
     private ?array $faceEmbedding = null;
 
-    #[ORM\ManyToMany(targetEntity: Job::class)]
+    #[ORM\ManyToMany(targetEntity: Job::class, inversedBy: 'savedByUsers')]
     #[ORM\JoinTable(name: 'saved_jobs')]
     #[ORM\JoinColumn(name: 'user_id', referencedColumnName: 'id', onDelete: 'CASCADE')]
     #[ORM\InverseJoinColumn(name: 'job_id', referencedColumnName: 'id', onDelete: 'CASCADE')]
