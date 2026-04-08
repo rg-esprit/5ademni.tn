@@ -1,0 +1,116 @@
+{% extends 'base.html.twig' %}
+
+{% block title %}Application Details | 5ademni.tn{% endblock %}
+
+{% block body %}
+<style>
+@keyframes fadeUp { from{opacity:0;transform:translateY(18px)} to{opacity:1;transform:translateY(0)} }
+.anim-1 { animation: fadeUp .4s ease both; }
+.anim-2 { animation: fadeUp .4s ease .08s both; }
+
+.status-badge {
+    display:inline-flex; align-items:center; gap:.4rem;
+    padding:.4rem 1rem; border-radius:999px;
+    font-size:.85rem; font-weight:700;
+}
+.status-pending { background:#fef3c7; color:#92400e; }
+.status-accepted { background:#dcfce7; color:#166534; }
+.status-rejected { background:#fee2e2; color:#991b1b; }
+
+.info-label { font-size:.72rem; font-weight:800; color:#6b7280; text-transform:uppercase; letter-spacing:.08em; margin-bottom:.3rem; }
+.info-value { font-size:1rem; color:#1a1523; font-weight:600; margin-bottom:1.5rem; }
+
+.cv-preview {
+    display:flex; align-items:center; gap:1rem;
+    padding:1rem; background:#f8fafc; border:1.5px solid #e2e8f0; border-radius:.75rem;
+    margin-top:1rem;
+}
+</style>
+
+<div class="page-shell">
+    {% include 'partials/_header.html.twig' %}
+
+    <main class="page-content">
+        <div style="margin-bottom:1.5rem;" class="anim-1">
+            <a href="{{ path('app_job_index', {view:'applications'}) }}" style="color:#6b7280; text-decoration:none; font-size:.88rem;">← Back to My Applications</a>
+        </div>
+
+        <div style="display:grid; grid-template-columns:1fr 320px; gap:2rem; align-items:start;">
+            
+            <div class="anim-1">
+                <article class="panel">
+                    <div style="display:flex; justify-content:space-between; align-items:flex-start; margin-bottom:2rem; gap:1rem; flex-wrap:wrap;">
+                        <div>
+                            <p class="eyebrow" style="margin-bottom:.3rem;">Your Application for</p>
+                            <h1 style="font-size:1.8rem; font-weight:800; margin:0 0 .4rem;">{{ application.job.title }}</h1>
+                            <p style="font-size:1rem; color:#6366f1; font-weight:600; margin:0;">{{ application.job.company }}</p>
+                        </div>
+                        
+                        {% set sc = 'status-pending' %}
+                        {% if application.status == 'ACCEPTED' %}{% set sc = 'status-accepted' %}
+                        {% elseif application.status == 'REJECTED' %}{% set sc = 'status-rejected' %}
+                        {% endif %}
+                        <span class="status-badge {{ sc }}">{{ application.status }}</span>
+                    </div>
+
+                    <div style="margin-bottom:2rem;">
+                        <p class="info-label">Application Title</p>
+                        <p class="info-value" style="font-size:1.2rem;">{{ application.title }}</p>
+                    </div>
+
+                    <div style="margin-bottom:2rem;">
+                        <p class="info-label">Cover Letter / Description</p>
+                        <div style="font-size:.95rem; line-height:1.75; color:#374151; white-space:pre-wrap; background:#fafafa; padding:1.25rem; border-radius:.75rem; border-left:4px solid #6366f1;">
+                            {{ application.description }}
+                        </div>
+                    </div>
+
+                    {% if application.cvPath %}
+                        <div>
+                            <p class="info-label">Attached Curriculum Vitae</p>
+                            <div class="cv-preview">
+                                <div style="font-size:2rem;">📄</div>
+                                <div style="flex:1;">
+                                    <p style="margin:0; font-weight:700; font-size:.9rem;">Your CV Document</p>
+                                    <p style="margin:0; font-size:.8rem; color:#64748b;">Uploaded on {{ application.applicationDate|date('M d, Y') }}</p>
+                                </div>
+                                <a href="{{ asset(application.cvPath) }}" target="_blank" class="ghost-button" style="text-decoration:none; padding:.4rem .8rem;">Open PDF</a>
+                            </div>
+                        </div>
+                    {% endif %}
+                </article>
+            </div>
+
+            <div class="anim-2">
+                <section class="panel">
+                    <div class="panel-heading"><h2>Actions</h2></div>
+                    
+                    {% if application.status == 'PENDING' %}
+                        <div style="display:flex; flex-direction:column; gap:.75rem;">
+                            <a href="{{ path('app_job_application_edit', {id: application.id}) }}" class="primary-button" style="text-decoration:none;">✏ Edit My Application</a>
+                            
+                            <form method="POST" action="{{ path('app_job_application_delete', {id: application.id}) }}" onsubmit="return confirm('Are you sure you want to delete this application? This action cannot be undone.');">
+                                <input type="hidden" name="_token" value="{{ csrf_token('delete_application' ~ application.id) }}">
+                                <button type="submit" class="ghost-button" style="width:100%; color:#dc2626; border-color:#fee2e2;">🗑 Delete Application</button>
+                            </form>
+                        </div>
+                        <p class="muted-copy" style="font-size:.78rem; margin-top:1rem; line-height:1.5;">
+                            You can edit or delete this application as long as it remains <strong>PENDING</strong>. Once reviewed by the employer, these actions will be disabled.
+                        </p>
+                    {% else %}
+                        <div style="padding:1rem; background:#f1f5f9; border-radius:.6rem; text-align:center;">
+                            <p style="margin:0; font-size:.88rem; color:#475569; font-weight:600;">Application Reviewed</p>
+                            <p style="margin:.3rem 0 0; font-size:.8rem; color:#64748b;">This application has already been processed and can no longer be modified.</p>
+                        </div>
+                    {% endif %}
+                    
+                    <div style="margin-top:2rem; padding-top:1.5rem; border-top:1.5px solid #f1f5f9;">
+                        <a href="{{ path('app_job_show', {id: application.job.id}) }}" style="color:#6366f1; text-decoration:none; font-size:.88rem; font-weight:700;">View Original Job Posting →</a>
+                    </div>
+                </section>
+            </div>
+
+        </div>
+    </main>
+</div>
+{% endblock %}

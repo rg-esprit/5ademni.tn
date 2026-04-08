@@ -1,0 +1,125 @@
+{% extends 'base.html.twig' %}
+
+{% block title %}{{ is_edit ? 'Edit Job' : 'Post a New Job' }} | 5ademni.tn{% endblock %}
+
+{% block body %}
+<style>
+@keyframes fadeUp { from{opacity:0;transform:translateY(18px)} to{opacity:1;transform:translateY(0)} }
+.form-panel { animation: fadeUp .45s ease both; }
+
+.field-group label {
+    display:block; font-size:.8rem; font-weight:700;
+    text-transform:uppercase; letter-spacing:.05em;
+    color:#374151; margin-bottom:.4rem;
+}
+.field-group .text-input,
+.field-group .textarea-input,
+.field-group .select-input {
+    width:100%; box-sizing:border-box;
+    padding:.65rem .95rem;
+    border:1.5px solid #e5e7eb; border-radius:.5rem;
+    font-size:.93rem; color:#111; background:#f9fafb;
+    transition:border-color .2s, box-shadow .2s, background .2s;
+    outline:none;
+}
+.field-group .text-input:focus,
+.field-group .textarea-input:focus,
+.field-group .select-input:focus {
+    border-color:#6366f1; background:#fff;
+    box-shadow: 0 0 0 3px rgba(99,102,241,.15);
+}
+.helper-text { font-size:.8rem; color:#dc2626; margin:.3rem 0 0; }
+
+.two-col { display:grid; grid-template-columns:1fr 1fr; gap:1rem; }
+@media(max-width:560px){ .two-col { grid-template-columns:1fr; } }
+
+.section-title {
+    font-size:.7rem; font-weight:800; text-transform:uppercase;
+    letter-spacing:.1em; color:#6366f1;
+    padding-bottom:.5rem; border-bottom:2px solid #ede9fe;
+    margin:1.75rem 0 1rem;
+}
+</style>
+
+<div class="page-shell">
+    {% include 'partials/_header.html.twig' %}
+
+    <main class="page-content">
+        <section class="review-hero">
+            <div>
+                <p class="eyebrow">{{ is_edit ? 'Editing' : 'New Posting' }}</p>
+                <h1>{{ is_edit ? 'Edit Job Posting' : 'Post a New Job' }}</h1>
+                <p class="muted-copy">{{ is_edit ? 'Update the details below and save.' : 'Fill out the form to attract the best candidates.' }}</p>
+            </div>
+        </section>
+
+        <div style="max-width:700px; margin:0 auto;">
+            <div class="panel form-panel">
+                {{ form_start(form) }}
+                <input type="hidden" name="back_url" value="{{ back_url }}">
+
+                <p class="section-title">Basic Info</p>
+
+                <div class="field-group">
+                    {{ form_label(form.title, 'Job Title') }}
+                    {{ form_widget(form.title, {attr: {class: 'text-input'}}) }}
+                    <p class="helper-text">{{ form_errors(form.title) }}</p>
+                </div>
+
+                <div class="two-col">
+                    <div class="field-group">
+                        {{ form_label(form.company, 'Company') }}
+                        {{ form_widget(form.company, {attr: {class: 'text-input'}}) }}
+                        <p class="helper-text">{{ form_errors(form.company) }}</p>
+                    </div>
+                    <div class="field-group">
+                        {{ form_label(form.location, 'Location') }}
+                        {{ form_widget(form.location, {attr: {class: 'text-input'}}) }}
+                        <p class="helper-text">{{ form_errors(form.location) }}</p>
+                    </div>
+                </div>
+
+                <div class="two-col">
+                    <div class="field-group">
+                        {{ form_label(form.category, 'Category') }}
+                        {{ form_widget(form.category, {attr: {class: 'text-input select-input'}}) }}
+                        <p class="helper-text">{{ form_errors(form.category) }}</p>
+                    </div>
+                    <div class="field-group">
+                        {{ form_label(form.jobType, 'Job Type') }}
+                        {{ form_widget(form.jobType, {attr: {class: 'text-input select-input'}}) }}
+                        <p class="helper-text">{{ form_errors(form.jobType) }}</p>
+                    </div>
+                </div>
+
+                <div class="field-group">
+                    {{ form_label(form.salaryRange, 'Salary Range (optional)') }}
+                    {{ form_widget(form.salaryRange, {attr: {class: 'text-input', placeholder:'e.g. 1200 – 2500 TND/month'}}) }}
+                    <p class="helper-text">{{ form_errors(form.salaryRange) }}</p>
+                </div>
+
+                <p class="section-title">Details</p>
+
+                <div class="field-group">
+                    {{ form_label(form.description, 'Job Description') }}
+                    {{ form_widget(form.description, {attr: {class: 'textarea-input', rows: 6}}) }}
+                    <p class="helper-text">{{ form_errors(form.description) }}</p>
+                </div>
+
+                <div class="field-group">
+                    {{ form_label(form.requirements, 'Requirements & Skills (optional)') }}
+                    {{ form_widget(form.requirements, {attr: {class: 'textarea-input', rows: 5}}) }}
+                    <p class="helper-text">{{ form_errors(form.requirements) }}</p>
+                </div>
+
+                <div class="inline-actions" style="margin-top:1.5rem; padding-top:1.25rem; border-top:1px solid #e5e7eb;">
+                    <button type="button" class="ghost-button" onclick="history.back()">Cancel</button>
+                    <button class="primary-button" type="submit">{{ is_edit ? '💾 Update Job' : '🚀 Post Job' }}</button>
+                </div>
+
+                {{ form_end(form) }}
+            </div>
+        </div>
+    </main>
+</div>
+{% endblock %}

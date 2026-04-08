@@ -19,8 +19,8 @@
             </div>
         {% endif %}
 
-        <a href="{{ is_granted('ROLE_ADMIN') ? path('app_module_placeholder', {slug: 'jobs-management'}) : path('app_module_placeholder', {slug: 'jobs'}) }}">Jobs Management</a>
-        <a href="{{ path('app_module_placeholder', {slug: 'jobs'}) }}">Jobs</a>
+        <a href="{{ path('app_management_jobs_index') }}">Jobs Management</a>
+        <a href="{{ path('app_job_index') }}">Jobs</a>
         <div class="nav-dropdown">
             <button type="button" class="nav-dropdown-trigger">Categories</button>
             <div class="nav-dropdown-menu">
