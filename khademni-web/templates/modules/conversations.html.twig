@@ -1,0 +1,167 @@
+{% extends 'base.html.twig' %}
+
+{% block title %}Mes Conversations | 5ademni.tn{% endblock %}
+
+{% block body %}
+    <div class="page-shell">
+        {% include 'partials/_header.html.twig' %}
+
+        <main class="page-content">
+            <section class="page-card">
+                <div class="page-card-header conversation-header">
+                    <div>
+                        <p class="eyebrow">Messagerie</p>
+                        <h1>Mes Conversations</h1>
+                        <p class="meta">Gérez vos échanges avec les freelances et clients.</p>
+                    </div>
+                    <a class="primary-button" href="{{ path('app_conversation_new') }}">Créer une discussion</a>
+                </div>
+
+                <div class="conversation-toolbar">
+                    <form method="get" class="conversation-filters" novalidate>
+                        <div class="field-group">
+                            <label for="search">Rechercher</label>
+                            <input id="search" name="search" type="search" value="{{ search }}" placeholder="Titre ou nom du participant" class="text-input" autocomplete="off" />
+                        </div>
+                        <div class="field-group">
+                            <label for="filter">Filtrer</label>
+                            <select id="filter" name="filter" class="text-input">
+                                {% for option in filters %}
+                                    <option value="{{ option }}" {{ option == filter ? 'selected' : '' }}>{{ option }}</option>
+                                {% endfor %}
+                            </select>
+                        </div>
+                    </form>
+                </div>
+
+                <div class="table-responsive">
+                    <table class="data-table">
+                        <thead>
+                            <tr>
+                                <th>#</th>
+                                <th>Titre</th>
+                                <th>Participant</th>
+                                <th>Créée le</th>
+                                <th>Non lus</th>
+                                <th>Statut</th>
+                                <th>Actions</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% if conversations is empty %}
+                                <tr class="empty-row">
+                                    <td colspan="7">
+                                        <div class="empty-state">
+                                            <p>Aucune conversation active pour le moment.</p>
+                                            <a class="primary-button" href="{{ path('app_conversation_new') }}">Démarrer une conversation</a>
+                                        </div>
+                                    </td>
+                                </tr>
+                            {% else %}
+                                {% for conversation in conversations %}
+                                    {% set otherUser = conversation.getOtherParticipant(app.user) %}
+                                    <tr data-title="{{ conversation.getTitle()|lower }}" data-participant="{{ otherUser ? otherUser.getDisplayName()|lower : '' }}" data-unread="{{ conversation.getUnreadCountFor(app.user) > 0 ? '1' : '0' }}" data-status="{{ conversation.getStatut() }}">
+                                        <td>{{ loop.index }}</td>
+                                        <td>
+                                            <strong>{{ conversation.getTitle() }}</strong>
+                                            <div class="table-description">{{ otherUser ? otherUser.getDisplayName() : 'Participant inconnu' }}</div>
+                                        </td>
+                                        <td>{{ otherUser ? otherUser.getDisplayName() : '–' }}</td>
+                                        <td>{{ conversation.getDateCreation()|date('d/m/Y') }}</td>
+                                        <td>
+                                            {% if conversation.getUnreadCountFor(app.user) > 0 %}
+                                                <span class="badge">{{ conversation.getUnreadCountFor(app.user) }} non lus</span>
+                                            {% else %}
+                                                0
+                                            {% endif %}
+                                        </td>
+                                        <td>
+                                            <span class="status-pill {{ conversation.getStatut() == 'ACTIVE' ? 'status-pill--active' : 'status-pill--inactive' }}">
+                                                <span class="status-dot"></span>
+                                                {{ conversation.getStatut() == 'ACTIVE' ? 'Actif' : 'Inactif' }}
+                                            </span>
+                                        </td>
+                                        <td class="table-actions">
+                                            <a class="secondary-button compact-button" href="{{ path('app_message_thread', {id: conversation.getId()}) }}">Accéder</a>
+                                            <a class="ghost-button compact-button" href="{{ path('app_conversation_members', {id: conversation.getId()}) }}">Membres</a>
+                                            <form method="post" action="{{ path('app_conversation_status', {id: conversation.getId()}) }}" class="inline-form">
+                                                <input type="hidden" name="_token" value="{{ csrf_token('conversation_status_' ~ conversation.getId()) }}" />
+                                                <input type="hidden" name="status" value="{{ conversation.getStatut() == 'ACTIVE' ? 'ARCHIVED' : 'ACTIVE' }}" />
+                                                <button class="secondary-button compact-button" type="submit">
+                                                    <span class="status-dot {{ conversation.getStatut() == 'ACTIVE' ? 'status-dot--danger' : 'status-dot--success' }}"></span>
+                                                    {{ conversation.getStatut() == 'ACTIVE' ? 'Archiver' : 'Réactiver' }}
+                                                </button>
+                                            </form>
+                                            <form method="post" action="{{ path('app_conversation_delete', {id: conversation.getId()}) }}" class="inline-form" data-turbo="false" onsubmit="return confirm('Voulez-vous vraiment supprimer cette conversation ?');">
+                                                <input type="hidden" name="_token" value="{{ csrf_token('conversation_delete_' ~ conversation.getId()) }}" />
+                                                <button class="danger-button compact-button" type="submit">Supprimer</button>
+                                            </form>
+                                        </td>
+                                    </tr>
+                                {% endfor %}
+                            {% endif %}
+                        </tbody>
+                    </table>
+                </div>
+                <script>
+                    document.addEventListener('DOMContentLoaded', function () {
+                        const searchInput = document.getElementById('search');
+                        const filterSelect = document.getElementById('filter');
+                        const tableBody = document.querySelector('.data-table tbody');
+                        const rows = Array.from(tableBody.querySelectorAll('tr')).filter(row => !row.classList.contains('empty-row'));
+                        const noResultRow = document.createElement('tr');
+
+                        noResultRow.className = 'empty-row';
+                        noResultRow.innerHTML = '<td colspan="7"><div class="empty-state"><p>Aucune conversation ne correspond à votre recherche.</p></div></td>';
+
+                        const updateList = () => {
+                            const query = searchInput.value.trim().toLowerCase();
+                            const filter = filterSelect.value;
+                            let visible = 0;
+
+                            rows.forEach(row => {
+                                const title = row.dataset.title || '';
+                                const participant = row.dataset.participant || '';
+                                const unread = row.dataset.unread === '1';
+                                const status = row.dataset.status || 'ACTIVE';
+                                
+                                const matchesSearch = !query || title.includes(query) || participant.includes(query);
+                                
+                                // Filtrer par statut (Actives/Inactives)
+                                let matchesStatusFilter = true;
+                                if (filter === 'Actives') {
+                                    matchesStatusFilter = status === 'ACTIVE';
+                                } else if (filter === 'Inactives') {
+                                    matchesStatusFilter = status !== 'ACTIVE';
+                                } else if (filter === 'Non lues') {
+                                    matchesStatusFilter = unread;
+                                }
+                                
+                                const matchesFilter = matchesSearch && matchesStatusFilter;
+
+                                if (matchesFilter) {
+                                    row.style.display = '';
+                                    visible += 1;
+                                } else {
+                                    row.style.display = 'none';
+                                }
+                            });
+
+                            if (visible === 0) {
+                                if (!tableBody.contains(noResultRow)) {
+                                    tableBody.appendChild(noResultRow);
+                                }
+                            } else if (tableBody.contains(noResultRow)) {
+                                noResultRow.remove();
+                            }
+                        };
+
+                        searchInput.addEventListener('input', updateList);
+                        filterSelect.addEventListener('change', updateList);
+                        updateList();
+                    });
+                </script>
+            </section>
+        </main>
+    </div>
+{% endblock %}

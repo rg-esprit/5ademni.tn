@@ -1,0 +1,246 @@
+{% extends 'base.html.twig' %}
+
+{% block title %}Appel - {{ conversation.getTitle() }} | 5ademni.tn{% endblock %}
+
+{% block body %}
+    <div class="page-shell call-page">
+        <main class="call-interface">
+            <!-- Zone vidéo -->
+            <div class="call-video-area">
+                <div class="video-container remote">
+                    <video id="remoteVideo" playsinline autoplay></video>
+                    <div class="video-label remote-label">{{ conversation.getOtherParticipant(currentUser).getDisplayName() }}</div>
+                </div>
+                
+                <!-- Picture-in-picture local video -->
+                <div class="video-container local">
+                    <video id="localVideo" playsinline autoplay muted></video>
+                    <div class="video-label local-label">Vous ({{ currentUser.getDisplayName() }})</div>
+                </div>
+            </div>
+
+            <!-- Info d'appel -->
+            <div class="call-info">
+                <p id="callStatus">Connexion en cours...</p>
+                <p id="callDuration">00:00</p>
+            </div>
+
+            <!-- Barre de contrôle -->
+            <div class="call-controls">
+                <button id="toggleAudio" class="control-button audio-button" title="Activer/Désactiver le micro" type="button" aria-label="Toggle microphone">
+                    <span>🎤</span>
+                </button>
+                <button id="toggleVideo" class="control-button video-button" title="Activer/Désactiver la caméra" type="button" aria-label="Toggle camera">
+                    <span>🎥</span>
+                </button>
+                <button id="endCall" class="control-button hang-up-button" title="Terminer l'appel - Cliquez pour raccrocher" type="button" aria-label="End call">
+                    📞
+                </button>
+            </div>
+        </main>
+    </div>
+
+    <script>
+        const sessionId = '{{ sessionId }}';
+        const callType = '{{ callType }}';
+        const conversationId = {{ conversation.getId() }};
+        const recipientId = {{ conversation.getOtherParticipant(currentUser).getId() }};
+
+        let localStream = null;
+        let remoteStream = null;
+        let peerConnection = null;
+        let callStartTime = null;
+        let durationInterval = null;
+        let isAudioEnabled = true;
+        let isVideoEnabled = callType === 'video';
+
+        const rtcConfig = {
+            iceServers: [
+                { urls: 'stun:stun.l.google.com:19302' },
+                { urls: 'stun:stun1.l.google.com:19302' },
+                { urls: 'stun:stun2.l.google.com:19302' },
+            ],
+        };
+
+        // Initialiser la connexion P2P
+        async function initializeCall() {
+            try {
+                // Obtenir le flux local
+                const constraints = {
+                    audio: { echoCancellation: true, noiseSuppression: true },
+                    video: callType === 'video' ? { width: { ideal: 1280 }, height: { ideal: 720 } } : false,
+                };
+
+                localStream = await navigator.mediaDevices.getUserMedia(constraints);
+                document.getElementById('localVideo').srcObject = localStream;
+
+                // Pour les appels audio, ajouter un indicateur visuel
+                if (callType === 'audio') {
+                    document.getElementById('toggleVideo').style.display = 'none';
+                    const remoteVideo = document.getElementById('remoteVideo');
+                    remoteVideo.style.display = 'none';
+                    // Afficher un avatar ou couleur unie
+                    remoteVideo.parentElement.style.background = 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)';
+                    const noVideoMsg = document.createElement('div');
+                    noVideoMsg.style.cssText = `
+                        position: absolute;
+                        top: 50%;
+                        left: 50%;
+                        transform: translate(-50%, -50%);
+                        text-align: center;
+                        color: #fff;
+                        z-index: 5;
+                    `;
+                    noVideoMsg.innerHTML = '<div style="font-size: 4rem; margin-bottom: 16px;">📞</div><div style="font-size: 1.2rem; font-weight: 600;">Appel vocal</div>';
+                    remoteVideo.parentElement.appendChild(noVideoMsg);
+                }
+
+                // Créer la connexion P2P
+                peerConnection = new RTCPeerConnection(rtcConfig);
+
+                // Ajouter les pistes locales
+                localStream.getTracks().forEach(track => {
+                    peerConnection.addTrack(track, localStream);
+                });
+
+                // Gérer les pistes distantes
+                peerConnection.ontrack = (event) => {
+                    console.log('Remote stream received:', event.streams);
+                    remoteStream = event.streams[0];
+                    if (remoteStream) {
+                        document.getElementById('remoteVideo').srcObject = remoteStream;
+                        updateCallStatus('Appel actif 🟢');
+                    }
+                };
+
+                // Gérer les changements de connexion
+                peerConnection.onconnectionstatechange = () => {
+                    console.log('Connection state:', peerConnection.connectionState);
+                    switch (peerConnection.connectionState) {
+                        case 'connected':
+                            updateCallStatus('Appel établi ✅');
+                            break;
+                        case 'disconnected':
+                            updateCallStatus('Déconnecté ⚠️');
+                            break;
+                        case 'failed':
+                            updateCallStatus('Erreur de connexion ❌');
+                            break;
+                        case 'closed':
+                            endCall();
+                            break;
+                    }
+                };
+
+                peerConnection.oniceconnectionstatechange = () => {
+                    console.log('ICE connection state:', peerConnection.iceConnectionState);
+                };
+
+                // Démarrer la minuterie
+                callStartTime = Date.now();
+                durationInterval = setInterval(updateDuration, 1000);
+
+                // Créer et envoyer l'offre SDP (optionnel pour les appels basiques)
+                // Dans une vraie app, utiliser un serveur de signalisation WebSocket
+
+                updateCallStatus('En attente de connexion avec ' + '{{ conversation.getOtherParticipant(currentUser).getDisplayName() }}...');
+            } catch (error) {
+                console.error('Error initializing call:', error);
+                updateCallStatus('Erreur: ' + error.message);
+                setTimeout(() => {
+                    window.location.href = '/messages/' + conversationId;
+                }, 2000);
+            }
+        }
+
+        // Basculer l'audio
+        document.getElementById('toggleAudio').addEventListener('click', () => {
+            if (localStream) {
+                const audioTracks = localStream.getAudioTracks();
+                if (audioTracks.length > 0) {
+                    isAudioEnabled = !isAudioEnabled;
+                    audioTracks[0].enabled = isAudioEnabled;
+                    const btn = document.getElementById('toggleAudio');
+                    if (isAudioEnabled) {
+                        btn.classList.remove('muted');
+                        btn.innerHTML = '<span>🎤</span>';
+                    } else {
+                        btn.classList.add('muted');
+                        btn.innerHTML = '<span>🔇</span>';
+                    }
+                }
+            }
+        });
+
+        // Basculer la vidéo
+        document.getElementById('toggleVideo').addEventListener('click', () => {
+            if (localStream) {
+                const videoTracks = localStream.getVideoTracks();
+                if (videoTracks.length > 0) {
+                    isVideoEnabled = !isVideoEnabled;
+                    videoTracks[0].enabled = isVideoEnabled;
+                    const btn = document.getElementById('toggleVideo');
+                    if (isVideoEnabled) {
+                        btn.classList.remove('disabled');
+                        btn.innerHTML = '<span>🎥</span>';
+                    } else {
+                        btn.classList.add('disabled');
+                        btn.innerHTML = '<span>📹</span>';
+                    }
+                }
+            }
+        });
+
+        // Raccrocher
+        document.getElementById('endCall').addEventListener('click', () => {
+            endCall();
+        });
+
+        // Terminer l'appel
+        function endCall() {
+            if (localStream) {
+                localStream.getTracks().forEach(track => track.stop());
+            }
+            if (peerConnection) {
+                peerConnection.close();
+            }
+            if (durationInterval) {
+                clearInterval(durationInterval);
+            }
+
+            fetch('/api/call/' + sessionId + '/end', { method: 'POST' });
+
+            updateCallStatus('Appel terminé. Redirection...');
+            setTimeout(() => {
+                window.location.href = '/messages/' + conversationId;
+            }, 1000);
+        }
+
+        // Mettre à jour la durée de l'appel
+        function updateDuration() {
+            if (callStartTime) {
+                const elapsed = Math.floor((Date.now() - callStartTime) / 1000);
+                const minutes = Math.floor(elapsed / 60);
+                const seconds = elapsed % 60;
+                document.getElementById('callDuration').textContent =
+                    String(minutes).padStart(2, '0') + ':' + String(seconds).padStart(2, '0');
+            }
+        }
+
+        // Mettre à jour le statut de l'appel
+        function updateCallStatus(message) {
+            document.getElementById('callStatus').textContent = message;
+        }
+
+        // Initialiser l'appel au chargement
+        window.addEventListener('load', initializeCall);
+
+        // Terminer l'appel si l'utilisateur quitte la page
+        window.addEventListener('beforeunload', () => {
+            if (peerConnection && peerConnection.connectionState !== 'closed') {
+                fetch('/api/call/' + sessionId + '/end', { method: 'POST', keepalive: true });
+            }
+        });
+    </script>
+{% endblock %}
+

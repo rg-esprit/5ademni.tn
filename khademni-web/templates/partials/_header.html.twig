@@ -8,23 +8,37 @@
     </a>
 
     <nav class="site-nav" aria-label="Primary">
-        <a href="{{ is_granted('ROLE_ADMIN') ? path('app_module_placeholder', {slug: 'jobs-management'}) : path('app_module_placeholder', {slug: 'jobs'}) }}">Jobs Management</a>
-        <a href="{{ path('app_module_placeholder', {slug: 'jobs'}) }}">Jobs</a>
+        {% if is_granted('ROLE_ADMIN') %}
+            <div class="nav-dropdown">
+                <button type="button" class="nav-dropdown-trigger">Admin</button>
+                <div class="nav-dropdown-menu">
+                    <a href="{{ path('app_admin_dashboard') }}">Dashboard</a>
+                    <a href="{{ path('app_admin_categories') }}">Category Management</a>
+                    <a href="{{ path('app_admin_gigs') }}">Gig Management</a>
+                </div>
+            </div>
+        {% endif %}
+
+        <a href="{{ path('app_management_jobs_index') }}">Jobs Management</a>
+        <a href="{{ path('app_job_index') }}">Jobs</a>
         <div class="nav-dropdown">
             <button type="button" class="nav-dropdown-trigger">Categories</button>
             <div class="nav-dropdown-menu">
-                <a href="{{ path('app_module_placeholder', {slug: 'categories'}) }}">Manage Categories</a>
-                <a href="{{ path('app_module_placeholder', {slug: 'gigs'}) }}">Manage Gigs</a>
+                {% if is_granted('ROLE_ADMIN') %}
+                    <a href="{{ path('app_categories') }}">Manage Categories</a>
+                {% endif %}
+                <a href="{{ path('app_gigs') }}">Manage Gigs</a>
             </div>
         </div>
-        <a href="{{ path('app_module_placeholder', {slug: 'messages'}) }}">Messages</a>
+        <a href="{{ path('app_conversations') }}">Messages</a>
         <a href="{{ path('app_module_placeholder', {slug: 'blogs'}) }}">Blogs</a>
         <a href="{{ path('app_module_placeholder', {slug: 'articles'}) }}">Articles</a>
         {% if is_granted('ROLE_ADMIN') %}
             <a href="{{ path('app_admin_users') }}">Users Admin</a>
         {% endif %}
         <a href="{{ path('app_reviews') }}">Reviews</a>
-        <a href="{{ path('app_module_placeholder', {slug: 'contracts'}) }}">Contracts</a>
+        <a href="{{ path('app_contrat_index') }}">Contracts</a>
+        <a href="{{ path('app_payment_index') }}">Payments</a>
     </nav>
 
     <div class="header-account">

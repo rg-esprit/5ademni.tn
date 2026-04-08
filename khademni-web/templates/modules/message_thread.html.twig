@@ -1,0 +1,617 @@
+{% extends 'base.html.twig' %}
+
+{% block title %}Conversation « {{ conversation.getTitle() }} » | 5ademni.tn{% endblock %}
+
+{% block body %}
+    <div class="page-shell">
+        {% include 'partials/_header.html.twig' %}
+
+        <main class="page-content">
+            <section class="page-card page-card-thread">
+                <div class="thread-topbar">
+                    <div class="thread-topbar-meta">
+                        <p class="eyebrow">Messagerie</p>
+                        <h1>{{ conversation.getTitle() }}</h1>
+                        <p class="meta">Avec {{ conversation.getOtherParticipant(currentUser).getDisplayName() }} • Ouverte le {{ conversation.getDateCreation()|date('d/m/Y') }}</p>
+                    </div>
+                    <div class="thread-topbar-actions">
+                        <button class="icon-button" id="startAudioCall" type="button" title="Appel vocal"><span>📞</span> Appel</button>
+                        <button class="icon-button" id="startVideoCall" type="button" title="Appel vidéo"><span>🎥</span> Vidéo</button>
+                        <button class="icon-button" id="summarizeChat" type="button" title="Résumer le chat par IA"><span>✨</span> Résumé IA</button>
+                        <button type="button" class="icon-button" id="openScheduleMeeting" title="Planifier une réunion"><span>📅</span> Réunion</button>
+                        <a class="secondary-button" href="{{ path('app_conversations') }}">Retour</a>
+                    </div>
+                </div>
+
+                <div class="thread-container">
+                    <div class="thread-messages" id="threadMessages">
+                        {% if messages is empty %}
+                            <div class="empty-state thread-empty">
+                                <p>Aucun message pour le moment. Envoyez le premier message pour démarrer la discussion.</p>
+                            </div>
+                        {% endif %}
+
+                        {% for message in messages %}
+                            {% set isOutgoing = message.isSentBy(currentUser) %}
+                            <article class="message-bubble {{ isOutgoing ? 'outgoing' : 'incoming' }}" data-message-id="{{ message.getId() }}">
+                                <div class="message-bubble-wrapper">
+                                    {% if not isOutgoing %}
+                                        <div class="message-bubble-meta">
+                                            <span class="message-sender">{{ message.getSenderDisplayName(conversation) }}</span>
+                                            <time datetime="{{ message.getDateEnvoi()|date('c') }}">{{ message.getDateEnvoi()|date('d/m/Y H:i') }}</time>
+                                        </div>
+                                    {% endif %}
+
+                                    <div class="message-content-wrapper">
+                                        {% if message.getTypeMessage() == 'MEETING' %}
+                                            <div class="message-bubble-content meeting-card">
+                                                <strong>Réunion planifiée</strong>
+                                                <p>{{ message.getContenu()|nl2br }}</p>
+                                            </div>
+                                        {% else %}
+                                            <div class="message-bubble-content">
+                                        {% set pieceUrl = message.getPieceJointeUrl() %}
+                                        {% set proxiedUrl = pieceUrl|proxy_blob %}
+                                        {% set messageType = message.getTypeMessage() %}
+                                        {% set isImageUrl = pieceUrl and (pieceUrl ends with '.jpg' or pieceUrl ends with '.jpeg' or pieceUrl ends with '.png' or pieceUrl ends with '.gif' or pieceUrl ends with '.webp') %}
+                                        {% set isAudioUrl = pieceUrl and (pieceUrl ends with '.mp3' or pieceUrl ends with '.wav' or pieceUrl ends with '.m4a' or pieceUrl ends with '.ogg' or pieceUrl ends with '.webm') %}
+
+                                        {% if isImageUrl or (message.hasAttachment() and messageType == 'IMAGE') %}
+                                            <div class="attachment-preview attachment-image">
+                                                <a href="{{ proxiedUrl }}" target="_blank" rel="noopener noreferrer">
+                                                    <img src="{{ proxiedUrl }}" alt="Photo envoyée" style="max-width: 100%; max-height: 400px;">
+                                                </a>
+                                            </div>
+                                        {% elseif isAudioUrl or (message.hasAttachment() and messageType == 'AUDIO') %}
+                                            <div class="attachment-preview attachment-audio">
+                                                <audio controls src="{{ proxiedUrl }}"></audio>
+                                                {% if message.getDureeAudio() %}<small>{{ message.getDureeAudio() }}</small>{% endif %}
+                                            </div>
+                                        {% elseif message.hasAttachment() %}
+                                            <div class="attachment-preview attachment-file">
+                                                <a href="{{ proxiedUrl }}" target="_blank" rel="noopener noreferrer">Télécharger : {{ pieceUrl|split('/')|last }}</a>
+                                            </div>
+                                        {% endif %}
+
+                                        {% if messageType != 'MEETING' and not isImageUrl %}
+                                            <p>{{ message.getContenu()|nl2br }}</p>
+                                        {% endif %}
+                                            </div>
+                                        {% endif %}
+
+                                        {% if isOutgoing %}
+                                            <div class="message-actions">
+                                                <button type="button" class="msg-action-btn edit-message" data-msg-id="{{ message.getId() }}" title="Éditer">🖊️</button>
+                                                <button type="button" class="msg-action-btn delete-message" data-msg-id="{{ message.getId() }}" title="Supprimer">⊗</button>
+                                            </div>
+                                        {% endif %}
+                                    </div>
+
+                                    {% if isOutgoing %}
+                                        <div class="message-bubble-meta">
+                                            <time datetime="{{ message.getDateEnvoi()|date('c') }}">{{ message.getDateEnvoi()|date('H:i') }}</time>
+                                        </div>
+                                    {% endif %}
+                                </div>
+                            </article>
+                        {% endfor %}
+                    </div>
+
+                    <div class="thread-composer">
+                        <form method="post" enctype="multipart/form-data" class="composer-form" novalidate>
+                            <input type="hidden" name="_token" value="{{ csrf_token('send_message_' ~ conversation.getId()) }}" />
+                            <input type="hidden" name="action" value="send_message" id="composerAction" />
+                            <input type="hidden" name="audio_duration" id="audioDuration" value="" />
+
+                            <div class="composer-body-wrapper">
+                                <div class="composer-icons-group">
+                                    <button type="button" class="toolbar-icon" id="emojiToggle" title="Emoji">😊</button>
+                                    <button type="button" class="toolbar-icon" id="attachPhoto" title="Ajouter une photo">🖼️</button>
+                                    <button type="button" class="toolbar-icon" id="attachFile" title="Ajouter un fichier">📎</button>
+                                    <button type="button" class="toolbar-icon" id="recordAudioButton" title="Enregistrer un message vocal">🎤</button>
+                                </div>
+
+                                <textarea id="content" name="content" rows="2" maxlength="3000" placeholder="Écrivez un message...">{{ app.request.request.get('content', '') }}</textarea>
+
+                                <div class="composer-actions-group">
+                                    <button class="ghost-button compact-button" type="button" id="scheduleButton">Planifier</button>
+                                    <button class="primary-button icon-send-button" type="submit" aria-label="Envoyer">
+                                        <span>➤</span>
+                                    </button>
+                                </div>
+                            </div>
+
+                            <div class="composer-status-panel">
+                                <span class="composer-status" id="attachmentPreview">Aucune pièce jointe</span>
+                            </div>
+
+                            <div class="emoji-picker" id="emojiPicker">
+                                {% for emoji in ['😀','😄','😉','😍','👍','🎉','📎','📷','🎤'] %}
+                                    <button type="button" class="emoji-button">{{ emoji }}</button>
+                                {% endfor %}
+                            </div>
+
+                            <input type="file" id="attachment" name="attachment" class="file-input" accept="image/*,audio/*,application/pdf" hidden />
+                        </form>
+                    </div>
+                </div>
+            </section>
+        </main>
+    </div>
+
+    <div class="modal-overlay" id="scheduleMeetingModal" aria-hidden="true">
+        <div class="modal-card">
+            <div class="modal-header">
+                <div>
+                    <h2>Planifier une réunion</h2>
+                    <p class="helper-text">Envoyez une invitation de réunion directement dans le chat.</p>
+                </div>
+                <button type="button" class="modal-close" id="closeScheduleModal">✕</button>
+            </div>
+            <form method="post" class="schedule-form" novalidate>
+                <input type="hidden" name="_token" value="{{ csrf_token('send_message_' ~ conversation.getId()) }}" />
+                <input type="hidden" name="action" value="schedule_meeting" />
+
+                <div class="field-group">
+                    <label for="meeting_subject">Sujet de la réunion</label>
+                    <input id="meeting_subject" name="meeting_subject" type="text" class="text-input" placeholder="Ex : Revue projet" required />
+                </div>
+                <div class="field-group">
+                    <label for="meeting_datetime">Date et heure</label>
+                    <input id="meeting_datetime" name="meeting_datetime" type="datetime-local" class="text-input" required />
+                </div>
+                <div class="field-group">
+                    <label for="meeting_details">Détails</label>
+                    <textarea id="meeting_details" name="meeting_details" class="textarea-input" rows="4" placeholder="Ajouter un ordre du jour ou des notes..."></textarea>
+                </div>
+                <div class="modal-actions">
+                    <button type="button" class="ghost-button" id="cancelSchedule">Annuler</button>
+                    <button type="submit" class="primary-button">Envoyer l’invitation</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <div class="modal-overlay" id="summaryModal" aria-hidden="true">
+        <div class="modal-card">
+            <div class="modal-header">
+                <div>
+                    <h2>Résumé du chat par IA ✨</h2>
+                    <p class="helper-text">Résumé intelligent de votre conversation</p>
+                </div>
+                <button type="button" class="modal-close" id="closeSummaryModal">✕</button>
+            </div>
+            <div class="modal-content" id="summaryContent" style="padding: 20px; max-height: 500px; overflow-y: auto; line-height: 1.6;">
+                <p id="summaryLoading" style="text-align: center; color: #6b6575;">
+                    <span style="display: inline-block; animation: spin 1s linear infinite;">⏳</span> Génération du résumé...
+                </p>
+                <div id="summaryText" style="display: none;"></div>
+            </div>
+            <div class="modal-actions">
+                <button type="button" class="ghost-button" id="closeSummaryBtn">Fermer</button>
+                <button type="button" class="primary-button" id="copySummary">📋 Copier</button>
+            </div>
+        </div>
+    </div>
+
+    <div class="modal-overlay" id="editMessageModal" aria-hidden="true">
+        <div class="modal-card">
+            <div class="modal-header">
+                <div>
+                    <h2>Éditer le message ✏️</h2>
+                    <p class="helper-text">Modifiez le contenu du message</p>
+                </div>
+                <button type="button" class="modal-close" id="closeEditModal">✕</button>
+            </div>
+            <form id="editMessageForm" class="edit-form" novalidate>
+                <input type="hidden" id="editMessageId" />
+                <div class="field-group">
+                    <textarea id="editMessageContent" class="textarea-input" rows="4" placeholder="Nouveau contenu..." required></textarea>
+                </div>
+                <div class="modal-actions">
+                    <button type="button" class="ghost-button" id="cancelEditBtn">Annuler</button>
+                    <button type="submit" class="primary-button">Enregistrer</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <script>
+        const conversationId = {{ conversation.getId() }};
+        const currentUserId = {{ app.user.id }};
+        let lastMessageId = 0;
+        let isPolling = false;
+
+        // Fonction pour démarrer un appel
+        function startCall(type) {
+            fetch('/messages/' + conversationId + '/call', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+                body: 'type=' + type,
+            })
+                .then(response => response.json())
+                .then(data => {
+                    if (data.success) {
+                        window.location.href = '/messages/' + conversationId + '/call/' + data.sessionId + '/join';
+                    } else {
+                        alert('Erreur: ' + data.detail);
+                    }
+                })
+                .catch(error => {
+                    console.error('Call error:', error);
+                    alert('Impossible de démarrer l\'appel');
+                });
+        }
+
+        // Boutons d'appel
+        document.addEventListener('DOMContentLoaded', function () {
+            const startAudioCall = document.getElementById('startAudioCall');
+            const startVideoCall = document.getElementById('startVideoCall');
+            const summarizeBtn = document.getElementById('summarizeChat');
+            const summaryModal = document.getElementById('summaryModal');
+            const closeSummaryModal = document.getElementById('closeSummaryModal');
+            const closeSummaryBtn = document.getElementById('closeSummaryBtn');
+            const copySummaryBtn = document.getElementById('copySummary');
+
+            if (startAudioCall) startAudioCall.addEventListener('click', () => startCall('audio'));
+            if (startVideoCall) startVideoCall.addEventListener('click', () => startCall('video'));
+
+            // Gérer le résumé IA
+            if (summarizeBtn) {
+                summarizeBtn.addEventListener('click', function () {
+                    summarizeChat();
+                });
+            }
+
+            // Fermer le modal de résumé
+            if (closeSummaryModal) {
+                closeSummaryModal.addEventListener('click', function () {
+                    summaryModal.setAttribute('aria-hidden', 'true');
+                    summaryModal.classList.remove('modal-open');
+                });
+            }
+
+            if (closeSummaryBtn) {
+                closeSummaryBtn.addEventListener('click', function () {
+                    summaryModal.setAttribute('aria-hidden', 'true');
+                    summaryModal.classList.remove('modal-open');
+                });
+            }
+
+            // Copier le résumé
+            if (copySummaryBtn) {
+                copySummaryBtn.addEventListener('click', function () {
+                    const summaryText = document.getElementById('summaryText').innerText;
+                    navigator.clipboard.writeText(summaryText).then(() => {
+                        copySummaryBtn.textContent = '✓ Copié !';
+                        setTimeout(() => {
+                            copySummaryBtn.textContent = '📋 Copier';
+                        }, 2000);
+                    });
+                });
+            }
+
+            // Initialiser la messagerie en temps réel
+            document.getElementById('threadMessages').scrollTop = document.getElementById('threadMessages').scrollHeight;
+        });
+
+        // Fonction pour résumer le chat
+        function summarizeChat() {
+            const summaryModal = document.getElementById('summaryModal');
+            const summaryContent = document.getElementById('summaryContent');
+            const summaryLoading = document.getElementById('summaryLoading');
+            const summaryText = document.getElementById('summaryText');
+
+            summaryModal.setAttribute('aria-hidden', 'false');
+            summaryModal.classList.add('modal-open');
+            summaryLoading.style.display = 'block';
+            summaryText.style.display = 'none';
+
+            fetch('/api/conversations/' + conversationId + '/summarize')
+                .then(response => response.json())
+                .then(data => {
+                    if (data.success) {
+                        summaryLoading.style.display = 'none';
+                        summaryText.style.display = 'block';
+                        summaryText.innerHTML = '<p>' + data.summary.replace(/\n/g, '</p><p>') + '</p>';
+                    } else {
+                        summaryLoading.innerHTML = '<p style="color: #d92d20;">Erreur: ' + data.detail + '</p>';
+                    }
+                })
+                .catch(error => {
+                    console.error('Summarize error:', error);
+                    summaryLoading.innerHTML = '<p style="color: #d92d20;">Erreur lors de la génération du résumé</p>';
+                });
+        }
+
+        // Gestion édition/suppression des messages
+        document.addEventListener('click', function (e) {
+            // Éditer un message
+            if (e.target.classList.contains('edit-message')) {
+                const msgId = e.target.getAttribute('data-msg-id');
+                const messageBubble = document.querySelector('[data-message-id="' + msgId + '"]');
+                const messageContent = messageBubble.querySelector('.message-bubble-content p');
+                const editModal = document.getElementById('editMessageModal');
+                const editMessageId = document.getElementById('editMessageId');
+                const editMessageContent = document.getElementById('editMessageContent');
+
+                editMessageId.value = msgId;
+                editMessageContent.value = messageContent ? messageContent.innerText : '';
+
+                editModal.setAttribute('aria-hidden', 'false');
+                editModal.classList.add('modal-open');
+                editMessageContent.focus();
+            }
+
+            // Supprimer un message
+            if (e.target.classList.contains('delete-message')) {
+                const msgId = e.target.getAttribute('data-msg-id');
+                if (confirm('Êtes-vous sûr de vouloir supprimer ce message ?')) {
+                    fetch('/api/messages/' + msgId + '/delete', { method: 'POST' })
+                        .then(response => response.json())
+                        .then(data => {
+                            if (data.success) {
+                                const messageBubble = document.querySelector('[data-message-id="' + msgId + '"]');
+                                messageBubble.remove();
+                            } else {
+                                alert('Erreur: ' + data.detail);
+                            }
+                        })
+                        .catch(error => {
+                            console.error('Delete error:', error);
+                            alert('Erreur lors de la suppression');
+                        });
+                }
+            }
+        });
+
+        // Fermer le modal d'édition
+        document.getElementById('closeEditModal').addEventListener('click', function () {
+            const editModal = document.getElementById('editMessageModal');
+            editModal.setAttribute('aria-hidden', 'true');
+            editModal.classList.remove('modal-open');
+        });
+
+        document.getElementById('cancelEditBtn').addEventListener('click', function () {
+            const editModal = document.getElementById('editMessageModal');
+            editModal.setAttribute('aria-hidden', 'true');
+            editModal.classList.remove('modal-open');
+        });
+
+        // Soumettre l'édition
+        document.getElementById('editMessageForm').addEventListener('submit', function (e) {
+            e.preventDefault();
+            const msgId = document.getElementById('editMessageId').value;
+            const content = document.getElementById('editMessageContent').value.trim();
+
+            if (!content) {
+                alert('Le message ne peut pas être vide');
+                return;
+            }
+
+            fetch('/api/messages/' + msgId + '/edit', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+                body: 'content=' + encodeURIComponent(content),
+            })
+                .then(response => response.json())
+                .then(data => {
+                    if (data.success) {
+                        const messageBubble = document.querySelector('[data-message-id="' + msgId + '"]');
+                        const messageContent = messageBubble.querySelector('.message-bubble-content p');
+                        if (messageContent) {
+                            messageContent.innerText = content;
+                        }
+                        const meta = messageBubble.querySelector('.message-bubble-meta time');
+                        meta.parentElement.appendChild(Object.assign(document.createElement('small'), {
+                            style: 'margin-left: 8px; opacity: 0.6; font-size: 0.85rem;',
+                            innerText: '(modifié)',
+                        }));
+
+                        const editModal = document.getElementById('editMessageModal');
+                        editModal.setAttribute('aria-hidden', 'true');
+                        editModal.classList.remove('modal-open');
+                    } else {
+                        alert('Erreur: ' + data.detail);
+                    }
+                })
+                .catch(error => {
+                    console.error('Edit error:', error);
+                    alert('Erreur lors de l\'édition');
+                });
+        });
+
+        // Polling pour la messagerie en temps réel
+        function pollForNewMessages() {
+            if (isPolling) return;
+            isPolling = true;
+
+            fetch('/api/messages/' + conversationId + '?since=' + lastMessageId)
+                .then(response => response.json())
+                .then(data => {
+                    if (data.success && data.messages && data.messages.length > 0) {
+                        const threadMessages = document.getElementById('threadMessages');
+                        
+                        data.messages.forEach(msg => {
+                            if (!document.querySelector('[data-message-id="' + msg.id + '"]')) {
+                                const article = createMessageElement(msg);
+                                threadMessages.appendChild(article);
+                                lastMessageId = msg.id;
+                            }
+                        });
+
+                        threadMessages.scrollTop = threadMessages.scrollHeight;
+                    }
+                    isPolling = false;
+                })
+                .catch(error => {
+                    console.error('Polling error:', error);
+                    isPolling = false;
+                });
+        }
+
+        // Créer un élément de message
+        function createMessageElement(msg) {
+            const article = document.createElement('article');
+            const isOutgoing = msg.senderId === currentUserId;
+            article.className = 'message-bubble ' + (isOutgoing ? 'outgoing' : 'incoming');
+            article.setAttribute('data-message-id', msg.id);
+
+            const metaDiv = document.createElement('div');
+            metaDiv.className = 'message-bubble-meta';
+            const dateStr = new Date(msg.dateEnvoi).toLocaleDateString('fr-FR') + ' ' + new Date(msg.dateEnvoi).toLocaleTimeString('fr-FR', {hour: '2-digit', minute: '2-digit'});
+            metaDiv.innerHTML = `<span class="message-sender">${msg.senderName}</span><time>${dateStr}</time>`;
+
+            const contentDiv = document.createElement('div');
+            contentDiv.className = 'message-bubble-content';
+
+            if (msg.typeMessage === 'IMAGE' || (msg.pieceJointeUrl && (msg.pieceJointeUrl.endsWith('.jpg') || msg.pieceJointeUrl.endsWith('.png') || msg.pieceJointeUrl.endsWith('.webp')))) {
+                const preview = document.createElement('div');
+                preview.className = 'attachment-preview attachment-image';
+                preview.innerHTML = `<a href="${msg.pieceJointeUrl}" target="_blank" rel="noopener noreferrer"><img src="${msg.pieceJointeUrl}" alt="Photo" style="max-width: 100%; max-height: 400px;"></a>`;
+                contentDiv.appendChild(preview);
+            } else if (msg.typeMessage === 'AUDIO' || (msg.pieceJointeUrl && msg.pieceJointeUrl.endsWith('.webm'))) {
+                const preview = document.createElement('div');
+                preview.className = 'attachment-preview attachment-audio';
+                preview.innerHTML = `<audio controls src="${msg.pieceJointeUrl}"></audio>`;
+                contentDiv.appendChild(preview);
+            } else if (msg.pieceJointeUrl) {
+                const preview = document.createElement('div');
+                preview.className = 'attachment-preview attachment-file';
+                preview.innerHTML = `<a href="${msg.pieceJointeUrl}" target="_blank">Télécharger</a>`;
+                contentDiv.appendChild(preview);
+            }
+
+            if (msg.typeMessage !== 'MEETING' && msg.contenu) {
+                const p = document.createElement('p');
+                p.textContent = msg.contenu;
+                contentDiv.appendChild(p);
+            }
+
+            article.appendChild(metaDiv);
+            article.appendChild(contentDiv);
+            return article;
+        }
+
+        // Démarrer le polling toutes les 2 secondes
+        setInterval(pollForNewMessages, 2000);
+
+        document.addEventListener('DOMContentLoaded', function () {
+            const emojiToggle = document.getElementById('emojiToggle');
+            const emojiPicker = document.getElementById('emojiPicker');
+            const emojiButtons = document.querySelectorAll('.emoji-button');
+            const contentField = document.getElementById('content');
+            const attachPhoto = document.getElementById('attachPhoto');
+            const attachFile = document.getElementById('attachFile');
+            const attachmentInput = document.getElementById('attachment');
+            const attachmentPreview = document.getElementById('attachmentPreview');
+            const recordAudioButton = document.getElementById('recordAudioButton');
+            const audioDurationField = document.getElementById('audioDuration');
+            const scheduleButton = document.getElementById('scheduleButton');
+            const scheduleModal = document.getElementById('scheduleMeetingModal');
+            const openScheduleMeeting = document.getElementById('openScheduleMeeting');
+            const closeScheduleModal = document.getElementById('closeScheduleModal');
+            const cancelSchedule = document.getElementById('cancelSchedule');
+            const composerAction = document.getElementById('composerAction');
+            const scheduleForm = document.querySelector('.schedule-form');
+            const composerForm = document.querySelector('.composer-form');
+            let mediaRecorder = null;
+            let recordedChunks = [];
+
+            emojiToggle.addEventListener('click', function () {
+                emojiPicker.classList.toggle('emoji-picker--visible');
+            });
+
+            emojiButtons.forEach(button => {
+                button.addEventListener('click', function () {
+                    const emoji = this.textContent.trim();
+                    contentField.value += emoji;
+                    contentField.focus();
+                });
+            });
+
+            attachPhoto.addEventListener('click', () => attachmentInput.click());
+            attachFile.addEventListener('click', () => attachmentInput.click());
+
+            attachmentInput.addEventListener('change', function () {
+                const file = this.files && this.files[0];
+                if (file) {
+                    attachmentPreview.textContent = `Pièce jointe prête : ${file.name}`;
+                } else {
+                    attachmentPreview.textContent = 'Aucune pièce jointe';
+                }
+            });
+
+            function openModal() {
+                scheduleModal.setAttribute('aria-hidden', 'false');
+                scheduleModal.classList.add('modal-open');
+            }
+
+            function closeModal() {
+                scheduleModal.setAttribute('aria-hidden', 'true');
+                scheduleModal.classList.remove('modal-open');
+            }
+
+            scheduleButton.addEventListener('click', openModal);
+            openScheduleMeeting.addEventListener('click', openModal);
+            closeScheduleModal.addEventListener('click', closeModal);
+            cancelSchedule.addEventListener('click', closeModal);
+
+            scheduleForm.addEventListener('submit', function () {
+                if (composerAction) {
+                    composerAction.value = 'schedule_meeting';
+                }
+            });
+
+            composerForm.addEventListener('submit', function () {
+                if (composerAction) {
+                    composerAction.value = 'send_message';
+                }
+            });
+
+            if (!navigator.mediaDevices || !window.MediaRecorder) {
+                recordAudioButton.disabled = true;
+                recordAudioButton.title = 'Enregistrement vocal non supporté par ce navigateur';
+                return;
+            }
+
+            recordAudioButton.addEventListener('click', async function () {
+                if (mediaRecorder && mediaRecorder.state === 'recording') {
+                    mediaRecorder.stop();
+                    recordAudioButton.textContent = '🎤 Enregistrement';
+                    return;
+                }
+
+                try {
+                    const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+                    recordedChunks = [];
+                    mediaRecorder = new MediaRecorder(stream);
+
+                    mediaRecorder.addEventListener('dataavailable', event => {
+                        if (event.data.size > 0) {
+                            recordedChunks.push(event.data);
+                        }
+                    });
+
+                    mediaRecorder.addEventListener('stop', () => {
+                        const blob = new Blob(recordedChunks, { type: 'audio/webm' });
+                        const file = new File([blob], 'message-voice.webm', { type: 'audio/webm' });
+                        const dataTransfer = new DataTransfer();
+                        dataTransfer.items.add(file);
+                        attachmentInput.files = dataTransfer.files;
+                        audioDurationField.value = Math.round(blob.size / 1000) + ' sec';
+                        attachmentPreview.textContent = `Message vocal prêt : ${file.name}`;
+                        stream.getTracks().forEach(track => track.stop());
+                    });
+
+                    mediaRecorder.start();
+                    recordAudioButton.textContent = '⏺️ Enregistrement…';
+                } catch (error) {
+                    attachmentPreview.textContent = 'Impossible d’utiliser le micro.';
+                }
+            });
+
+            document.getElementById('threadMessages').scrollTop = document.getElementById('threadMessages').scrollHeight;
+        });
+    </script>
+{% endblock %}

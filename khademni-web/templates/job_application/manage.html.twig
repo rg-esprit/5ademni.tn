@@ -1,0 +1,144 @@
+{% extends 'base.html.twig' %}
+
+{% block title %}Manage Applications — {{ job.title }} | 5ademni.tn{% endblock %}
+
+{% block body %}
+<div class="page-shell">
+    {% include 'partials/_header.html.twig' %}
+
+    <main class="page-content">
+        <section class="review-hero">
+            <div>
+                <p class="eyebrow">Applications</p>
+                <h1>{{ job.title }}</h1>
+                <p class="muted-copy">{{ job.company }} &mdash; Review every candidate who applied to this posting.</p>
+            </div>
+            <div class="review-metrics">
+                <div class="profile-stat">
+                    <span>Total</span>
+                    <strong>{{ applications|length }}</strong>
+                </div>
+                <div class="profile-stat">
+                    <span>Pending</span>
+                    <strong>{{ applications|filter(a => a.status == 'PENDING')|length }}</strong>
+                </div>
+                <div class="profile-stat">
+                    <span>Accepted</span>
+                    <strong>{{ applications|filter(a => a.status == 'ACCEPTED')|length }}</strong>
+                </div>
+            </div>
+        </section>
+
+        <section class="profile-layout">
+            <aside class="sidebar-stack" style="flex: 0 0 220px;">
+                <section class="panel">
+                    <div class="panel-heading">
+                        <h2>Posting Info</h2>
+                    </div>
+                    <div style="display: flex; flex-direction: column; gap: .6rem; font-size: .88rem;">
+                        <div>
+                            <span class="muted-copy" style="font-size:.75rem;">Category</span>
+                            <p style="margin:.1rem 0 0">{{ job.category }}</p>
+                        </div>
+                        {% if job.jobType %}
+                        <div>
+                            <span class="muted-copy" style="font-size:.75rem;">Type</span>
+                            <p style="margin:.1rem 0 0">{{ job.jobType }}</p>
+                        </div>
+                        {% endif %}
+                        {% if job.salaryRange %}
+                        <div>
+                            <span class="muted-copy" style="font-size:.75rem;">Salary</span>
+                            <p style="margin:.1rem 0 0">{{ job.salaryRange }}</p>
+                        </div>
+                        {% endif %}
+                        <div>
+                            <span class="muted-copy" style="font-size:.75rem;">Posted</span>
+                            <p style="margin:.1rem 0 0">{{ job.postedDate|date('M d, Y') }}</p>
+                        </div>
+                    </div>
+                    <div style="margin-top: 1.25rem; display: flex; flex-direction: column; gap: .5rem;">
+                        <a class="ghost-button compact-button" href="{{ path('app_job_edit', {id: job.id}) }}">Edit Posting</a>
+                        <a class="ghost-button compact-button" href="{{ path('app_management_jobs_index') }}">← My Postings</a>
+                    </div>
+                </section>
+            </aside>
+
+            <article class="panel" style="flex: 1 1 0; min-width: 0;">
+                <div class="panel-heading">
+                    <h2>Candidates ({{ applications|length }})</h2>
+                    <p>Use the dropdown to change a candidate's status. Change is saved immediately.</p>
+                </div>
+
+                {% for app in applications %}
+                    {% set statusColor = '#6b7280' %}{% set statusBg = '#f3f4f6' %}
+                    {% if app.status == 'PENDING' %}
+                        {% set statusColor = '#92400e' %}{% set statusBg = '#fef3c7' %}
+                    {% elseif app.status == 'ACCEPTED' %}
+                        {% set statusColor = '#166534' %}{% set statusBg = '#dcfce7' %}
+                    {% elseif app.status == 'REJECTED' %}
+                        {% set statusColor = '#991b1b' %}{% set statusBg = '#fee2e2' %}
+                    {% elseif app.status == 'INTERVIEWING' %}
+                        {% set statusColor = '#1e3a8a' %}{% set statusBg = '#dbeafe' %}
+                    {% endif %}
+
+                    <article class="review-card card-animate" style="--delay: {{ loop.index0 * 60 }}ms; display:flex; flex-direction:column; gap:.75rem;">
+                        <div style="display:flex; justify-content:space-between; align-items:flex-start; gap:1rem; flex-wrap:wrap;">
+                            <div style="display:flex; align-items:center; gap:.75rem;">
+                                <div class="review-card-avatar">{{ app.user.initials }}</div>
+                                <div>
+                                    <strong>{{ app.user.displayName }}</strong>
+                                    <p class="muted-copy" style="margin:.1rem 0 0; font-size:.82rem;">{{ app.user.email }}</p>
+                                    <p class="muted-copy" style="margin:.1rem 0 0; font-size:.78rem;">Applied {{ app.applicationDate|date('M d, Y') }}</p>
+                                </div>
+                            </div>
+
+                            <span style="
+                                font-size: .8rem; font-weight: 700;
+                                padding: .3rem .75rem; border-radius: 999px;
+                                color: {{ statusColor }}; background: {{ statusBg }};
+                                align-self: flex-start; white-space: nowrap;
+                            ">{{ app.status }}</span>
+                        </div>
+
+                        <div style="padding:.75rem; background: var(--surface-alt, #f9fafb); border-radius: .5rem; font-size:.87rem; line-height:1.65; border-left: 3px solid #6366f1;">
+                            <p style="font-weight:600; margin-bottom:.35rem;">{{ app.title }}</p>
+                            <p style="opacity:.8; margin:0;">{{ app.description|slice(0, 200) ~ (app.description|length > 200 ? '...' : '') }}</p>
+                        </div>
+
+                        <div style="display:flex; gap:.6rem; align-items: center; flex-wrap: wrap;">
+                            <form method="POST" action="{{ path('app_application_status', {id: app.id}) }}" style="display:flex; gap:.4rem; align-items:center;">
+                                <input type="hidden" name="_token" value="{{ csrf_token('status' ~ app.id) }}">
+                                <select name="status" class="text-input select-input" style="font-size:.85rem; padding:.35rem .6rem;" onchange="this.form.submit()">
+                                    <option value="PENDING"      {% if app.status == 'PENDING' %}selected{% endif %}>⏳ Pending</option>
+                                    <option value="INTERVIEWING" {% if app.status == 'INTERVIEWING' %}selected{% endif %}>💬 Interviewing</option>
+                                    <option value="ACCEPTED"     {% if app.status == 'ACCEPTED' %}selected{% endif %}>✅ Accepted</option>
+                                    <option value="REJECTED"     {% if app.status == 'REJECTED' %}selected{% endif %}>❌ Rejected</option>
+                                </select>
+                            </form>
+
+                            {% if app.cvPath %}
+                                <a class="ghost-button compact-button" href="{{ asset(app.cvPath) }}" target="_blank">📄 View CV</a>
+                            {% endif %}
+                        </div>
+                    </article>
+                {% else %}
+                    <p class="empty-state">No applications received yet for this posting.</p>
+                {% endfor %}
+            </article>
+        </section>
+    </main>
+</div>
+
+<style>
+.card-animate {
+    animation: slideInUp .4s ease var(--delay, 0ms) both;
+}
+@keyframes slideInUp {
+    from { opacity: 0; transform: translateY(16px); }
+    to   { opacity: 1; transform: translateY(0); }
+}
+.review-card { transition: box-shadow .2s ease, transform .2s ease; }
+.review-card:hover { transform: translateY(-2px); }
+</style>
+{% endblock %}

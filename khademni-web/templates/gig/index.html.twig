@@ -1,0 +1,152 @@
+{% extends 'base.html.twig' %}
+
+{% block title %}Gig Management | 5ademni.tn{% endblock %}
+
+{% block stylesheets %}
+    <link rel="stylesheet" href="{{ asset('styles/gig.css') }}">
+{% endblock %}
+
+{% block body %}
+    <div class="page-shell gig-page">
+        {% include 'partials/_header.html.twig' %}
+
+        <main class="gig-main">
+            <section class="gig-title-bar">
+                <div>
+                    <h1>Gig Management</h1>
+                    <p>Create and manage your service offerings</p>
+                </div>
+
+                <div class="gig-top-actions">
+                    <a class="btn-primary" href="{{ path('app_gig_new') }}">+ New Gig</a>
+                    <a class="btn-gradient" href="{{ path('app_gig_new') }}">AI Generate</a>
+                    <a class="btn-soft" href="{{ path('app_gigs', filters) }}">Refresh</a>
+                </div>
+            </section>
+
+            <section class="gig-layout">
+                <aside class="gig-sidebar">
+                    <h2>Filters &amp; Search</h2>
+                    <form method="get" action="{{ path('app_gigs') }}">
+                        <label>
+                            <span>Search Gigs</span>
+                            <input type="text" name="q" value="{{ filters.query }}" placeholder="Search by title or description">
+                        </label>
+
+                        <label>
+                            <span>Category</span>
+                            <select name="category_id">
+                                <option value="">All Categories</option>
+                                {% for category in categories %}
+                                    <option value="{{ category.id }}" {% if filters.category_id == category.id %}selected{% endif %}>{{ category.name }}</option>
+                                {% endfor %}
+                            </select>
+                        </label>
+
+                        <label>
+                            <span>Status</span>
+                            <select name="status">
+                                <option value="ALL" {% if filters.status == 'ALL' %}selected{% endif %}>All Status</option>
+                                <option value="ACTIVE" {% if filters.status == 'ACTIVE' %}selected{% endif %}>Active</option>
+                                <option value="INACTIVE" {% if filters.status == 'INACTIVE' %}selected{% endif %}>Inactive</option>
+                                <option value="EXPIRED" {% if filters.status == 'EXPIRED' %}selected{% endif %}>Expired</option>
+                            </select>
+                        </label>
+
+                        <div class="price-range-row">
+                            <label>
+                                <span>Min Price</span>
+                                <input type="text" name="min_price" value="{{ filters.min_price is null ? '' : filters.min_price }}" placeholder="0">
+                            </label>
+                            <label>
+                                <span>Max Price</span>
+                                <input type="text" name="max_price" value="{{ filters.max_price is null ? '' : filters.max_price }}" placeholder="1000">
+                            </label>
+                        </div>
+
+                        <button class="btn-primary" type="submit">Apply Filters</button>
+                        <a class="btn-soft" href="{{ path('app_gigs') }}">Clear Filters</a>
+                    </form>
+
+                    <div class="gig-sidebar-nav">
+                        <a class="btn-warn" href="{{ path('app_profile') }}">Back to Profile</a>
+                    </div>
+                </aside>
+
+                <section class="gig-content">
+                    <div class="gig-stats">
+                        <article>
+                            <span>Total Gigs</span>
+                            <strong>{{ stats.total }}</strong>
+                        </article>
+                        <article>
+                            <span>Active Gigs</span>
+                            <strong class="text-active">{{ stats.active }}</strong>
+                        </article>
+                        <article>
+                            <span>Total Revenue</span>
+                            <strong class="text-warn">{{ stats.revenue|number_format(2, '.', ',') }} TND</strong>
+                        </article>
+                    </div>
+
+                    <div class="gig-list-header">
+                        <h2>Your Gigs</h2>
+                        <span>{{ cards|length }} result{{ cards|length == 1 ? '' : 's' }}</span>
+                    </div>
+
+                    {% if cards is empty %}
+                        <div class="gig-empty-state">
+                            <h3>No gigs found</h3>
+                            <p>Create your first gig or adjust your filters.</p>
+                            <a class="btn-primary" href="{{ path('app_gig_new') }}">+ Create New Gig</a>
+                        </div>
+                    {% else %}
+                        <div class="gig-card-grid">
+                            {% for card in cards %}
+                                <article class="gig-card">
+                                    <div class="gig-image">
+                                        {% set has_web_image = card.image and (card.image starts with 'http://' or card.image starts with 'https://') %}
+                                        {% if has_web_image %}
+                                            <img src="{{ card.image }}" alt="{{ card.title }}">
+                                        {% else %}
+                                            <span>Image</span>
+                                        {% endif %}
+                                    </div>
+
+                                    <div class="gig-card-body">
+                                        <h3>{{ card.title }}</h3>
+                                        <p>{{ card.description }}</p>
+
+                                        <div class="gig-badges">
+                                            <span class="badge-category">{{ card.category }}</span>
+                                            <span class="badge-status badge-{{ card.status|lower }}">{{ card.status }}</span>
+                                        </div>
+
+                                        <div class="gig-footer">
+                                            <strong>{{ card.price|number_format(2, '.', ',') }} TND</strong>
+                                            <div class="gig-actions">
+                                                {% if card.is_owner %}
+                                                    {% if card.is_expired %}
+                                                        <span class="btn-disabled">Expired</span>
+                                                    {% else %}
+                                                        <a class="btn-icon edit" href="{{ path('app_gig_edit', {id: card.id}) }}">Edit</a>
+                                                    {% endif %}
+                                                    <form method="post" action="{{ path('app_gig_delete', {id: card.id}) }}">
+                                                        <input type="hidden" name="_token" value="{{ csrf_token('delete_gig_' ~ card.id) }}">
+                                                        <button class="btn-icon delete" type="submit">Delete</button>
+                                                    </form>
+                                                {% else %}
+                                                    <a class="btn-icon message" href="{{ card.user_id ? path('app_conversation_new', {recipient: card.user_id}) : path('app_conversations') }}">Message</a>
+                                                {% endif %}
+                                            </div>
+                                        </div>
+                                    </div>
+                                </article>
+                            {% endfor %}
+                        </div>
+                    {% endif %}
+                </section>
+            </section>
+        </main>
+    </div>
+{% endblock %}

@@ -1,0 +1,101 @@
+{% extends 'base.html.twig' %}
+
+{% block title %}Saved Jobs | 5ademni.tn{% endblock %}
+
+{% block body %}
+<style>
+@keyframes fadeUp { from{opacity:0;transform:translateY(18px)} to{opacity:1;transform:translateY(0)} }
+.job-card {
+    background:#fff; border:1.5px solid #e5e7eb; border-radius:.85rem;
+    padding:1.4rem 1.6rem; display:flex; justify-content:space-between;
+    align-items:flex-start; gap:1.25rem;
+    transition:transform .22s, box-shadow .22s, border-color .22s;
+    animation: fadeUp .4s ease var(--delay,0ms) both;
+}
+.job-card:hover { transform:translateY(-3px); box-shadow:0 8px 28px rgba(0,0,0,.09); border-color:#a5b4fc; }
+.job-card-title { font-size:1.05rem; font-weight:700; margin:0 0 .25rem; }
+.job-card-title a { color:inherit; text-decoration:none; transition:color .2s; }
+.job-card-title a:hover { color:#6366f1; }
+.job-card-meta { display:flex; flex-wrap:wrap; gap:.5rem 1rem; font-size:.82rem; color:#6b7280; margin:.45rem 0; }
+.job-badge {
+    display:inline-block; padding:.25rem .7rem; border-radius:999px;
+    font-size:.74rem; font-weight:700; background:#ede9fe; color:#5b21b6;
+}
+.btn-apply {
+    background:#6366f1; color:#fff; border:none; border-radius:.5rem;
+    padding:.5rem 1.1rem; font-size:.875rem; font-weight:700;
+    cursor:pointer; text-decoration:none; transition:background .2s,transform .15s;
+    white-space:nowrap;
+}
+.btn-apply:hover { background:#4f46e5; transform:translateY(-1px); }
+.btn-unsave {
+    background:none; border:1.5px solid #fecdd3; border-radius:.5rem;
+    padding:.4rem .9rem; font-size:.82rem; font-weight:600; cursor:pointer;
+    color:#e11d48; transition:all .2s; white-space:nowrap;
+}
+.btn-unsave:hover { background:#fff0f6; }
+</style>
+
+<div class="page-shell">
+    {% include 'partials/_header.html.twig' %}
+
+    <main class="page-content">
+        <section class="review-hero">
+            <div>
+                <p class="eyebrow">Saved</p>
+                <h1>Your Saved Jobs</h1>
+                <p class="muted-copy">Jobs you liked and bookmarked for later. Apply before they're gone.</p>
+            </div>
+            <div class="review-metrics">
+                <div class="profile-stat">
+                    <span>Saved</span>
+                    <strong>{{ saved_jobs|length }}</strong>
+                </div>
+            </div>
+        </section>
+
+        <div style="display:flex; gap:.6rem; margin-bottom:1.5rem; flex-wrap:wrap;">
+            <a href="{{ path('app_job_index') }}" class="ghost-button compact-button">← Browse All Jobs</a>
+            <a href="{{ path('app_job_new') }}" class="primary-button compact-button">+ Post a Job</a>
+        </div>
+
+        <div style="display:flex; flex-direction:column; gap:.85rem;">
+            {% for job in saved_jobs %}
+                <div class="job-card" style="--delay: {{ loop.index0 * 55 }}ms;">
+                    <div style="flex:1 1 0; min-width:0;">
+                        <p class="job-card-title">
+                            <a href="{{ path('app_job_show', {id: job.id}) }}">{{ job.title }}</a>
+                        </p>
+                        <div class="job-card-meta">
+                            <span>🏢 {{ job.company }}</span>
+                            <span>📍 {{ job.location }}</span>
+                            {% if job.salaryRange %}<span>💰 {{ job.salaryRange }}</span>{% endif %}
+                            <span>📅 {{ job.postedDate|date('M d, Y') }}</span>
+                        </div>
+                        <div style="margin-top:.6rem; display:flex; gap:.4rem; flex-wrap:wrap;">
+                            {% if job.jobType %}<span class="job-badge">{{ job.jobType }}</span>{% endif %}
+                            <span class="job-badge" style="background:#e0f2fe;color:#0369a1;">{{ job.category }}</span>
+                        </div>
+                    </div>
+
+                    <div style="display:flex; flex-direction:column; align-items:flex-end; gap:.6rem; flex-shrink:0;">
+                        <a class="btn-apply" href="{{ path('app_job_apply', {id: job.id}) }}">Apply Now</a>
+
+                        <form method="POST" action="{{ path('app_job_save', {id: job.id}) }}">
+                            <input type="hidden" name="_token" value="{{ csrf_token('save_job_' ~ job.id) }}">
+                            <button type="submit" class="btn-unsave">❌ Remove</button>
+                        </form>
+                    </div>
+                </div>
+            {% else %}
+                <div class="panel" style="text-align:center; padding:4rem 2rem;">
+                    <div style="font-size:3rem; margin-bottom:.75rem;">❤</div>
+                    <h3 style="font-size:1.2rem; font-weight:700; margin-bottom:.5rem;">No saved jobs yet</h3>
+                    <p class="muted-copy">Browse jobs and click the Save button to bookmark them here.</p>
+                    <a class="primary-button" href="{{ path('app_job_index') }}" style="display:inline-block; margin-top:1.25rem;">Browse Jobs</a>
+                </div>
+            {% endfor %}
+        </div>
+    </main>
+</div>
+{% endblock %}

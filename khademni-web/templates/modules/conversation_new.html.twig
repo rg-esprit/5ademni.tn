@@ -1,0 +1,46 @@
+{% extends 'base.html.twig' %}
+
+{% block title %}Nouvelle conversation | 5ademni.tn{% endblock %}
+
+{% block body %}
+    <div class="page-shell">
+        {% include 'partials/_header.html.twig' %}
+
+        <main class="page-content">
+            <section class="page-card page-card-form">
+                <div class="page-card-header">
+                    <div>
+                        <p class="eyebrow">Messagerie</p>
+                        <h1>Nouvelle conversation</h1>
+                    </div>
+                    <a class="secondary-button" href="{{ path('app_conversations') }}">Retour aux conversations</a>
+                </div>
+
+                {% if error %}
+                    <div class="alert alert-error">{{ error }}</div>
+                {% endif %}
+
+                <form method="post" novalidate>
+                    <input type="hidden" name="_token" value="{{ csrf_token('conversation_new') }}" />
+
+                    <div class="form-group">
+                        <label for="recipient">Destinataire</label>
+                        <select id="recipient" name="recipient" required>
+                            <option value="">Sélectionnez un utilisateur</option>
+                            {% for recipient in recipients %}
+                                <option value="{{ recipient.getId() }}" {{ recipient.getId() == selectedRecipientId ? 'selected' : '' }}>{{ recipient.getDisplayName() }} &lt;{{ recipient.getEmail() }}&gt;</option>
+                            {% endfor %}
+                        </select>
+                    </div>
+
+                    <div class="form-group">
+                        <label for="title">Objet</label>
+                        <input id="title" name="title" type="text" placeholder="Titre de la conversation" maxlength="255" />
+                    </div>
+
+                    <button class="primary-button" type="submit">Créer la conversation</button>
+                </form>
+            </section>
+        </main>
+    </div>
+{% endblock %}

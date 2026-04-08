@@ -1,0 +1,52 @@
+{% extends 'base.html.twig' %}
+
+{% block title %}{{ is_edit ? 'Edit Category' : 'New Category' }} | 5ademni.tn{% endblock %}
+
+{% block stylesheets %}
+    <link rel="stylesheet" href="{{ asset('styles/category.css') }}">
+{% endblock %}
+
+{% block body %}
+    <div class="page-shell category-page">
+        {% include 'partials/_header.html.twig' %}
+
+        <main class="category-form-main">
+            <section class="category-form-card">
+                <header>
+                    <h1>{{ is_edit ? 'Edit Category' : 'Create New Category' }}</h1>
+                    <p>{{ is_edit ? 'Update category details and status.' : 'Add a category for gigs and services.' }}</p>
+                </header>
+
+                <form method="post" class="category-form-grid">
+                    <input type="hidden" name="_token" value="{{ csrf_token('category_form') }}">
+
+                    <label>
+                        <span>Name</span>
+                        <input type="text" name="name" value="{{ values.name }}" placeholder="Category name (min 3 characters)">
+                        {% if errors.name is defined %}<small class="field-error">{{ errors.name }}</small>{% endif %}
+                    </label>
+
+                    <label>
+                        <span>Description</span>
+                        <textarea name="description" rows="6" placeholder="Category description (min 10 characters)">{{ values.description }}</textarea>
+                        {% if errors.description is defined %}<small class="field-error">{{ errors.description }}</small>{% endif %}
+                    </label>
+
+                    <label class="checkbox-row">
+                        <input type="checkbox" name="is_active" value="1" {% if values.is_active %}checked{% endif %}>
+                        <span>Active category</span>
+                    </label>
+
+                    <div class="category-form-actions">
+                        <button class="btn-secondary" type="submit" name="form_action" value="generate_description">Generate with AI</button>
+                        <button class="btn-primary" type="submit" name="form_action" value="save">{{ is_edit ? 'Save Changes' : 'Create Category' }}</button>
+                    </div>
+                </form>
+
+                <footer>
+                    <a class="btn-soft" href="{{ path('app_categories') }}">Back to Categories</a>
+                </footer>
+            </section>
+        </main>
+    </div>
+{% endblock %}

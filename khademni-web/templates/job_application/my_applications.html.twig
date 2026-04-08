@@ -1,0 +1,127 @@
+{% extends 'base.html.twig' %}
+
+{% block title %}My Applications | 5ademni.tn{% endblock %}
+
+{% block body %}
+<div class="page-shell">
+    {% include 'partials/_header.html.twig' %}
+
+    <main class="page-content">
+        <section class="review-hero">
+            <div>
+                <p class="eyebrow">Applications</p>
+                <h1>My Job Applications</h1>
+                <p class="muted-copy">Track the status of every job you have applied to.</p>
+            </div>
+            <div class="review-metrics">
+                <div class="profile-stat">
+                    <span>Total Sent</span>
+                    <strong>{{ applications|length }}</strong>
+                </div>
+                <div class="profile-stat">
+                    <span>Accepted</span>
+                    <strong>{{ applications|filter(a => a.status == 'ACCEPTED')|length }}</strong>
+                </div>
+                <div class="profile-stat">
+                    <span>Pending</span>
+                    <strong>{{ applications|filter(a => a.status == 'PENDING')|length }}</strong>
+                </div>
+            </div>
+        </section>
+
+        <section class="profile-layout">
+            <article class="panel" style="flex: 1 1 0; min-width: 0;">
+                <div class="panel-heading">
+                    <h2>Submitted Applications</h2>
+                    <p>All the jobs you have applied to. Accepted jobs allow you to log your work progress.</p>
+                </div>
+
+                {% for app in applications %}
+                    {% set statusColor = '#6b7280' %}
+                    {% set statusBg = '#f3f4f6' %}
+                    {% if app.status == 'PENDING' %}
+                        {% set statusColor = '#92400e' %}{% set statusBg = '#fef3c7' %}
+                    {% elseif app.status == 'ACCEPTED' %}
+                        {% set statusColor = '#166534' %}{% set statusBg = '#dcfce7' %}
+                    {% elseif app.status == 'REJECTED' %}
+                        {% set statusColor = '#991b1b' %}{% set statusBg = '#fee2e2' %}
+                    {% elseif app.status == 'INTERVIEWING' %}
+                        {% set statusColor = '#1e3a8a' %}{% set statusBg = '#dbeafe' %}
+                    {% endif %}
+
+                    <article class="review-card card-animate" style="--delay: {{ loop.index0 * 60 }}ms;">
+                        <div style="display: flex; justify-content: space-between; align-items: flex-start; gap: 1rem; flex-wrap: wrap;">
+                            <div style="flex: 1 1 0; min-width: 0;">
+                                <strong style="font-size: 1rem; display:block; margin-bottom:.15rem;">
+                                    <a href="{{ path('app_job_show', {id: app.job.id}) }}" style="color: inherit; text-decoration: none;">{{ app.job.title }}</a>
+                                </strong>
+                                <p class="muted-copy" style="margin: 0; font-size: .85rem;">
+                                    {{ app.job.company }} &bull; {{ app.job.location }}
+                                </p>
+                                <p class="muted-copy" style="margin: .2rem 0 0; font-size: .8rem;">
+                                    Applied {{ app.applicationDate|date('M d, Y') }}
+                                </p>
+                            </div>
+
+                            <span style="
+                                font-size: .8rem; font-weight: 700;
+                                padding: .35rem .9rem; border-radius: 999px;
+                                color: {{ statusColor }}; background: {{ statusBg }};
+                                white-space: nowrap; align-self: flex-start;
+                            ">{{ app.status }}</span>
+                        </div>
+
+                        <div style="display:flex; gap:.6rem; margin-top:.85rem; flex-wrap:wrap; align-items:center;">
+                            <button
+                                class="ghost-button compact-button"
+                                type="button"
+                                onclick="toggleDetail(this)"
+                            >View Cover Letter</button>
+
+                            {% if app.status == 'ACCEPTED' %}
+                                <a class="primary-button compact-button" href="{{ path('app_job_progress', {id: app.job.id}) }}">
+                                    📊 Log Work Progress
+                                </a>
+                            {% endif %}
+
+                            {% if app.cvPath %}
+                                <a class="ghost-button compact-button" href="{{ asset(app.cvPath) }}" target="_blank">📄 My CV</a>
+                            {% endif %}
+                        </div>
+
+                        <div class="app-detail" style="display: none; margin-top: 1rem; padding: 1rem; background: var(--surface-alt, #f9fafb); border-radius: .5rem; font-size: .87rem; line-height: 1.65; border-left: 3px solid #6366f1;">
+                            <p style="font-weight: 600; margin-bottom: .35rem;">{{ app.title }}</p>
+                            <p style="opacity: .8; margin: 0;">{{ app.description|nl2br }}</p>
+                        </div>
+                    </article>
+                {% else %}
+                    <p class="empty-state">
+                        You haven't applied to any jobs yet. <a href="{{ path('app_job_index') }}">Browse available jobs</a>.
+                    </p>
+                {% endfor %}
+            </article>
+        </section>
+    </main>
+</div>
+
+<script>
+function toggleDetail(btn) {
+    var detail = btn.closest('article').querySelector('.app-detail');
+    var isHidden = detail.style.display === 'none';
+    detail.style.display = isHidden ? 'block' : 'none';
+    btn.textContent = isHidden ? 'Hide Cover Letter' : 'View Cover Letter';
+}
+</script>
+
+<style>
+.card-animate {
+    animation: slideInUp .4s ease var(--delay, 0ms) both;
+}
+@keyframes slideInUp {
+    from { opacity: 0; transform: translateY(16px); }
+    to   { opacity: 1; transform: translateY(0); }
+}
+.review-card { transition: box-shadow .2s ease, transform .2s ease; }
+.review-card:hover { transform: translateY(-2px); }
+</style>
+{% endblock %}

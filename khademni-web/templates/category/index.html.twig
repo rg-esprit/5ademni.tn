@@ -1,0 +1,132 @@
+{% extends 'base.html.twig' %}
+
+{% block title %}Category Management | 5ademni.tn{% endblock %}
+
+{% block stylesheets %}
+    <link rel="stylesheet" href="{{ asset('styles/category.css') }}">
+{% endblock %}
+
+{% block body %}
+    <div class="page-shell category-page">
+        {% include 'partials/_header.html.twig' %}
+
+        <main class="category-main">
+            <section class="category-header">
+                <div>
+                    <h1>Category Management</h1>
+                    <p>Organize and manage service categories</p>
+                </div>
+                <div class="category-actions">
+                    <a class="btn-secondary" href="{{ path('app_categories', filters) }}">Refresh</a>
+                    <a class="btn-primary" href="{{ path('app_category_new') }}">+ New Category</a>
+                </div>
+            </section>
+
+            <section class="category-stats-grid">
+                <article class="stat-card">
+                    <span>TOTAL CATEGORIES</span>
+                    <strong>{{ dashboard.total_categories }}</strong>
+                </article>
+                <article class="stat-card">
+                    <span>ACTIVE</span>
+                    <strong class="text-active">{{ dashboard.active_categories }}</strong>
+                </article>
+                <article class="stat-card">
+                    <span>INACTIVE</span>
+                    <strong class="text-danger">{{ dashboard.inactive_categories }}</strong>
+                </article>
+                <article class="stat-card">
+                    <span>TOTAL GIGS</span>
+                    <strong class="text-primary">{{ dashboard.total_gigs }}</strong>
+                </article>
+                <article class="stat-card">
+                    <span>MOST ACTIVE</span>
+                    <strong class="text-warn stat-small">{{ dashboard.most_active }}</strong>
+                </article>
+            </section>
+
+            <section class="distribution-panel">
+                <header>
+                    <h2>Gigs per Category</h2>
+                    <span>Category | Status | Gigs | Distribution | %</span>
+                </header>
+
+                <div class="distribution-body">
+                    {% for row in dashboard.rows %}
+                        <div class="distribution-row">
+                            <div class="distribution-name">
+                                <span class="dot" style="background-color: {{ row.color }}"></span>
+                                <strong>{{ row.name }}</strong>
+                            </div>
+                            <div>
+                                <span class="status-badge {{ row.is_active ? 'status-active' : 'status-inactive' }}">{{ row.is_active ? 'Active' : 'Inactive' }}</span>
+                            </div>
+                            <div class="distribution-count">{{ row.gig_count }}</div>
+                            <div class="distribution-track">
+                                <span style="width: {{ row.percentage }}%; background-color: {{ row.color }}"></span>
+                            </div>
+                            <div class="distribution-percent">{{ row.percentage|number_format(1, '.', ',') }}%</div>
+                        </div>
+                    {% else %}
+                        <p class="distribution-empty">No statistics available.</p>
+                    {% endfor %}
+                </div>
+            </section>
+
+            <section class="category-filter-bar">
+                <form method="get" action="{{ path('app_categories') }}">
+                    <input type="text" name="q" value="{{ filters.q }}" placeholder="Search categories...">
+                    <select name="status">
+                        <option value="all" {% if filters.status == 'all' %}selected{% endif %}>All Status</option>
+                        <option value="active" {% if filters.status == 'active' %}selected{% endif %}>Active</option>
+                        <option value="inactive" {% if filters.status == 'inactive' %}selected{% endif %}>Inactive</option>
+                    </select>
+                    <button class="btn-secondary" type="submit">Apply</button>
+                    <a class="btn-soft" href="{{ path('app_categories') }}">Clear Filters</a>
+                </form>
+            </section>
+
+            <section class="category-cards-panel">
+                <header>
+                    <h2>All Categories</h2>
+                    <span>{{ categories|length }} categor{{ categories|length == 1 ? 'y' : 'ies' }}</span>
+                </header>
+
+                {% if categories is empty %}
+                    <div class="empty-state">
+                        <h3>No Categories Yet</h3>
+                        <p>Start by creating your first category.</p>
+                        <a class="btn-primary" href="{{ path('app_category_new') }}">+ Create Category</a>
+                    </div>
+                {% else %}
+                    <div class="category-card-grid">
+                        {% for category in categories %}
+                            {% set stats = attribute(distribution_by_id, category.id) %}
+                            <article class="category-card">
+                                <div class="category-card-head">
+                                    <div>
+                                        <h3>{{ category.name }}</h3>
+                                        <small>ID: {{ category.id }}</small>
+                                    </div>
+                                    <span class="status-badge {{ category.active ? 'status-active' : 'status-inactive' }}">{{ category.active ? 'Active' : 'Inactive' }}</span>
+                                </div>
+
+                                <p>{{ category.description ?: 'No description yet.' }}</p>
+
+                                <div class="gig-chip">{{ stats.gig_count|default(0) }} Gig{{ (stats.gig_count|default(0)) == 1 ? '' : 's' }}</div>
+
+                                <div class="category-card-actions">
+                                    <a class="btn-primary" href="{{ path('app_category_edit', {id: category.id}) }}">Edit</a>
+                                    <form method="post" action="{{ path('app_category_delete', {id: category.id}) }}">
+                                        <input type="hidden" name="_token" value="{{ csrf_token('delete_category_' ~ category.id) }}">
+                                        <button class="btn-danger" type="submit">Delete</button>
+                                    </form>
+                                </div>
+                            </article>
+                        {% endfor %}
+                    </div>
+                {% endif %}
+            </section>
+        </main>
+    </div>
+{% endblock %}
