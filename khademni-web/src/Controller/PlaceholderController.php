@@ -48,12 +48,40 @@ class PlaceholderController extends AbstractController
     #[Route('/modules/{slug}', name: 'app_module_placeholder', methods: ['GET'])]
     public function show(string $slug, BlobStorageService $blobStorageService): Response
     {
+        if ('jobs' === $slug) {
+            return $this->redirectToRoute('app_job_index');
+        }
+
+        if ('jobs-management' === $slug) {
+            if (!$this->isGranted('ROLE_ADMIN')) {
+                return $this->redirectToRoute('app_job_index');
+            }
+
+            return $this->redirectToRoute('app_management_jobs_index');
+        }
+
         if ('categories' === $slug) {
             return $this->redirectToRoute('app_categories');
         }
 
         if ('gigs' === $slug) {
             return $this->redirectToRoute('app_gigs');
+        }
+
+        if ('messages' === $slug) {
+            return $this->redirectToRoute('app_conversations');
+        }
+
+        if ('blogs' === $slug) {
+            return $this->redirectToRoute('article_index');
+        }
+
+        if ('articles' === $slug) {
+            return $this->redirectToRoute('article_publications');
+        }
+
+        if ('contracts' === $slug) {
+            return $this->redirectToRoute('app_contrat_index');
         }
 
         if ('jobs-management' === $slug && !$this->isGranted('ROLE_ADMIN')) {

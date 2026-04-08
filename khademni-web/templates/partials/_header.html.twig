@@ -30,7 +30,7 @@
                 <a href="{{ path('app_gigs') }}">Manage Gigs</a>
             </div>
         </div>
-        <a href="{{ path('app_module_placeholder', {slug: 'messages'}) }}">Messages</a>
+        <a href="{{ path('app_conversations') }}">Messages</a>
         <a href="{{ path('app_module_placeholder', {slug: 'blogs'}) }}">Blogs</a>
         <a href="{{ path('app_module_placeholder', {slug: 'articles'}) }}">Articles</a>
         {% if is_granted('ROLE_ADMIN') %}

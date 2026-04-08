@@ -69,4 +69,18 @@ class UserRepository extends ServiceEntityRepository
             ->getQuery()
             ->getResult();
     }
+
+    /**
+     * @return User[]
+     */
+    public function findAllExcept(User $excludeUser): array
+    {
+        return $this->createQueryBuilder('user')
+            ->andWhere('user.id != :userId')
+            ->setParameter('userId', $excludeUser->getId())
+            ->orderBy('user.firstName', 'ASC')
+            ->addOrderBy('user.lastName', 'ASC')
+            ->getQuery()
+            ->getResult();
+    }
 }
