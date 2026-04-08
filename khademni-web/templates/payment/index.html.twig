@@ -1,6 +1,6 @@
 {% extends 'base.html.twig' %}
 
-{% block title %}Paiements{% endblock %}
+{% block title %}Mes Paiements{% endblock %}
 
 {% block stylesheets %}
     {{ parent() }}
@@ -11,46 +11,108 @@
 <div class="bento-root">
     <div class="top-bar">
         <div>
-            <span class="kinetic-label-small">SaaS 2026 // PAYMENTS</span>
+            <span class="kinetic-label-small">SaaS 2026 // MES PAIEMENTS</span>
             <h1 class="bento-title">Historique des Paiements</h1>
         </div>
-        <a href="{{ path('app_contrat_index') }}" class="button-primary" style="background-color: #6c5ce7;">Contrats</a>
+
+        <div style="display: flex; gap: 15px; align-items: center;">
+            <a href="{{ path('app_contrat_index') }}" class="button-primary" style="background-color: #6c5ce7;">📄 Contrats</a>
+            <form method="get" action="{{ path('app_payment_index') }}" onsubmit="return false;">
+                <div class="floating-search" style="margin-bottom: 0;">
+                    <input type="text" id="dynamic-search" name="search" value="{{ search }}" placeholder="Rechercher des paiements...">
+                    <button type="button" style="background: none; border: none; cursor: pointer;">🔍</button>
+                </div>
+            </form>
+        </div>
     </div>
 
-    <div class="glass-card" style="padding: 0; overflow: hidden;">
-        <table style="width: 100%; border-collapse: collapse;">
-            <thead style="background-color: #f9fafb;">
-                <tr>
-                    <th style="padding: 16px; text-align: left; font-size: 12px; font-weight: 700; color: #6b7280; text-transform: uppercase;">ID</th>
-                    <th style="padding: 16px; text-align: left; font-size: 12px; font-weight: 700; color: #6b7280; text-transform: uppercase;">Contrat</th>
-                    <th style="padding: 16px; text-align: left; font-size: 12px; font-weight: 700; color: #6b7280; text-transform: uppercase;">Montant</th>
-                    <th style="padding: 16px; text-align: left; font-size: 12px; font-weight: 700; color: #6b7280; text-transform: uppercase;">Status</th>
-                    <th style="padding: 16px; text-align: left; font-size: 12px; font-weight: 700; color: #6b7280; text-transform: uppercase;">Date</th>
-                </tr>
-            </thead>
-            <tbody>
-                {% for payment in payments %}
-                    <tr style="border-top: 1px solid #f3f4f6;">
-                        <td style="padding: 16px; font-size: 14px; color: #1a1a1a;">#{{ payment.id }}</td>
-                        <td style="padding: 16px; font-size: 14px; color: #1a1a1a;">
-                            {{ payment.contrat ? payment.contrat.titre : 'N/A' }} 
-                            <span style="color: #9ca3af; font-size: 12px;">(#{{ payment.contrat ? payment.contrat.id : '?' }})</span>
-                        </td>
-                        <td style="padding: 16px; font-size: 14px; font-weight: 700; color: #6c5ce7;">{{ payment.amount }} TND</td>
-                        <td style="padding: 16px;">
-                            <span class="squishy-badge {{ payment.status == 'PAID' ? 'success' : 'warning' }}">
-                                {{ payment.status }}
-                            </span>
-                        </td>
-                        <td style="padding: 16px; font-size: 14px; color: #6b7280;">{{ payment.createdAt ? payment.createdAt|date('d/m/Y H:i') : '' }}</td>
-                    </tr>
-                {% else %}
-                    <tr>
-                        <td colspan="5" style="padding: 40px; text-align: center; color: #9ca3af;">Aucun paiement enregistré.</td>
-                    </tr>
-                {% endfor %}
-            </tbody>
-        </table>
+    <!-- Summary Bar -->
+    <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 24px; margin-bottom: 40px;">
+        <div class="glass-card" style="margin-bottom: 0; padding: 20px 30px; display: flex; align-items: center; gap: 20px;">
+            <div style="width: 60px; height: 60px; background: rgba(16, 185, 129, 0.1); border-radius: 16px; display: flex; align-items: center; justify-content: center; font-size: 24px;">✅</div>
+            <div>
+                <span class="kinetic-label-small" style="letter-spacing: 2px; color: #10b981;">Transactions</span>
+                <span style="font-size: 28px; font-weight: 900; color: #1a1a1a;">{{ paymentCount }}</span>
+            </div>
+        </div>
+        <div class="glass-card" style="margin-bottom: 0; padding: 20px 30px; display: flex; align-items: center; gap: 20px;">
+            <div style="width: 60px; height: 60px; background: rgba(59, 130, 246, 0.1); border-radius: 16px; display: flex; align-items: center; justify-content: center; font-size: 24px;">🏦</div>
+            <div>
+                <span class="kinetic-label-small" style="letter-spacing: 2px; color: #3b82f6;">Total Payé</span>
+                <span style="font-size: 28px; font-weight: 900; color: #1a1a1a;">{{ totalPaidAmount }} <small style="font-size: 14px; color: #6b7280;">TND</small></span>
+            </div>
+        </div>
+    </div>
+
+    <div class="flex-between" style="margin-bottom: 24px;">
+        <span style="color: #6b7280; font-weight: 500;">{{ payments|length }} paiements trouvés</span>
+    </div>
+
+    <div class="bento-grid-container">
+        {% for payment in payments %}
+            <div class="glass-card">
+                <div class="flex-between" style="margin-bottom: 15px;">
+                    <span class="squishy-badge {{ payment.status == 'PAID' ? 'success' : 'warning' }}">
+                        {{ payment.status }}
+                    </span>
+                    <span style="font-size: 13px; color: #9ca3af; font-weight: 600;">#{{ payment.id }}</span>
+                </div>
+
+                <h2 class="bento-card-title">
+                    {{ payment.contrat ? payment.contrat.titre : 'N/A' }}
+                </h2>
+                <div class="kinetic-label-small">
+                    CONTRAT: #{{ payment.contrat ? payment.contrat.id : '?' }}
+                </div>
+
+                <p class="bento-card-desc">
+                    {% if payment.stripeSessionId %}
+                        Session Stripe: {{ payment.stripeSessionId|slice(0, 30) }}{{ payment.stripeSessionId|length > 30 ? '...' : '' }}
+                    {% else %}
+                        Paiement manuel
+                    {% endif %}
+                </p>
+
+                <div style="margin-bottom: 20px;">
+                    <span style="font-size: 13px; color: #6b7280;">Date: {{ payment.createdAt ? payment.createdAt|date('d/m/Y H:i') : '' }}</span>
+                </div>
+
+                <div class="flex-between">
+                    <span class="cyber-price">{{ payment.amount }} TND</span>
+                </div>
+            </div>
+        {% else %}
+            <div class="glass-card" style="grid-column: 1 / -1; text-align: center; padding: 50px;">
+                <p style="color: #9ca3af; font-size: 18px;">Aucun paiement enregistré.</p>
+            </div>
+        {% endfor %}
     </div>
 </div>
+
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    const searchInput = document.getElementById('dynamic-search');
+    const cards = document.querySelectorAll('.bento-grid-container > .glass-card');
+    const resultCount = document.querySelector('.flex-between span');
+
+    searchInput.addEventListener('input', function() {
+        const query = this.value.toLowerCase().trim();
+        let visibleCount = 0;
+
+        cards.forEach(card => {
+            const text = card.textContent.toLowerCase();
+            if (text.includes(query)) {
+                card.style.display = 'block';
+                visibleCount++;
+            } else {
+                card.style.display = 'none';
+            }
+        });
+
+        if (resultCount) {
+            resultCount.textContent = `${visibleCount} paiement${visibleCount !== 1 ? 's' : ''} trouvé${visibleCount !== 1 ? 's' : ''}`;
+        }
+    });
+});
+</script>
 {% endblock %}
