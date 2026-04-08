@@ -1,0 +1,139 @@
+{% extends 'base.html.twig' %}
+
+{% block title %}Gigs pour {{ article.title }}{% endblock %}
+
+{% block body %}
+<div class="page">
+    <h1 class="page-title">Gigs pour l'article : {{ article.title }}</h1>
+
+    <div class="gigs-container">
+        {% for gig in gigs %}
+            <div class="gig-card">
+                <div class="gig-header">
+                    <h2 class="gig-title">{{ gig.title }}</h2>
+                    <span class="gig-price">{{ gig.price }} €</span>
+                </div>
+                <p class="gig-description">{{ gig.description }}</p>
+                <div class="gig-footer">
+                    <span class="gig-delivery">Livraison : {{ gig.deliveryTime|date('d/m/Y H:i') }}</span>
+                    <span class="gig-status {{ gig.status|lower }}">{{ gig.status }}</span>
+                </div>
+            </div>
+        {% else %}
+            <p class="no-gigs">Aucun gig trouvé pour cet article.</p>
+        {% endfor %}
+    </div>
+</div>
+
+<style>
+/* Conteneur principal */
+.page {
+    padding: 30px;
+    font-family: 'Segoe UI', sans-serif;
+    background-color: #f3f0ff; /* Fond violet clair */
+}
+
+/* Titre de la page */
+.page-title {
+    font-size: 32px;
+    font-weight: bold;
+    color: #5b21b6; /* Violet foncé */
+    margin-bottom: 30px;
+    text-align: center;
+}
+
+/* Conteneur des cartes */
+.gigs-container {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+    gap: 20px;
+}
+
+/* Carte de gig */
+.gig-card {
+    background-color: #ffffff;
+    border-radius: 16px;
+    box-shadow: 0 6px 12px rgba(91, 33, 182, 0.2); /* Ombre violette */
+    padding: 20px;
+    transition: transform 0.3s, box-shadow 0.3s;
+    border: 2px solid #e9d5ff; /* Bordure violette claire */
+}
+
+.gig-card:hover {
+    transform: translateY(-8px);
+    box-shadow: 0 12px 24px rgba(91, 33, 182, 0.3); /* Ombre plus intense */
+}
+
+/* En-tête de la carte */
+.gig-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 15px;
+}
+
+.gig-title {
+    font-size: 22px;
+    font-weight: bold;
+    color: #4c1d95; /* Violet foncé */
+}
+
+.gig-price {
+    font-size: 20px;
+    font-weight: bold;
+    color: #9333ea; /* Violet vif */
+}
+
+/* Description */
+.gig-description {
+    font-size: 16px;
+    color: #374151;
+    margin-bottom: 15px;
+    line-height: 1.6;
+}
+
+/* Pied de la carte */
+.gig-footer {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    font-size: 14px;
+    color: #6b7280;
+}
+
+.gig-delivery {
+    font-style: italic;
+    color: #7c3aed; /* Violet */
+}
+
+.gig-status {
+    padding: 6px 12px;
+    border-radius: 12px;
+    font-weight: bold;
+    text-transform: capitalize;
+    color: white;
+}
+
+.gig-status.active {
+    background-color: #4c1d95; /* Violet foncé */
+}
+
+.gig-status.pending {
+    background-color: #facc15; /* Jaune */
+    color: #92400e;
+}
+
+.gig-status.completed {
+    background-color: #10b981; /* Vert */
+    color: white;
+}
+
+/* Aucun gig trouvé */
+.no-gigs {
+    text-align: center;
+    font-size: 18px;
+    color: #6b7280;
+    margin-top: 20px;
+}
+</style>
+{% endblock %}
