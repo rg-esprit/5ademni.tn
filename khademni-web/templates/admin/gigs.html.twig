@@ -1,0 +1,136 @@
+{% extends 'base.html.twig' %}
+
+{% block title %}Admin Gigs | 5ademni.tn{% endblock %}
+
+{% block stylesheets %}
+    <link rel="stylesheet" href="{{ asset('styles/admin.css') }}">
+{% endblock %}
+
+{% block body %}
+    <div class="page-shell admin-page">
+        {% include 'partials/_header.html.twig' %}
+
+        <main class="admin-wrap">
+            <section class="admin-topbar">
+                <div>
+                    <h1>Gig Management</h1>
+                    <p>Review listings, search gigs, and enforce status actions.</p>
+                </div>
+                <nav class="admin-nav" aria-label="Admin pages">
+                    <a href="{{ path('app_admin_dashboard') }}">Dashboard</a>
+                    <a href="{{ path('app_admin_categories') }}">Categories</a>
+                    <a class="is-active" href="{{ path('app_admin_gigs') }}">Gigs</a>
+                </nav>
+            </section>
+
+            <section class="admin-stats-grid admin-stats-compact">
+                <article class="admin-stat-card">
+                    <span>Total</span>
+                    <strong>{{ stats.total }}</strong>
+                </article>
+                <article class="admin-stat-card">
+                    <span>Active</span>
+                    <strong>{{ stats.active }}</strong>
+                </article>
+                <article class="admin-stat-card">
+                    <span>Inactive</span>
+                    <strong>{{ stats.inactive }}</strong>
+                </article>
+                <article class="admin-stat-card">
+                    <span>Expired</span>
+                    <strong>{{ stats.expired }}</strong>
+                </article>
+                <article class="admin-stat-card">
+                    <span>Revenue</span>
+                    <strong>{{ stats.revenue|number_format(2, '.', ',') }}</strong>
+                    <small>TND</small>
+                </article>
+            </section>
+
+            <section class="admin-panel">
+                <header>
+                    <h2>Search Gigs</h2>
+                    <span>{{ gigs|length }} result{{ gigs|length == 1 ? '' : 's' }}</span>
+                </header>
+
+                <form method="get" class="admin-search-bar gigs-search-bar">
+                    <input type="text" name="q" value="{{ filters.query }}" placeholder="Search by title or description">
+                    <select name="category_id">
+                        <option value="">All categories</option>
+                        {% for category in categories %}
+                            <option value="{{ category.id }}" {% if filters.category_id == category.id %}selected{% endif %}>{{ category.name }}</option>
+                        {% endfor %}
+                    </select>
+                    <select name="status">
+                        <option value="ALL" {% if filters.status == 'ALL' %}selected{% endif %}>All statuses</option>
+                        <option value="ACTIVE" {% if filters.status == 'ACTIVE' %}selected{% endif %}>Active</option>
+                        <option value="INACTIVE" {% if filters.status == 'INACTIVE' %}selected{% endif %}>Inactive</option>
+                        <option value="EXPIRED" {% if filters.status == 'EXPIRED' %}selected{% endif %}>Expired</option>
+                    </select>
+                    <button class="btn-secondary" type="submit">Search</button>
+                    <a class="btn-soft" href="{{ path('app_admin_gigs') }}">Reset</a>
+                </form>
+            </section>
+
+            <section class="admin-panel">
+                <header>
+                    <h2>Gig Listings</h2>
+                    <span>Admin actions: status update + delete</span>
+                </header>
+
+                <div class="admin-table-wrap">
+                    <table class="admin-table">
+                        <thead>
+                            <tr>
+                                <th>ID</th>
+                                <th>Title</th>
+                                <th>Category</th>
+                                <th>Owner</th>
+                                <th>Price</th>
+                                <th>Status</th>
+                                <th>Delivery</th>
+                                <th>Actions</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for gig in gigs %}
+                                {% set owner = gig.userId ? attribute(owner_by_id, gig.userId)|default('User #' ~ gig.userId) : 'Unknown' %}
+                                {% set display_status = gig.displayStatus %}
+                                <tr>
+                                    <td>#{{ gig.id }}</td>
+                                    <td>{{ gig.title }}</td>
+                                    <td>{{ gig.category ? gig.category.name : 'Uncategorized' }}</td>
+                                    <td>{{ owner }}</td>
+                                    <td>{{ gig.price|number_format(2, '.', ',') }} TND</td>
+                                    <td>
+                                        <span class="status-pill {{ display_status == 'ACTIVE' ? 'status-active' : (display_status == 'INACTIVE' ? 'status-inactive' : 'status-expired') }}">{{ display_status }}</span>
+                                    </td>
+                                    <td>{{ gig.deliveryTime ? gig.deliveryTime|date('Y-m-d H:i') : '-' }}</td>
+                                    <td>
+                                        <div class="table-actions">
+                                            {% if display_status != 'EXPIRED' %}
+                                                <form method="post" action="{{ path('app_admin_gig_status', {id: gig.id}) }}">
+                                                    <input type="hidden" name="_token" value="{{ csrf_token('admin_gig_status_' ~ gig.id) }}">
+                                                    <input type="hidden" name="status" value="{{ display_status == 'ACTIVE' ? 'INACTIVE' : 'ACTIVE' }}">
+                                                    <button class="btn-soft" type="submit">{{ display_status == 'ACTIVE' ? 'Set Inactive' : 'Set Active' }}</button>
+                                                </form>
+                                            {% endif %}
+                                            <form method="post" action="{{ path('app_admin_gig_delete', {id: gig.id}) }}">
+                                                <input type="hidden" name="_token" value="{{ csrf_token('admin_delete_gig_' ~ gig.id) }}">
+                                                <button class="btn-danger" type="submit">Delete</button>
+                                            </form>
+                                        </div>
+                                    </td>
+                                </tr>
+                            {% else %}
+                                <tr>
+                                    <td colspan="8" class="empty-row">No gigs match your filters.</td>
+                                </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+            </section>
+        </main>
+    </div>
+{% endblock %}
