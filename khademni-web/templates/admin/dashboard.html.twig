@@ -1,0 +1,162 @@
+{% extends 'base.html.twig' %}
+
+{% block title %}Admin Dashboard | 5ademni.tn{% endblock %}
+
+{% block stylesheets %}
+    <link rel="stylesheet" href="{{ asset('styles/admin.css') }}">
+{% endblock %}
+
+{% block body %}
+    <div class="page-shell admin-page">
+        {% include 'partials/_header.html.twig' %}
+
+        <main class="admin-wrap">
+            <section class="admin-topbar">
+                <div>
+                    <h1>Admin Dashboard</h1>
+                    <p>Global snapshot of platform activity and moderation metrics.</p>
+                </div>
+                <nav class="admin-nav" aria-label="Admin pages">
+                    <a class="is-active" href="{{ path('app_admin_dashboard') }}">Dashboard</a>
+                    <a href="{{ path('app_admin_categories') }}">Categories</a>
+                    <a href="{{ path('app_admin_gigs') }}">Gigs</a>
+                </nav>
+            </section>
+
+            <section class="admin-stats-grid">
+                <article class="admin-stat-card">
+                    <span>Total Users</span>
+                    <strong>{{ stats.users }}</strong>
+                    <small>{{ stats.admins }} admin{{ stats.admins == 1 ? '' : 's' }}</small>
+                </article>
+                <article class="admin-stat-card">
+                    <span>Categories</span>
+                    <strong>{{ stats.categories }}</strong>
+                    <small>{{ stats.active_categories }} active</small>
+                </article>
+                <article class="admin-stat-card">
+                    <span>Total Gigs</span>
+                    <strong>{{ stats.gigs }}</strong>
+                    <small>{{ stats.active_gigs }} active</small>
+                </article>
+                <article class="admin-stat-card">
+                    <span>Gig Status</span>
+                    <strong>{{ stats.inactive_gigs }}/{{ stats.expired_gigs }}</strong>
+                    <small>inactive / expired</small>
+                </article>
+                <article class="admin-stat-card">
+                    <span>Revenue Volume</span>
+                    <strong>{{ stats.revenue|number_format(2, '.', ',') }} TND</strong>
+                    <small>Sum of listed gig prices</small>
+                </article>
+            </section>
+
+            <section class="admin-panel chart-panel">
+                <header>
+                    <h2>Gigs Per Category</h2>
+                    <span>Chart.js distribution</span>
+                </header>
+                <div class="chart-box">
+                    <canvas id="gigsCategoryChart" aria-label="Gigs per category" role="img"></canvas>
+                </div>
+            </section>
+
+            <section class="admin-grid-two">
+                <article class="admin-panel">
+                    <header>
+                        <h2>Top Categories</h2>
+                        <a class="panel-link" href="{{ path('app_admin_categories') }}">Manage</a>
+                    </header>
+
+                    <div class="admin-list">
+                        {% for row in category_rows %}
+                            <div class="admin-list-row">
+                                <div>
+                                    <strong>{{ row.name }}</strong>
+                                    <small>{{ row.is_active ? 'Active' : 'Inactive' }}</small>
+                                </div>
+                                <span class="pill">{{ row.gig_count }} gig{{ row.gig_count == 1 ? '' : 's' }}</span>
+                            </div>
+                        {% else %}
+                            <p class="empty-copy">No category activity yet.</p>
+                        {% endfor %}
+                    </div>
+                </article>
+
+                <article class="admin-panel">
+                    <header>
+                        <h2>Recent Gigs</h2>
+                        <a class="panel-link" href="{{ path('app_admin_gigs') }}">View all</a>
+                    </header>
+
+                    <div class="admin-list">
+                        {% for gig in recent_gigs %}
+                            <div class="admin-list-row">
+                                <div>
+                                    <strong>{{ gig.title }}</strong>
+                                    <small>{{ gig.category ? gig.category.name : 'Uncategorized' }}</small>
+                                </div>
+                                <span class="pill">{{ gig.price|number_format(2, '.', ',') }} TND</span>
+                            </div>
+                        {% else %}
+                            <p class="empty-copy">No gigs available.</p>
+                        {% endfor %}
+                    </div>
+                </article>
+            </section>
+        </main>
+    </div>
+
+    <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.3/dist/chart.umd.min.js"></script>
+    <script>
+        (function () {
+            const canvas = document.getElementById('gigsCategoryChart');
+            if (!canvas) {
+                return;
+            }
+
+            const labels = {{ chart_data.labels|json_encode|raw }};
+            const values = {{ chart_data.values|json_encode|raw }};
+            const colors = {{ chart_data.colors|json_encode|raw }};
+
+            if (labels.length === 0) {
+                const parent = canvas.parentElement;
+                if (parent) {
+                    parent.innerHTML = '<p class="empty-copy">No chart data available yet.</p>';
+                }
+                return;
+            }
+
+            new Chart(canvas, {
+                type: 'bar',
+                data: {
+                    labels: labels,
+                    datasets: [{
+                        label: 'Gigs',
+                        data: values,
+                        backgroundColor: colors,
+                        borderRadius: 8,
+                        maxBarThickness: 44
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: {
+                        legend: {
+                            display: false
+                        }
+                    },
+                    scales: {
+                        y: {
+                            beginAtZero: true,
+                            ticks: {
+                                precision: 0
+                            }
+                        }
+                    }
+                }
+            });
+        })();
+    </script>
+{% endblock %}
