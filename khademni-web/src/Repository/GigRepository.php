@@ -103,4 +103,36 @@ class GigRepository extends ServiceEntityRepository
             'revenue' => $revenue,
         ];
     }
+
+    /**
+     * @return Gig[]
+     */
+    public function findByArticleKeywords(string $keywords): array
+    {
+        $words = array_values(array_filter(preg_split('/\s+/', trim($keywords)) ?: [], static fn (string $word): bool => mb_strlen($word) > 2));
+
+        if ([] === $words) {
+            return [];
+        }
+
+        $queryBuilder = $this->createQueryBuilder('gig')
+            ->leftJoin('gig.category', 'category')
+            ->addSelect('category');
+
+        foreach ($words as $index => $word) {
+            $parameter = 'word'.$index;
+            $queryBuilder
+                ->orWhere(sprintf('LOWER(gig.title) LIKE LOWER(:%s)', $parameter))
+                ->orWhere(sprintf('LOWER(gig.description) LIKE LOWER(:%s)', $parameter))
+                ->setParameter($parameter, '%'.$word.'%');
+        }
+
+        return $queryBuilder
+            ->addSelect('CASE WHEN LOWER(gig.title) LIKE :exactMatch THEN 1 ELSE 0 END AS HIDDEN relevance')
+            ->setParameter('exactMatch', '%'.mb_strtolower(trim($keywords)).'%')
+            ->orderBy('relevance', 'DESC')
+            ->addOrderBy('gig.title', 'ASC')
+            ->getQuery()
+            ->getResult();
+    }
 }

@@ -1,0 +1,115 @@
+{% extends 'base.html.twig' %}
+
+{% block title %}Mes Favoris{% endblock %}
+
+{% block body %}
+<h1>Mes Favoris</h1>
+
+<div class="cards-container">
+    {% if favoris is empty %}
+        <p>Aucun favori trouvé.</p>
+    {% else %}
+        {% for favori in favoris %}
+            <div class="card">
+                <div class="card-header">
+                    <h2>{{ favori.article.title }}</h2>
+                </div>
+                <div class="card-body">
+              	{% if favori.article.imagePath %}
+					{% set filename = favori.article.imagePath|split('\\')|last %}
+					<img src="{{ asset('uploads/images/' ~ filename) }}" class="card-image">
+				{% endif %}
+                    <p>{{ favori.article.content|slice(0, 100) }}...</p>
+                </div>
+                <div class="card-footer">
+    <form method="post" action="{{ path('favoris_delete', {'id': favori.id}) }}">
+        <input type="hidden" name="_token" value="{{ csrf_token('delete' ~ favori.id) }}">
+        <button class="btn-favorite favori-active" type="submit">
+            <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="currentColor" class="bi bi-heart-fill" viewBox="0 0 16 16">
+                <path fill-rule="evenodd" d="M8 1.314C12.438-3.248 23.534 4.735 8 15-7.534 4.735 3.562-3.248 8 1.314z"/>
+            </svg>
+        </button>
+    </form>
+</div>
+            </div>
+        {% endfor %}
+    {% endif %}
+</div>
+
+<style>
+.cards-container {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 20px;
+}
+.btn-favorite {
+    background: none;
+    border: none;
+    cursor: pointer;
+    padding: 0;
+}
+
+.btn-favorite svg {
+    fill: #6c0df2; /* Couleur par défaut */
+    transition: fill 0.3s ease;
+}
+
+.btn-favorite.favori-active svg {
+    fill: #ef4444; /* Rouge pour les favoris actifs */
+}
+
+.btn-favorite:hover svg {
+    transform: scale(1.2);
+}
+.card-image {
+    width: 100%;
+    height: 180px; /* même hauteur pour toutes */
+    object-fit: cover; /* coupe l'image sans déformation */
+    border-radius: 10px;
+    margin-bottom: 10px;
+}
+.card {
+    background: #fff;
+    border-radius: 8px;
+    box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+    padding: 20px;
+    width: 300px;
+}
+
+.card-header h2 {
+    font-size: 18px;
+    color: #6c0df2;
+}
+
+.card-body p {
+    font-size: 14px;
+    color: #6b7280;
+}
+
+.card-footer {
+    text-align: right;
+}
+
+.btn-danger {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    background: #ef4444;
+    color: #fff;
+    border: none;
+    border-radius: 8px;
+    padding: 8px 12px;
+    cursor: pointer;
+    font-weight: 600;
+    text-decoration: none;
+}
+
+.btn-danger:hover {
+    background: #dc2626;
+}
+
+.btn-danger svg {
+    fill: #fff;
+}
+</style>
+{% endblock %}
