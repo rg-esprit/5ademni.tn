@@ -216,3 +216,59 @@ body {
   align-items: center;
   margin-bottom: 30px;
 }
+
+/* ============================================
+   Navigation Bar
+   ============================================ */
+.main-navbar {
+    background: rgba(255, 255, 255, 0.8);
+    backdrop-filter: blur(10px);
+    border-bottom: 1px solid #e5e7eb;
+    padding: 15px 40px;
+    position: sticky;
+    top: 0;
+    z-index: 1000;
+}
+
+.nav-container {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    max-width: 1400px;
+    margin: 0 auto;
+}
+
+.nav-logo {
+    font-family: "Geist Black", "Inter", sans-serif;
+    font-size: 24px;
+    color: #1a1a1a;
+    text-decoration: none;
+    font-weight: 900;
+    letter-spacing: -1px;
+}
+
+.nav-links {
+    display: flex;
+    gap: 30px;
+}
+
+.nav-link {
+    text-decoration: none;
+    font-size: 14px;
+    font-weight: 700;
+    color: #6b7280;
+    transition: all 0.2s;
+    padding: 8px 16px;
+    border-radius: 12px;
+}
+
+.nav-link:hover {
+    color: #6c5ce7;
+    background: rgba(108, 92, 231, 0.05);
+}
+
+.nav-link.active {
+    color: #6c5ce7;
+    background: rgba(108, 92, 231, 0.1);
+}
+

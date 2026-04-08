@@ -8,6 +8,68 @@
         {% block stylesheets %}{% endblock %}
     </head>
     <body class="{% block body_class %}app-body{% endblock %}">
+        <style>
+            .main-navbar {
+                background: #1a1a2e;
+                border-bottom: 1px solid rgba(108, 92, 231, 0.2);
+                padding: 0 40px;
+                position: sticky;
+                top: 0;
+                z-index: 1000;
+                box-shadow: 0 4px 20px rgba(0, 0, 0, 0.15);
+            }
+            .nav-container {
+                display: flex;
+                justify-content: space-between;
+                align-items: center;
+                max-width: 1400px;
+                margin: 0 auto;
+                height: 60px;
+            }
+            .nav-logo {
+                font-family: "Inter", "Segoe UI", sans-serif;
+                font-size: 20px;
+                font-weight: 900;
+                letter-spacing: -0.5px;
+                text-decoration: none;
+                background: linear-gradient(135deg, #6c5ce7, #00d2ff);
+                -webkit-background-clip: text;
+                -webkit-text-fill-color: transparent;
+                background-clip: text;
+            }
+            .nav-links {
+                display: flex;
+                gap: 8px;
+            }
+            .nav-link {
+                text-decoration: none;
+                font-family: "Inter", "Segoe UI", sans-serif;
+                font-size: 14px;
+                font-weight: 600;
+                color: #9ca3af;
+                padding: 10px 20px;
+                border-radius: 50px;
+                transition: all 0.25s ease;
+            }
+            .nav-link:hover {
+                color: #ffffff;
+                background: rgba(108, 92, 231, 0.15);
+            }
+            .nav-link.active {
+                color: #ffffff;
+                background: #6c5ce7;
+                box-shadow: 0 4px 12px rgba(108, 92, 231, 0.4);
+            }
+        </style>
+        <nav class="main-navbar">
+            <div class="nav-container">
+                <a href="{{ path('app_home') }}" class="nav-logo">5ademni.tn</a>
+                <div class="nav-links">
+                    <a href="{{ path('app_contrat_index') }}" class="nav-link {% if app.request.attributes.get('_route') starts with 'app_contrat' %}active{% endif %}">📄 Contrats</a>
+                    <a href="{{ path('app_payment_index') }}" class="nav-link {% if app.request.attributes.get('_route') starts with 'app_payment' %}active{% endif %}">💰 Paiements</a>
+                </div>
+            </div>
+        </nav>
         {% include 'partials/_flashes.html.twig' %}
         {% block body %}{% endblock %}
     </body>

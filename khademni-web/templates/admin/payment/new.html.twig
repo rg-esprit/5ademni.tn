@@ -1,0 +1,27 @@
+{% extends 'base.html.twig' %}
+
+{% block title %}Admin — Nouveau Paiement{% endblock %}
+
+{% block stylesheets %}
+    {{ parent() }}
+    <link rel="stylesheet" href="{{ asset('css/contrat_web.css') }}">
+{% endblock %}
+
+{% block body %}
+<div class="bento-root" style="max-width: 800px; margin: 0 auto;">
+    <div class="top-bar">
+        <div>
+            <span class="kinetic-label-small">ADMIN // CREATION</span>
+            <h1 class="bento-title">Nouveau Paiement</h1>
+        </div>
+    </div>
+    
+    <div class="glass-card">
+        {{ include('payment/_form.html.twig') }}
+    </div>
+    
+    <div style="margin-top: 20px;">
+        <a href="{{ path('admin_payment_index') }}" style="color: #6c5ce7; text-decoration: none; font-weight: 600;">← Retour à la liste</a>
+    </div>
+</div>
+{% endblock %}

@@ -1,0 +1,31 @@
+{{ form_start(form) }}
+    <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 20px;">
+        <div>
+            {{ form_label(form.contrat) }}
+            {{ form_widget(form.contrat) }}
+            {{ form_errors(form.contrat) }}
+        </div>
+        <div>
+            {{ form_label(form.amount) }}
+            {{ form_widget(form.amount) }}
+            {{ form_errors(form.amount) }}
+        </div>
+    </div>
+
+    <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 20px; margin-top: 15px;">
+        <div>
+            {{ form_label(form.status) }}
+            {{ form_widget(form.status) }}
+            {{ form_errors(form.status) }}
+        </div>
+        <div>
+            {{ form_label(form.stripeSessionId) }}
+            {{ form_widget(form.stripeSessionId) }}
+            {{ form_errors(form.stripeSessionId) }}
+        </div>
+    </div>
+
+    <div style="margin-top: 30px; text-align: right;">
+        <button class="button-primary">{{ button_label|default('Enregistrer') }}</button>
+    </div>
+{{ form_end(form) }}
