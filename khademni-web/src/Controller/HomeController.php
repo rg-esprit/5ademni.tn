@@ -17,4 +17,10 @@ class HomeController extends AbstractController
 
         return $this->redirectToRoute('app_login');
     }
+
+    #[Route('/favicon.ico', name: 'app_favicon', methods: ['GET'])]
+    public function favicon(): Response
+    {
+        return new Response('', Response::HTTP_NO_CONTENT, ['Content-Type' => 'image/x-icon']);
+    }
 }

@@ -8,13 +8,26 @@
     </a>
 
     <nav class="site-nav" aria-label="Primary">
+        {% if is_granted('ROLE_ADMIN') %}
+            <div class="nav-dropdown">
+                <button type="button" class="nav-dropdown-trigger">Admin</button>
+                <div class="nav-dropdown-menu">
+                    <a href="{{ path('app_admin_dashboard') }}">Dashboard</a>
+                    <a href="{{ path('app_admin_categories') }}">Category Management</a>
+                    <a href="{{ path('app_admin_gigs') }}">Gig Management</a>
+                </div>
+            </div>
+        {% endif %}
+
         <a href="{{ is_granted('ROLE_ADMIN') ? path('app_module_placeholder', {slug: 'jobs-management'}) : path('app_module_placeholder', {slug: 'jobs'}) }}">Jobs Management</a>
         <a href="{{ path('app_module_placeholder', {slug: 'jobs'}) }}">Jobs</a>
         <div class="nav-dropdown">
             <button type="button" class="nav-dropdown-trigger">Categories</button>
             <div class="nav-dropdown-menu">
-                <a href="{{ path('app_module_placeholder', {slug: 'categories'}) }}">Manage Categories</a>
-                <a href="{{ path('app_module_placeholder', {slug: 'gigs'}) }}">Manage Gigs</a>
+                {% if is_granted('ROLE_ADMIN') %}
+                    <a href="{{ path('app_categories') }}">Manage Categories</a>
+                {% endif %}
+                <a href="{{ path('app_gigs') }}">Manage Gigs</a>
             </div>
         </div>
         <a href="{{ path('app_module_placeholder', {slug: 'messages'}) }}">Messages</a>
