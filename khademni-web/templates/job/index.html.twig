@@ -1,0 +1,416 @@
+{% extends 'base.html.twig' %}
+
+{% block title %}Jobs | 5ademni.tn{% endblock %}
+
+{% block body %}
+<style>
+/* ────────────────────────────────── Animations */
+@keyframes fadeUp  { from{opacity:0;transform:translateY(20px)} to{opacity:1;transform:translateY(0)} }
+@keyframes fadeIn  { from{opacity:0} to{opacity:1} }
+.au { animation: fadeUp .45s ease both; }
+.ai { animation: fadeIn .35s ease both; }
+
+/* ────────────────────────────────── Hero (soft lavender – matches picture 2) */
+.job-hero {
+    background: linear-gradient(135deg, #f0edff 0%, #e8e3ff 100%);
+    border: 1.5px solid #d4c9fe;
+    border-radius: 1rem;
+    padding: 2.5rem 2rem 2rem;
+    margin-bottom: 1.75rem;
+    animation: fadeIn .4s ease both;
+}
+.job-hero p.eyebrow { color: #7c3aed; font-size:.72rem; font-weight:800; letter-spacing:.12em; text-transform:uppercase; margin:0 0 .4rem; }
+.job-hero h1 { font-size:2rem; font-weight:800; margin:0 0 .3rem; color:#1a1523; }
+.job-hero .sub { color:#6b7280; margin:0 0 1.5rem; font-size:.95rem; }
+
+/* ────────────────────────────────── Search card */
+.search-grid {
+    display: grid;
+    grid-template-columns: 2fr 1fr 1fr 1fr;
+    gap: .75rem;
+    align-items: end;
+}
+@media(max-width:700px){ .search-grid{ grid-template-columns:1fr; } }
+
+.sf { display:flex; flex-direction:column; gap:.35rem; }
+.sf label { font-size:.72rem; font-weight:800; color:#4b5563; text-transform:uppercase; letter-spacing:.07em; }
+.sf input, .sf select {
+    padding:.6rem .9rem; border:1.5px solid #d4c9fe; border-radius:.55rem;
+    font-size:.9rem; color:#1a1523; background:#fff;
+    outline:none; transition:border-color .2s, box-shadow .2s;
+}
+.sf input:focus, .sf select:focus {
+    border-color:#7c3aed; box-shadow:0 0 0 3px rgba(124,58,237,.12);
+}
+
+/* salary range */
+.salary-wrap { display:flex; align-items:center; gap:.5rem; }
+.salary-wrap input[type=range] {
+    flex:1; accent-color:#7c3aed;
+    border:none; background:none; padding:0;
+}
+.salary-val { font-size:.8rem; font-weight:700; color:#7c3aed; white-space:nowrap; }
+
+.search-btn {
+    background: #7c3aed; color:#fff; border:none; border-radius:.55rem;
+    padding:.65rem 1.4rem; font-size:.9rem; font-weight:700;
+    cursor:pointer; transition:background .2s, transform .15s, box-shadow .2s;
+    align-self:flex-end;
+}
+.search-btn:hover { background:#6d28d9; transform:translateY(-1px); box-shadow:0 5px 14px rgba(124,58,237,.35); }
+
+/* ────────────────────────────────── Tab bar */
+.tab-bar {
+    display:flex; justify-content:space-between; align-items:center;
+    flex-wrap:wrap; gap:.75rem; margin-bottom:1.25rem;
+}
+.tab-group { display:flex; gap:.4rem; flex-wrap:wrap; }
+.tab {
+    padding:.42rem 1rem; border-radius:999px;
+    border:1.5px solid #e5e7eb; background:#fff;
+    font-size:.85rem; font-weight:600; text-decoration:none; color:#4b5563;
+    cursor:pointer; transition:all .2s;
+}
+.tab:hover { border-color:#c4b5fd; color:#7c3aed; }
+.tab.active { background:#7c3aed; border-color:#7c3aed; color:#fff; }
+
+.post-btn {
+    background:#7c3aed; color:#fff; border:none; border-radius:.55rem;
+    padding:.5rem 1.1rem; font-size:.875rem; font-weight:700;
+    text-decoration:none; cursor:pointer; transition:background .2s, transform .15s;
+}
+.post-btn:hover { background:#6d28d9; transform:translateY(-1px); }
+
+/* ────────────────────────────────── Filter pills */
+.pill {
+    display:inline-flex; align-items:center; gap:.3rem;
+    padding:.28rem .75rem; border-radius:999px;
+    background:#ede9fe; color:#5b21b6; font-size:.78rem; font-weight:700;
+}
+.pill a { color:#5b21b6; text-decoration:none; margin-left:.15rem; font-weight:800; }
+
+/* ────────────────────────────────── Job cards */
+.job-card {
+    background:#fff; border:1.5px solid #e5e7eb; border-radius:.85rem;
+    padding:1.3rem 1.5rem; display:flex; align-items:flex-start;
+    gap:1.2rem; justify-content:space-between; flex-wrap:wrap;
+    transition:transform .22s, box-shadow .22s, border-color .22s;
+    animation: fadeUp .4s ease var(--d,0ms) both;
+}
+.job-card:hover { transform:translateY(-3px); box-shadow:0 8px 28px rgba(0,0,0,.08); border-color:#c4b5fd; }
+
+.jc-title { font-size:1.05rem; font-weight:700; margin:0 0 .2rem; }
+.jc-title a { color:inherit; text-decoration:none; transition:color .2s; }
+.jc-title a:hover { color:#7c3aed; }
+.jc-meta { display:flex; flex-wrap:wrap; gap:.4rem 1rem; font-size:.82rem; color:#6b7280; margin:.4rem 0; }
+.badge {
+    display:inline-block; padding:.2rem .65rem; border-radius:999px;
+    font-size:.73rem; font-weight:700; background:#ede9fe; color:#5b21b6;
+}
+.badge.b { background:#dbeafe; color:#1d4ed8; }
+.badge.g { background:#dcfce7; color:#166534; }
+
+.btn-view {
+    background:#7c3aed; color:#fff; border:none; border-radius:.5rem;
+    padding:.46rem 1rem; font-size:.85rem; font-weight:700;
+    text-decoration:none; cursor:pointer; transition:background .2s, transform .15s;
+    white-space:nowrap;
+}
+.btn-view:hover { background:#6d28d9; transform:translateY(-1px); }
+.btn-save {
+    background:#fff; border:1.5px solid #e5e7eb; border-radius:.5rem;
+    padding:.38rem .9rem; font-size:.82rem; font-weight:600;
+    cursor:pointer; color:#6b7280; transition:all .2s; white-space:nowrap;
+}
+.btn-save:hover,.btn-save.saved { border-color:#ec4899; color:#ec4899; background:#fff0f6; }
+
+/* ── status pills for applications ── */
+.status-pill {
+    display:inline-block; padding:.25rem .8rem; border-radius:999px;
+    font-size:.78rem; font-weight:700; white-space:nowrap;
+}
+.sp-pending       { background:#fef3c7; color:#92400e; }
+.sp-accepted      { background:#dcfce7; color:#166534; }
+.sp-rejected      { background:#fee2e2; color:#991b1b; }
+.sp-interviewing  { background:#dbeafe; color:#1e3a8a; }
+
+/* ── empty state ── */
+.empty-state-box {
+    text-align:center; padding:4rem 2rem;
+    border:1.5px dashed #d4c9fe; border-radius:.85rem;
+    background:#faf9ff; animation: fadeUp .4s ease both;
+}
+</style>
+
+<div class="page-shell">
+    {% include 'partials/_header.html.twig' %}
+
+    <main class="page-content">
+
+        {# ── Hero + Search ── #}
+        <div class="job-hero au">
+            <p class="eyebrow">5ademni.tn Jobs</p>
+            <h1>Find Your Next Opportunity</h1>
+            <p class="sub">Search thousands of jobs across Tunisia and beyond</p>
+
+            <form method="GET" action="{{ path('app_job_index') }}">
+                <input type="hidden" name="view" value="{{ view }}">
+                <input type="hidden" name="sort" value="{{ sort }}">
+                <div class="search-grid" style="grid-template-columns: 2fr 1fr 1fr 1.5fr auto;">
+                    <div class="sf">
+                        <label for="sq">Keywords</label>
+                        <input id="sq" type="text" name="q" value="{{ query }}" placeholder="Title, company, location...">
+                    </div>
+                    <div class="sf">
+                        <label for="scat">Category</label>
+                        <select id="scat" name="category">
+                            <option value="">All Categories</option>
+                            {% for cat in ['IT & Software','Design & Creative','Marketing','Writing & Translation','Sales & Support','Other'] %}
+                                <option value="{{ cat }}" {% if category == cat %}selected{% endif %}>{{ cat }}</option>
+                            {% endfor %}
+                        </select>
+                    </div>
+                    <div class="sf">
+                        <label for="sjt">Job Type</label>
+                        <select id="sjt" name="job_type">
+                            <option value="">All Types</option>
+                            {% for jt in ['Full-time','Part-time','Contract','Freelance','Internship'] %}
+                                <option value="{{ jt }}" {% if job_type == jt %}selected{% endif %}>{{ jt }}</option>
+                            {% endfor %}
+                        </select>
+                    </div>
+                    <div class="sf" style="padding: 0 .5rem;">
+                        <label for="ssal" style="display:flex; justify-content:space-between;">
+                            <span>Min Salary</span>
+                            <span id="salary-val" style="color:#7c3aed;">{{ min_salary|default(0) }} TND</span>
+                        </label>
+                        <input type="range" id="ssal" name="min_salary" min="0" max="5000" step="100" value="{{ min_salary|default(0) }}" style="margin-top:.5rem; accent-color:#7c3aed;">
+                    </div>
+                    <button class="search-btn" type="submit">🔍 Search</button>
+                </div>
+            </form>
+        </div>
+
+        {# ── Tab bar ── #}
+        <div class="tab-bar au" style="animation-delay:.06s;">
+            <div class="tab-group">
+                <a href="{{ path('app_job_index', {q:query, category:category, job_type:job_type, view:'all'}) }}"
+                   class="tab {% if view == 'all' %}active{% endif %}">
+                    🗂 All Jobs <span style="background:rgba(255,255,255,.25);padding:.1rem .45rem;border-radius:999px;font-size:.72rem;margin-left:.2rem;">{{ jobs|length }}</span>
+                </a>
+                {% if app.user %}
+                    <a href="{{ path('app_job_index', {view:'saved'}) }}" class="tab {% if view == 'saved' %}active{% endif %}">
+                        ❤ Saved{% if saved_jobs|length %} <span style="background:rgba(255,255,255,.25);padding:.1rem .4rem;border-radius:999px;font-size:.72rem;margin-left:.2rem;">{{ saved_jobs|length }}</span>{% endif %}
+                    </a>
+                    <a href="{{ path('app_job_index', {view:'applications'}) }}" class="tab {% if view == 'applications' %}active{% endif %}">
+                        📨 My Applications{% if my_applications|length %} <span style="{% if view == 'applications' %}background:rgba(255,255,255,.25);{% else %}background:#e5e7eb;color:#374151;{% endif %}padding:.1rem .4rem;border-radius:999px;font-size:.72rem;margin-left:.2rem;">{{ my_applications|length }}</span>{% endif %}
+                    </a>
+                {% endif %}
+            </div>
+
+            {% if app.user %}
+                <div style="display:flex; gap:.5rem; align-items:center;">
+                    <a class="post-btn" href="{{ path('app_management_jobs_index') }}" style="background:#fff; color:#4b5563; border:1.5px solid #e5e7eb;">⚙ Job Management</a>
+                    <a class="post-btn" href="{{ path('app_job_new') }}">+ Post a Job</a>
+                </div>
+            {% endif %}
+        </div>
+
+        {# ── Active filter pills ── #}
+        {% if view == 'all' and (query or category or job_type) %}
+            <div style="display:flex;flex-wrap:wrap;gap:.5rem;margin-bottom:1rem;" class="ai">
+                {% if query %}
+                    <span class="pill">🔍 "{{ query }}" <a href="{{ path('app_job_index', {category:category, job_type:job_type}) }}">✕</a></span>
+                {% endif %}
+                {% if category %}
+                    <span class="pill">📂 {{ category }} <a href="{{ path('app_job_index', {q:query, job_type:job_type}) }}">✕</a></span>
+                {% endif %}
+                {% if job_type %}
+                    <span class="pill">🏷 {{ job_type }} <a href="{{ path('app_job_index', {q:query, category:category}) }}">✕</a></span>
+                {% endif %}
+                <a href="{{ path('app_job_index') }}" style="font-size:.8rem;color:#6b7280;text-decoration:none;align-self:center;">Clear all</a>
+            </div>
+        {% endif %}
+
+        {# ═══════════════════════════ ALL JOBS VIEW ═══════════════════════════ #}
+        {% if view == 'all' %}
+            <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:1rem; flex-wrap:wrap; gap:.5rem;">
+                <h2 style="font-size:1.1rem;font-weight:800;color:#1a1523;margin:0;">All Available Jobs</h2>
+                <form method="GET" action="{{ path('app_job_index') }}" style="display:flex; align-items:center; gap:.5rem;">
+                    <input type="hidden" name="view" value="{{ view }}">
+                    <input type="hidden" name="q" value="{{ query }}">
+                    <input type="hidden" name="category" value="{{ category }}">
+                    <input type="hidden" name="job_type" value="{{ job_type }}">
+                    <label for="sort" style="font-size:.8rem; font-weight:700; color:#6b7280;">Sort by:</label>
+                    <select id="sort" name="sort" onchange="this.form.submit()" style="padding:.4rem .8rem; border:1.5px solid #e5e7eb; border-radius:.5rem; font-size:.85rem; outline:none; background:#fff; cursor:pointer;">
+                        <option value="newest" {% if sort == 'newest' %}selected{% endif %}>Newest First</option>
+                        <option value="oldest" {% if sort == 'oldest' %}selected{% endif %}>Oldest First</option>
+                        <option value="most_liked" {% if sort == 'most_liked' %}selected{% endif %}>Most Liked (Saved Jobs)</option>
+                    </select>
+                </form>
+            </div>
+
+            {% if jobs is empty %}
+                <div class="empty-state-box">
+                    <div style="font-size:3rem;margin-bottom:.75rem;">🔍</div>
+                    <h3 style="font-weight:700;margin-bottom:.5rem;">No jobs found</h3>
+                    <p style="color:#6b7280;">Try different keywords or <a href="{{ path('app_job_index') }}" style="color:#7c3aed;">clear your search</a>.</p>
+                </div>
+            {% else %}
+                <div style="display:flex;flex-direction:column;gap:.75rem;">
+                    {% for job in jobs %}
+                        <div class="job-card" style="--d:{{ loop.index0 * 50 }}ms;">
+                            <div style="flex:1 1 0;min-width:0;">
+                                <p class="jc-title"><a href="{{ path('app_job_show', {id:job.id}) }}">{{ job.title }}</a></p>
+                                <div class="jc-meta">
+                                    <span>🏢 {{ job.company }}</span>
+                                    <span>📍 {{ job.location }}</span>
+                                    {% if job.salaryRange %}<span>💰 {{ job.salaryRange }}</span>{% endif %}
+                                    <span title="{{ job.postedDate|date('M d, Y H:i') }}">🕒 {{ job.postedAgo }}</span>
+                                </div>
+                                <p style="font-size:.86rem;color:#4b5563;line-height:1.6;margin:.4rem 0 .65rem;overflow:hidden;max-height:2.8rem;">{{ job.description|striptags|slice(0,170) ~ '...' }}</p>
+                                <div style="display:flex;gap:.4rem;flex-wrap:wrap;align-items:center;">
+                                    {% if job.jobType %}<span class="badge">{{ job.jobType }}</span>{% endif %}
+                                    <span class="badge b">{{ job.category }}</span>
+                                    <span class="badge" style="background:#f3f4f6; color:#4b5563;">👥 {{ job.applications|length }} Applicants</span>
+                                    {% if job.hasAcceptedApplication() %}
+                                        <span class="badge" style="background:#dcfce7; color:#166534; border:1px solid #166534;">✓ Work in Progress</span>
+                                    {% endif %}
+                                </div>
+                            </div>
+                            <div style="display:flex;flex-direction:column;align-items:flex-end;gap:.55rem;flex-shrink:0;">
+                                <a class="btn-view" href="{{ path('app_job_show', {id:job.id}) }}">View Job</a>
+                                
+                                {% if app.user and job.user == app.user %}
+                                    <div style="display:flex; gap:.4rem; margin-top:.3rem;">
+                                        {% set hasAccepted = false %}
+                                        {% for app_item in job.applications %}
+                                            {% if app_item.status == 'ACCEPTED' %}{% set hasAccepted = true %}{% endif %}
+                                        {% endfor %}
+                                        
+                                        {% if hasAccepted %}
+                                            <a class="btn-view" href="{{ path('app_job_progress', {id:job.id}) }}" style="background:#10b981;">📊 Progress</a>
+                                        {% endif %}
+                                        
+                                        <a href="{{ path('app_job_edit', {id:job.id}) }}" class="btn-save" style="padding:.4rem .6rem;">✏</a>
+                                        <form method="POST" action="{{ path('app_job_delete', {id:job.id}) }}" onsubmit="return confirm('Delete this posting?');" style="display:inline;">
+                                            <input type="hidden" name="_token" value="{{ csrf_token('delete' ~ job.id) }}">
+                                            <button type="submit" class="btn-save" style="padding:.4rem .6rem; color:#dc2626;">🗑</button>
+                                        </form>
+                                    </div>
+                                {% elseif app.user %}
+                                    <form method="POST" action="{{ path('app_job_save', {id:job.id}) }}">
+                                        <input type="hidden" name="_token" value="{{ csrf_token('save_job_' ~ job.id) }}">
+                                        <button type="submit" class="btn-save {% if app.user.savedJobs.contains(job) %}saved{% endif %}">
+                                            {{ app.user.savedJobs.contains(job) ? '❤ Saved' : '♡ Save' }}
+                                        </button>
+                                    </form>
+                                {% endif %}
+                            </div>
+                        </div>
+                    {% endfor %}
+                </div>
+            {% endif %}
+
+        {# ═══════════════════════════ SAVED JOBS VIEW ═══════════════════════════ #}
+        {% elseif view == 'saved' %}
+            <h2 style="font-size:1rem;font-weight:700;color:#374151;margin-bottom:1rem;">{{ saved_jobs|length }} saved job{{ saved_jobs|length == 1 ? '' : 's' }}</h2>
+            {% if saved_jobs is empty %}
+                <div class="empty-state-box">
+                    <div style="font-size:3rem;margin-bottom:.75rem;">❤</div>
+                    <h3 style="font-weight:700;margin-bottom:.5rem;">No saved jobs yet</h3>
+                    <p style="color:#6b7280;">Browse jobs and click ♡ Save to bookmark them here.</p>
+                    <a href="{{ path('app_job_index') }}" class="btn-view" style="display:inline-block;margin-top:1.25rem;">Browse Jobs</a>
+                </div>
+            {% else %}
+                <div style="display:flex;flex-direction:column;gap:.75rem;">
+                    {% for job in saved_jobs %}
+                        <div class="job-card" style="--d:{{ loop.index0 * 50 }}ms;">
+                            <div style="flex:1 1 0;min-width:0;">
+                                <p class="jc-title"><a href="{{ path('app_job_show', {id:job.id}) }}">{{ job.title }}</a></p>
+                                <div class="jc-meta">
+                                    <span>🏢 {{ job.company }}</span>
+                                    <span>📍 {{ job.location }}</span>
+                                    {% if job.salaryRange %}<span>💰 {{ job.salaryRange }}</span>{% endif %}
+                                </div>
+                                <div style="display:flex;gap:.4rem;flex-wrap:wrap;margin-top:.5rem;">
+                                    {% if job.jobType %}<span class="badge">{{ job.jobType }}</span>{% endif %}
+                                    <span class="badge b">{{ job.category }}</span>
+                                </div>
+                            </div>
+                            <div style="display:flex;flex-direction:column;align-items:flex-end;gap:.55rem;flex-shrink:0;">
+                                <a class="btn-view" href="{{ path('app_job_apply', {id:job.id}) }}">Apply Now</a>
+                                <form method="POST" action="{{ path('app_job_save', {id:job.id}) }}">
+                                    <input type="hidden" name="_token" value="{{ csrf_token('save_job_' ~ job.id) }}">
+                                    <button type="submit" class="btn-save saved">❤ Remove</button>
+                                </form>
+                            </div>
+                        </div>
+                    {% endfor %}
+                </div>
+            {% endif %}
+
+        {# ═══════════════════════════ MY APPLICATIONS VIEW ═══════════════════════════ #}
+        {% elseif view == 'applications' %}
+            <h2 style="font-size:1.1rem;font-weight:800;color:#1a1523;margin-bottom:1rem;">Your Applications ({{ my_applications|length }})</h2>
+            {% if my_applications is empty %}
+                <div class="empty-state-box">
+                    <div style="font-size:3rem;margin-bottom:.75rem;">📨</div>
+                    <h3 style="font-weight:700;margin-bottom:.5rem;">No applications yet</h3>
+                    <p style="color:#6b7280;">When you apply for a job, you can track its status here.</p>
+                </div>
+            {% else %}
+                <div style="display:flex;flex-direction:column;gap:.75rem;">
+                    {% for app in my_applications %}
+                        <div class="job-card" style="--d:{{ loop.index0 * 50 }}ms;">
+                            <div style="flex:1 1 0;min-width:0;">
+                                <p class="jc-title"><a href="{{ path('app_job_show', {id:app.job.id}) }}">{{ app.job.title }}</a></p>
+                                <div class="jc-meta">
+                                    <span>🏢 {{ app.job.company }}</span>
+                                    <span>Applied on {{ app.applicationDate|date('M d, Y') }}</span>
+                                </div>
+                            </div>
+                            <div style="display:flex;flex-direction:column;align-items:flex-end;gap:.55rem;flex-shrink:0;">
+                                {% set sc = '#92400e' %}{% set sbg = '#fef3c7' %}
+                                {% if app.status == 'ACCEPTED' %}{% set sc = '#166534' %}{% set sbg = '#dcfce7' %}
+                                {% elseif app.status == 'REJECTED' %}{% set sc = '#991b1b' %}{% set sbg = '#fee2e2' %}
+                                {% elseif app.status == 'INTERVIEWING' %}{% set sc = '#1e3a8a' %}{% set sbg = '#dbeafe' %}
+                                {% endif %}
+                                <span class="status-pill" style="color:{{ sc }}; background:{{ sbg }};">{{ app.status }}</span>
+
+                                <div style="display:flex; gap:.4rem; align-items:center;">
+                                    <a class="btn-view" href="{{ path('app_job_application_show', {id:app.id}) }}">🔍 View</a>
+                                    
+                                    {% if app.status == 'PENDING' %}
+                                        <a class="btn-save" href="{{ path('app_job_application_edit', {id:app.id}) }}" title="Edit Application">✏</a>
+                                        <form method="POST" action="{{ path('app_job_application_delete', {id:app.id}) }}" onsubmit="return confirm('Delete this application?');" style="display:inline;">
+                                            <input type="hidden" name="_token" value="{{ csrf_token('delete_application' ~ app.id) }}">
+                                            <button type="submit" class="btn-save" style="border:none; color:#dc2626;" title="Delete Application">🗑</button>
+                                        </form>
+                                    {% endif %}
+
+                                    {% if app.status == 'ACCEPTED' %}
+                                        <a class="btn-view" href="{{ path('app_job_progress', {id:app.job.id}) }}" style="background:#10b981;">📊 Progress</a>
+                                    {% endif %}
+                                </div>
+                            </div>
+                        </div>
+                    {% endfor %}
+                </div>
+            {% endif %}
+        {% endif %}
+
+    </main>
+</div>
+
+<script>
+    var range = document.getElementById('ssal');
+    var val = document.getElementById('salary-val');
+    if(range && val) {
+        range.addEventListener('input', function() {
+            val.textContent = this.value + (this.value > 0 ? ' TND+' : ' TND');
+        });
+        val.textContent = range.value + (range.value > 0 ? ' TND+' : ' TND');
+    }
+</script>
+{% endblock %}

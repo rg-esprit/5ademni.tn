@@ -48,6 +48,38 @@ class User implements UserInterface, PasswordAuthenticatedUserInterface
     #[ORM\Column(name: 'face_embedding', type: Types::JSON, nullable: true, options: ['comment' => '128-dim Facenet embedding stored as JSON array'])]
     private ?array $faceEmbedding = null;
 
+    #[ORM\ManyToMany(targetEntity: Job::class)]
+    #[ORM\JoinTable(name: 'saved_jobs')]
+    #[ORM\JoinColumn(name: 'user_id', referencedColumnName: 'id', onDelete: 'CASCADE')]
+    #[ORM\InverseJoinColumn(name: 'job_id', referencedColumnName: 'id', onDelete: 'CASCADE')]
+    private \Doctrine\Common\Collections\Collection $savedJobs;
+
+    public function __construct()
+    {
+        $this->savedJobs = new \Doctrine\Common\Collections\ArrayCollection();
+    }
+
+    public function getSavedJobs(): \Doctrine\Common\Collections\Collection
+    {
+        return $this->savedJobs;
+    }
+
+    public function addSavedJob(Job $job): static
+    {
+        if (!$this->savedJobs->contains($job)) {
+            $this->savedJobs->add($job);
+        }
+
+        return $this;
+    }
+
+    public function removeSavedJob(Job $job): static
+    {
+        $this->savedJobs->removeElement($job);
+
+        return $this;
+    }
+
     public function getId(): ?int
     {
         return $this->id;
