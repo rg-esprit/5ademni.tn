@@ -25,7 +25,27 @@ use Pagerfanta\Doctrine\ORM\QueryAdapter ;
 #[Route('/publications')]
 class ArticlePublicationController extends AbstractController
 {
-  
+#[Route('/blogs', name: 'article_blogs', methods: ['GET'])]
+public function blogs(
+    ArticleRepository $articleRepository,
+    FavoriRepository $favoriRepository,
+    CommentaireRepository $commentaireRepository
+): Response {
+    $articles = $articleRepository
+        ->createQueryBuilderForVisibleOrderedBy('newest')
+        ->setMaxResults(6)
+        ->getQuery()
+        ->getResult();
+
+    $articleIds = array_map(static fn (Article $article): int => $article->getId(), $articles);
+
+    return $this->render('article/blogs.html.twig', [
+        'articles' => $articles,
+        'favoriCounts' => [] === $articleIds ? [] : $favoriRepository->countByArticleIds($articleIds),
+        'commentCounts' => [] === $articleIds ? [] : $commentaireRepository->countByArticleIds($articleIds),
+    ]);
+}
+
 #[Route('', name: 'article_publications', methods: ['GET'])]
 public function index(
     Request $request,

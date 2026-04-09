@@ -39,7 +39,7 @@ class Message
 
     public function __construct()
     {
-        $this->dateEnvoi = new \DateTimeImmutable();
+        $this->dateEnvoi = new \DateTime();
     }
 
     public function getId(): ?int
@@ -133,7 +133,9 @@ class Message
 
     public function setDateEnvoi(\DateTimeInterface $dateEnvoi): static
     {
-        $this->dateEnvoi = $dateEnvoi;
+        $this->dateEnvoi = $dateEnvoi instanceof \DateTimeImmutable
+            ? \DateTime::createFromInterface($dateEnvoi)
+            : $dateEnvoi;
 
         return $this;
     }

@@ -1,898 +1,439 @@
 {% extends 'base.html.twig' %}
 
-{% block title %}Articles
-{% endblock %}
+{% block title %}Articles | 5ademni.tn{% endblock %}
 
 {% block body %}
-<div class="page">
-	<div class="filter-buttons">
-    <h1>Articles</h1>
-    <div class="filters">
-        <a class="btn filter-btn {{ sort == 'favoris' ? 'active' : '' }}" href="{{ path('article_publications', {sort: 'favoris'}) }}">
-            <svg viewbox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                <path d="M12 21.35l-1.45-1.32C5.4 15.36 2 12.28 2 8.5 2 5.42 4.42 3 7.5 3c1.74 0 3.41.81 4.5 2.09C13.09 3.81 14.76 3 16.5 3 19.58 3 22 5.42 22 8.5c0 3.78-3.4 6.86-8.55 11.54L12 21.35z"></path>
-            </svg>
-            Favoris
-        </a>
-        <a class="btn filter-btn {{ sort == 'commentaires' ? 'active' : '' }}" href="{{ path('article_publications', {sort: 'commentaires'}) }}">
-            <svg viewbox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"></path>
-            </svg>
-            Commentaires
-        </a>
-    </div>
+<style>
+    .article-shell {
+        display: flex;
+        flex-direction: column;
+        gap: 1.5rem;
+    }
+
+    .article-hero {
+        display: grid;
+        grid-template-columns: minmax(0, 1fr) auto;
+        gap: 1rem;
+        align-items: end;
+        padding: 2rem;
+        background: linear-gradient(135deg, #f5f3ff 0%, #eef2ff 100%);
+        border: 1px solid #ddd6fe;
+        border-radius: 1.25rem;
+    }
+
+    .article-hero h1 {
+        margin: 0.25rem 0 0.5rem;
+        font-size: clamp(2rem, 4vw, 2.8rem);
+    }
+
+    .article-hero p {
+        margin: 0;
+        color: #5b6475;
+        max-width: 60ch;
+    }
+
+    .article-hero-actions {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 0.65rem;
+        justify-content: flex-end;
+    }
+
+    .article-filter {
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        padding: 0.7rem 1rem;
+        border-radius: 999px;
+        border: 1px solid #d8d4fe;
+        background: rgba(255, 255, 255, 0.85);
+        color: #4338ca;
+        font-weight: 700;
+        text-decoration: none;
+    }
+
+    .article-filter.active {
+        background: #4f46e5;
+        border-color: #4f46e5;
+        color: #fff;
+    }
+
+    .article-list {
+        display: flex;
+        flex-direction: column;
+        gap: 1.25rem;
+    }
+
+    .article-card {
+        overflow: hidden;
+        border: 1px solid #e5e7eb;
+        border-radius: 1.1rem;
+        background: #fff;
+        box-shadow: 0 18px 45px rgba(15, 23, 42, 0.06);
+    }
+
+    .article-card-top {
+        display: grid;
+        grid-template-columns: minmax(0, 260px) minmax(0, 1fr);
+        gap: 1.25rem;
+        padding: 1.25rem;
+    }
+
+    .article-card-image {
+        width: 100%;
+        height: 220px;
+        border-radius: 0.9rem;
+        object-fit: cover;
+        background: linear-gradient(135deg, #ddd6fe, #e0e7ff);
+    }
+
+    .article-card-copy {
+        display: flex;
+        flex-direction: column;
+        gap: 1rem;
+        min-width: 0;
+    }
+
+    .article-card-copy h2 {
+        margin: 0;
+        font-size: 1.5rem;
+        line-height: 1.2;
+    }
+
+    .article-meta {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 0.6rem;
+        color: #667085;
+        font-size: 0.9rem;
+    }
+
+    .article-pill {
+        display: inline-flex;
+        align-items: center;
+        gap: 0.35rem;
+        padding: 0.35rem 0.75rem;
+        border-radius: 999px;
+        background: #eef2ff;
+        color: #4338ca;
+        font-weight: 700;
+        font-size: 0.82rem;
+    }
+
+    .article-content {
+        margin: 0;
+        color: #344054;
+        line-height: 1.75;
+        white-space: pre-wrap;
+    }
+
+    .article-actions {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 0.75rem;
+        align-items: center;
+    }
+
+    .article-inline-form {
+        margin: 0;
+    }
+
+    .article-button,
+    .article-link {
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        gap: 0.45rem;
+        padding: 0.72rem 1rem;
+        border-radius: 0.85rem;
+        border: 1px solid #d0d5dd;
+        background: #fff;
+        color: #344054;
+        text-decoration: none;
+        font-weight: 700;
+        cursor: pointer;
+    }
+
+    .article-button.is-active {
+        border-color: #ec4899;
+        background: #fff1f7;
+        color: #be185d;
+    }
+
+    .article-link.primary {
+        border-color: #c7d2fe;
+        background: #eef2ff;
+        color: #3730a3;
+    }
+
+    .article-comments {
+        border-top: 1px solid #eef2f6;
+        padding: 1rem 1.25rem 1.25rem;
+    }
+
+    .article-comments summary {
+        cursor: pointer;
+        font-weight: 800;
+        color: #1f2937;
+        list-style: none;
+    }
+
+    .article-comments summary::-webkit-details-marker {
+        display: none;
+    }
+
+    .comment-stack {
+        display: flex;
+        flex-direction: column;
+        gap: 0.9rem;
+        margin-top: 1rem;
+    }
+
+    .comment-card {
+        border: 1px solid #eaecf0;
+        border-radius: 0.9rem;
+        padding: 1rem;
+        background: #fcfcfd;
+    }
+
+    .comment-head {
+        display: flex;
+        justify-content: space-between;
+        gap: 1rem;
+        margin-bottom: 0.65rem;
+        color: #667085;
+        font-size: 0.88rem;
+    }
+
+    .comment-card p {
+        margin: 0;
+        color: #344054;
+        line-height: 1.6;
+        white-space: pre-wrap;
+    }
+
+    .comment-actions {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 0.65rem;
+        margin-top: 0.9rem;
+    }
+
+    .comment-actions form,
+    .comment-actions details {
+        margin: 0;
+    }
+
+    .comment-actions details {
+        flex: 1 1 100%;
+    }
+
+    .comment-actions details summary {
+        cursor: pointer;
+        color: #4f46e5;
+        font-weight: 700;
+    }
+
+    .comment-edit-form,
+    .comment-create-form {
+        display: flex;
+        flex-direction: column;
+        gap: 0.75rem;
+        margin-top: 1rem;
+    }
+
+    .comment-textarea {
+        width: 100%;
+        min-height: 120px;
+        padding: 0.9rem 1rem;
+        border: 1px solid #d0d5dd;
+        border-radius: 0.9rem;
+        resize: vertical;
+        font: inherit;
+        background: #fff;
+    }
+
+    .comment-submit {
+        align-self: flex-start;
+        padding: 0.75rem 1.1rem;
+        border: none;
+        border-radius: 0.85rem;
+        background: #4f46e5;
+        color: #fff;
+        font-weight: 700;
+        cursor: pointer;
+    }
+
+    .pagination {
+        display: flex;
+        justify-content: center;
+        flex-wrap: wrap;
+        gap: 0.65rem;
+    }
+
+    .page-link {
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        min-width: 2.75rem;
+        padding: 0.7rem 0.95rem;
+        border: 1px solid #d0d5dd;
+        border-radius: 0.8rem;
+        background: #fff;
+        color: #475467;
+        text-decoration: none;
+        font-weight: 700;
+    }
+
+    .page-link.active {
+        background: #4f46e5;
+        border-color: #4f46e5;
+        color: #fff;
+    }
+
+    .empty-panel {
+        padding: 2.5rem;
+        border: 1px dashed #c7d2fe;
+        border-radius: 1rem;
+        text-align: center;
+        background: #f8faff;
+        color: #475467;
+    }
+
+    @media (max-width: 900px) {
+        .article-hero,
+        .article-card-top {
+            grid-template-columns: 1fr;
+        }
+
+        .article-hero-actions {
+            justify-content: flex-start;
+        }
+
+        .article-card-image {
+            height: 200px;
+        }
+    }
+</style>
+
+<div class="page-shell">
+    {% include 'partials/_header.html.twig' %}
+
+    <main class="page-content">
+        <div class="article-shell">
+            <section class="article-hero">
+                <div>
+                    <p class="eyebrow">Articles</p>
+                    <h1>Community articles worth reading</h1>
+                    <p>Browse the public article feed, react to posts, open matching gigs, and jump into the comment threads without leaving the shared site shell.</p>
+                </div>
+                <div class="article-hero-actions">
+                    <a class="article-filter {{ sort == 'favoris' ? 'active' : '' }}" href="{{ path('article_publications', {sort: 'favoris'}) }}">Most liked</a>
+                    <a class="article-filter {{ sort == 'commentaires' ? 'active' : '' }}" href="{{ path('article_publications', {sort: 'commentaires'}) }}">Most discussed</a>
+                    <a class="article-filter" href="{{ path('article_blogs') }}">Blogs overview</a>
+                </div>
+            </section>
+
+            {% if articles is empty %}
+                <section class="empty-panel">
+                    <h2 style="margin-top:0;">No visible articles yet</h2>
+                    <p style="margin-bottom:0;">Published articles will appear here once the content team adds them.</p>
+                </section>
+            {% else %}
+                <div class="article-list">
+                    {% for article in articles %}
+                        {% set imageName = article.imagePath ? article.imagePath|split('/')|last : null %}
+                        {% set comments = commentsByArticle[article.id]|default([]) %}
+                        {% set isFavori = currentUser ? (userFavoris[article.id]|default(false)) : (favoriCounts[article.id]|default(0) > 0) %}
+                        <article id="article-{{ article.id }}" class="article-card">
+                            <div class="article-card-top">
+                                {% if imageName %}
+                                    <img src="{{ asset('uploads/images/' ~ imageName) }}" alt="{{ article.title }}" class="article-card-image">
+                                {% else %}
+                                    <div class="article-card-image" aria-hidden="true"></div>
+                                {% endif %}
+
+                                <div class="article-card-copy">
+                                    <div class="article-meta">
+                                        <span class="article-pill">{{ article.createdAt ? article.createdAt|date('d M Y') : 'Draft' }}</span>
+                                        <span>{{ favoriCounts[article.id]|default(0) }} favorites</span>
+                                        <span>{{ commentCounts[article.id]|default(0) }} comments</span>
+                                    </div>
+
+                                    <h2>{{ article.title }}</h2>
+                                    <p class="article-content">{{ article.content }}</p>
+
+                                    <div class="article-actions">
+                                        <form method="POST" action="{{ path('article_publication_toggle_favorite', {id: article.id}) }}" class="article-inline-form">
+                                            <input type="hidden" name="_token" value="{{ csrf_token('favorite_' ~ article.id) }}">
+                                            <button class="article-button {{ isFavori ? 'is-active' : '' }}" type="submit">{{ isFavori ? '♥' : '♡' }} {{ favoriCounts[article.id]|default(0) }}</button>
+                                        </form>
+
+                                        <a class="article-link primary" href="{{ path('article_gigs', {id: article.id}) }}">Related gigs</a>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <details class="article-comments">
+                                <summary>Comments ({{ commentCounts[article.id]|default(0) }})</summary>
+
+                                <div class="comment-stack">
+                                    {% for comment in comments %}
+                                        <article class="comment-card">
+                                            <div class="comment-head">
+                                                <strong>{{ comment.user ? comment.user.firstName ~ ' ' ~ comment.user.lastName : 'Anonyme' }}</strong>
+                                                <span>{{ comment.createdAt ? comment.createdAt|date('d M Y H:i') : '' }}</span>
+                                            </div>
+                                            <p>{{ comment.content }}</p>
+
+                                            <div class="comment-actions">
+                                                <details>
+                                                    <summary>Edit comment</summary>
+                                                    <form method="POST" action="{{ path('article_publication_comment_edit', {id: comment.id}) }}" class="comment-edit-form">
+                                                        <input type="hidden" name="_token" value="{{ csrf_token('comment_edit_' ~ comment.id) }}">
+                                                        <textarea name="content" class="comment-textarea">{{ comment.content }}</textarea>
+                                                        <button type="submit" class="comment-submit">Save changes</button>
+                                                    </form>
+                                                </details>
+
+                                                <form method="POST" action="{{ path('article_publication_comment_delete', {id: comment.id}) }}" onsubmit="return confirm('Delete this comment?');">
+                                                    <input type="hidden" name="_token" value="{{ csrf_token('comment_delete_' ~ comment.id) }}">
+                                                    <button type="submit" class="article-button">Delete</button>
+                                                </form>
+                                            </div>
+                                        </article>
+                                    {% else %}
+                                        <div class="comment-card">
+                                            <p>No comments yet. Be the first to react.</p>
+                                        </div>
+                                    {% endfor %}
+                                </div>
+
+                                <form method="POST" action="{{ path('article_publication_comment_add', {id: article.id}) }}" class="comment-create-form">
+                                    <input type="hidden" name="_token" value="{{ csrf_token('comment_add_' ~ article.id) }}">
+                                    <textarea name="content" class="comment-textarea" placeholder="Share your thoughts about this article..." required></textarea>
+                                    <button class="comment-submit" type="submit">Add comment</button>
+                                </form>
+                            </details>
+                        </article>
+                    {% endfor %}
+                </div>
+
+                <nav class="pagination" aria-label="Articles pagination">
+                    {% if pagination.hasPreviousPage %}
+                        <a href="{{ path('article_publications', {page: pagination.previousPage, sort: sort}) }}" class="page-link">Previous</a>
+                    {% endif %}
+
+                    {% for page in 1..pagination.nbPages %}
+                        <a href="{{ path('article_publications', {page: page, sort: sort}) }}" class="page-link {{ page == pagination.currentPage ? 'active' : '' }}">{{ page }}</a>
+                    {% endfor %}
+
+                    {% if pagination.hasNextPage %}
+                        <a href="{{ path('article_publications', {page: pagination.nextPage, sort: sort}) }}" class="page-link">Next</a>
+                    {% endif %}
+                </nav>
+            {% endif %}
+        </div>
+    </main>
 </div>
-	</div>
-
-	{% for article in articles %}
-		<div class="card">
-
-
-			<div class="card-content">
-
-
-				{% if article.imagePath %}
-					{% set filename = article.imagePath|split('\\')|last %}
-					<img src="{{ asset('uploads/images/' ~ filename) }}" class="article-image">
-				{% endif %}
-
-				{# LIGNE VERTICALE #}
-				<div class="divider-vertical"></div>
-
-				<div class="card-main">
-					<h3>{{ article.title }}</h3>
-					<p class="card-text">{{ article.content }}</p>
-				</div>
-
-
-				{% if article.createdAt %}
-					{% set now = "now"|date("U") %}
-					{% set created = article.createdAt|date("U") %}
-					{% set diff = now - created %}
-
-					<span class="time-ago">
-						{% if diff < 60 %}
-							il y a
-							{{ diff }}
-							sec
-						{% elseif diff < 3600 %}
-							il y a
-							{{ (diff / 60)|round }}
-							min
-						{% elseif diff < 86400 %}
-							il y a
-							{{ (diff / 3600)|round }}
-							h
-						{% elseif diff < 2592000 %}
-							il y a
-							{{ (diff / 86400)|round }}
-							jours
-						{% else %}
-							{{ article.createdAt|date('d/m/Y') }}
-						{% endif %}
-					</span>
-				{% endif %}
-
-
-				{# LIGNE VERTICALE #}
-				<div class="divider-vertical"></div>
-
-				<div class="card-actions">
-
-
-					<span class="icon-wrap">
-						<form method="POST" action="{{ path('article_publication_toggle_favorite', {id: article.id}) }}">
-      <input type="hidden" name="_token" value="{{ csrf_token('favorite_' ~ article.id) }}">
-      {% set isFavori = currentUser ? (userFavoris[article.id]|default(false)) : (favoriCounts[article.id]|default(0) > 0) %}
-        <button class="icon-wrap btn-favorite {{ isFavori ? 'favori-active' : 'favori-inactive' }}" type="submit">
-        <svg viewbox="0 0 24 24" fill="currentColor" stroke="currentColor" stroke-width="2">
-            <path d="M12 21.35l-1.45-1.32C5.4 15.36 2 12.28 2 8.5 2 5.42 4.42 3 7.5 3c1.74 0 3.41.81 4.5 2.09C13.09 3.81 14.76 3 16.5 3 19.58 3 22 5.42 22 8.5c0 3.78-3.4 6.86-8.55 11.54L12 21.35z"></path>
-        </svg>
-        <span>{{ favoriCounts[article.id]|default(0) }}</span>
-             </button>
-                  </form>
-
-						{# VUES (STATIC POUR L’INSTANT) #}
-						<div class="action-btn">
-							<a href="{{ path('article_gigs', { id: article.id }) }}" class="btn btn-view-gigs">
-
-								<svg viewbox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-									<path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8S1 12 1 12z"></path>
-									<circle cx="12" cy="12" r="3"></circle>
-								</svg>
-							</a>
-						</div>
-
-						<button class="btn btn-comments" onclick="toggleComments({{ article.id }})">
-                <svg class="icon" viewbox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-        <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"></path>
-                 </svg>
-                 {{ commentCounts[article.id]|default(0) }}
-              </button>
-					</span>
-
-				</div>
-			</div>
-
-
-			<div id="comments-{{ article.id }}" class="comments-section" style="display: none;">
-				<div class="comments-card">
-					
-					<div class="comments-list">
-						{% for comment in commentsByArticle[article.id] %}
-							<div
-								class="comment-item" id="comment-{{ comment.id }}">
-
-								{# 🔹 Ligne 1 : Nom + Date #}
-								<div class="comment-top">
-									<span class="comment-author">
-										{{ comment.user ? comment.user.firstName : 'Anonyme' }}
-										{{ comment.user ? comment.user.lastName : '' }}
-									</span>
-
-									<span class="comment-date">
-										{% set now = "now"|date("U") %}
-										{% set created = comment.createdAt|date("U") %}
-										{% set diff = now - created %}
-
-										{% if diff < 60 %}
-											il y a
-											{{ diff }}
-											sec
-										{% elseif diff < 3600 %}
-											il y a
-											{{ (diff / 60)|round }}
-											min
-										{% elseif diff < 86400 %}
-											il y a
-											{{ (diff / 3600)|round }}
-											h
-										{% else %}
-											il y a
-											{{ (diff / 86400)|round }}
-											jours
-										{% endif %}
-									</span>
-								</div>
-
-								{# 🔹 Ligne 2 : contenu + icônes #}
-								<div class="comment-bottom">
-									<p class="comment-content">{{ comment.content }}</p>
-
-									<div
-										class="comment-icons">
-
-										{# 🔹 Modifier #}
-										<button onclick="toggleEdit({{ comment.id }})" class="icon-btn">
-											<svg viewbox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-												<path d="M12 20h9"></path>
-												<path d="M16.5 3.5a2.1 2.1 0 0 1 3 3L7 19l-4 1 1-4 12.5-12.5z"></path>
-											</svg>
-										</button>
-
-										{# 🔹 Supprimer #}
-										<form method="POST" action="{{ path('article_publication_comment_delete', {id: comment.id}) }}" onsubmit="return confirm('Supprimer ?')">
-
-											<input type="hidden" name="_token" value="{{ csrf_token('comment_delete_' ~ comment.id) }}">
-
-											<button type="submit" class="icon-btn delete">
-												<svg viewbox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-													<polyline points="3 6 5 6 21 6"></polyline>
-													<path d="M19 6l-1 14H6L5 6"></path>
-													<path d="M10 11v6"></path>
-													<path d="M14 11v6"></path>
-													<path d="M9 6V4h6v2"></path>
-												</svg>
-											</button>
-										</form>
-
-									</div>
-								</div>
-
-								{# 🔹 Zone édition cachée #}
-								<div class="edit-zone" id="edit-zone-{{ comment.id }}">
-									<form method="POST" action="{{ path('article_publication_comment_edit', { id: comment.id }) }}">
-                <input type="hidden" name="_token" value="{{ csrf_token('comment_edit_' ~ comment.id) }}">
-              <textarea name="content">{{ comment.content }}</textarea>
-                   <button type="submit" class="btn btn-edit">Modifier</button>
-             </form>
-								</div>
-
-							</div>
-						{% endfor %}
-					</div>
-					<h5>Ajouter un commentaire</h5>
-					<form method="POST" action="{{ path('article_publication_comment_add', {id: article.id}) }}">
-						<input type="hidden" name="_token" value="{{ csrf_token('comment_add_' ~ article.id) }}">
-						<textarea name="content" placeholder="Écrivez votre commentaire ici..." required></textarea>
-						<button class="btn btn-add">Ajouter</button>
-					</form>
-				</div>
-			</div>
-
-
-		</div>
-	{% else %}
-		<p>Aucun article visible.</p>
-	{% endfor %}
-	<div class="pagination">
-    {% if pagination.hasPreviousPage %}
-        <a href="{{ path('article_publications', {page: pagination.previousPage, sort: sort}) }}" class="page-link">Précédent</a>
-    {% endif %}
-
-    {% for page in 1..pagination.nbPages %}
-        <a href="{{ path('article_publications', {page: page, sort: sort}) }}" class="page-link {{ page == pagination.currentPage ? 'active' : '' }}">
-            {{ page }}
-        </a>
-    {% endfor %}
-
-    {% if pagination.hasNextPage %}
-        <a href="{{ path('article_publications', {page: pagination.nextPage, sort: sort}) }}" class="page-link">Suivant</a>
-    {% endif %}
-</div>
-</div>
-<script>
-	function toggleComments(articleId) {
-const commentsSection = document.getElementById(`comments-${articleId}`);
-if (commentsSection.style.display === 'none') {
-commentsSection.style.display = 'block';
-} else {
-commentsSection.style.display = 'none';
-}
-}
-function toggleEdit(commentId) {
-const zone = document.getElementById("edit-zone-" + commentId);
-
-if (zone.style.display === "block") {
-zone.style.display = "none";
-} else {
-zone.style.display = "block";
-}
-}
-</script>
-
-								  
-								<script>
-								    let isProcessing = false;
-								
-								    // Set isProcessing to true when a form is submitted
-								    document.querySelectorAll('form').forEach(form => {
-								        form.addEventListener('submit', () => {
-								            isProcessing = true;
-								        });
-								    });
-								
-								  
-								</script>
-								<style>
-
-								.pagination {
-    display: flex;
-    justify-content: center;
-    margin-top: 20px;
-    gap: 10px;
-}
-
-.page-link {
-    padding: 8px 12px;
-    border: 1px solid #ddd;
-    border-radius: 5px;
-    text-decoration: none;
-    color: #6b7280;
-    transition: background-color 0.3s, color 0.3s;
-}
-
-.page-link.active {
-    background-color: #6c0df2;
-    color: #fff;
-    font-weight: bold;
-}
-
-.page-link:hover {
-    background-color: #ede9fe;
-    color: #6c0df2;
-}
-								body {
-								    background: #f5f7fb;
-								}
-								
-								/* Container */
-								.page {
-								    padding: 30px;
-								    font-family: 'Segoe UI', sans-serif;
-								}
-								.comment-item {
-			    padding: 12px;
-			    border-bottom: 1px solid #eee;
-			}
-			
-			/* Ligne 1 */
-			.comment-top {
-			    display: flex;
-			    justify-content: space-between;
-			    font-size: 13px;
-			    color: #6b7280;
-			}
-			.icon-btn {
-			    background: #f3f4f6;
-			    border: none;
-			    border-radius: 8px;
-			    padding: 6px;
-			    cursor: pointer;
-			    transition: 0.3s;
-			    display: flex;
-			    align-items: center;
-			    justify-content: center;
-			}
-			
-			.icon-btn svg {
-			    width: 18px;
-			    height: 18px;
-			    stroke: #6b7280;
-			    transition: 0.3s;
-			}
-			
-			.icon-btn:hover {
-			    background: #ede9fe;
-			    transform: scale(1.1);
-			}
-			
-			.icon-btn:hover svg {
-			    stroke: #7c3aed;
-			}
-			
-			/* bouton supprimer */
-			.icon-btn.delete:hover {
-			    background: #fee2e2;
-			}
-			
-			.icon-btn.delete:hover svg {
-			    stroke: #ef4444;
-			}
-			/* Ligne 2 */
-			.comment-bottom {
-			    display: flex;
-			    justify-content: space-between;
-			    align-items: center;
-			    margin-top: 6px;
-			}
-			
-			.comment-content {
-			    font-size: 15px;
-			    color: #111;
-			}
-			
-			/* Icônes */
-			.comment-icons {
-			    display: flex;
-			    gap: 10px;
-			}
-			
-			.comment-icons button {
-			    background: none;
-			    border: none;
-			    cursor: pointer;
-			    font-size: 16px;
-			}
-			
-			/* Zone édition */
-			.edit-zone {
-			    display: none;
-			    margin-top: 10px;
-			}
-			
-			.edit-zone textarea {
-			    width: 100%;
-			    padding: 8px;
-			    border-radius: 6px;
-			}
-			
-			.edit-actions {
-			    margin-top: 5px;
-			    display: flex;
-			    gap: 10px;
-			}
-								.time-ago {
-			    font-size: 13px;
-			    color: #6b7280;
-			    white-space: nowrap;
-			}
-								/* Header */
-							
-								.card-actions {
-					    display: flex;
-					    flex-direction: column;
-					    align-items: center;
-					    justify-content: center;
-					    gap: 18px;
-					    min-width: 80px;
-					}
-					.action-btn {
-					    display: flex;
-			    flex-direction: column;
-			    align-items: center;
-			    justify-content: center;
-			    gap: 6px;
-			
-			    width: 60px;
-			    background: #f9fafb;
-			    border-radius: 12px;
-			    padding: 10px 0;
-			    transition: 0.3s;
-					}
-					
-					.action-btn:hover {
-					    background: #ede9fe;
-					    transform: scale(1.05);
-					}
-					
-					.action-btn span {
-					    font-size: 13px;
-					    color: #374151;
-					}
-/* Conteneur des boutons de filtrage */
-.filter-buttons {
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-    margin-bottom: 20px;
-}
-
-/* Conteneur des filtres */
-.filters {
-    display: flex;
-    gap: 15px; /* Espacement entre les boutons */
-}
-
-/* Boutons de filtrage */
-.filter-btn {
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    gap: 8px;
-    padding: 10px 20px;
-    border-radius: 25px; /* Boutons arrondis */
-    background: #f3f4f6;
-    color: #6b7280;
-    border: 1px solid #e5e7eb;
-    font-weight: 500;
-    font-size: 14px;
-    transition: all 0.3s ease;
-    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
-}
-
-.filter-btn svg {
-    width: 20px;
-    height: 20px;
-    stroke: #6b7280;
-    transition: stroke 0.3s ease;
-}
-
-/* Bouton actif */
-.filter-btn.active {
-    background: linear-gradient(135deg, #7c3aed, #a78bfa);
-    color: white;
-    border: none;
-    box-shadow: 0 4px 10px rgba(124, 58, 237, 0.4);
-}
-
-.filter-btn.active svg {
-    stroke: white;
-}
-
-/* Effet au survol */
-.filter-btn:hover {
-    background: #ede9fe;
-    color: #7c3aed;
-    transform: translateY(-2px);
-    box-shadow: 0 6px 15px rgba(124, 58, 237, 0.2);
-}
-
-.filter-btn:hover svg {
-    stroke: #7c3aed;
-}
-
-.icon-wrap {
-    display: flex;
-    align-items: center;
-    justify-content: center;
-}
-
-.icon-wrap svg {
-    width: 20px;
-    height: 20px;
-    stroke: #7c3aed;
-    transition: stroke 0.3s;
-}
-
-
-								
-								/* CARD */
-								.card {
-			    background-color: #ffffff; /* Fond blanc */
-			    border-radius: 12px; /* Bordures arrondies */
-			    box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1); /* Ombre douce */
-			    padding: 20px;
-			    margin-bottom: 20px;
-			    transition: transform 0.3s, box-shadow 0.3s;
-			}
-								
-								.card:hover {
-								    transform: translateY(-5px);
-								    box-shadow: 0 15px 35px rgba(0, 0, 0, 0.1);
-								}
-								
-								/* HEADER */
-								.card-header {
-								    display: flex;
-								    gap: 20px;
-								    align-items: center;
-								    margin-bottom: 15px;
-								}
-								
-								/* IMAGE */
-								.article-image {
-								    width: 110px;
-								    height: 130px;
-								    border-radius: 12px;
-								    object-fit: cover;
-								}
-						        .card-image img {
-						    width: 100%;
-						    height: 220px;
-						    object-fit: cover;
-						}
-						.card-main {
-						    flex: 1;
-						}
-							/* LIGNE VERTICALE */
-						.divider-vertical {
-						    width: 1px;
-						    background: #e5e7eb;
-						}
-							.card-content {
-						    display: flex;
-						    padding: 20px;
-						    gap: 20px;
-						    border-top: 1px solid #eee; /* ligne fine */
-						}
-								/* TITLE */
-								.card-header h3 {
-								    flex: 1;
-								    font-size: 18px;
-								    font-weight: 600;
-								    color: #111827;
-								}
-								
-								/* META */
-								.meta {
-								    display: flex;
-								    gap: 15px;
-								    align-items: center;
-								    font-size: 13px;
-								    color: #6b7280;
-								}
-								
-								/* ICONS */
-								.icon-wrap {
-				    display: flex;
-				    flex-direction: column; /* 🔥 vertical */
-				    align-items: center;
-				    justify-content: center;
-				    gap: 6px;
-				}
-								
-								.icon-wrap svg {
-								    width: 24px;
-								    height: 24px;
-								    stroke: #6b7280; /* Couleur par défaut (gris) */
-								    fill: none; /* Pas de remplissage par défaut */
-								    transition: all 0.3s ease;
-								}
-								.icon-wrap:hover svg {
-								    stroke: #7c3aed; /* Couleur violette au survol */
-								}
-								
-								/* BUTTON FAVORITE */
-							.btn-favorite {
-    border: none;
-    background: #f3f4f6;
-    border-radius: 10px;
-    padding: 8px 12px;
-    cursor: pointer;
-    transition: 0.3s;
-}
-								
-								.btn-favorite:hover {
-								    color: #5b21b6; /* Couleur au survol */
-								}
-								
-								.favori-active {
-								    color: #7c3aed; /* Même couleur que les inactifs */
-								}
-								
-								.favori-inactive {
-								    color: #7c3aed; /* Même couleur que les actifs */
-								}
-								/* BODY */
-								.card-body {
-								    font-size: 14px;
-								    color: #374151;
-								    line-height: 1.6;
-								    margin-bottom: 15px;
-								}
-								
-								/* FOOTER */
-								.card-footer {
-								    display: flex;
-								    justify-content: space-between;
-								    align-items: center;
-								}
-								
-								/* BUTTON FAVORITE */
-								.btn-favorite {
-								    border: none;
-								    background: #f3f4f6;
-								    border-radius: 10px;
-								    padding: 8px 12px;
-								    cursor: pointer;
-								    transition: 0.3s;
-								}
-								
-								.btn-favorite:hover {
-								    background: #ede9fe;
-								    box-shadow: 0 8px 16px rgba(124, 58, 237, 0.4);
-								}
-								.btn-favorite:hover span {
-								    display: inline; /* Afficher le texte au survol */
-								    font-size: 14px;
-								    color: #7c3aed;
-								}
-								.btn-favorite.active svg {
-								    stroke: white; /* Icône blanche pour l'état actif */
-								}
-								.btn-favorite.active {
-								    background: #7c3aed;
-								    color: white;
-								}
-								.btn-favorite span {
-    font-size: 14px;
-    font-weight: bold;
-    color: #6b7280; /* Couleur par défaut pour les favoris inactifs */
-    transition: color 0.3s ease;
-}
-
-.btn-favorite.favori-active span {
-    color: #7c3aed; /* Rouge pour les favoris actifs */
-}
-
-.btn-favorite.favori-inactive span {
-    color: #6b7280; /* Gris pour les favoris inactifs */
-}
-.btn-favorite.favori-active svg {
-    fill: #7c3aed;   /* rouge */
-    stroke: #7c3aed;
-}
-
-.btn-favorite.favori-inactive svg {
-    fill: none;
-    stroke: #6b7280;
-}
-
-/* Hover (optionnel stylé) */
-.btn-favorite:hover svg {
-    transform: scale(1.2);
-}
-								
-								/* COMMENTS BUTTON */
-								.btn-comments {
-								    display: flex;
-			    flex-direction: column;
-			    align-items: center;
-			    justify-content: center;
-			    gap: 6px;
-			
-			    width: 60px;
-			    background: #f9fafb;
-			    border-radius: 12px;
-			    padding: 10px 0;
-			    transition: 0.3s;
-								}
-								
-								.btn-comments:hover {
-								    background: #ede9fe;
-								}
-								
-								/* SMALL DETAILS */
-								.meta span {
-								    display: flex;
-								    align-items: center;
-								    gap: 4px;
-								}
-			.comment-header {
-			    display: flex;
-			    justify-content: space-between;
-			    align-items: center;
-			    font-size: 14px;
-			    color: #6b7280;
-			}
-			.comment-textarea {
-			    width: 100%;
-			    margin-top: 10px;
-			    padding: 10px;
-			    border: 1px solid #ccc;
-			    border-radius: 5px;
-			    display: none; /* Masqué par défaut */
-			}
-			
-			.comment-actions {
-			    display: flex;
-			    gap: 10px;
-			    margin-top: 10px;
-			}
-			
-			.comment-content {
-			    margin-top: 5px;
-			    font-size: 16px;
-			    color: #333;
-			}
-								.comments-section {
-			    background-color: #f9f9f9; /* Fond légèrement gris */
-			    border-radius: 8px;
-			    padding: 15px;
-			    margin-top: 10px;
-			    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
-			}
-								/* Boutons */
-								.btn {
-								
-								    border: none;
-								    border-radius: 8px;
-								    font-size: 14px;
-								    cursor: pointer;
-								    transition: background-color 0.3s ease, transform 0.2s ease;
-								}
-								
-								.btn-add {
-								    background-color: #7c3aed; /* Violet */
-								    color: white;
-								}
-								
-								.btn-add:hover {
-								    background-color: #5b21b6; /* Violet foncé */
-								    transform: translateY(-2px);
-								}
-								
-								.btn-edit {
-								    background-color: #a78bfa; /* Violet clair */
-								    color: white;
-								}
-								
-								.btn-edit:hover {
-								    background-color: #7c3aed; /* Violet */
-								    transform: translateY(-2px);
-								}
-								
-								.btn-delete {
-								    background-color: #f87171; /* Rouge clair */
-								    color: white;
-								}
-								
-								.btn-delete:hover {
-								    background-color: #ef4444; /* Rouge */
-								    transform: translateY(-2px);
-								}
-								
-								/* Carte de commentaires */
-								.comments-card {
-    display: flex;
-    flex-direction: column;
-    height: 400px; /* taille fixe */
-    border-radius: 12px;
-    padding: 0;
-    overflow: hidden;
-}
-								.comments-list {
-    flex: 1;
-    overflow-y: auto;
-    padding: 15px;
-}.comment-form {
-    position: sticky;
-    bottom: 0;
-    background: white;
-    padding: 15px;
-    border-top: 1px solid #eee;
-}
-								.comments-card h4 {
-								    margin-bottom: 10px;
-								    font-size: 18px;
-								    font-weight: bold;
-								    color: #4c1d95; /* Violet foncé */
-								}
-								
-								.comments-card textarea {
-								    width: 100%;
-								    border: 1px solid #d1d5db; /* Gris clair */
-								    border-radius: 8px;
-								    padding: 10px;
-								    margin-top: 10px;
-								    font-size: 14px;
-								    background: #f3f4f6; /* Blanc cassé */
-								    color: #1f2937; /* Texte sombre */
-								}
-								
-								.comments-card .btn {
-								    border: none;
-								    border-radius: 8px;
-								    padding: 8px 12px;
-								    cursor: pointer;
-								    font-size: 14px;
-								    transition: 0.3s;
-								}
-								
-								.comments-card .btn-add {
-								    background: #7c3aed; /* Violet */
-								    color: white;
-								}
-								
-								.comments-card .btn-edit {
-								    background: #a78bfa; /* Violet clair */
-								    color: white;
-								}
-								
-								.comments-card .btn-delete {
-								    background: #f87171; /* Rouge clair */
-								    color: white;
-								}
-								
-								.comments-card .btn:hover {
-								    opacity: 0.9;
-									 background-color: #45a049;
-								}
-								.comments-card::-webkit-scrollbar {
-    width: 6px;
-}
-
-.comments-card::-webkit-scrollbar-thumb {
-    background: #a78bfa;
-    border-radius: 10px;
-}
-
-.comments-card::-webkit-scrollbar-track {
-    background: #f3f4f6;
-}
-								/* Bouton de fermeture */
-								.close-card {
-								    position: absolute;
-								    top: 10px;
-								    right: 10px;
-								    background: transparent;
-								    border: none;
-								    color: white;
-								    font-size: 20px;
-								    cursor: pointer;
-								    font-weight: bold;
-								    transition: transform 0.3s ease;
-								}
-								
-								.close-card:hover {
-								    transform: scale(1.2);
-								    color: #a78bfa; /* Violet clair */
-								}
-								
-								.close-card {
-								    position: absolute;
-								    top: 10px;
-								    right: 10px;
-								    background: transparent;
-								    border: none;
-								    color: white;
-								    font-size: 20px;
-								    cursor: pointer;
-								    font-weight: bold;
-								    transition: transform 0.3s ease;
-								}
-								
-								</style>
-								
-								{% endblock %}
+{% endblock %}

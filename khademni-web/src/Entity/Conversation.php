@@ -50,7 +50,7 @@ class Conversation
     {
         $this->messages = new ArrayCollection();
         $this->members = new ArrayCollection();
-        $this->dateCreation = new \DateTimeImmutable();
+        $this->dateCreation = new \DateTime();
     }
 
     public function getId(): ?int
@@ -114,7 +114,9 @@ class Conversation
 
     public function setDateCreation(\DateTimeInterface $dateCreation): static
     {
-        $this->dateCreation = $dateCreation;
+        $this->dateCreation = $dateCreation instanceof \DateTimeImmutable
+            ? \DateTime::createFromInterface($dateCreation)
+            : $dateCreation;
 
         return $this;
     }

@@ -45,68 +45,74 @@ class ConversationController extends AbstractController
 
         /** @var User $user */
         $user = $this->getUser();
-        $recipients = $userRepository->findAllExcept($user);
         $error = null;
-        $selectedRecipientId = max(0, (int) $request->query->get('recipient', 0));
+        $source = trim((string) ($request->isMethod('POST') ? $request->request->get('source', '') : $request->query->get('source', '')));
+        $selectedRecipientId = max(0, (int) ($request->isMethod('POST') ? $request->request->get('recipient', 0) : $request->query->get('recipient', 0)));
+        $draftTitle = trim((string) ($request->isMethod('POST') ? $request->request->get('title', '') : $request->query->get('title', '')));
+
+        if (!in_array($source, ['job', 'gig'], true) || $selectedRecipientId <= 0) {
+            $this->addFlash('error', 'Start a conversation from a job or gig page.');
+
+            return $this->redirectToRoute('app_conversations');
+        }
+
+        $recipient = $userRepository->find($selectedRecipientId);
+        if (!$recipient instanceof User || $recipient->getId() === $user->getId()) {
+            $this->addFlash('error', 'The selected recipient is not valid.');
+
+            return $this->redirectToRoute('app_conversations');
+        }
 
         if ($request->isMethod('POST')) {
             if (!$this->isCsrfTokenValid('conversation_new', (string) $request->request->get('_token'))) {
                 $error = 'Jeton CSRF invalide. Veuillez réessayer.';
             } else {
-                $recipientId = (int) $request->request->get('recipient');
-                $selectedRecipientId = $recipientId;
-                $title = trim((string) $request->request->get('title', '')) ?: 'Nouvelle conversation';
+                $draftTitle = trim((string) $request->request->get('title', ''));
+                $title = '' === $draftTitle ? 'Nouvelle conversation' : $draftTitle;
 
-                $recipient = $userRepository->find($recipientId);
-                if (!$recipient instanceof User) {
-                    $error = 'Veuillez sélectionner un destinataire valide.';
-                } elseif ($recipient->getId() === $user->getId()) {
-                    $error = 'Vous ne pouvez pas envoyer un message à vous-même.';
-                } else {
-                    $existing = $conversationRepository->findExistingConversation($user, $recipient);
-                    if ($existing instanceof Conversation) {
-                        return $this->redirectToRoute('app_message_thread', ['id' => $existing->getId()]);
-                    }
-
-                    $conversation = new Conversation();
-                    $conversation->setClient($user);
-                    $conversation->setFreelance($recipient);
-                    $conversation->setTitle($title);
-                    $conversation->setStatut('ACTIVE');
-                    $conversation->setNonLusClient(0);
-                    $conversation->setNonLusFreelance(0);
-
-                    $memberClient = new ConversationMember();
-                    $memberClient->setConversation($conversation);
-                    $memberClient->setUser($user);
-                    $memberClient->setRole('CLIENT');
-                    $memberClient->setInvitedBy($user);
-                    $conversation->addMember($memberClient);
-                    $entityManager->persist($memberClient);
-
-                    $memberFreelance = new ConversationMember();
-                    $memberFreelance->setConversation($conversation);
-                    $memberFreelance->setUser($recipient);
-                    $memberFreelance->setRole('FREELANCE');
-                    $memberFreelance->setInvitedBy($user);
-                    $conversation->addMember($memberFreelance);
-                    $entityManager->persist($memberFreelance);
-
-                    $entityManager->persist($conversation);
-                    $entityManager->flush();
-
-                    $this->addFlash('success', 'Conversation créée! Vous pouvez maintenant discuter avec ' . $recipient->getDisplayName());
-
-                    // Ouvrir directement le chat et la conversation s'affichera dans la liste
-                    return $this->redirectToRoute('app_message_thread', ['id' => $conversation->getId()]);
+                $existing = $conversationRepository->findExistingConversation($user, $recipient);
+                if ($existing instanceof Conversation) {
+                    return $this->redirectToRoute('app_message_thread', ['id' => $existing->getId()]);
                 }
+
+                $conversation = new Conversation();
+                $conversation->setClient($user);
+                $conversation->setFreelance($recipient);
+                $conversation->setTitle($title);
+                $conversation->setStatut('ACTIVE');
+                $conversation->setNonLusClient(0);
+                $conversation->setNonLusFreelance(0);
+
+                $memberClient = new ConversationMember();
+                $memberClient->setConversation($conversation);
+                $memberClient->setUser($user);
+                $memberClient->setRole('CLIENT');
+                $memberClient->setInvitedBy($user);
+                $conversation->addMember($memberClient);
+                $entityManager->persist($memberClient);
+
+                $memberFreelance = new ConversationMember();
+                $memberFreelance->setConversation($conversation);
+                $memberFreelance->setUser($recipient);
+                $memberFreelance->setRole('FREELANCE');
+                $memberFreelance->setInvitedBy($user);
+                $conversation->addMember($memberFreelance);
+                $entityManager->persist($memberFreelance);
+
+                $entityManager->persist($conversation);
+                $entityManager->flush();
+
+                $this->addFlash('success', 'Conversation créée! Vous pouvez maintenant discuter avec ' . $recipient->getDisplayName());
+
+                return $this->redirectToRoute('app_message_thread', ['id' => $conversation->getId()]);
             }
         }
 
         return $this->render('modules/conversation_new.html.twig', [
-            'recipients' => $recipients,
             'error' => $error,
-            'selectedRecipientId' => $selectedRecipientId,
+            'recipient' => $recipient,
+            'draftTitle' => $draftTitle,
+            'source' => $source,
         ]);
     }
 

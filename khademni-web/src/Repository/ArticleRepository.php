@@ -4,6 +4,8 @@
 namespace App\Repository;
 
 use App\Entity\Article;
+use App\Entity\Commentaire;
+use App\Entity\Favori;
 use Doctrine\Bundle\DoctrineBundle\Repository\ServiceEntityRepository;
 use Doctrine\Persistence\ManagerRegistry;
 
@@ -96,17 +98,14 @@ class ArticleRepository extends ServiceEntityRepository
     public function createQueryBuilderForVisibleOrderedBy(string $sort): \Doctrine\ORM\QueryBuilder
     {
         $qb = $this->createQueryBuilder('a')
-            ->leftJoin('a.favoris', 'f')
-            ->leftJoin('a.commentaires', 'c')
             ->where('UPPER(a.status) = :status')
-            ->setParameter('status', 'VISIBLE')
-            ->groupBy('a.id');
+            ->setParameter('status', 'VISIBLE');
 
         if ($sort === 'favoris') {
-            $qb->addSelect('COUNT(DISTINCT f.id) AS HIDDEN sortCount')
+            $qb->addSelect(sprintf('(SELECT COUNT(f.id) FROM %s f WHERE f.article = a) AS HIDDEN sortCount', Favori::class))
                ->orderBy('sortCount', 'DESC');
         } elseif ($sort === 'commentaires') {
-            $qb->addSelect('COUNT(DISTINCT c.id) AS HIDDEN sortCount')
+            $qb->addSelect(sprintf("(SELECT COUNT(c.id) FROM %s c WHERE c.article = a AND UPPER(c.status) = 'VISIBLE') AS HIDDEN sortCount", Commentaire::class))
                ->orderBy('sortCount', 'DESC');
         } else {
             $qb->orderBy('a.createdAt', 'DESC');

@@ -145,6 +145,10 @@
                                 Attach your CV on the next step.
                             </p>
                         {% endif %}
+
+                        {% if job.user != app.user %}
+                            <a class="btn-ghost-full" href="{{ path('app_conversation_new', {recipient: job.user.id, title: 'Regarding ' ~ job.title, source: 'job'}) }}" style="margin-top:.6rem;">💬 Message Recruiter</a>
+                        {% endif %}
                     {% else %}
                         <p class="muted-copy" style="margin-bottom:1rem; font-size:.88rem;">Login to apply for this position.</p>
                         <a class="btn-primary-full" href="{{ path('app_login') }}">Login to Apply</a>

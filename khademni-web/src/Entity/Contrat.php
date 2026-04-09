@@ -16,11 +16,11 @@ class Contrat
 
     #[ORM\Column(type: "integer")]
     #[Assert\NotBlank(message: "Client is required.")]
-    private ?int $clientId = 1; // Defaulting for simple testing, or set in controller
+    private ?int $clientId = null;
 
     #[ORM\Column(type: "integer")]
     #[Assert\NotBlank(message: "Freelancer is required.")]
-    private ?int $freelancerId = 4;
+    private ?int $freelancerId = null;
 
     #[ORM\Column(type: "string", length: 255, nullable: true)]
     #[Assert\NotBlank(message: "Titre is required.")]
@@ -52,7 +52,7 @@ class Contrat
     {
         return $this->clientId;
     }
-    public function setClientId(int $clientId): static
+    public function setClientId(?int $clientId): static
     {
         $this->clientId = $clientId;
         return $this;
@@ -62,7 +62,7 @@ class Contrat
     {
         return $this->freelancerId;
     }
-    public function setFreelancerId(int $freelancerId): static
+    public function setFreelancerId(?int $freelancerId): static
     {
         $this->freelancerId = $freelancerId;
         return $this;

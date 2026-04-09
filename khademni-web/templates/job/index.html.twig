@@ -299,6 +299,7 @@
                                         </form>
                                     </div>
                                 {% elseif app.user %}
+                                    <a class="btn-save" href="{{ path('app_conversation_new', {recipient: job.user.id, title: 'Regarding ' ~ job.title, source: 'job'}) }}">💬 Message</a>
                                     <form method="POST" action="{{ path('app_job_save', {id:job.id}) }}">
                                         <input type="hidden" name="_token" value="{{ csrf_token('save_job_' ~ job.id) }}">
                                         <button type="submit" class="btn-save {% if app.user.savedJobs.contains(job) %}saved{% endif %}">
@@ -340,6 +341,7 @@
                             </div>
                             <div style="display:flex;flex-direction:column;align-items:flex-end;gap:.55rem;flex-shrink:0;">
                                 <a class="btn-view" href="{{ path('app_job_apply', {id:job.id}) }}">Apply Now</a>
+                                <a class="btn-save" href="{{ path('app_conversation_new', {recipient: job.user.id, title: 'Regarding ' ~ job.title, source: 'job'}) }}">💬 Message</a>
                                 <form method="POST" action="{{ path('app_job_save', {id:job.id}) }}">
                                     <input type="hidden" name="_token" value="{{ csrf_token('save_job_' ~ job.id) }}">
                                     <button type="submit" class="btn-save saved">❤ Remove</button>
