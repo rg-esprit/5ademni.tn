@@ -25,7 +25,7 @@ use Symfony\Component\Routing\Generator\UrlGeneratorInterface;
 class ContratController extends AbstractController
 {
     #[Route('/', name: 'app_contrat_index', methods: ['GET'])]
-    public function index(Request $request, EntityManagerInterface $em): Response
+    public function index(Request $request, EntityManagerInterface $em, UserRepository $userRepository): Response
     {
         $user = $this->getUser();
         $search = $request->query->get('search');
@@ -52,6 +52,25 @@ class ContratController extends AbstractController
 
         $contrats = $qb->getQuery()->getResult();
 
+        $participantNames = [];
+        $userIds = [];
+
+        foreach ($contrats as $contrat) {
+            if (null !== $contrat->getClientId()) {
+                $userIds[] = $contrat->getClientId();
+            }
+
+            if (null !== $contrat->getFreelancerId()) {
+                $userIds[] = $contrat->getFreelancerId();
+            }
+        }
+
+        if ([] !== $userIds) {
+            foreach ($userRepository->findBy(['id' => array_values(array_unique($userIds))]) as $participant) {
+                $participantNames[$participant->getId()] = $participant->getDisplayName();
+            }
+        }
+
         // Stats calculation
         $totalPendingAmount = 0;
         foreach ($contrats as $c) {
@@ -60,6 +79,7 @@ class ContratController extends AbstractController
 
         return $this->render('contrat/index.html.twig', [
             'contrats' => $contrats,
+            'participantNames' => $participantNames,
             'search' => $search,
             'totalPendingAmount' => $totalPendingAmount,
             'activeCount' => count($contrats)

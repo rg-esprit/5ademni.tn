@@ -21,7 +21,7 @@
         <div class="glass-card" style="margin-bottom: 20px; padding: 18px 22px;">
             {% if available_job_count > 0 %}
                 <p style="margin: 0; color: #4b5563; font-weight: 500;">
-                    Selectionnez une offre qui a deja un freelancer accepte. Le client et le freelancer seront remplis automatiquement.
+                    Selectionnez une offre qui a deja un freelancer accepte. Le formulaire se recharge automatiquement pour pre-remplir le contrat.
                 </p>
             {% else %}
                 <p style="margin: 0; color: #b45309; font-weight: 600;">
@@ -39,4 +39,29 @@
         <a href="{{ path('app_contrat_index') }}" style="color: #6c5ce7; text-decoration: none; font-weight: 600;">← Retour à la liste</a>
     </div>
 </div>
+
+{% if not is_admin and available_job_count > 0 %}
+    <script>
+        (() => {
+            const jobSelector = document.querySelector('[data-contract-job-selector="1"]');
+            if (!jobSelector) {
+                return;
+            }
+
+            jobSelector.addEventListener('change', () => {
+                const url = new URL(window.location.href);
+
+                if (jobSelector.value) {
+                    url.searchParams.set('jobId', jobSelector.value);
+                } else {
+                    url.searchParams.delete('jobId');
+                }
+
+                if (url.toString() !== window.location.href) {
+                    window.location.assign(url.toString());
+                }
+            });
+        })();
+    </script>
+{% endif %}
 {% endblock %}
