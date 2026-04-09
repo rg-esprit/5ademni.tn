@@ -16,6 +16,20 @@
             <h1 class="bento-title">Nouveau Contrat</h1>
         </div>
     </div>
+
+    {% if not is_admin %}
+        <div class="glass-card" style="margin-bottom: 20px; padding: 18px 22px;">
+            {% if available_job_count > 0 %}
+                <p style="margin: 0; color: #4b5563; font-weight: 500;">
+                    Selectionnez une offre qui a deja un freelancer accepte. Le client et le freelancer seront remplis automatiquement.
+                </p>
+            {% else %}
+                <p style="margin: 0; color: #b45309; font-weight: 600;">
+                    Vous devez d'abord accepter un freelancer sur l'une de vos offres pour creer un contrat.
+                </p>
+            {% endif %}
+        </div>
+    {% endif %}
     
     <div class="glass-card">
         {{ include('contrat/_form.html.twig') }}

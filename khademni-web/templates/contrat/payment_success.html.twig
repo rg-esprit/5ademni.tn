@@ -19,7 +19,11 @@
         
         <div style="margin-top: 40px; display: flex; gap: 15px; justify-content: center;">
             <a href="{{ path('app_contrat_index') }}" class="button-primary" style="background-color: #6c5ce7;">← Retour aux contrats</a>
-            <a href="{{ path('app_contrat_export_pdf', {'id': contrat.id}) }}" class="button-primary" style="background-color: #1a1a1a;" target="_blank">📄 Télécharger Reçu</a>
+            {% if payment is defined and payment %}
+                <a href="{{ path('app_payment_export_pdf', {'id': payment.id}) }}" class="button-primary" style="background-color: #1a1a1a;" target="_blank">📄 Télécharger le reçu</a>
+            {% else %}
+                <a href="{{ path('app_contrat_export_pdf', {'id': contrat.id}) }}" class="button-primary" style="background-color: #1a1a1a;" target="_blank">📄 Télécharger le contrat</a>
+            {% endif %}
         </div>
     </div>
 </div>
