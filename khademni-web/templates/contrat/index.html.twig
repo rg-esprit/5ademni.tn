@@ -60,10 +60,15 @@
                     <span style="font-size: 13px; color: #9ca3af; font-weight: 600;">#{{ loop.index }}</span>
                 </div>
                 
-                <h2 class="bento-card-title">{{ contrat.titre }}</h2>
-                <div class="kinetic-label-small">
-                    CLIENT: {{ contrat.clientId }} | FREELANCER: {{ contrat.freelancerId }}
-                </div>
+                <h2 class="bento-card-title">
+                    {% if contrat.description matches '/\\(JobID:\\s*(\\d+)\\)/' %}
+                        {% set jobId = contrat.description|split('(JobID: ')[1]|split(')')[0] %}
+                        <a href="{{ path('app_job_show', {'id': jobId}) }}" class="cyber-link" style="color: inherit; text-decoration: none;">{{ contrat.titre }}</a>
+                    {% else %}
+                        <a href="{{ path('app_job_index', {'q': contrat.titre}) }}" class="cyber-link" style="color: inherit; text-decoration: none;">{{ contrat.titre }}</a>
+                    {% endif %}
+                </h2>
+
                 
                 <p class="bento-card-desc">
                     {{ contrat.description|slice(0, 80) }}{{ contrat.description|length > 80 ? '...' : '' }}

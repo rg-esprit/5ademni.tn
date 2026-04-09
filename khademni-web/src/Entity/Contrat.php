@@ -153,4 +153,31 @@ class Contrat
                 ->addViolation();
         }
     }
+
+    #[Assert\Callback]
+    public function validateMilestones(ExecutionContextInterface $context): void
+    {
+        if (!$this->description) return;
+
+        // PARSE MILESTONES: Supports (Milestones: 50/50), (Milestones: 30 / 30 / 40)
+        if (preg_match('/\(Milestones:\s*([\d\/%\s]+)\)/i', $this->description, $matches)) {
+            $ratios = explode('/', str_replace(['%', ' '], '', $matches[1]));
+            $total = 0;
+            foreach ($ratios as $r) {
+                if (!is_numeric($r)) {
+                    $context->buildViolation('Format de milestone invalide (ex: 50/50).')
+                        ->atPath('description')
+                        ->addViolation();
+                    return;
+                }
+                $total += (float) $r;
+            }
+
+            if (abs($total - 100) > 0.01) {
+                $context->buildViolation("La somme des milestones doit être égale à 100% (actuelle: $total%).")
+                    ->atPath('description')
+                    ->addViolation();
+            }
+        }
+    }
 }

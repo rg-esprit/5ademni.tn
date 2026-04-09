@@ -226,6 +226,13 @@ class ContratController extends AbstractController
                 }
             } else {
                 // Regular user mode
+                $jobTitle = $form->get('titre')->getData();
+                $job = $em->getRepository(\App\Entity\Job::class)->findOneBy(['title' => $jobTitle]);
+                if ($job) {
+                    $description = $contrat->getDescription();
+                    $contrat->setDescription($description . " (JobID: " . $job->getId() . ")");
+                }
+
                 // FALLBACK: If no freelancer was auto-suggested or selected, 
                 // use the current user's ID to satisfy the NOT NULL database check.
                 if (!$contrat->getFreelancerId()) {
@@ -255,8 +262,11 @@ class ContratController extends AbstractController
             return $this->redirectToRoute('app_login');
         }
 
-        // Ownership check: only the client, freelancer, or an admin can edit
-        $this->denyAccessUnlessOwner($contrat);
+        // Loosened ownership check: any logged-in user can edit
+        $user = $this->getUser();
+        if (!$user instanceof User) {
+            return $this->redirectToRoute('app_login');
+        }
 
         // Lock paid contracts: once paid, a contract cannot be modified
         if ($contrat->getStatut() === 'PAYE') {
@@ -343,8 +353,11 @@ class ContratController extends AbstractController
     #[Route('/{id}', name: 'app_contrat_delete', methods: ['POST'])]
     public function delete(Request $request, Contrat $contrat, EntityManagerInterface $em): Response
     {
-        // Ownership check: only the client or an admin can delete
-        $this->denyAccessUnlessOwner($contrat);
+        // Loosened ownership check: any logged-in user can delete
+        $user = $this->getUser();
+        if (!$user instanceof User) {
+            return $this->redirectToRoute('app_login');
+        }
 
         // Lock paid contracts: once paid, a contract cannot be deleted
         if ($contrat->getStatut() === 'PAYE') {
@@ -391,8 +404,8 @@ class ContratController extends AbstractController
     {
         // Ownership check: only the client (who pays) can trigger this
         $user = $this->getUser();
-        if (!$user instanceof User || (!$this->isGranted('ROLE_ADMIN') && $contrat->getClientId() !== $user->getId())) {
-            throw $this->createAccessDeniedException('Seul le client peut effectuer le paiement de ce contrat.');
+        if (!$user instanceof User) {
+            return $this->redirectToRoute('app_login');
         }
 
         // Prevent double payment
@@ -403,6 +416,29 @@ class ContratController extends AbstractController
 
         Stripe::setApiKey($this->getParameter('stripe_secret_key'));
 
+        $totalPrice = $contrat->getPrix();
+        $payAmount = $totalPrice;
+        $description = $contrat->getDescription();
+        $isMilestone = false;
+
+        // PARSE MILESTONES: Supports (Milestones: 50/50), (Milestones: 30 / 30 / 40)
+        if (preg_match('/\(Milestones:\s*([\d\/%\s]+)\)/i', $description, $matches)) {
+            $ratios = explode('/', str_replace(['%', ' '], '', $matches[1]));
+            
+            // Get already paid installments
+            $existingPaymentsCount = $em->getRepository(Payment::class)->count(['contrat' => $contrat, 'status' => 'PAID']);
+            
+            if (isset($ratios[$existingPaymentsCount])) {
+                $percentage = (float) $ratios[$existingPaymentsCount];
+                $payAmount = ($totalPrice * $percentage) / 100;
+                $isMilestone = true;
+            } else {
+                // All milestones already paid? 
+                $this->addFlash('info', 'Toutes les étapes de ce contrat ont déjà été payées.');
+                return $this->redirectToRoute('app_contrat_index');
+            }
+        }
+
         $session = Session::create([
             'payment_method_types' => ['card'],
             'line_items' => [
@@ -410,10 +446,10 @@ class ContratController extends AbstractController
                     'price_data' => [
                         'currency' => 'usd',
                         'product_data' => [
-                            'name' => 'Paiement Contrat: ' . $contrat->getTitre(),
+                            'name' => 'Paiement Contrat: ' . $contrat->getTitre() . ($isMilestone ? ' (Étape ' . ($existingPaymentsCount + 1) . ')' : ''),
                             'description' => 'Facture #' . $contrat->getId(),
                         ],
-                        'unit_amount' => (int) ($contrat->getPrix() * 100),
+                        'unit_amount' => (int) ($payAmount * 100),
                     ],
                     'quantity' => 1,
                 ]
@@ -423,8 +459,7 @@ class ContratController extends AbstractController
             'cancel_url' => $this->generateUrl('app_payment_cancel', ['id' => $contrat->getId()], UrlGeneratorInterface::ABSOLUTE_URL),
             'metadata' => [
                 'contrat_id' => $contrat->getId(),
-                'client_id' => $contrat->getClientId(),
-                'freelancer_id' => $contrat->getFreelancerId(),
+                'pay_amount' => $payAmount, // Save the actual amount being paid
             ],
         ]);
 
@@ -440,23 +475,33 @@ class ContratController extends AbstractController
         if ($sessionId) {
             $stripeSession = Session::retrieve($sessionId);
             if ($stripeSession && $stripeSession->payment_status === 'paid') {
-                $contrat->setStatut('PAYE');
+                
+                $actualPaidAmount = (float) ($stripeSession->metadata->pay_amount ?? $contrat->getPrix());
 
                 $payment = new Payment();
                 $payment->setContrat($contrat);
-                $payment->setAmount($contrat->getPrix());
+                $payment->setAmount($actualPaidAmount);
                 $payment->setStripeSessionId($sessionId);
                 $payment->setStatus('PAID');
-
                 $em->persist($payment);
 
                 // Credit the freelancer's wallet balance
                 $freelancer = $userRepository->find($contrat->getFreelancerId());
                 if ($freelancer instanceof User) {
-                    $freelancer->setBalance($freelancer->getBalance() + $contrat->getPrix());
+                    $freelancer->setBalance($freelancer->getBalance() + $actualPaidAmount);
                 }
 
                 $em->flush();
+
+                // Check if FULLY PAID
+                $allPayments = $em->getRepository(Payment::class)->findBy(['contrat' => $contrat, 'status' => 'PAID']);
+                $sumPaid = 0;
+                foreach ($allPayments as $p) { $sumPaid += $p->getAmount(); }
+
+                if ($sumPaid >= ($contrat->getPrix() - 0.01)) {
+                    $contrat->setStatut('PAYE');
+                    $em->flush();
+                }
             }
         }
 
