@@ -187,26 +187,40 @@ class ContratController extends AbstractController
     {
         // Ownership check: only the client or an admin can pay
         $this->denyAccessUnlessOwner($contrat);
-        Stripe::setApiKey($_ENV['STRIPE_SECRET_KEY'] ?? '');
 
-        $session = Session::create([
-            'payment_method_types' => ['card'],
-            'line_items' => [
-                [
-                    'price_data' => [
-                        'currency' => 'usd',
-                        'product_data' => [
-                            'name' => $contrat->getTitre() ?: 'Contrat #' . $contrat->getId(),
+        $stripeSecretKey = $this->getStripeSecretKey();
+        if ('' === $stripeSecretKey) {
+            $this->addFlash('error', 'Stripe is not configured yet. Online payment is currently unavailable.');
+
+            return $this->redirectToRoute('app_contrat_index');
+        }
+
+        Stripe::setApiKey($stripeSecretKey);
+
+        try {
+            $session = Session::create([
+                'payment_method_types' => ['card'],
+                'line_items' => [
+                    [
+                        'price_data' => [
+                            'currency' => 'usd',
+                            'product_data' => [
+                                'name' => $contrat->getTitre() ?: 'Contrat #' . $contrat->getId(),
+                            ],
+                            'unit_amount' => (int) ($contrat->getPrix() * 100),
                         ],
-                        'unit_amount' => (int) ($contrat->getPrix() * 100),
+                        'quantity' => 1,
                     ],
-                    'quantity' => 1,
-                ]
-            ],
-            'mode' => 'payment',
-            'success_url' => $this->generateUrl('app_payment_success', ['id' => $contrat->getId()], UrlGeneratorInterface::ABSOLUTE_URL) . '?session_id={CHECKOUT_SESSION_ID}',
-            'cancel_url' => $this->generateUrl('app_payment_cancel', ['id' => $contrat->getId()], UrlGeneratorInterface::ABSOLUTE_URL),
-        ]);
+                ],
+                'mode' => 'payment',
+                'success_url' => $this->generateUrl('app_payment_success', ['id' => $contrat->getId()], UrlGeneratorInterface::ABSOLUTE_URL) . '?session_id={CHECKOUT_SESSION_ID}',
+                'cancel_url' => $this->generateUrl('app_payment_cancel', ['id' => $contrat->getId()], UrlGeneratorInterface::ABSOLUTE_URL),
+            ]);
+        } catch (\Throwable) {
+            $this->addFlash('error', 'The payment gateway is unavailable right now. Please try again later.');
+
+            return $this->redirectToRoute('app_contrat_index');
+        }
 
         return $this->redirect($session->url, 303);
     }
@@ -216,20 +230,26 @@ class ContratController extends AbstractController
     {
         $sessionId = $request->query->get('session_id');
 
-        Stripe::setApiKey($_ENV['STRIPE_SECRET_KEY'] ?? '');
-        if ($sessionId) {
-            $stripeSession = Session::retrieve($sessionId);
-            if ($stripeSession && $stripeSession->payment_status === 'paid') {
-                $contrat->setStatut('PAYE');
+        $stripeSecretKey = $this->getStripeSecretKey();
+        if ('' !== $stripeSecretKey && $sessionId) {
+            Stripe::setApiKey($stripeSecretKey);
 
-                $payment = new Payment();
-                $payment->setContrat($contrat);
-                $payment->setAmount($contrat->getPrix());
-                $payment->setStripeSessionId($sessionId);
-                $payment->setStatus('PAID');
+            try {
+                $stripeSession = Session::retrieve($sessionId);
+                if ($stripeSession && $stripeSession->payment_status === 'paid') {
+                    $contrat->setStatut('PAYE');
 
-                $em->persist($payment);
-                $em->flush();
+                    $payment = new Payment();
+                    $payment->setContrat($contrat);
+                    $payment->setAmount($contrat->getPrix());
+                    $payment->setStripeSessionId($sessionId);
+                    $payment->setStatus('PAID');
+
+                    $em->persist($payment);
+                    $em->flush();
+                }
+            } catch (\Throwable) {
+                $this->addFlash('error', 'The payment could not be verified automatically.');
             }
         }
 
@@ -268,5 +288,10 @@ class ContratController extends AbstractController
         if ($contrat->getClientId() !== $user->getId() && $contrat->getFreelancerId() !== $user->getId()) {
             throw $this->createAccessDeniedException('Vous n\'avez pas accès à ce contrat.');
         }
+    }
+
+    private function getStripeSecretKey(): string
+    {
+        return trim((string) ($_ENV['STRIPE_SECRET_KEY'] ?? $_SERVER['STRIPE_SECRET_KEY'] ?? ''));
     }
 }

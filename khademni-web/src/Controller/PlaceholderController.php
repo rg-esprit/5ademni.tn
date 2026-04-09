@@ -73,7 +73,7 @@ class PlaceholderController extends AbstractController
         }
 
         if ('blogs' === $slug) {
-            return $this->redirectToRoute('article_index');
+            return $this->redirectToRoute('article_blogs');
         }
 
         if ('articles' === $slug) {

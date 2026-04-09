@@ -42,13 +42,17 @@
     </nav>
 
     <div class="header-account">
-        <a class="profile-chip" href="{{ path('app_profile') }}">Profile</a>
-        <div class="avatar-badge" aria-label="{{ app.user.displayName }}">
-            {% if avatar_proxy_enabled|default(false) %}
-                <img src="{{ path('app_my_avatar', {v: app.user.avatarVersion}) }}" alt="{{ app.user.displayName }}">
-            {% else %}
-                <span>{{ app.user.initials }}</span>
-            {% endif %}
-        </div>
+        {% if app.user %}
+            <a class="profile-chip" href="{{ path('app_profile') }}">Profile</a>
+            <div class="avatar-badge" aria-label="{{ app.user.displayName }}">
+                {% if avatar_proxy_enabled|default(false) %}
+                    <img src="{{ path('app_my_avatar', {v: app.user.avatarVersion}) }}" alt="{{ app.user.displayName }}">
+                {% else %}
+                    <span>{{ app.user.initials }}</span>
+                {% endif %}
+            </div>
+        {% else %}
+            <a class="profile-chip" href="{{ path('app_login') }}">Sign In</a>
+        {% endif %}
     </div>
 </header>
