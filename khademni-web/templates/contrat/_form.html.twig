@@ -1,16 +1,34 @@
 {{ form_start(form) }}
-    <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 20px;">
-        <div>
-            {{ form_label(form.clientId) }}
-            {{ form_widget(form.clientId) }}
-            {{ form_errors(form.clientId) }}
+    {% set client_hidden = 'hidden' in form.clientId.vars.block_prefixes %}
+    {% set freelancer_hidden = 'hidden' in form.freelancerId.vars.block_prefixes %}
+
+    {% if client_hidden %}
+        {{ form_widget(form.clientId) }}
+    {% endif %}
+
+    {% if freelancer_hidden %}
+        {{ form_widget(form.freelancerId) }}
+    {% endif %}
+
+    {% if not client_hidden or not freelancer_hidden %}
+        <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 20px;">
+            {% if not client_hidden %}
+                <div>
+                    {{ form_label(form.clientId) }}
+                    {{ form_widget(form.clientId) }}
+                    {{ form_errors(form.clientId) }}
+                </div>
+            {% endif %}
+
+            {% if not freelancer_hidden %}
+                <div>
+                    {{ form_label(form.freelancerId) }}
+                    {{ form_widget(form.freelancerId) }}
+                    {{ form_errors(form.freelancerId) }}
+                </div>
+            {% endif %}
         </div>
-        <div>
-            {{ form_label(form.freelancerId) }}
-            {{ form_widget(form.freelancerId) }}
-            {{ form_errors(form.freelancerId) }}
-        </div>
-    </div>
+    {% endif %}
     
     <div style="margin-top: 15px;">
         {{ form_label(form.titre) }}

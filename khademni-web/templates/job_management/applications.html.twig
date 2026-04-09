@@ -92,6 +92,10 @@
                     <a class="action-btn primary" href="{{ path('app_job_progress', {id: job.id}) }}" style="background:#10b981; border-color:#10b981;">
                         View Detailed Progress Logs →
                     </a>
+
+                    <a class="action-btn outline" href="{{ path('app_contrat_create_from_job', {id: job.id}) }}">
+                        Create Contract
+                    </a>
                 </div>
             </section>
         {% endif %}

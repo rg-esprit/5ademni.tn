@@ -80,6 +80,8 @@
 
                 <div class="flex-between">
                     <span class="cyber-price">{{ payment.amount }} TND</span>
+
+                    <a href="{{ path('app_payment_export_pdf', {'id': payment.id}) }}" target="_blank" class="button-primary" style="height: 35px; padding: 0 15px; font-size: 13px; background-color: #3b82f6;">📄 PDF</a>
                 </div>
             </div>
         {% else %}
