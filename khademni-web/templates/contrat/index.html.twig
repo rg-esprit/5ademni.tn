@@ -57,7 +57,7 @@
                     <span class="squishy-badge {{ contrat.statut == 'PAYE' ? 'success' : 'warning' }}">
                         {{ contrat.statut }}
                     </span>
-                    <span style="font-size: 13px; color: #9ca3af; font-weight: 600;">#{{ contrat.id }}</span>
+                    <span style="font-size: 13px; color: #9ca3af; font-weight: 600;">#{{ loop.index }}</span>
                 </div>
                 
                 <h2 class="bento-card-title">{{ contrat.titre }}</h2>

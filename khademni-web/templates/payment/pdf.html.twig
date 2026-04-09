@@ -1,0 +1,72 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="UTF-8">
+    <title>RECU DE PAIEMENT #{{ payment.id }}</title>
+    <style>
+        body { font-family: 'Arial', sans-serif; color: #333; line-height: 1.6; }
+        .header { background-color: #10b981; color: white; padding: 20px; text-align: center; }
+        .content { padding: 40px; }
+        .info-table { width: 100%; border-collapse: collapse; margin-bottom: 30px; }
+        .info-table th, .info-table td { padding: 12px; border-bottom: 1px solid #ddd; text-align: left; }
+        .info-table th { background-color: #f9f9f9; width: 30%; }
+        .footer { text-align: center; margin-top: 50px; font-size: 12px; color: #888; }
+        .amount { font-size: 24px; font-weight: bold; color: #10b981; }
+        .status { padding: 5px 10px; border-radius: 5px; color: white; font-weight: bold; background-color: #10b981; }
+        .badge { display: inline-block; padding: 5px 15px; background: #f3f4f6; color: #374151; border-radius: 20px; font-size: 12px; }
+    </style>
+</head>
+<body>
+    <div class="header">
+        <h1>RECU DE PAIEMENT</h1>
+        <p>Référence: PAY-2026-{{ "%04d"|format(payment.id) }}</p>
+    </div>
+    
+    <div class="content">
+        <div style="text-align: right; margin-bottom: 20px;">
+            <span class="status">PAYÉ</span>
+        </div>
+
+        <table class="info-table">
+            <tr>
+                <th>Date du paiement</th>
+                <td>{{ payment.createdAt ? payment.createdAt|date('d/m/Y H:i') : '' }}</td>
+            </tr>
+            <tr>
+                <th>Contrat</th>
+                <td><strong>{{ payment.contrat ? payment.contrat.titre : 'Contrat non disponible' }}</strong></td>
+            </tr>
+            <tr>
+                <th>ID Contrat</th>
+                <td>#{{ payment.contrat ? payment.contrat.id : '?' }}</td>
+            </tr>
+            <tr>
+                <th>Mode de paiement</th>
+                <td>{{ payment.stripeSessionId ? 'Carte Bancaire (Stripe)' : 'Virement Manuel' }}</td>
+            </tr>
+            {% if payment.stripeSessionId %}
+            <tr>
+                <th>ID Transaction</th>
+                <td><small style="color: #6b7280; font-size: 11px;">{{ payment.stripeSessionId }}</small></td>
+            </tr>
+            {% endif %}
+            <tr>
+                <th>Montant Payé</th>
+                <td class="amount">{{ payment.amount }} TND</td>
+            </tr>
+        </table>
+        
+        <div style="margin-top: 80px; border-top: 1px dashed #ddd; padding-top: 20px; text-align: center;">
+            <p>Ce document sert de preuve de paiement pour les services mentionnés dans le contrat lié.</p>
+            <div style="margin-top: 20px; color: #10b981; font-weight: bold; font-size: 18px;">
+                CASHFLOW CONFIRMÉ ✅
+            </div>
+        </div>
+    </div>
+    
+    <div class="footer">
+        5ademni.tn - Plateforme de Freelance en Tunisie<br>
+        Généré le {{ "now"|date("d/m/Y H:i") }}
+    </div>
+</body>
+</html>

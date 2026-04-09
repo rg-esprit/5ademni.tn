@@ -2,8 +2,13 @@
 
 namespace App\Controller;
 
+use App\Entity\Payment;
+use App\Entity\Contrat;
 use App\Entity\User;
 use App\Repository\PaymentRepository;
+use Doctrine\ORM\EntityManagerInterface;
+use Dompdf\Dompdf;
+use Dompdf\Options;
 use Symfony\Bundle\FrameworkBundle\Controller\AbstractController;
 use Symfony\Component\HttpFoundation\Request;
 use Symfony\Component\HttpFoundation\Response;
@@ -12,6 +17,13 @@ use Symfony\Component\Routing\Annotation\Route;
 #[Route('/payment')]
 class PaymentController extends AbstractController
 {
+    private EntityManagerInterface $entityManager;
+
+    public function __construct(EntityManagerInterface $entityManager)
+    {
+        $this->entityManager = $entityManager;
+    }
+
     /**
      * Front-office: READ-ONLY view of the current user's payments.
      * No create, edit, or delete — those are in the Admin area.
@@ -49,5 +61,65 @@ class PaymentController extends AbstractController
             'totalPaidAmount' => $totalPaidAmount,
             'paymentCount' => count($payments)
         ]);
+    }
+
+    #[Route('/{id}', name: 'app_payment_delete', methods: ['POST'])]
+    public function delete(Request $request, Payment $payment): Response
+    {
+        $this->denyAccessUnlessOwner($payment);
+
+        if ($this->isCsrfTokenValid('delete' . $payment->getId(), $request->request->get('_token'))) {
+            $this->entityManager->remove($payment);
+            $this->entityManager->flush();
+            $this->addFlash('success', 'Paiement supprimé de votre historique.');
+        }
+
+        return $this->redirectToRoute('app_payment_index');
+    }
+
+    #[Route('/{id}/export', name: 'app_payment_export_pdf', methods: ['GET'])]
+    public function exportPdf(Payment $payment): Response
+    {
+        $this->denyAccessUnlessOwner($payment);
+
+        $pdfOptions = new Options();
+        $pdfOptions->set('defaultFont', 'Arial');
+        $pdfOptions->setIsRemoteEnabled(true);
+
+        $dompdf = new Dompdf($pdfOptions);
+
+        $html = $this->renderView('payment/pdf.html.twig', [
+            'payment' => $payment
+        ]);
+
+        $dompdf->loadHtml($html);
+        $dompdf->setPaper('A4', 'portrait');
+        $dompdf->render();
+
+        return new Response(
+            $dompdf->output(),
+            Response::HTTP_OK,
+            [
+                'Content-Type' => 'application/pdf',
+                'Content-Disposition' => 'inline; filename="paiement_' . $payment->getId() . '.pdf"'
+            ]
+        );
+    }
+
+    private function denyAccessUnlessOwner(Payment $payment): void
+    {
+        $user = $this->getUser();
+        if (!$user instanceof User) {
+            throw $this->createAccessDeniedException('Login required.');
+        }
+
+        if ($this->isGranted('ROLE_ADMIN')) {
+            return;
+        }
+
+        $contrat = $payment->getContrat();
+        if (!$contrat || ($contrat->getClientId() !== $user->getId() && $contrat->getFreelancerId() !== $user->getId())) {
+            throw $this->createAccessDeniedException('Access denied to this payment record.');
+        }
     }
 }

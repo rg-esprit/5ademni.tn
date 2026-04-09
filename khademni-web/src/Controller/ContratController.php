@@ -3,9 +3,11 @@
 namespace App\Controller;
 
 use App\Entity\Contrat;
+use App\Entity\Job;
 use App\Entity\Payment;
 use App\Entity\User;
 use App\Form\ContratType;
+use App\Repository\JobRepository;
 use App\Repository\UserRepository;
 use Doctrine\ORM\EntityManagerInterface;
 use Stripe\Stripe;
@@ -63,33 +65,177 @@ class ContratController extends AbstractController
         ]);
     }
 
-    #[Route('/new', name: 'app_contrat_new', methods: ['GET', 'POST'])]
-    public function new(Request $request, EntityManagerInterface $em, UserRepository $userRepository): Response
+    /**
+     * Creates a contract automatically from a Job that has an accepted application.
+     * Flow: Job owner accepted a freelancer → comes here → contract is auto-created.
+     */
+    #[Route('/create-from-job/{id}', name: 'app_contrat_create_from_job', methods: ['GET'])]
+    public function createFromJob(Job $job, EntityManagerInterface $em): Response
     {
         $user = $this->getUser();
         if (!$user instanceof User) {
             return $this->redirectToRoute('app_login');
         }
 
+        // Only the job owner (or admin) can create a contract from this job
+        if (!$this->isGranted('ROLE_ADMIN')) {
+            if ($job->getUser() === null || $job->getUser()->getId() !== $user->getId()) {
+                throw $this->createAccessDeniedException('Vous devez être le propriétaire de cette offre.');
+            }
+        }
+
+        // Find the accepted application for this job
+        $acceptedApp = $job->getAcceptedApplication();
+        if (!$acceptedApp) {
+            $this->addFlash('error', 'Aucune candidature acceptée pour cette offre. Acceptez d\'abord un freelancer.');
+            return $this->redirectToRoute('app_contrat_index');
+        }
+
+        $freelancer = $acceptedApp->getUser();
+        if (!$freelancer instanceof User) {
+            $this->addFlash('error', 'Le freelancer de la candidature acceptée est introuvable.');
+            return $this->redirectToRoute('app_contrat_index');
+        }
+
+        // Prevent duplicate contracts for the same job (same client + freelancer + title)
+        $existing = $em->getRepository(Contrat::class)->findOneBy([
+            'clientId' => $job->getUser()->getId(),
+            'freelancerId' => $freelancer->getId(),
+            'titre' => $job->getTitle(),
+        ]);
+
+        if ($existing) {
+            $this->addFlash('info', 'Un contrat existe déjà pour cette offre.');
+            return $this->redirectToRoute('app_contrat_index');
+        }
+
+        // Parse salary from job's salaryRange (e.g. "1000-2000", "$1500")
+        $prix = null;
+        if ($job->getSalaryRange()) {
+            if (preg_match('/[\d]+(?:\.[\d]+)?/', str_replace(',', '', $job->getSalaryRange()), $matches)) {
+                $prix = (float) $matches[0];
+            }
+        }
+
+        // Auto-create the contract from job data
         $contrat = new Contrat();
-        // Auto-set: the logged-in user is the client (owner of the contract)
-        $contrat->setClientId($user->getId());
+        $contrat->setClientId($job->getUser()->getId());
+        $contrat->setFreelancerId($freelancer->getId());
+        $contrat->setTitre($job->getTitle());
+        $contrat->setDescription($job->getDescription());
+        $contrat->setPrix($prix);
         $contrat->setDateContrat(new \DateTime());
-        $form = $this->createForm(ContratType::class, $contrat);
+        $contrat->setStatut('EN_ATTENTE');
+
+        $em->persist($contrat);
+        $em->flush();
+
+        $this->addFlash('success', 'Contrat créé avec succès à partir de l\'offre "' . $job->getTitle() . '".');
+        return $this->redirectToRoute('app_contrat_index');
+    }
+
+    #[Route('/new', name: 'app_contrat_new', methods: ['GET', 'POST'])]
+    public function new(Request $request, EntityManagerInterface $em, UserRepository $userRepository, JobRepository $jobRepository): Response
+    {
+        $user = $this->getUser();
+        if (!$user instanceof User) {
+            return $this->redirectToRoute('app_login');
+        }
+
+        $isAdmin = $this->isGranted('ROLE_ADMIN');
+        $selectedJobId = $request->query->get('jobId');
+        
+        // Build job choices for regular users:
+        // Shows ALL platform jobs as suggestions
+        $jobChoices = [];
+        $allJobs = $jobRepository->findAll();
+        
+        foreach ($allJobs as $job) {
+            $descSnippet = $job->getDescription() ? (mb_substr($job->getDescription(), 0, 50) . '...') : 'Pas de description';
+            $label = $job->getTitle() . ' — ' . $descSnippet;
+            $jobChoices[$label] = $job->getId();
+        }
+
+        $contrat = new Contrat();
+        $contrat->setDateContrat(new \DateTime());
+        if (!$isAdmin) {
+            $contrat->setClientId($user->getId());
+        }
+
+        // PRE-FILL logic: if jobId is passed in URL, auto-suggest title/description
+        if ($selectedJobId) {
+            $preJob = $jobRepository->find($selectedJobId);
+            if ($preJob && ($isAdmin || ($preJob->getUser() && $preJob->getUser()->getId() === $user->getId()))) {
+                $contrat->setTitre($preJob->getTitle());
+                $contrat->setDescription($preJob->getDescription());
+                if ($preJob->getSalaryRange()) {
+                    if (preg_match('/[\d]+(?:\.[\d]+)?/', str_replace(',', '', $preJob->getSalaryRange()), $matches)) {
+                        $contrat->setPrix((float) $matches[0]);
+                    }
+                }
+            }
+        }
+
+        $form = $this->createForm(ContratType::class, $contrat, [
+            'is_admin' => $isAdmin,
+            'job_choices' => $jobChoices,
+        ]);
         $form->handleRequest($request);
 
-        if ($form->isSubmitted() && $form->isValid()) {
-            // MANUAL VALIDATION for DB Integrity (JavaFX compatibility)
-            $client = $userRepository->find($contrat->getClientId());
-            $freelancer = $userRepository->find($contrat->getFreelancerId());
+        // POPULATE FROM JOB BEFORE VALIDATION
+        if ($form->isSubmitted() && !$isAdmin) {
+            $formJobId = $form->get('titre')->getData();
+            $actualJobId = $formJobId ?: $selectedJobId;
+            $job = $actualJobId ? $jobRepository->find($actualJobId) : null;
 
-            if (!$client) {
-                $this->addFlash('error', 'Le Client (ID: ' . $contrat->getClientId() . ') n\'existe pas.');
-            } elseif (!$freelancer) {
-                $this->addFlash('error', 'Le Freelancer (ID: ' . $contrat->getFreelancerId() . ') n\'existe pas.');
+            if ($job) {
+                $acceptedApp = $job->getAcceptedApplication();
+                $contrat->setTitre($job->getTitle());
+                if ($acceptedApp) {
+                    $contrat->setFreelancerId($acceptedApp->getUser()->getId());
+                }
+                // Auto-fill description ONLY if it's currently empty
+                if (!$contrat->getDescription()) {
+                    $contrat->setDescription($job->getDescription());
+                }
+                if ($job->getSalaryRange() && !$contrat->getPrix()) {
+                    if (preg_match('/[\d]+(?:\.[\d]+)?/', str_replace(',', '', $job->getSalaryRange()), $matches)) {
+                        $contrat->setPrix((float) $matches[0]);
+                    }
+                }
+            }
+        }
+
+        if ($form->isSubmitted() && $form->isValid()) {
+            if ($isAdmin) {
+                // Admin mode: manual validation
+                $client = $userRepository->find($contrat->getClientId());
+                $freelancer = $userRepository->find($contrat->getFreelancerId());
+
+                if (!$client) {
+                    $this->addFlash('error', 'Le Client (ID: ' . $contrat->getClientId() . ') n\'existe pas.');
+                } elseif (!$freelancer) {
+                    $this->addFlash('error', 'Le Freelancer (ID: ' . $contrat->getFreelancerId() . ') n\'existe pas.');
+                } elseif ($client->getId() === $freelancer->getId()) {
+                    $this->addFlash('error', 'Le client et le freelancer ne peuvent pas être la même personne.');
+                } else {
+                    $em->persist($contrat);
+                    $em->flush();
+                    $this->addFlash('success', 'Contrat créé avec succès.');
+                    return $this->redirectToRoute('app_contrat_index', [], Response::HTTP_SEE_OTHER);
+                }
             } else {
+                // Regular user mode
+                // FALLBACK: If no freelancer was auto-suggested or selected, 
+                // use the current user's ID to satisfy the NOT NULL database check.
+                if (!$contrat->getFreelancerId()) {
+                    $contrat->setFreelancerId($user->getId());
+                }
+                
+                $contrat->setStatut('EN_ATTENTE');
                 $em->persist($contrat);
                 $em->flush();
+                $this->addFlash('success', 'Contrat créé et ajouté à votre liste.');
                 return $this->redirectToRoute('app_contrat_index', [], Response::HTTP_SEE_OTHER);
             }
         }
@@ -100,9 +246,15 @@ class ContratController extends AbstractController
         ]);
     }
 
+
     #[Route('/{id}/edit', name: 'app_contrat_edit', methods: ['GET', 'POST'])]
-    public function edit(Request $request, Contrat $contrat, EntityManagerInterface $em, UserRepository $userRepository): Response
+    public function edit(Request $request, Contrat $contrat, EntityManagerInterface $em, UserRepository $userRepository, JobRepository $jobRepository): Response
     {
+        $user = $this->getUser();
+        if (!$user instanceof User) {
+            return $this->redirectToRoute('app_login');
+        }
+
         // Ownership check: only the client, freelancer, or an admin can edit
         $this->denyAccessUnlessOwner($contrat);
 
@@ -112,20 +264,72 @@ class ContratController extends AbstractController
             return $this->redirectToRoute('app_contrat_index');
         }
 
-        $form = $this->createForm(ContratType::class, $contrat);
+        $isAdmin = $this->isGranted('ROLE_ADMIN');
+
+        // Build job choices for edit (same as new)
+        $jobChoices = [];
+        $selectedJobId = null;
+        $allJobs = $jobRepository->findAll();
+        foreach ($allJobs as $job) {
+            $descSnippet = $job->getDescription() ? (mb_substr($job->getDescription(), 0, 50) . '...') : 'Pas de description';
+            $label = $job->getTitle() . ' — ' . $descSnippet;
+            $jobChoices[$label] = $job->getId();
+            
+            // If the current contract title matches this job's title, mark it as selected
+            if ($job->getTitle() === $contrat->getTitre()) {
+                $selectedJobId = $job->getId();
+            }
+        }
+
+        $form = $this->createForm(ContratType::class, $contrat, [
+            'is_admin' => $isAdmin,
+            'job_choices' => $jobChoices,
+        ]);
+
+        // Pre-select the job in the non-mapped 'titre' ChoiceType field
+        if (!$isAdmin && $selectedJobId) {
+            $form->get('titre')->setData($selectedJobId);
+        }
+
         $form->handleRequest($request);
 
-        if ($form->isSubmitted() && $form->isValid()) {
-            // MANUAL VALIDATION for DB Integrity (JavaFX compatibility)
-            $client = $userRepository->find($contrat->getClientId());
-            $freelancer = $userRepository->find($contrat->getFreelancerId());
+        // POPULATE FROM JOB BEFORE VALIDATION
+        if ($form->isSubmitted() && !$isAdmin) {
+            $formJobId = $form->get('titre')->getData();
+            if ($formJobId) {
+                $job = $jobRepository->find($formJobId);
+                if ($job) {
+                    $acceptedApp = $job->getAcceptedApplication();
+                    $contrat->setTitre($job->getTitle());
+                    if ($acceptedApp) {
+                        $contrat->setFreelancerId($acceptedApp->getUser()->getId());
+                    }
+                    // Do NOT overwrite description on edit
+                }
+            }
+        }
 
-            if (!$client) {
-                $this->addFlash('error', 'Le Client (ID: ' . $contrat->getClientId() . ') n\'existe pas.');
-            } elseif (!$freelancer) {
-                $this->addFlash('error', 'Le Freelancer (ID: ' . $contrat->getFreelancerId() . ') n\'existe pas.');
+        if ($form->isSubmitted() && $form->isValid()) {
+            if ($isAdmin) {
+                // Admin: validate user IDs
+                $client = $userRepository->find($contrat->getClientId());
+                $freelancer = $userRepository->find($contrat->getFreelancerId());
+
+                if (!$client) {
+                    $this->addFlash('error', 'Le Client (ID: ' . $contrat->getClientId() . ') n\'existe pas.');
+                } elseif (!$freelancer) {
+                    $this->addFlash('error', 'Le Freelancer (ID: ' . $contrat->getFreelancerId() . ') n\'existe pas.');
+                } else {
+                    $em->flush();
+                    return $this->redirectToRoute('app_contrat_index', [], Response::HTTP_SEE_OTHER);
+                }
             } else {
+                // Regular user
+                if (!$contrat->getFreelancerId()) {
+                    $contrat->setFreelancerId($user->getId());
+                }
                 $em->flush();
+                $this->addFlash('success', 'Contrat mis à jour.');
                 return $this->redirectToRoute('app_contrat_index', [], Response::HTTP_SEE_OTHER);
             }
         }
@@ -185,9 +389,19 @@ class ContratController extends AbstractController
     #[Route('/{id}/pay', name: 'app_contrat_pay', methods: ['GET'])]
     public function pay(Contrat $contrat, EntityManagerInterface $em): Response
     {
-        // Ownership check: only the client or an admin can pay
-        $this->denyAccessUnlessOwner($contrat);
-        Stripe::setApiKey($_ENV['STRIPE_SECRET_KEY'] ?? '');
+        // Ownership check: only the client (who pays) can trigger this
+        $user = $this->getUser();
+        if (!$user instanceof User || (!$this->isGranted('ROLE_ADMIN') && $contrat->getClientId() !== $user->getId())) {
+            throw $this->createAccessDeniedException('Seul le client peut effectuer le paiement de ce contrat.');
+        }
+
+        // Prevent double payment
+        if ($contrat->getStatut() === 'PAYE') {
+            $this->addFlash('info', 'Ce contrat a déjà été payé.');
+            return $this->redirectToRoute('app_contrat_index');
+        }
+
+        Stripe::setApiKey($this->getParameter('stripe_secret_key'));
 
         $session = Session::create([
             'payment_method_types' => ['card'],
@@ -196,7 +410,8 @@ class ContratController extends AbstractController
                     'price_data' => [
                         'currency' => 'usd',
                         'product_data' => [
-                            'name' => $contrat->getTitre() ?: 'Contrat #' . $contrat->getId(),
+                            'name' => 'Paiement Contrat: ' . $contrat->getTitre(),
+                            'description' => 'Facture #' . $contrat->getId(),
                         ],
                         'unit_amount' => (int) ($contrat->getPrix() * 100),
                     ],
@@ -206,17 +421,22 @@ class ContratController extends AbstractController
             'mode' => 'payment',
             'success_url' => $this->generateUrl('app_payment_success', ['id' => $contrat->getId()], UrlGeneratorInterface::ABSOLUTE_URL) . '?session_id={CHECKOUT_SESSION_ID}',
             'cancel_url' => $this->generateUrl('app_payment_cancel', ['id' => $contrat->getId()], UrlGeneratorInterface::ABSOLUTE_URL),
+            'metadata' => [
+                'contrat_id' => $contrat->getId(),
+                'client_id' => $contrat->getClientId(),
+                'freelancer_id' => $contrat->getFreelancerId(),
+            ],
         ]);
 
         return $this->redirect($session->url, 303);
     }
 
     #[Route('/payment/{id}/success', name: 'app_payment_success', methods: ['GET'])]
-    public function paymentSuccess(Request $request, Contrat $contrat, EntityManagerInterface $em): Response
+    public function paymentSuccess(Request $request, Contrat $contrat, EntityManagerInterface $em, UserRepository $userRepository): Response
     {
         $sessionId = $request->query->get('session_id');
 
-        Stripe::setApiKey($_ENV['STRIPE_SECRET_KEY'] ?? '');
+        Stripe::setApiKey($this->getParameter('stripe_secret_key'));
         if ($sessionId) {
             $stripeSession = Session::retrieve($sessionId);
             if ($stripeSession && $stripeSession->payment_status === 'paid') {
@@ -229,6 +449,13 @@ class ContratController extends AbstractController
                 $payment->setStatus('PAID');
 
                 $em->persist($payment);
+
+                // Credit the freelancer's wallet balance
+                $freelancer = $userRepository->find($contrat->getFreelancerId());
+                if ($freelancer instanceof User) {
+                    $freelancer->setBalance($freelancer->getBalance() + $contrat->getPrix());
+                }
+
                 $em->flush();
             }
         }

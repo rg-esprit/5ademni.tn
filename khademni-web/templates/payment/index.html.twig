@@ -56,7 +56,7 @@
                     <span class="squishy-badge {{ payment.status == 'PAID' ? 'success' : 'warning' }}">
                         {{ payment.status }}
                     </span>
-                    <span style="font-size: 13px; color: #9ca3af; font-weight: 600;">#{{ payment.id }}</span>
+                    <span style="font-size: 13px; color: #9ca3af; font-weight: 600;">#{{ loop.index }}</span>
                 </div>
 
                 <h2 class="bento-card-title">
@@ -80,6 +80,15 @@
 
                 <div class="flex-between">
                     <span class="cyber-price">{{ payment.amount }} TND</span>
+
+                    <div style="display: flex; gap: 8px;">
+                        <a href="{{ path('app_payment_export_pdf', {'id': payment.id}) }}" target="_blank" class="button-primary" style="height: 35px; padding: 0 15px; font-size: 13px; background-color: #3b82f6;">📄 PDF</a>
+                        
+                        <form method="post" action="{{ path('app_payment_delete', {'id': payment.id}) }}" style="display:inline-block;" onsubmit="return confirm('Supprimer ce paiement de l\'historique ?');">
+                            <input type="hidden" name="_token" value="{{ csrf_token('delete' ~ payment.id) }}">
+                            <button class="button-primary" style="height: 35px; padding: 0 15px; font-size: 13px; background-color: #ef4444; border: none;">🗑️</button>
+                        </form>
+                    </div>
                 </div>
             </div>
         {% else %}
