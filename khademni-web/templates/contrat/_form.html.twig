@@ -1,4 +1,6 @@
 {{ form_start(form) }}
+    {{ form_errors(form) }}
+
     {% set client_hidden = 'hidden' in form.clientId.vars.block_prefixes %}
     {% set freelancer_hidden = 'hidden' in form.freelancerId.vars.block_prefixes %}
 

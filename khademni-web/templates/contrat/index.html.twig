@@ -62,7 +62,7 @@
                 
                 <h2 class="bento-card-title">{{ contrat.titre }}</h2>
                 <div class="kinetic-label-small">
-                    CLIENT: {{ contrat.clientId }} | FREELANCER: {{ contrat.freelancerId }}
+                    CLIENT: {{ participantNames[contrat.clientId] ?? ('#' ~ contrat.clientId) }} | FREELANCER: {{ participantNames[contrat.freelancerId] ?? ('#' ~ contrat.freelancerId) }}
                 </div>
                 
                 <p class="bento-card-desc">

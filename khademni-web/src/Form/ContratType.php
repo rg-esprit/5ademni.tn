@@ -49,7 +49,10 @@ class ContratType extends AbstractType
                     'constraints' => [
                         new NotBlank(['message' => 'Veuillez selectionner une offre avec un freelancer accepte.']),
                     ],
-                    'attr' => ['class' => 'bento-input'],
+                    'attr' => [
+                        'class' => 'bento-input',
+                        'data-contract-job-selector' => '1',
+                    ],
                 ]);
             } else {
                 $builder->add('titre', TextType::class, [
