@@ -31,7 +31,14 @@
             </div>
         </div>
         <a href="{{ path('app_conversations') }}">Messages</a>
-        <a href="{{ path('app_module_placeholder', {slug: 'blogs'}) }}">Blogs</a>
+        <div class="nav-dropdown">
+            <button type="button" class="nav-dropdown-trigger">Blogs</button>
+            <div class="nav-dropdown-menu">
+                <a href="{{ path('article_dashboard') }}">Dashboard</a>
+                <a href="{{ path('favoris_list') }}">Favoris</a>
+                <a href="{{ path('article_list') }}">Liste</a>
+            </div>
+        </div>
         <a href="{{ path('app_module_placeholder', {slug: 'articles'}) }}">Articles</a>
         {% if is_granted('ROLE_ADMIN') %}
             <a href="{{ path('app_admin_users') }}">Users Admin</a>
