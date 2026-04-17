@@ -47,13 +47,15 @@ class JobType extends AbstractType
                 'placeholder' => 'Choose job type',
                 'required' => true,
             ])
-            ->add('salaryRange', TextType::class, [
+            ->add('minSalary', TextType::class, [
+                'label' => 'Minimum Salary',
                 'required' => false,
-                'attr' => [
-                    'placeholder' => 'e.g. 1500 - 2500',
-                    'pattern' => '^[\d\s\-\.]+$',
-                    'title' => 'Please enter numbers and optional dash for range (e.g. 1500 - 2500)'
-                ],
+                'attr' => ['placeholder' => 'e.g. 1000', 'type' => 'number'],
+            ])
+            ->add('maxSalary', TextType::class, [
+                'label' => 'Maximum Salary',
+                'required' => false,
+                'attr' => ['placeholder' => 'e.g. 2500', 'type' => 'number'],
             ])
             ->add('description', TextareaType::class, [
                 'attr' => ['rows' => 5, 'placeholder' => 'Describe the job responsibilities...', 'minlength' => 20],

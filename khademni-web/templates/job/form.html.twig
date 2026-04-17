@@ -2,6 +2,10 @@
 
 {% block title %}{{ is_edit ? 'Edit Job' : 'Post a New Job' }} | 5ademni.tn{% endblock %}
 
+{% block stylesheets %}
+<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+{% endblock %}
+
 {% block body %}
 <style>
 @keyframes fadeUp { from{opacity:0;transform:translateY(18px)} to{opacity:1;transform:translateY(0)} }
@@ -39,6 +43,77 @@
     padding-bottom:.5rem; border-bottom:2px solid #ede9fe;
     margin:1.75rem 0 1rem;
 }
+
+#location-map {
+    height: 300px;
+    width: 100%;
+    margin-top: 0.5rem;
+    border-radius: 0.5rem;
+    border: 1.5px solid #e5e7eb;
+    z-index: 10;
+}
+
+/* Modal Styles */
+.modal-overlay {
+    position: fixed; top: 0; left: 0; width: 100%; height: 100%;
+    background: rgba(0,0,0,0.6); backdrop-filter: blur(4px);
+    display: none; align-items: center; justify-content: center;
+    z-index: 9999; animation: fadeIn .3s ease;
+}
+.modal-window {
+    background: #fff; width: 90%; max-width: 800px;
+    border-radius: 1rem; overflow: hidden; box-shadow: 0 25px 50px -12px rgba(0,0,0,0.25);
+}
+.modal-header {
+    padding: 1rem 1.5rem; border-bottom: 1px solid #e5e7eb;
+    display: flex; justify-content: space-between; align-items: center;
+}
+.modal-body { height: 450px; position: relative; }
+@keyframes fadeIn { from{opacity:0} to{opacity:1} }
+
+/* Autocomplete Styles */
+.autocomplete-wrapper { position: relative; }
+.autocomplete-results {
+    position: absolute; top: 100%; left: 0; width: 100%;
+    background: #fff; border: 1.5px solid #e5e7eb; border-radius: 0.5rem;
+    margin-top: 0.25rem; box-shadow: 0 10px 15px -3px rgba(0,0,0,0.1);
+    z-index: 100; max-height: 250px; overflow-y: auto; display: none;
+}
+.autocomplete-item {
+    padding: 0.75rem 1rem; cursor: pointer; border-bottom: 1px solid #f3f4f6;
+    font-size: 0.88rem; transition: background 0.2s;
+}
+.autocomplete-item:hover { background: #f9fafb; color: #6366f1; }
+.autocomplete-item:last-child { border-bottom: none; }
+
+/* AI Generator Styles */
+.ai-generator-card {
+    background: linear-gradient(135deg, #f5f3ff 0%, #ede9fe 100%);
+    border: 1.5px solid #ddd6fe; border-radius: 1rem;
+    padding: 1.5rem; margin-bottom: 2rem;
+    position: relative; overflow: hidden;
+}
+.ai-generator-card::before {
+    content: "🪄"; position: absolute; top: -10px; right: -10px;
+    font-size: 5rem; opacity: 0.1; transform: rotate(15deg);
+}
+.ai-badge {
+    display: inline-block; padding: .25rem .75rem; border-radius: 999px;
+    background: #7c3aed; color: #fff; font-size: .7rem; font-weight: 800;
+    text-transform: uppercase; letter-spacing: .05em; margin-bottom: .75rem;
+}
+.loading-overlay {
+    position: absolute; top: 0; left: 0; width: 100%; height: 100%;
+    background: rgba(255,255,255,0.8); backdrop-filter: blur(2px);
+    display: none; align-items: center; justify-content: center;
+    z-index: 10; flex-direction: column; gap: 1rem;
+}
+.spinner {
+    width: 30px; height: 30px; border: 3px solid #ddd6fe;
+    border-top: 3px solid #7c3aed; border-radius: 50%;
+    animation: spin 1s linear infinite;
+}
+@keyframes spin { 100% { transform: rotate(360deg); } }
 </style>
 
 <div class="page-shell">
@@ -54,6 +129,27 @@
         </section>
 
         <div style="max-width:700px; margin:0 auto;">
+            {# 🪄 AI Magic Generator Panel #}
+            {% if not is_edit %}
+            <div class="ai-generator-card form-panel">
+                <div id="ai-loading" class="loading-overlay">
+                    <div class="spinner"></div>
+                    <p style="font-weight: 700; color: #7c3aed; font-size: .9rem;">Gemini is working its magic...</p>
+                </div>
+                <span class="ai-badge">AI Assistant</span>
+                <h3 style="margin: 0 0 .5rem; font-size: 1.15rem; font-weight: 800;">Smart Job Generator</h3>
+                <p style="font-size: .88rem; color: #6b7280; margin-bottom: 1.25rem;">
+                    Just type a simple idea (e.g., "A modern cafe needs a barista") and let Gemini generate the full professional posting for you.
+                </p>
+                <div style="display: flex; gap: .75rem;">
+                    <input type="text" id="ai-prompt" class="text-input" style="background:#fff; border-color:#ddd6fe;" placeholder="What are you looking for?">
+                    <button type="button" id="btn-generate-ai" class="primary-button" style="padding: 0 1.5rem; height: 43px; white-space: nowrap;">
+                        🪄 Generate
+                    </button>
+                </div>
+            </div>
+            {% endif %}
+
             <div class="panel form-panel">
                 {{ form_start(form) }}
                 <input type="hidden" name="back_url" value="{{ back_url }}">
@@ -74,7 +170,17 @@
                     </div>
                     <div class="field-group">
                         {{ form_label(form.location, 'Location') }}
-                        {{ form_widget(form.location, {attr: {class: 'text-input'}}) }}
+                        <div class="autocomplete-wrapper">
+                            <div style="display:flex; gap:.4rem; align-items:stretch;">
+                                <div style="flex:1;">
+                                    {{ form_widget(form.location, {attr: {class: 'text-input', id: 'job_location', autocomplete: 'off'}}) }}
+                                </div>
+                                <button type="button" id="btn-open-map" class="primary-button" style="padding:0 1.25rem; height:43px; font-size:.85rem; display:flex; align-items:center; gap:.4rem; justify-content:center; white-space:nowrap; margin:0;">
+                                    📍 Map
+                                </button>
+                            </div>
+                            <div id="autocomplete-results" class="autocomplete-results"></div>
+                        </div>
                         <p class="helper-text">{{ form_errors(form.location) }}</p>
                     </div>
                 </div>
@@ -92,10 +198,17 @@
                     </div>
                 </div>
 
-                <div class="field-group">
-                    {{ form_label(form.salaryRange, 'Salary Range (optional)') }}
-                    {{ form_widget(form.salaryRange, {attr: {class: 'text-input', placeholder:'e.g. 1200 – 2500 TND/month'}}) }}
-                    <p class="helper-text">{{ form_errors(form.salaryRange) }}</p>
+                <div class="two-col">
+                    <div class="field-group">
+                        {{ form_label(form.minSalary, 'Minimum Salary') }}
+                        {{ form_widget(form.minSalary, {attr: {class: 'text-input', placeholder:'e.g. 1200'}}) }}
+                        <p class="helper-text">{{ form_errors(form.minSalary) }}</p>
+                    </div>
+                    <div class="field-group">
+                        {{ form_label(form.maxSalary, 'Maximum Salary') }}
+                        {{ form_widget(form.maxSalary, {attr: {class: 'text-input', placeholder:'e.g. 2500'}}) }}
+                        <p class="helper-text">{{ form_errors(form.maxSalary) }}</p>
+                    </div>
                 </div>
 
                 <p class="section-title">Details</p>
@@ -122,4 +235,168 @@
         </div>
     </main>
 </div>
+
+<!-- Map Modal -->
+<div id="map-modal" class="modal-overlay">
+    <div class="modal-window">
+        <div class="modal-header">
+            <h3 style="margin:0; font-size:1.1rem; font-weight:800;">Choose Location</h3>
+            <button type="button" id="btn-close-map" style="background:none; border:none; font-size:1.5rem; cursor:pointer; color:#9ca3af;">&times;</button>
+        </div>
+        <div class="modal-body">
+            <div id="location-map" style="height:100%; border:none; margin:0; border-radius:0;"></div>
+        </div>
+        <div style="padding:1rem 1.5rem; background:#f9fafb; border-top:1px solid #e5e7eb; font-size:.85rem; color:#6b7280;">
+            📍 Drag the map or click a spot to select an address.
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block javascripts %}
+<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    // --- 1. AI Generation Logic ---
+    const aiBtn = document.getElementById('btn-generate-ai');
+    const aiInput = document.getElementById('ai-prompt');
+    const aiLoading = document.getElementById('ai-loading');
+
+    if (aiBtn) {
+        aiBtn.addEventListener('click', async function() {
+            const prompt = aiInput.value.trim();
+            if (!prompt) {
+                alert('Please enter a simple idea first!');
+                return;
+            }
+
+            aiLoading.style.display = 'flex';
+
+            try {
+                const response = await fetch('/jobs/api/ai/generate-job', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ idea: prompt })
+                });
+                const data = await response.json();
+
+                if (data.error) {
+                    alert('AI Generation Error: ' + data.error);
+                } else {
+                    // Populate Symfony form fields
+                    // IDs usually match: job_fieldname
+                    if (document.getElementById('job_title')) document.getElementById('job_title').value = data.title;
+                    if (document.getElementById('job_description')) document.getElementById('job_description').value = data.description;
+                    if (document.getElementById('job_requirements')) document.getElementById('job_requirements').value = data.requirements;
+                    if (document.getElementById('job_minSalary')) document.getElementById('job_minSalary').value = data.minSalary;
+                    if (document.getElementById('job_maxSalary')) document.getElementById('job_maxSalary').value = data.maxSalary;
+                    
+                    // Handle select fields
+                    if (document.getElementById('job_category')) {
+                        const catSelect = document.getElementById('job_category');
+                        Array.from(catSelect.options).forEach(opt => {
+                            if (opt.text.trim() === data.category) opt.selected = true;
+                        });
+                    }
+                    if (document.getElementById('job_jobType')) {
+                        const typeSelect = document.getElementById('job_jobType');
+                        Array.from(typeSelect.options).forEach(opt => {
+                            if (opt.text.trim() === data.jobType) opt.selected = true;
+                        });
+                    }
+                }
+            } catch (err) {
+                console.error('AI Fetch failed:', err);
+                alert('Failed to connect to the AI generator.');
+            } finally {
+                aiLoading.style.display = 'none';
+            }
+        });
+    }
+
+    // --- 2. Location Autocomplete logic ---
+    const locationInput = document.getElementById('job_location');
+    const resultsContainer = document.getElementById('autocomplete-results');
+    const modal = document.getElementById('map-modal');
+    const openBtn = document.getElementById('btn-open-map');
+    const closeBtn = document.getElementById('btn-close-map');
+    
+    if (locationInput) {
+        let debounceTimer;
+        locationInput.addEventListener('input', function() {
+            clearTimeout(debounceTimer);
+            const query = this.value.trim();
+            if (query.length < 2) {
+                resultsContainer.style.display = 'none';
+                return;
+            }
+            debounceTimer = setTimeout(() => {
+                fetch(`https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(query)}&limit=10&countrycodes=tn`)
+                .then(res => res.json())
+                .then(data => {
+                    resultsContainer.innerHTML = '';
+                    if (data && data.length > 0) {
+                        data.forEach(item => {
+                            const div = document.createElement('div');
+                            div.className = 'autocomplete-item';
+                            div.textContent = item.display_name;
+                            div.onclick = function() {
+                                const parts = item.display_name.split(',');
+                                locationInput.value = parts.slice(0, 2).join(',').trim();
+                                resultsContainer.style.display = 'none';
+                            };
+                            resultsContainer.appendChild(div);
+                        });
+                        resultsContainer.style.display = 'block';
+                    } else {
+                        resultsContainer.style.display = 'none';
+                    }
+                });
+            }, 300);
+        });
+
+        document.addEventListener('click', (e) => {
+            if (resultsContainer && !locationInput.contains(e.target) && !resultsContainer.contains(e.target)) {
+                resultsContainer.style.display = 'none';
+            }
+        });
+    }
+
+    // --- 3. Map Modal Logic ---
+    let map = null;
+    let marker = null;
+
+    function initMap() {
+        if (map) return;
+        const tunisCoords = [36.8065, 10.1815];
+        map = L.map('location-map').setView(tunisCoords, 13);
+        L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+            attribution: '&copy; OpenStreetMap contributors'
+        }).addTo(map);
+        marker = L.marker(tunisCoords, {draggable: true}).addTo(map);
+        map.on('click', (e) => { marker.setLatLng(e.latlng); fetchAddress(e.latlng.lat, e.latlng.lng); });
+        marker.on('dragend', () => { const pos = marker.getLatLng(); fetchAddress(pos.lat, pos.lng); });
+    }
+
+    async function fetchAddress(lat, lng) {
+        try {
+            const res = await fetch(`https://nominatim.openstreetmap.org/reverse?format=jsonv2&lat=${lat}&lon=${lng}`);
+            const data = await res.json();
+            if (data.display_name) {
+                const parts = data.display_name.split(',');
+                locationInput.value = parts.slice(0, 2).join(',').trim();
+                closeModal();
+            }
+        } catch (e) { console.error('Map error:', e); }
+    }
+
+    function openModal() { modal.style.display = 'flex'; if (!map) initMap(); else setTimeout(() => map.invalidateSize(), 200); }
+    function closeModal() { modal.style.display = 'none'; }
+
+    if (openBtn) openBtn.addEventListener('click', openModal);
+    if (closeBtn) closeBtn.addEventListener('click', closeModal);
+    if (modal) modal.addEventListener('click', (e) => { if (e.target === modal) closeModal(); });
+});
+</script>
 {% endblock %}

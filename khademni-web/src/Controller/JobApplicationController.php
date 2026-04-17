@@ -7,6 +7,8 @@ use App\Entity\JobApplication;
 use App\Entity\User;
 use App\Form\JobApplicationType;
 use App\Repository\JobApplicationRepository;
+use App\Service\ApplicationManager;
+use App\Service\NotificationService;
 use Doctrine\ORM\EntityManagerInterface;
 use Symfony\Bundle\FrameworkBundle\Controller\AbstractController;
 use Symfony\Component\HttpFoundation\File\Exception\FileException;
@@ -18,19 +20,13 @@ use Symfony\Component\String\Slugger\SluggerInterface;
 
 class JobApplicationController extends AbstractController
 {
+    public function __construct(private NotificationService $notificationService) {}
     #[Route('/jobs/{id}/apply', name: 'app_job_apply', methods: ['GET', 'POST'])]
-    public function apply(Request $request, Job $job, EntityManagerInterface $entityManager, JobApplicationRepository $applicationRepository, SluggerInterface $slugger): Response
+    public function apply(Request $request, Job $job, EntityManagerInterface $entityManager, JobApplicationRepository $applicationRepository, SluggerInterface $slugger, ApplicationManager $applicationManager): Response
     {
         $user = $this->getUser();
         if (!$user instanceof User) {
             return $this->redirectToRoute('app_login');
-        }
-
-        // Check if user already applied
-        $existingApplication = $applicationRepository->findByJobAndUser($job, $user);
-        if ($existingApplication) {
-            $this->addFlash('info', 'You have already applied to this job.');
-            return $this->redirectToRoute('app_job_show', ['id' => $job->getId()]);
         }
 
         // Users shouldn't apply to their own jobs
@@ -39,9 +35,15 @@ class JobApplicationController extends AbstractController
             return $this->redirectToRoute('app_job_show', ['id' => $job->getId()]);
         }
 
+        // Check Job status and existing applications
         $application = new JobApplication();
         $application->setJob($job);
         $application->setUser($user);
+
+        if (!$applicationManager->canApply($application)) {
+            $this->addFlash('danger', 'This job is no longer accepting applications.');
+            return $this->redirectToRoute('app_job_show', ['id' => $job->getId()]);
+        }
 
         $form = $this->createForm(JobApplicationType::class, $application);
         $form->handleRequest($request);
@@ -72,6 +74,18 @@ class JobApplicationController extends AbstractController
 
             $entityManager->persist($application);
             $entityManager->flush();
+
+            // Notify the job owner about the new application
+            $jobOwner = $job->getUser();
+            if ($jobOwner instanceof User) {
+                $applicantName = $user->getFirstName() . ' ' . $user->getLastName();
+                $this->notificationService->send(
+                    $jobOwner,
+                    sprintf('📩 New application received from %s for your job "%s"!', $applicantName, $job->getTitle()),
+                    'info',
+                    $this->generateUrl('app_management_job_applications', ['id' => $job->getId()])
+                );
+            }
 
             $this->addFlash('success', 'Your application has been submitted successfully.');
             return $this->redirectToRoute('app_job_applications_my');
@@ -157,13 +171,8 @@ class JobApplicationController extends AbstractController
             throw $this->createAccessDeniedException('You are not allowed to delete this application.');
         }
 
-        if ($application->getStatus() !== 'PENDING') {
-            $this->addFlash('warning', 'Only pending applications can be deleted.');
-            return $this->redirectToRoute('app_job_applications_my');
-        }
-
         if ($this->isCsrfTokenValid('delete_application' . $application->getId(), $request->request->get('_token'))) {
-            // Remove CV file if exists
+            // Remove CV if exists
             if ($application->getCvPath()) {
                 $cvPath = $this->getParameter('kernel.project_dir') . '/public/' . $application->getCvPath();
                 if (file_exists($cvPath)) {
@@ -173,7 +182,7 @@ class JobApplicationController extends AbstractController
 
             $entityManager->remove($application);
             $entityManager->flush();
-            $this->addFlash('success', 'Your application has been deleted.');
+            $this->addFlash('success', 'Application deleted successfully.');
         }
 
         return $this->redirectToRoute('app_job_applications_my');

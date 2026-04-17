@@ -8,6 +8,7 @@ use App\Entity\User;
 use App\Repository\JobApplicationRepository;
 use App\Repository\JobRepository;
 use App\Repository\WorkLogRepository;
+use App\Service\ApplicationManager;
 use Doctrine\ORM\EntityManagerInterface;
 use Symfony\Bundle\FrameworkBundle\Controller\AbstractController;
 use Symfony\Component\HttpFoundation\Request;
@@ -71,7 +72,7 @@ class JobManagementController extends AbstractController
     }
 
     #[Route('/applications/{id<\d+>}/status', name: 'app_management_application_status', methods: ['POST'])]
-    public function updateStatus(Request $request, JobApplication $application, EntityManagerInterface $entityManager): Response
+    public function updateStatus(Request $request, JobApplication $application, ApplicationManager $applicationManager): Response
     {
         $user = $this->getUser();
         $job = $application->getJob();
@@ -81,11 +82,17 @@ class JobManagementController extends AbstractController
         }
 
         $status = $request->request->get('status');
-        $validStatuses = ['PENDING', 'ACCEPTED', 'REJECTED', 'INTERVIEWING'];
+        $validStatuses = [
+            JobApplication::STATUS_PENDING,
+            JobApplication::STATUS_ACCEPTED,
+            JobApplication::STATUS_REJECTED,
+            JobApplication::STATUS_IN_PROGRESS,
+            JobApplication::STATUS_COMPLETED,
+            'INTERVIEWING'
+        ];
 
         if ($this->isCsrfTokenValid('status' . $application->getId(), $request->request->get('_token')) && in_array($status, $validStatuses)) {
-            $application->setStatus($status);
-            $entityManager->flush();
+            $applicationManager->updateStatus($application, $status);
             $this->addFlash('success', 'Application status updated to ' . $status . '.');
         }
 

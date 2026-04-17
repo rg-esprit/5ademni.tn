@@ -50,6 +50,21 @@
 
     <div class="header-account">
         {% if app.user %}
+            {# ── Notification Bell ── #}
+            <div class="notif-bell" id="notif-bell">
+                <button class="notif-btn" id="notif-toggle" aria-label="Notifications" type="button">
+                    🔔
+                    <span class="notif-badge" id="notif-badge" style="display:none;">0</span>
+                </button>
+                <div class="notif-dropdown" id="notif-dropdown" style="display:none;">
+                    <div class="notif-header">
+                        <strong>Notifications</strong>
+                        <button type="button" id="notif-read-all" style="font-size:.75rem;background:none;border:none;color:#6366f1;cursor:pointer;font-weight:600;">Mark all read</button>
+                    </div>
+                    <div id="notif-list"><p style="padding:.75rem 1rem;color:#9ca3af;font-size:.85rem;">Loading...</p></div>
+                </div>
+            </div>
+
             <a class="profile-chip" href="{{ path('app_profile') }}">Profile</a>
             <div class="avatar-badge" aria-label="{{ app.user.displayName }}">
                 {% if avatar_proxy_enabled|default(false) %}
@@ -63,3 +78,120 @@
         {% endif %}
     </div>
 </header>
+
+<style>
+.notif-bell { position:relative; display:inline-flex; align-items:center; }
+.notif-btn { background:none; border:none; cursor:pointer; font-size:1.3rem; padding:.25rem .4rem; border-radius:.5rem; position:relative; transition:background .15s; }
+.notif-btn:hover { background:#f3f4f6; }
+.notif-badge { position:absolute; top:0; right:0; background:#ef4444; color:#fff; font-size:.6rem; font-weight:800; min-width:1.1rem; height:1.1rem; border-radius:999px; display:flex!important; align-items:center; justify-content:center; pointer-events:none; }
+.notif-dropdown { position:absolute; top:calc(100% + .5rem); right:0; width:320px; background:#fff; border-radius:.75rem; box-shadow:0 8px 32px rgba(0,0,0,.13); z-index:9999; border:1px solid #e5e7eb; overflow:hidden; }
+.notif-header { display:flex; justify-content:space-between; align-items:center; padding:.65rem 1rem; border-bottom:1px solid #f3f4f6; }
+.notif-item { padding:.65rem 1rem; border-bottom:1px solid #f9fafb; display:flex; gap:.6rem; align-items:flex-start; cursor:pointer; transition:background .15s; }
+.notif-item:hover { background:#f9fafb; }
+.notif-item .notif-dot { width:.55rem; height:.55rem; border-radius:50%; flex-shrink:0; margin-top:.3rem; }
+.notif-dot.success { background:#22c55e; }
+.notif-dot.warning { background:#f59e0b; }
+.notif-dot.info { background:#6366f1; }
+.notif-item p { margin:0; font-size:.83rem; line-height:1.5; color:#374151; }
+.notif-item small { color:#9ca3af; font-size:.72rem; }
+</style>
+
+<script>
+(function() {
+    function initNotifications() {
+        const bell = document.getElementById('notif-bell');
+        if (!bell || bell.dataset.notifBound) return;
+        bell.dataset.notifBound = 'true';
+
+        const toggle = document.getElementById('notif-toggle');
+        const dropdown = document.getElementById('notif-dropdown');
+        const badge = document.getElementById('notif-badge');
+        const list = document.getElementById('notif-list');
+        const readAllBtn = document.getElementById('notif-read-all');
+
+        let notifications = [];
+
+        async function fetchCount() {
+            try {
+                const res = await fetch('/api/notifications/count');
+                const data = await res.json();
+                if (data.count > 0) {
+                    badge.textContent = data.count > 9 ? '9+' : data.count;
+                    badge.style.display = 'flex';
+                } else {
+                    badge.style.display = 'none';
+                }
+            } catch(e) {}
+        }
+
+        async function fetchNotifications() {
+            try {
+                const res = await fetch('/api/notifications');
+                notifications = await res.json();
+                renderNotifications();
+            } catch(e) {
+                list.innerHTML = '<p style="padding:.75rem 1rem;color:#9ca3af;font-size:.85rem;">Failed to load.</p>';
+            }
+        }
+
+        function typeClass(type) {
+            if (type === 'success') return 'success';
+            if (type === 'warning') return 'warning';
+            return 'info';
+        }
+
+        function renderNotifications() {
+            if (!notifications.length) {
+                list.innerHTML = '<p style="padding:.75rem 1rem;color:#9ca3af;font-size:.85rem;">No new notifications.</p>';
+                return;
+            }
+            list.innerHTML = notifications.map(n => `
+                <div class="notif-item" data-id="${n.id}" data-link="${n.link || ''}" onclick="markRead(this)">
+                    <div class="notif-dot ${typeClass(n.type)}"></div>
+                    <div>
+                        <p>${n.message}</p>
+                        <small>${n.time}</small>
+                    </div>
+                </div>
+            `).join('');
+        }
+
+        window.markRead = async function(el) {
+            const id = el.dataset.id;
+            const link = el.dataset.link;
+            await fetch(`/api/notifications/${id}/read`, { method: 'POST' });
+            el.style.opacity = '0.4';
+            el.style.pointerEvents = 'none';
+            fetchCount();
+            if (link) window.location.href = link;
+        };
+
+        if (readAllBtn) {
+            readAllBtn.addEventListener('click', async function(e) {
+                e.stopPropagation();
+                await fetch('/api/notifications/read-all', { method: 'POST' });
+                list.innerHTML = '<p style="padding:.75rem 1rem;color:#9ca3af;font-size:.85rem;">No new notifications.</p>';
+                badge.style.display = 'none';
+            });
+        }
+
+        toggle.addEventListener('click', function(e) {
+            e.stopPropagation();
+            const isOpen = dropdown.style.display !== 'none';
+            dropdown.style.display = isOpen ? 'none' : 'block';
+            if (!isOpen) fetchNotifications();
+        });
+
+        document.addEventListener('click', function(e) {
+            if (!bell.contains(e.target)) dropdown.style.display = 'none';
+        });
+
+        // Poll for count every 30 seconds
+        fetchCount();
+        setInterval(fetchCount, 30000);
+    }
+
+    document.addEventListener('DOMContentLoaded', initNotifications);
+    document.addEventListener('turbo:load', initNotifications);
+})();
+</script>

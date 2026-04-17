@@ -8,7 +8,9 @@ use App\Form\JobType;
 use App\Repository\JobApplicationRepository;
 use App\Repository\JobRepository;
 use Doctrine\ORM\EntityManagerInterface;
+use App\Service\GeminiService;
 use Symfony\Bundle\FrameworkBundle\Controller\AbstractController;
+use Symfony\Component\HttpFoundation\JsonResponse;
 use Symfony\Component\HttpFoundation\Request;
 use Symfony\Component\HttpFoundation\Response;
 use Symfony\Component\Routing\Attribute\Route;
@@ -22,15 +24,23 @@ class JobController extends AbstractController
         JobRepository $jobRepository,
         JobApplicationRepository $applicationRepository,
     ): Response {
-        $view     = (string) $request->query->get('view', 'all');
-        $query    = (string) $request->query->get('q', '');
-        $category = (string) $request->query->get('category', '');
-        $location = (string) $request->query->get('location', '');
-        $jobType  = (string) $request->query->get('job_type', '');
-        $sort     = (string) $request->query->get('sort', 'newest');
-        $minSalary= (int) $request->query->get('min_salary', 0);
+        $view          = (string) $request->query->get('view', 'all');
+        $query         = (string) $request->query->get('q', '');
+        $category      = (string) $request->query->get('category', '');
+        $location      = (string) $request->query->get('location', '');
+        $jobType       = (string) $request->query->get('job_type', '');
+        $sort          = (string) $request->query->get('sort', 'newest');
+        $salaryBounds  = $jobRepository->getMinMaxSalaries();
+        $salaryMinRange = 0;
+        $salaryMaxRange = (int) max(($salaryBounds['maxSal'] ?? 10000) * 1.15, 10000);
 
-        $jobs = $jobRepository->searchJobs($query, $category, $location, $jobType, $sort, $minSalary);
+        $maxSalary = (int) $request->query->get('max_salary', $salaryMaxRange);
+        $minSalary = (int) $request->query->get('min_salary', $salaryMinRange);
+        $minSalary = max($salaryMinRange, $minSalary);
+        $maxSalary = max($minSalary, $maxSalary);
+        $maxSalary = min($salaryMaxRange, $maxSalary);
+
+        $jobs = $jobRepository->searchJobs($query, $category, $location, $jobType, $sort, $minSalary, $maxSalary);
 
         $user           = $this->getUser();
         $savedJobs      = [];
@@ -52,6 +62,9 @@ class JobController extends AbstractController
             'job_type'        => $jobType,
             'sort'            => $sort,
             'min_salary'      => $minSalary,
+            'max_salary'      => $maxSalary,
+            'salary_min_range' => $salaryMinRange,
+            'salary_max_range' => $salaryMaxRange,
         ]);
     }
 
@@ -183,5 +196,45 @@ class JobController extends AbstractController
         }
 
         return $this->redirect($referer);
+    }
+
+    #[Route('/api/ai/generate-job', name: 'api_ai_generate_job', methods: ['POST'])]
+    public function generateAiProposal(Request $request, GeminiService $geminiService): JsonResponse
+    {
+        $data = json_decode($request->getContent(), true);
+        $idea = $data['idea'] ?? '';
+
+        if (empty($idea)) {
+            return new JsonResponse(['error' => 'Job idea is required'], 400);
+        }
+
+        $result = $geminiService->generateJobPosting($idea);
+
+        if (isset($result['error'])) {
+            return new JsonResponse($result, 500);
+        }
+
+        return new JsonResponse($result);
+    }
+
+    #[Route('/{id<\d+>}/translate/{lang}', name: 'app_job_translate', methods: ['POST'])]
+    public function translate(Job $job, string $lang, GeminiService $geminiService): JsonResponse
+    {
+        if (!in_array($lang, ['fr', 'ar'])) {
+            return new JsonResponse(['error' => 'Invalid language'], 400);
+        }
+
+        $result = $geminiService->translateJobData(
+            $job->getTitle(),
+            $job->getDescription(),
+            $job->getRequirements(),
+            $lang
+        );
+
+        if (isset($result['error'])) {
+            return new JsonResponse($result, 500);
+        }
+
+        return new JsonResponse($result);
     }
 }
