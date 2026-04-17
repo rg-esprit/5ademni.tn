@@ -13,6 +13,12 @@ use Symfony\Component\Validator\Constraints as Assert;
 #[ORM\Index(name: 'fk_applications_user', columns: ['user_id'])]
 class JobApplication
 {
+    public const STATUS_PENDING     = 'PENDING';
+    public const STATUS_ACCEPTED    = 'ACCEPTED';
+    public const STATUS_IN_PROGRESS = 'IN_PROGRESS';
+    public const STATUS_COMPLETED   = 'COMPLETED';
+    public const STATUS_REJECTED    = 'REJECTED';
+
     #[ORM\Id]
     #[ORM\GeneratedValue]
     #[ORM\Column]

@@ -74,29 +74,37 @@
                 <div style="display:flex; justify-content:space-between; align-items:flex-start; gap:1rem; flex-wrap:wrap;">
                     <div>
                         <p class="eyebrow" style="margin-bottom:.3rem;">{{ job.category }}</p>
-                        <h1 style="font-size:1.8rem; font-weight:800; margin:0 0 .4rem;">{{ job.title }}</h1>
+                        <h1 id="job-title" style="font-size:1.8rem; font-weight:800; margin:0 0 .4rem;">{{ job.title }}</h1>
                         <p style="font-size:1.05rem; color:#6366f1; font-weight:600; margin:0;">{{ job.company }}</p>
                     </div>
                     <div style="display:flex; gap:.5rem; flex-wrap:wrap;">
                         {% if job.jobType %}<span class="detail-badge">🏷 {{ job.jobType }}</span>{% endif %}
-                        {% if job.salaryRange %}<span class="detail-badge blue">💰 {{ job.salaryRange }}</span>{% endif %}
+                        <span class="detail-badge blue">💰 {{ job.salaryDisplay }}</span>
                     </div>
                 </div>
 
-                <div class="info-row">
-                    <span>📍 {{ job.location }}</span>
-                    <span>📅 Posted {{ job.postedDate|date('M d, Y') }}</span>
-                    <span>👤 by {{ job.user.displayName }}</span>
+                <div class="info-row" style="justify-content: space-between;">
+                    <div style="display:flex; flex-wrap:wrap; gap:.6rem 1.4rem;">
+                        <span>📍 {{ job.location }}</span>
+                        <span>📅 Posted {{ job.postedDate|date('M d, Y') }}</span>
+                        <span>👤 by {{ job.user.displayName }}</span>
+                    </div>
+                    
+                    <div style="display:flex; gap:.4rem; align-items:center;">
+                        <button id="revert-translation-btn" class="btn-ghost-full" style="padding:.3rem .6rem; font-size:.8rem; display:none;" title="Show Original Language">↺ Original</button>
+                        <button class="btn-ghost-full translate-btn" data-lang="fr" style="padding:.3rem .6rem; font-size:.8rem;">🇫🇷 FR</button>
+                        <button class="btn-ghost-full translate-btn" data-lang="ar" style="padding:.3rem .6rem; font-size:.8rem;">🇹🇳 AR</button>
+                    </div>
                 </div>
 
                 {# Description #}
                 <p class="section-divider">Job Description</p>
-                <div class="prose">{{ job.description }}</div>
+                <div id="job-description" class="prose">{{ job.description }}</div>
 
                 {# Requirements #}
                 {% if job.requirements %}
                     <p class="section-divider">Requirements & Skills</p>
-                    <div class="prose">{{ job.requirements }}</div>
+                    <div id="job-requirements" class="prose">{{ job.requirements }}</div>
                 {% endif %}
             </article>
 
@@ -169,4 +177,91 @@
         </div>
     </main>
 </div>
+
+<script>
+(function initTranslation() {
+    const translateBtns = document.querySelectorAll('.translate-btn');
+    const revertBtn = document.getElementById('revert-translation-btn');
+    if (!translateBtns.length || translateBtns[0].dataset.translationBound) return;
+    const jobId = {{ job.id }};
+    const titleEl = document.getElementById('job-title');
+    const descEl = document.getElementById('job-description');
+    const reqEl = document.getElementById('job-requirements');
+
+    // Save original content
+    const originalContent = {
+        title: titleEl.innerHTML,
+        description: descEl.innerHTML,
+        requirements: reqEl ? reqEl.innerHTML : null
+    };
+
+    if (revertBtn) {
+        revertBtn.addEventListener('click', function(e) {
+            e.preventDefault();
+            titleEl.innerHTML = originalContent.title;
+            descEl.innerHTML = originalContent.description;
+            if (reqEl) reqEl.innerHTML = originalContent.requirements;
+            revertBtn.style.display = 'none';
+        });
+    }
+
+    translateBtns.forEach(btn => {
+        btn.dataset.translationBound = 'true';
+        btn.addEventListener('click', async function(e) {
+            e.preventDefault();
+            const lang = this.dataset.lang;
+            const originalText = this.innerHTML;
+            
+            // UI Loading state
+            translateBtns.forEach(b => b.disabled = true);
+            this.innerHTML = `<span style="display:inline-block; animation: spin 1s linear infinite;">⏳</span> Translating...`;
+            titleEl.style.opacity = '0.5';
+            descEl.style.opacity = '0.5';
+            if (reqEl) reqEl.style.opacity = '0.5';
+
+            try {
+                const response = await fetch(`/jobs/${jobId}/translate/${lang}`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' }
+                });
+
+                const data = await response.json();
+
+                if (!response.ok || data.error) {
+                    throw new Error(data.error || 'Translation failed');
+                }
+
+                // Update DOM with translated text
+                titleEl.innerHTML = data.title;
+                // Since Gemini may return plain text with newlines, replace \n with <br>
+                descEl.innerHTML = data.description.replace(/\\n/g, '<br>');
+                if (reqEl && data.requirements) {
+                    reqEl.innerHTML = data.requirements.replace(/\\n/g, '<br>');
+                }
+
+                if (revertBtn) revertBtn.style.display = 'inline-block';
+
+            } catch (err) {
+                console.error(err);
+                alert('Translation failed. Please try again later.');
+                // Revert to original on error
+                titleEl.innerHTML = originalContent.title;
+                descEl.innerHTML = originalContent.description;
+                if (reqEl) reqEl.innerHTML = originalContent.requirements;
+            } finally {
+                // Restore UI
+                titleEl.style.opacity = '1';
+                descEl.style.opacity = '1';
+                if (reqEl) reqEl.style.opacity = '1';
+                translateBtns.forEach(b => b.disabled = false);
+                this.innerHTML = originalText;
+            }
+        });
+    });
+})();
+</script>
+
+<style>
+@keyframes spin { 100% { transform: rotate(360deg); } }
+</style>
 {% endblock %}

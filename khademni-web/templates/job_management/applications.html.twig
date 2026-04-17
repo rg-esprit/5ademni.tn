@@ -47,6 +47,31 @@
 .status-ACCEPTED { color: #166534; background: #dcfce7; }
 .status-REJECTED { color: #991b1b; background: #fee2e2; }
 .status-INTERVIEWING { color: #1e3a8a; background: #dbeafe; }
+.status-IN_PROGRESS { color: #0369a1; background: #e0f2fe; }
+.status-COMPLETED { color: #3f6212; background: #ecfccb; }
+
+.analysis-box {
+    margin-top: 1rem;
+    padding: 1rem;
+    border-radius: .75rem;
+    font-size: .88rem;
+    display: none;
+    animation: fadeUp .3s ease;
+}
+.analysis-box.SAFE { background: #f0fdf4; border: 1.5px solid #bbf7d0; color: #166534; }
+.analysis-box.AVERAGE { background: #fffbeb; border: 1.5px solid #fef3c7; color: #92400e; }
+.analysis-box.SUSPICIOUS { background: #fef2f2; border: 1.5px solid #fee2e2; color: #991b1b; }
+
+.ai-badge {
+    font-size: .7rem;
+    background: #4f46e5;
+    color: white;
+    padding: .1rem .4rem;
+    border-radius: 4px;
+    margin-right: .4rem;
+    text-transform: uppercase;
+    font-weight: 800;
+}
 </style>
 
 <div class="page-shell">
@@ -66,8 +91,8 @@
         {% if accepted_app %}
             <section class="panel card-animate" style="--delay: 50ms; margin-bottom: 2rem; border: 1.5px solid #10b981;">
                 <div class="panel-heading" style="display:flex; justify-content:space-between; align-items:center;">
-                    <h2 style="color:#065f46;">📊 Job Progress & Feedback</h2>
-                    <span class="status-label status-ACCEPTED">In Progress</span>
+                    <h2 style="color:#065f46;">📊 Active Assignment</h2>
+                    <span class="status-label status-{{ accepted_app.status }}">{{ accepted_app.status|replace({'_': ' '}) }}</span>
                 </div>
                 
                 <div style="display:flex; gap:1.5rem; flex-wrap:wrap; align-items:center;">
@@ -131,14 +156,30 @@
                             <select name="status" class="status-select" onchange="this.form.submit()">
                                 <option value="PENDING"      {% if app.status == 'PENDING' %}selected{% endif %}>⏳ Pending</option>
                                 <option value="INTERVIEWING" {% if app.status == 'INTERVIEWING' %}selected{% endif %}>💬 Interviewing</option>
-                                <option value="ACCEPTED"     {% if app.status == 'ACCEPTED' %}selected{% endif %}>✅ Accepted</option>
                                 <option value="REJECTED"     {% if app.status == 'REJECTED' %}selected{% endif %}>❌ Rejected</option>
+                                
+                                {% if not accepted_app or accepted_app.id == app.id %}
+                                    <option value="ACCEPTED"     {% if app.status == 'ACCEPTED' %}selected{% endif %}>✅ Accepted</option>
+                                    <option value="IN_PROGRESS"  {% if app.status == 'IN_PROGRESS' %}selected{% endif %}>🚀 In Progress</option>
+                                    <option value="COMPLETED"    {% if app.status == 'COMPLETED' %}selected{% endif %}>🏁 Completed</option>
+                                {% endif %}
                             </select>
                         </form>
 
                         {% if app.cvPath %}
-                            <a class="action-btn outline" href="{{ asset(app.cvPath) }}" target="_blank">📄 Open CV Document</a>
+                            <div style="display:flex; gap:.5rem;">
+                                <a class="action-btn outline" href="{{ asset(app.cvPath) }}" target="_blank">📄 Open CV Document</a>
+                                <button type="button" class="action-btn outline analyze-cv-btn" 
+                                        data-url="{{ path('app_management_application_analyze', {id: app.id}) }}"
+                                        data-app-id="{{ app.id }}">
+                                    ✨ Analyze with AI
+                                </button>
+                            </div>
                         {% endif %}
+                    </div>
+
+                    <div id="analysis-result-{{ app.id }}" class="analysis-box">
+                        <!-- Result will be injected here -->
                     </div>
                 </article>
             {% else %}
@@ -151,4 +192,71 @@
         </div>
     </main>
 </div>
+{% endblock %}
+
+{% block javascripts %}
+{{ parent() }}
+<script>
+document.querySelectorAll('.analyze-cv-btn').forEach(btn => {
+    btn.addEventListener('click', async function() {
+        const appId = this.getAttribute('data-app-id');
+        const url = this.getAttribute('data-url');
+        const resultBox = document.getElementById(`analysis-result-${appId}`);
+        
+        // Loading state
+        this.disabled = true;
+        const originalText = this.innerHTML;
+        this.innerHTML = '⌛ Analyzing...';
+        
+        resultBox.style.display = 'block';
+        resultBox.className = 'analysis-box AVERAGE'; // Default color while loading
+        resultBox.innerHTML = '<div style="display:flex; align-items:center; gap:.5rem;"><div class="spinner"></div> Running AI evaluation...</div>';
+
+        try {
+            const response = await fetch(url, {
+                method: 'POST',
+                headers: {
+                    'X-Requested-With': 'XMLHttpRequest'
+                }
+            });
+            
+            const data = await response.json();
+            
+            if (data.error) {
+                resultBox.className = 'analysis-box SUSPICIOUS';
+                resultBox.innerHTML = `<strong>Error:</strong> ${data.error}`;
+            } else {
+                resultBox.className = `analysis-box ${data.status}`;
+                resultBox.innerHTML = `
+                    <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:.5rem;">
+                        <span style="font-weight:800; display:flex; align-items:center;">
+                            <span class="ai-badge">AI Score</span> 
+                            Score: ${data.score}/100
+                        </span>
+                        <span class="status-label status-${data.status}">${data.status}</span>
+                    </div>
+                    <p style="margin:0; font-weight:500;">${data.reason}</p>
+                `;
+            }
+        } catch (err) {
+            resultBox.className = 'analysis-box SUSPICIOUS';
+            resultBox.innerHTML = '<strong>Error:</strong> Failed to connect to analysis service.';
+        } finally {
+            this.disabled = false;
+            this.innerHTML = originalText;
+        }
+    });
+});
+</script>
+
+<style>
+.spinner {
+    width: 16px; height: 16px;
+    border: 2px solid rgba(0,0,0,.1);
+    border-top-color: currentColor;
+    border-radius: 50%;
+    animation: spin 1s linear infinite;
+}
+@keyframes spin { to { transform: rotate(360deg); } }
+</style>
 {% endblock %}

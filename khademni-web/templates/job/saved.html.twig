@@ -69,7 +69,7 @@
                         <div class="job-card-meta">
                             <span>🏢 {{ job.company }}</span>
                             <span>📍 {{ job.location }}</span>
-                            {% if job.salaryRange %}<span>💰 {{ job.salaryRange }}</span>{% endif %}
+                            <span>💰 {{ job.salaryDisplay }}</span>
                             <span>📅 {{ job.postedDate|date('M d, Y') }}</span>
                         </div>
                         <div style="margin-top:.6rem; display:flex; gap:.4rem; flex-wrap:wrap;">

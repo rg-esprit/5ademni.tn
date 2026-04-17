@@ -43,9 +43,14 @@ class Job
     #[Assert\NotBlank(message: 'Please select a category.')]
     private ?string $category = null;
 
-    #[ORM\Column(name: 'salary_range', length: 100, nullable: true)]
-    #[Assert\Regex(pattern: '/^[\d\s\-\.]+$/', message: 'Salary should only contain numbers and optional dash for range.')]
-    private ?string $salaryRange = null;
+    #[ORM\Column(name: 'min_salary', type: Types::DECIMAL, precision: 10, scale: 2, nullable: true)]
+    private ?string $minSalary = null;
+
+    #[ORM\Column(name: 'max_salary', type: Types::DECIMAL, precision: 10, scale: 2, nullable: true)]
+    private ?string $maxSalary = null;
+
+    #[ORM\Column(length: 20, options: ['default' => 'OPEN'])]
+    private string $status = 'OPEN';
 
     #[ORM\Column(name: 'job_type', length: 50, nullable: true)]
     #[Assert\NotBlank(message: 'Please select a job type.')]
@@ -61,11 +66,18 @@ class Job
     #[ORM\JoinColumn(name: 'user_id', referencedColumnName: 'id', nullable: false, onDelete: 'CASCADE')]
     private ?User $user = null;
 
+    /**
+     * @var Collection<int, JobMilestone>
+     */
+    #[ORM\OneToMany(mappedBy: 'job', targetEntity: JobMilestone::class, cascade: ['persist', 'remove'])]
+    private Collection $milestones;
+
     public function __construct()
     {
         $this->postedDate = new \DateTime();
         $this->applications = new ArrayCollection();
         $this->savedByUsers = new ArrayCollection();
+        $this->milestones = new ArrayCollection();
     }
 
     public function getId(): ?int
@@ -133,16 +145,51 @@ class Job
         return $this;
     }
 
-    public function getSalaryRange(): ?string
+    public function getMinSalary(): ?string
     {
-        return $this->salaryRange;
+        return $this->minSalary;
     }
 
-    public function setSalaryRange(?string $salaryRange): static
+    public function setMinSalary(?string $minSalary): static
     {
-        $this->salaryRange = $salaryRange;
-
+        $this->minSalary = $minSalary;
         return $this;
+    }
+
+    public function getMaxSalary(): ?string
+    {
+        return $this->maxSalary;
+    }
+
+    public function setMaxSalary(?string $maxSalary): static
+    {
+        $this->maxSalary = $maxSalary;
+        return $this;
+    }
+
+    public function getStatus(): string
+    {
+        return $this->status;
+    }
+
+    public function setStatus(string $status): static
+    {
+        $this->status = $status;
+        return $this;
+    }
+
+    public function getSalaryDisplay(): string
+    {
+        if ($this->minSalary && $this->maxSalary) {
+            return sprintf('%g - %g', $this->minSalary, $this->maxSalary);
+        }
+        if ($this->minSalary) {
+            return sprintf('From %g', $this->minSalary);
+        }
+        if ($this->maxSalary) {
+            return sprintf('Up to %g', $this->maxSalary);
+        }
+        return 'Not specified';
     }
 
     public function getJobType(): ?string
@@ -245,13 +292,40 @@ class Job
         return false;
     }
 
-    public function getAcceptedApplication(): ?JobApplication
+    /**
+     * @return Collection<int, JobMilestone>
+     */
+    public function getMilestones(): Collection
     {
-        foreach ($this->applications as $application) {
-            if ($application->getStatus() === 'ACCEPTED') {
-                return $application;
+        return $this->milestones;
+    }
+
+    public function addMilestone(JobMilestone $milestone): static
+    {
+        if (!$this->milestones->contains($milestone)) {
+            $this->milestones->add($milestone);
+            $milestone->setJob($this);
+        }
+        return $this;
+    }
+
+    public function removeMilestone(JobMilestone $milestone): static
+    {
+        if ($this->milestones->removeElement($milestone)) {
+            if ($milestone->getJob() === $this) {
+                $milestone->setJob(null);
             }
         }
-        return null;
+        return $this;
+    }
+
+    public function getProgressPercentage(): int
+    {
+        if ($this->milestones->isEmpty()) {
+            return 0;
+        }
+
+        $completed = $this->milestones->filter(fn(JobMilestone $m) => $m->isCompleted())->count();
+        return (int) (($completed / $this->milestones->count()) * 100);
     }
 }
