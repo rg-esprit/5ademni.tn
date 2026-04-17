@@ -16,7 +16,10 @@
     </style>
 </head>
 <body>
-    <div class="header">
+    <div class="header" style="position: relative; padding-left: 100px;">
+        <div style="position: absolute; top: 15px; left: 24px; width: 50px; height: 50px; border-radius: 10px; overflow: hidden; background: white; padding: 4px;">
+            <img src="{{ brand_logo(payment.contrat ? payment.contrat.titre : 'Payment') }}" alt="Logo" style="width: 100%; height: 100%; object-fit: contain;">
+        </div>
         <h1>Recu de paiement</h1>
         <div>Reference: PAY-{{ "%04d"|format(payment.id) }}</div>
     </div>
@@ -49,7 +52,15 @@
             </tr>
             <tr>
                 <th>Montant</th>
-                <td class="amount">{{ payment.amount }} TND</td>
+                <td>
+                    <span style="font-size: 28px; font-weight: 700; color: #10b981;">{{ payment.amount }} TND</span><br>
+                    <span style="display: inline-block; margin-top: 6px; padding: 2px 10px; border-radius: 12px; background: #3b5bdb; color: #fff; font-size: 12px; font-weight: 700; margin-right: 4px;">
+                        🇪🇺 ≈ {{ payment.amount|convert_currency('TND', 'EUR') }} EUR
+                    </span>
+                    <span style="display: inline-block; margin-top: 6px; padding: 2px 10px; border-radius: 12px; background: #10b981; color: #fff; font-size: 12px; font-weight: 700;">
+                        🇺🇸 ≈ {{ payment.amount|convert_currency('TND', 'USD') }} USD
+                    </span>
+                </td>
             </tr>
         </table>
 

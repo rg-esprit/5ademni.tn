@@ -46,17 +46,23 @@
     </div>
 
     <div class="flex-between" style="margin-bottom: 24px;">
-        <span style="color: #6b7280; font-weight: 500;">{{ contrats|length }} contrats trouvés</span>
+        <span style="color: #6b7280; font-weight: 500;">{{ contrats.getTotalItemCount }} contrats trouvés</span>
         <a href="{{ path('app_contrat_new') }}" class="button-primary">+ Nouveau Contrat</a>
     </div>
 
     <div class="bento-grid-container">
         {% for contrat in contrats %}
+            {% set clientName = participantNames[contrat.clientId] ?? 'Client' %}
             <div class="glass-card">
                 <div class="flex-between" style="margin-bottom: 15px;">
-                    <span class="squishy-badge {{ contrat.statut == 'PAYE' ? 'success' : 'warning' }}">
-                        {{ contrat.statut }}
-                    </span>
+                    <div style="display: flex; align-items: center; gap: 12px;">
+                        <div style="width: 48px; height: 48px; border-radius: 14px; overflow: hidden; display: flex; align-items: center; justify-content: center; background: rgba(255, 255, 255, 0.1); border: 1px solid rgba(255, 255, 255, 0.2); backdrop-filter: blur(5px); box-shadow: 0 4px 6px rgba(0,0,0,0.05);">
+                            <img src="{{ brand_logo(clientName) }}" alt="Logo" style="max-width: 100%; max-height: 100%; object-fit: contain;">
+                        </div>
+                        <span class="squishy-badge {{ contrat.statut == 'PAYE' ? 'success' : 'warning' }}">
+                            {{ contrat.statut }}
+                        </span>
+                    </div>
                     <span style="font-size: 13px; color: #9ca3af; font-weight: 600;">#{{ contrat.id }}</span>
                 </div>
                 
@@ -73,8 +79,18 @@
                     <span style="font-size: 13px; color: #6b7280;">Date: {{ contrat.dateContrat ? contrat.dateContrat|date('d/m/Y') : '' }}</span>
                 </div>
                 
-                <div class="flex-between">
-                    <span class="cyber-price">{{ contrat.prix }} TND</span>
+                <div class="flex-between" style="align-items: flex-end;">
+                    <div style="display: flex; flex-direction: column; gap: 6px;">
+                        <span class="cyber-price">{{ contrat.prix }} TND</span>
+                        <div style="display: flex; gap: 6px; flex-wrap: wrap;">
+                            <span style="display: inline-flex; align-items: center; gap: 4px; padding: 3px 9px; border-radius: 20px; font-size: 11px; font-weight: 700; letter-spacing: 0.5px; background: linear-gradient(135deg, #2d2f71 0%, #3b5bdb 100%); color: #fff; box-shadow: 0 2px 6px rgba(59,91,219,0.35);">
+                                🇪🇺 {{ contrat.prix|convert_currency('TND', 'EUR') }} EUR
+                            </span>
+                            <span style="display: inline-flex; align-items: center; gap: 4px; padding: 3px 9px; border-radius: 20px; font-size: 11px; font-weight: 700; letter-spacing: 0.5px; background: linear-gradient(135deg, #065f46 0%, #10b981 100%); color: #fff; box-shadow: 0 2px 6px rgba(16,185,129,0.35);">
+                                🇺🇸 {{ contrat.prix|convert_currency('TND', 'USD') }} USD
+                            </span>
+                        </div>
+                    </div>
                     
                     <div style="display: flex; gap: 8px;">
                         <a href="{{ path('app_contrat_edit', {'id': contrat.id}) }}" class="button-primary" style="height: 35px; padding: 0 15px; font-size: 13px;">✏️ Editer</a>
@@ -90,6 +106,11 @@
                 <p style="color: #9ca3af; font-size: 18px;">Aucun contrat trouvé.</p>
             </div>
         {% endfor %}
+    </div>
+
+    {# KnpPaginator navigation — only renders if there is more than 1 page #}
+    <div class="knp-pagination-wrapper">
+        {{ knp_pagination_render(contrats) }}
     </div>
 </div>
 

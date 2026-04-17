@@ -7,6 +7,7 @@ use App\Entity\User;
 use App\Repository\PaymentRepository;
 use Dompdf\Dompdf;
 use Dompdf\Options;
+use Knp\Component\Pager\PaginatorInterface;
 use Symfony\Bundle\FrameworkBundle\Controller\AbstractController;
 use Symfony\Component\HttpFoundation\Request;
 use Symfony\Component\HttpFoundation\Response;
@@ -20,7 +21,7 @@ class PaymentController extends AbstractController
      * No create, edit, or delete — those are in the Admin area.
      */
     #[Route('/', name: 'app_payment_index', methods: ['GET'])]
-    public function index(Request $request, PaymentRepository $paymentRepository): Response
+    public function index(Request $request, PaymentRepository $paymentRepository, PaginatorInterface $paginator): Response
     {
         $user = $this->getUser();
 
@@ -30,29 +31,32 @@ class PaymentController extends AbstractController
 
         $search = $request->query->get('search');
 
-        // Ownership filter: regular users see only payments linked to their contracts
-        // Admins see everything
+        // Build query (QueryBuilder, not array) for paginator
         if ($this->isGranted('ROLE_ADMIN')) {
-            $payments = $search
-                ? $paymentRepository->searchPayments($search)
-                : $paymentRepository->findAll();
+            $qb = $paymentRepository->findAllQueryBuilder($search);
         } else {
-            $payments = $paymentRepository->findByUser($user, $search);
+            $qb = $paymentRepository->findByUserQueryBuilder($user, $search);
         }
 
-        // Stats calculation
-        $totalPaidAmount = 0;
-        foreach ($payments as $p) {
-            $totalPaidAmount += $p->getAmount();
-        }
+        // Stats: lightweight aggregate query (accurate across all pages)
+        $statsQb = clone $qb;
+        $statsQb->select('COUNT(p.id) AS total_count, SUM(p.amount) AS total_amount');
+        $stats = $statsQb->getQuery()->getSingleResult();
+        $totalPaidAmount = round((float) ($stats['total_amount'] ?? 0), 2);
+        $paymentCount = (int) ($stats['total_count'] ?? 0);
+
+        // Paginate at 8 per page
+        $page = max(1, (int) $request->query->get('page', 1));
+        $pagination = $paginator->paginate($qb, $page, 8);
 
         return $this->render('payment/index.html.twig', [
-            'payments' => $payments,
+            'payments' => $pagination,
             'search' => $search,
             'totalPaidAmount' => $totalPaidAmount,
-            'paymentCount' => count($payments)
+            'paymentCount' => $paymentCount,
         ]);
     }
+
 
     #[Route('/{id}/export', name: 'app_payment_export_pdf', methods: ['GET'])]
     public function exportPdf(Payment $payment): Response

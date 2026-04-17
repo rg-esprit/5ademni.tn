@@ -1,0 +1,43 @@
+{%- if pageCount > 1 -%}
+<div class="knp-pagination-wrapper">
+    <ul class="knp-pager">
+
+        {%- if current > 1 -%}
+        <li class="knp-pager-nav">
+            <a href="{{ path(route, query|merge({(pageParameterName): current - 1})) }}" class="knp-btn knp-btn-nav">&#8592;</a>
+        </li>
+        {%- else -%}
+        <li class="knp-pager-nav knp-disabled">
+            <span class="knp-btn knp-btn-nav">&#8592;</span>
+        </li>
+        {%- endif -%}
+
+        {%- for page in pagesInRange -%}
+            {%- if page == current -%}
+            <li class="knp-pager-page knp-active">
+                <span class="knp-btn">{{ page }}</span>
+            </li>
+            {%- elseif page == '...' -%}
+            <li class="knp-pager-ellipsis">
+                <span class="knp-btn knp-ellipsis">···</span>
+            </li>
+            {%- else -%}
+            <li class="knp-pager-page">
+                <a href="{{ path(route, query|merge({(pageParameterName): page})) }}" class="knp-btn">{{ page }}</a>
+            </li>
+            {%- endif -%}
+        {%- endfor -%}
+
+        {%- if current < pageCount -%}
+        <li class="knp-pager-nav">
+            <a href="{{ path(route, query|merge({(pageParameterName): current + 1})) }}" class="knp-btn knp-btn-nav">&#8594;</a>
+        </li>
+        {%- else -%}
+        <li class="knp-pager-nav knp-disabled">
+            <span class="knp-btn knp-btn-nav">&#8594;</span>
+        </li>
+        {%- endif -%}
+
+    </ul>
+</div>
+{%- endif -%}

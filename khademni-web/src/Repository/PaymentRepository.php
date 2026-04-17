@@ -3,7 +3,9 @@
 namespace App\Repository;
 
 use App\Entity\Payment;
+use App\Entity\User;
 use Doctrine\Bundle\DoctrineBundle\Repository\ServiceEntityRepository;
+use Doctrine\ORM\QueryBuilder;
 use Doctrine\Persistence\ManagerRegistry;
 
 /**
@@ -42,7 +44,15 @@ class PaymentRepository extends ServiceEntityRepository
      *
      * @return Payment[]
      */
-    public function findByUser(\App\Entity\User $user, ?string $search = null): array
+    public function findByUser(User $user, ?string $search = null): array
+    {
+        return $this->findByUserQueryBuilder($user, $search)->getQuery()->getResult();
+    }
+
+    /**
+     * Same as findByUser() but returns a QueryBuilder for use with KnpPaginatorBundle.
+     */
+    public function findByUserQueryBuilder(User $user, ?string $search = null): QueryBuilder
     {
         $qb = $this->createQueryBuilder('p')
             ->join('p.contrat', 'c')
@@ -55,6 +65,24 @@ class PaymentRepository extends ServiceEntityRepository
                ->setParameter('search', '%' . $search . '%');
         }
 
-        return $qb->getQuery()->getResult();
+        return $qb;
+    }
+
+    /**
+     * Returns all payments as a QueryBuilder for admin pagination.
+     */
+    public function findAllQueryBuilder(?string $search = null): QueryBuilder
+    {
+        $qb = $this->createQueryBuilder('p')
+            ->leftJoin('p.contrat', 'c')
+            ->orderBy('p.createdAt', 'DESC');
+
+        if ($search) {
+            $qb->where('p.status LIKE :search OR c.titre LIKE :search')
+               ->setParameter('search', '%' . $search . '%');
+        }
+
+        return $qb;
     }
 }
+

@@ -1,0 +1,293 @@
+{% extends 'base.html.twig' %}
+
+{% block title %}Vérification Email — Paiement{% endblock %}
+
+{% block stylesheets %}
+    {{ parent() }}
+    <link rel="stylesheet" href="{{ asset('css/contrat_web.css') }}">
+    <style>
+        .otp-card {
+            max-width: 460px;
+            margin: 60px auto;
+            background: white;
+            border-radius: 28px;
+            padding: 48px 40px;
+            box-shadow: 0 20px 60px rgba(108, 92, 231, 0.1), 0 4px 12px rgba(0,0,0,0.04);
+            border: 1px solid rgba(108, 92, 231, 0.08);
+            text-align: center;
+        }
+        .otp-icon {
+            width: 64px;
+            height: 64px;
+            border-radius: 18px;
+            background: linear-gradient(135deg, #6c5ce7 0%, #a855f7 100%);
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            margin-bottom: 20px;
+            box-shadow: 0 8px 24px rgba(108, 92, 231, 0.3);
+        }
+        .otp-icon svg {
+            width: 32px;
+            height: 32px;
+            fill: white;
+        }
+        .otp-title {
+            font-size: 24px;
+            font-weight: 800;
+            color: #1a1a1a;
+            margin: 0 0 8px;
+            letter-spacing: -0.5px;
+        }
+        .otp-subtitle {
+            font-size: 14px;
+            color: #6b7280;
+            margin: 0 0 32px;
+            line-height: 1.5;
+        }
+        .otp-email-highlight {
+            color: #6c5ce7;
+            font-weight: 700;
+        }
+        .otp-input-group {
+            display: flex;
+            gap: 8px;
+            justify-content: center;
+            margin-bottom: 24px;
+        }
+        .otp-digit {
+            width: 52px;
+            height: 60px;
+            border: 2px solid #e5e7eb;
+            border-radius: 14px;
+            text-align: center;
+            font-size: 24px;
+            font-weight: 800;
+            font-family: 'Courier New', monospace;
+            color: #1a1a1a;
+            background: #f9fafb;
+            transition: all 0.2s ease;
+            outline: none;
+        }
+        .otp-digit:focus {
+            border-color: #6c5ce7;
+            background: white;
+            box-shadow: 0 0 0 3px rgba(108, 92, 231, 0.15);
+            transform: translateY(-2px);
+        }
+        .otp-digit.filled {
+            border-color: #6c5ce7;
+            background: rgba(108, 92, 231, 0.04);
+        }
+        .otp-error {
+            background: #fef2f2;
+            color: #ef4444;
+            padding: 12px 18px;
+            border-radius: 12px;
+            font-size: 13px;
+            font-weight: 600;
+            margin-bottom: 20px;
+            border: 1px solid #fecaca;
+        }
+        .otp-success {
+            background: #f0fdf4;
+            color: #10b981;
+            padding: 12px 18px;
+            border-radius: 12px;
+            font-size: 13px;
+            font-weight: 600;
+            margin-bottom: 20px;
+            border: 1px solid #bbf7d0;
+        }
+        .otp-btn-verify {
+            width: 100%;
+            height: 52px;
+            background: linear-gradient(135deg, #6c5ce7 0%, #a855f7 100%);
+            color: white;
+            border: none;
+            border-radius: 14px;
+            font-size: 15px;
+            font-weight: 800;
+            cursor: pointer;
+            transition: all 0.2s ease;
+            box-shadow: 0 6px 20px rgba(108, 92, 231, 0.35);
+            letter-spacing: 0.3px;
+        }
+        .otp-btn-verify:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 10px 28px rgba(108, 92, 231, 0.45);
+        }
+        .otp-btn-verify:disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+            transform: none;
+        }
+        .otp-resend {
+            margin-top: 20px;
+            font-size: 13px;
+            color: #9ca3af;
+        }
+        .otp-resend a {
+            color: #6c5ce7;
+            font-weight: 700;
+            text-decoration: none;
+        }
+        .otp-resend a:hover {
+            text-decoration: underline;
+        }
+        .otp-timer {
+            display: inline-block;
+            font-weight: 700;
+            color: #6c5ce7;
+            font-variant-numeric: tabular-nums;
+        }
+        .otp-contract-info {
+            background: #f9fafb;
+            border-radius: 14px;
+            padding: 16px;
+            margin-bottom: 28px;
+            border: 1px solid #f3f4f6;
+        }
+        .otp-contract-info strong {
+            color: #1a1a1a;
+            font-size: 14px;
+        }
+        .otp-contract-info span {
+            color: #6b7280;
+            font-size: 13px;
+            display: block;
+            margin-top: 4px;
+        }
+        .otp-back {
+            margin-top: 16px;
+        }
+        .otp-back a {
+            color: #6c5ce7;
+            text-decoration: none;
+            font-weight: 600;
+            font-size: 14px;
+        }
+    </style>
+{% endblock %}
+
+{% block body %}
+{% include 'partials/_header.html.twig' %}
+
+<div class="bento-root" style="background: #f7f5f8; min-height: 80vh;">
+    <div class="otp-card">
+        <div class="otp-icon">
+            <svg viewBox="0 0 24 24"><path d="M20 4H4c-1.1 0-2 .9-2 2v12c0 1.1.9 2 2 2h16c1.1 0 2-.9 2-2V6c0-1.1-.9-2-2-2zm0 4l-8 5-8-5V6l8 5 8-5v2z"/></svg>
+        </div>
+
+        <h1 class="otp-title">Vérification requise</h1>
+        <p class="otp-subtitle">
+            Un code à 6 chiffres a été envoyé à<br>
+            <span class="otp-email-highlight">{{ user_email }}</span>
+        </p>
+
+        <div class="otp-contract-info">
+            <strong>{{ contrat.titre }}</strong>
+            <span>{{ contrat.prix|number_format(2, '.', ',') }} TND</span>
+        </div>
+
+        {% if error %}
+            <div class="otp-error">❌ {{ error }}</div>
+        {% endif %}
+
+        {% if sent %}
+            <div class="otp-success">✅ Code envoyé avec succès!</div>
+        {% endif %}
+
+        <form method="post" action="{{ path('app_contrat_verify_email', {id: contrat.id}) }}" id="otpForm">
+            <input type="hidden" name="_token" value="{{ csrf_token('verify_otp_' ~ contrat.id) }}">
+            <input type="hidden" name="otp_code" id="otpHidden" value="">
+
+            <div class="otp-input-group">
+                <input type="text" maxlength="1" class="otp-digit" data-index="0" inputmode="numeric" pattern="[0-9]" autocomplete="off">
+                <input type="text" maxlength="1" class="otp-digit" data-index="1" inputmode="numeric" pattern="[0-9]" autocomplete="off">
+                <input type="text" maxlength="1" class="otp-digit" data-index="2" inputmode="numeric" pattern="[0-9]" autocomplete="off">
+                <input type="text" maxlength="1" class="otp-digit" data-index="3" inputmode="numeric" pattern="[0-9]" autocomplete="off">
+                <input type="text" maxlength="1" class="otp-digit" data-index="4" inputmode="numeric" pattern="[0-9]" autocomplete="off">
+                <input type="text" maxlength="1" class="otp-digit" data-index="5" inputmode="numeric" pattern="[0-9]" autocomplete="off">
+            </div>
+
+            <button type="submit" class="otp-btn-verify" id="verifyBtn" disabled>🔐 Vérifier et continuer</button>
+        </form>
+
+        <div class="otp-resend">
+            <span id="timerText">Code valide pendant <span class="otp-timer" id="countdown">{{ seconds_remaining }}</span>s</span>
+            <br>
+            <a href="{{ path('app_contrat_verify_email', {id: contrat.id, resend: 1}) }}" id="resendLink" style="display:none;">🔄 Renvoyer un nouveau code</a>
+        </div>
+
+        <div class="otp-back">
+            <a href="{{ path('app_contrat_index') }}">← Retour aux contrats</a>
+        </div>
+    </div>
+</div>
+
+<script>
+(function() {
+    const digits = document.querySelectorAll('.otp-digit');
+    const hidden = document.getElementById('otpHidden');
+    const btn = document.getElementById('verifyBtn');
+    const countdown = document.getElementById('countdown');
+    const timerText = document.getElementById('timerText');
+    const resendLink = document.getElementById('resendLink');
+    let remaining = {{ seconds_remaining }};
+
+    function updateHidden() {
+        let code = '';
+        digits.forEach(d => code += d.value);
+        hidden.value = code;
+        btn.disabled = code.length < 6;
+        digits.forEach(d => {
+            d.classList.toggle('filled', d.value !== '');
+        });
+    }
+
+    digits.forEach((input, i) => {
+        input.addEventListener('input', (e) => {
+            const val = e.target.value.replace(/\D/g, '');
+            e.target.value = val.slice(-1);
+            if (val && i < 5) digits[i + 1].focus();
+            updateHidden();
+        });
+        input.addEventListener('keydown', (e) => {
+            if (e.key === 'Backspace' && !input.value && i > 0) {
+                digits[i - 1].focus();
+                digits[i - 1].value = '';
+                updateHidden();
+            }
+        });
+        input.addEventListener('paste', (e) => {
+            e.preventDefault();
+            const text = (e.clipboardData || window.clipboardData).getData('text').replace(/\D/g, '').slice(0, 6);
+            for (let j = 0; j < 6; j++) {
+                digits[j].value = text[j] || '';
+            }
+            if (text.length > 0) digits[Math.min(text.length, 5)].focus();
+            updateHidden();
+        });
+    });
+
+    digits[0].focus();
+
+    // Countdown timer
+    const timer = setInterval(() => {
+        remaining--;
+        if (remaining <= 0) {
+            clearInterval(timer);
+            countdown.textContent = '0';
+            timerText.innerHTML = 'Code expiré.';
+            resendLink.style.display = 'inline';
+            btn.disabled = true;
+        } else {
+            const m = Math.floor(remaining / 60);
+            const s = remaining % 60;
+            countdown.textContent = m > 0 ? m + ':' + String(s).padStart(2, '0') : s;
+        }
+    }, 1000);
+})();
+</script>
+{% endblock %}

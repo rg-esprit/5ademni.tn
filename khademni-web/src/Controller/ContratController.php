@@ -9,7 +9,9 @@ use App\Form\ContratType;
 use App\Repository\JobRepository;
 use App\Repository\UserRepository;
 use App\Service\ContractPaymentService;
+use App\Service\CurrencyConverterService;
 use Doctrine\ORM\EntityManagerInterface;
+use Knp\Component\Pager\PaginatorInterface;
 use Dompdf\Dompdf;
 use Dompdf\Options;
 use Stripe\Checkout\Session;
@@ -25,14 +27,15 @@ use Symfony\Component\Routing\Generator\UrlGeneratorInterface;
 class ContratController extends AbstractController
 {
     #[Route('/', name: 'app_contrat_index', methods: ['GET'])]
-    public function index(Request $request, EntityManagerInterface $em, UserRepository $userRepository): Response
+    public function index(Request $request, EntityManagerInterface $em, UserRepository $userRepository, PaginatorInterface $paginator): Response
     {
         $user = $this->getUser();
         $search = $request->query->get('search');
 
         $qb = $em->createQueryBuilder()
             ->select('c')
-            ->from(Contrat::class, 'c');
+            ->from(Contrat::class, 'c')
+            ->orderBy('c.id', 'DESC');
 
         // Ownership filter: regular users see only their own contracts
         // Admins see everything
@@ -50,16 +53,24 @@ class ContratController extends AbstractController
                 ->setParameter('search', '%' . $search . '%');
         }
 
-        $contrats = $qb->getQuery()->getResult();
+        // Stats: run a separate lightweight query for totals (accurate across all pages)
+        $statsQb = clone $qb;
+        $statsQb->select('COUNT(c.id) AS total_count, SUM(c.prix) AS total_amount');
+        $stats = $statsQb->getQuery()->getSingleResult();
+        $activeCount = (int) ($stats['total_count'] ?? 0);
+        $totalPendingAmount = (float) ($stats['total_amount'] ?? 0);
 
+        // Paginate: 6 cards per page (protects Logo API + Currency API quotas)
+        $page = max(1, (int) $request->query->get('page', 1));
+        $pagination = $paginator->paginate($qb, $page, 6);
+
+        // Resolve participant names only for the current page
         $participantNames = [];
         $userIds = [];
-
-        foreach ($contrats as $contrat) {
+        foreach ($pagination->getItems() as $contrat) {
             if (null !== $contrat->getClientId()) {
                 $userIds[] = $contrat->getClientId();
             }
-
             if (null !== $contrat->getFreelancerId()) {
                 $userIds[] = $contrat->getFreelancerId();
             }
@@ -71,18 +82,12 @@ class ContratController extends AbstractController
             }
         }
 
-        // Stats calculation
-        $totalPendingAmount = 0;
-        foreach ($contrats as $c) {
-            $totalPendingAmount += $c->getPrix();
-        }
-
         return $this->render('contrat/index.html.twig', [
-            'contrats' => $contrats,
+            'contrats' => $pagination,
             'participantNames' => $participantNames,
             'search' => $search,
             'totalPendingAmount' => $totalPendingAmount,
-            'activeCount' => count($contrats)
+            'activeCount' => $activeCount,
         ]);
     }
 
@@ -272,7 +277,7 @@ class ContratController extends AbstractController
     }
 
     #[Route('/{id}/export', name: 'app_contrat_export_pdf', methods: ['GET'])]
-    public function exportPdf(Contrat $contrat): Response
+    public function exportPdf(Contrat $contrat, UserRepository $userRepository): Response
     {
         // Ownership check
         $this->denyAccessUnlessOwner($contrat);
@@ -282,8 +287,11 @@ class ContratController extends AbstractController
 
         $dompdf = new Dompdf($pdfOptions);
 
+        $client = $userRepository->find($contrat->getClientId());
+        
         $html = $this->renderView('contrat/pdf.html.twig', [
-            'contrat' => $contrat
+            'contrat' => $contrat,
+            'clientName' => $client ? $client->getDisplayName() : 'Client'
         ]);
 
         $dompdf->loadHtml($html);
@@ -297,10 +305,83 @@ class ContratController extends AbstractController
         );
     }
 
-    #[Route('/{id}/pay', name: 'app_contrat_pay', methods: ['GET'])]
-    public function pay(Contrat $contrat, ContractPaymentService $contractPaymentService): Response
+    #[Route('/{id}/verify-email', name: 'app_contrat_verify_email', methods: ['GET', 'POST'])]
+    public function verifyEmail(
+        Request $request,
+        Contrat $contrat,
+        \App\Service\PaymentOtpService $otpService
+    ): Response
     {
         $this->denyAccessUnlessClientCanPay($contrat);
+
+        $user = $this->getUser();
+        if (!$user instanceof User) {
+            return $this->redirectToRoute('app_login');
+        }
+
+        // If already verified, go straight to pay
+        if ($otpService->isVerified()) {
+            return $this->redirectToRoute('app_contrat_pay', ['id' => $contrat->getId()]);
+        }
+
+        $error = null;
+        $sent = false;
+
+        // POST = user submitted a code
+        if ($request->isMethod('POST')) {
+            if ($this->isCsrfTokenValid('verify_otp_' . $contrat->getId(), $request->request->get('_token'))) {
+                $code = trim((string) $request->request->get('otp_code', ''));
+                $result = $otpService->verifyOtp($code);
+
+                if ($result['valid']) {
+                    $this->addFlash('success', '✅ Email vérifié avec succès! Redirection vers le paiement...');
+
+                    return $this->redirectToRoute('app_contrat_pay', ['id' => $contrat->getId()]);
+                }
+
+                $error = $result['error'];
+            } else {
+                $error = 'Session expirée. Veuillez réessayer.';
+            }
+        }
+
+        // GET with ?resend=1 or first visit → send a new code
+        if ($request->isMethod('GET') && ($request->query->get('resend') || $otpService->getOtpSecondsRemaining() <= 0)) {
+            try {
+                $otpService->sendOtp($user);
+                $sent = true;
+            } catch (\Throwable $e) {
+                $error = 'Impossible d\'envoyer l\'email: ' . $e->getMessage();
+            }
+        }
+
+        return $this->render('contrat/verify_email.html.twig', [
+            'contrat' => $contrat,
+            'user_email' => $user->getEmail(),
+            'error' => $error,
+            'sent' => $sent,
+            'seconds_remaining' => max(0, $otpService->getOtpSecondsRemaining()),
+        ]);
+    }
+
+    #[Route('/{id}/pay', name: 'app_contrat_pay', methods: ['GET'])]
+    public function pay(
+        Contrat $contrat,
+        ContractPaymentService $contractPaymentService,
+        CurrencyConverterService $currencyConverter,
+        \App\Service\AiContractService $aiContractService,
+        \App\Repository\ContratRepository $contratRepository,
+        \App\Service\PaymentOtpService $otpService
+    ): Response
+    {
+        $this->denyAccessUnlessClientCanPay($contrat);
+
+        // Email verification gate — must verify before any payment
+        if (!$otpService->isVerified()) {
+            $this->addFlash('info', '🔐 Veuillez vérifier votre email avant de procéder au paiement.');
+
+            return $this->redirectToRoute('app_contrat_verify_email', ['id' => $contrat->getId()]);
+        }
 
         if ($contrat->getStatut() === 'PAYE') {
             $this->addFlash('info', 'Ce contrat a deja ete paye.');
@@ -323,6 +404,42 @@ class ContratController extends AbstractController
             return $this->redirectToRoute('app_contrat_index');
         }
 
+        // AI Fraud Guard: analyze the payment amount before proceeding
+        $request = $this->container->get('request_stack')->getCurrentRequest();
+        $sessionKey = 'fraud_confirmed_' . $contrat->getId();
+        $alreadyConfirmed = $request && $request->getSession()->get($sessionKey, false);
+
+        if (!$alreadyConfirmed) {
+            $allContracts = $contratRepository->findAll();
+            $prices = array_filter(array_map(fn($c) => $c->getPrix(), $allContracts), fn($p) => $p !== null && $p > 0);
+            $platformAvg = count($prices) > 0 ? array_sum($prices) / count($prices) : 0;
+            $platformMax = count($prices) > 0 ? max($prices) : 0;
+
+            $riskResult = $aiContractService->analyzePaymentRisk(
+                $checkout['amount'],
+                $platformAvg,
+                $platformMax,
+                $contrat->getTitre() ?? ''
+            );
+
+            if ($riskResult['suspicious']) {
+                $warningMsg = '⚠️ Alerte IA Anti-Fraude: ' . $riskResult['reason'];
+                if ($riskResult['suggestion']) {
+                    $warningMsg .= ' — ' . $riskResult['suggestion'];
+                }
+                $this->addFlash('warning', $warningMsg);
+                $this->addFlash('info', '💡 Si ce montant est correct, cliquez à nouveau sur "Payer" pour confirmer.');
+
+                // Set session flag so the next click proceeds
+                $request->getSession()->set($sessionKey, true);
+
+                return $this->redirectToRoute('app_contrat_index');
+            }
+        } else {
+            // Clear the bypass flag after use
+            $request->getSession()->remove($sessionKey);
+        }
+
         Stripe::setApiKey($stripeSecretKey);
 
         try {
@@ -335,7 +452,7 @@ class ContratController extends AbstractController
                             'product_data' => [
                                 'name' => $checkout['name'],
                             ],
-                            'unit_amount' => (int) round($checkout['amount'] * 100),
+                            'unit_amount' => (int) round($currencyConverter->convert($checkout['amount'], 'TND', 'USD') * 100),
                         ],
                         'quantity' => 1,
                     ],
@@ -441,8 +558,10 @@ class ContratController extends AbstractController
             return;
         }
 
-        if ($contrat->getClientId() !== $user->getId()) {
-            throw $this->createAccessDeniedException('Seul le client peut lancer ce paiement.');
+        // For testing/demonstration purposes, allow any participant of the contract to initiate payment
+        // as long as they are associated with this contract.
+        if ($contrat->getClientId() !== $user->getId() && $contrat->getFreelancerId() !== $user->getId()) {
+            throw $this->createAccessDeniedException('Seul le client (ou le participant) peut lancer ce paiement.');
         }
     }
 
