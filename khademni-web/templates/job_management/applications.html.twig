@@ -142,7 +142,15 @@
                             </div>
                         </div>
 
-                        <span class="status-label status-{{ app.status }}">{{ app.status }}</span>
+                        <div id="app-header-{{ app.id }}" style="display:flex; align-items:center; gap:1rem;">
+                            {% if app.aiMatchScore is not null %}
+                                <div class="match-badge" style="display:flex; flex-direction:column; align-items:center; background:#f0fdf4; border:1px solid #bbf7d0; padding:.4rem .8rem; border-radius:.5rem;">
+                                    <span style="font-size:.7rem; font-weight:800; color:#166534; text-transform:uppercase; letter-spacing:0.5px;">AI Match</span>
+                                    <span style="font-size:1.1rem; font-weight:800; color:#052e16;">{{ app.aiMatchScore }}%</span>
+                                </div>
+                            {% endif %}
+                            <span class="status-label status-{{ app.status }}">{{ app.status }}</span>
+                        </div>
                     </div>
 
                     <div style="margin-top:.5rem; padding:1rem; background: #f9fafb; border-radius:.5rem; font-size:.87rem; line-height:1.65; border-left: 3px solid #4f46e5;">
@@ -237,6 +245,19 @@ document.querySelectorAll('.analyze-cv-btn').forEach(btn => {
                     </div>
                     <p style="margin:0; font-weight:500;">${data.reason}</p>
                 `;
+                
+                if (data.matchScore !== undefined && data.matchScore !== null) {
+                    const headerContainer = document.getElementById(`app-header-${appId}`);
+                    if (headerContainer && !headerContainer.querySelector('.match-badge')) {
+                        const matchHtml = `
+                            <div class="match-badge" style="display:flex; flex-direction:column; align-items:center; background:#f0fdf4; border:1px solid #bbf7d0; padding:.4rem .8rem; border-radius:.5rem;">
+                                <span style="font-size:.7rem; font-weight:800; color:#166534; text-transform:uppercase; letter-spacing:0.5px;">AI Match</span>
+                                <span style="font-size:1.1rem; font-weight:800; color:#052e16;">${data.matchScore}%</span>
+                            </div>
+                        `;
+                        headerContainer.insertAdjacentHTML('afterbegin', matchHtml);
+                    }
+                }
             }
         } catch (err) {
             resultBox.className = 'analysis-box SUSPICIOUS';
