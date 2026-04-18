@@ -5,6 +5,7 @@ namespace App\Controller;
 use App\Entity\JobApplication;
 use App\Service\CVParserService;
 use App\Service\GeminiService;
+use Doctrine\ORM\EntityManagerInterface;
 use Symfony\Bundle\FrameworkBundle\Controller\AbstractController;
 use Symfony\Component\HttpFoundation\JsonResponse;
 use Symfony\Component\Routing\Annotation\Route;
@@ -17,7 +18,8 @@ class ApplicationAnalysisController extends AbstractController
     public function analyze(
         JobApplication $application,
         CVParserService $cvParser,
-        GeminiService $gemini
+        GeminiService $gemini,
+        EntityManagerInterface $em
     ): JsonResponse {
         // Security: Only the job owner can analyze
         $job = $application->getJob();
@@ -51,6 +53,20 @@ class ApplicationAnalysisController extends AbstractController
         if (!$analysis) {
             return new JsonResponse(['error' => 'AI analysis failed. Please check your API key and connection.'], 500);
         }
+
+        // Calculate Match Score if missing
+        if ($application->getAiMatchScore() === null) {
+            $jobRequirements = $job->getRequirements() ?: $job->getDescription();
+            if (!empty(trim($jobRequirements))) {
+                $matchScore = $gemini->calculateMatchScore($text, $jobRequirements);
+                if ($matchScore !== null) {
+                    $application->setAiMatchScore($matchScore);
+                    $em->flush();
+                }
+            }
+        }
+        
+        $analysis['matchScore'] = $application->getAiMatchScore();
 
         return new JsonResponse($analysis);
     }

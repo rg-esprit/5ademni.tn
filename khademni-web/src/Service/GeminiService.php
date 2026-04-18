@@ -212,6 +212,60 @@ JSON Structure:
         }
     }
 
+    /**
+     * Calculates a match percentage between a CV and job requirements.
+     */
+    public function calculateMatchScore(string $cvText, string $jobRequirements): ?int
+    {
+        $apiUrl = "https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=" . $this->apiKey;
+
+        $prompt = "You are an expert recruitment AI. Calculate the match percentage between the candidate's CV and the job requirements.
+Return ONLY a valid JSON object with a single key 'match_score' containing an integer from 0 to 100.
+
+CV CONTENT:
+\"$cvText\"
+
+JOB REQUIREMENTS:
+\"$jobRequirements\"";
+
+        try {
+            $response = $this->httpClient->request('POST', $apiUrl, [
+                'headers' => [
+                    'Content-Type' => 'application/json',
+                ],
+                'json' => [
+                    'contents' => [
+                        [
+                            'parts' => [
+                                ['text' => $prompt]
+                            ]
+                        ]
+                    ]
+                ]
+            ]);
+
+            if ($response->getStatusCode() !== 200) {
+                $this->logger->error('Gemini API Error (Match): ' . $response->getContent(false));
+                return null;
+            }
+
+            $result = $response->toArray();
+            $text = $result['candidates'][0]['content']['parts'][0]['text'] ?? '';
+            
+            if (preg_match('/\{.*\}/s', $text, $matches)) {
+                $decoded = json_decode($matches[0], true);
+                if (json_last_error() === JSON_ERROR_NONE && isset($decoded['match_score'])) {
+                    return (int)$decoded['match_score'];
+                }
+            }
+            
+            return null;
+        } catch (\Exception $e) {
+            $this->logger->error('Gemini Match Score failed: ' . $e->getMessage());
+            return null;
+        }
+    }
+
     private function constructPrompt(string $idea): string
     {
         $categories = ['IT & Software', 'Design & Creative', 'Marketing', 'Writing & Translation', 'Sales & Support', 'Other'];

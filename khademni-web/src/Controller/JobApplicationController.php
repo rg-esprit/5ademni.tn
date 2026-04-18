@@ -18,11 +18,14 @@ use Symfony\Component\HttpFoundation\Response;
 use Symfony\Component\Routing\Attribute\Route;
 use Symfony\Component\String\Slugger\SluggerInterface;
 
+use App\Service\CVParserService;
+use App\Service\GeminiService;
+
 class JobApplicationController extends AbstractController
 {
     public function __construct(private NotificationService $notificationService) {}
     #[Route('/jobs/{id}/apply', name: 'app_job_apply', methods: ['GET', 'POST'])]
-    public function apply(Request $request, Job $job, EntityManagerInterface $entityManager, JobApplicationRepository $applicationRepository, SluggerInterface $slugger, ApplicationManager $applicationManager): Response
+    public function apply(Request $request, Job $job, EntityManagerInterface $entityManager, JobApplicationRepository $applicationRepository, SluggerInterface $slugger, ApplicationManager $applicationManager, CVParserService $cvParser, GeminiService $gemini): Response
     {
         $user = $this->getUser();
         if (!$user instanceof User) {
@@ -73,6 +76,26 @@ class JobApplicationController extends AbstractController
             }
 
             $entityManager->persist($application);
+
+            // Calculate AI Match Score
+            $cvText = '';
+            if ($application->getCvPath()) {
+                $absolutePath = $this->getParameter('kernel.project_dir') . '/public/' . ltrim($application->getCvPath(), '/');
+                $cvText = $cvParser->extractTextFromPdf($absolutePath);
+            }
+            if (empty(trim($cvText))) {
+                $cvText = $application->getDescription();
+            }
+
+            $jobRequirements = $job->getRequirements() ?: $job->getDescription();
+
+            if (!empty(trim($cvText)) && !empty(trim($jobRequirements))) {
+                $matchScore = $gemini->calculateMatchScore($cvText, $jobRequirements);
+                if ($matchScore !== null) {
+                    $application->setAiMatchScore($matchScore);
+                }
+            }
+
             $entityManager->flush();
 
             // Notify the job owner about the new application
