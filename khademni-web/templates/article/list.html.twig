@@ -1,11 +1,15 @@
 {# filepath: c:\Users\MSI\Desktop\projet pi dev\my_project_Symfony\templates\article\list.html.twig #}
 {% extends 'base.html.twig' %}
 
-{% block title %}Liste des articles
-{% endblock %}
+{% block title %}Liste des articles{% endblock %}
 
 {% block stylesheets %}
 	<style>
+		.page {
+			margin: 0 auto;
+			padding: 30px 40px;
+			max-width: 1400px; /* Vous pouvez ajuster cette largeur maximale selon vos besoins */
+		}
 		.panel {
 			background: #fff;
 			border: 1px solid #ece7fb;
@@ -264,20 +268,26 @@
 			display: flex;
 			justify-content: space-between;
 			align-items: center;
-			margin-bottom: 20px;
+			
+			    margin: 20px auto;
 		}
 
 		.header-container h1 {
 			margin: 0;
+			
 		}
 	</style>
 {% endblock %}
 
+<<<<<<< HEAD
 {% block body %}
 	<div class="page-shell">
 		{% include 'partials/_header.html.twig' %}
 
 		<main class="page-content">
+=======
+{% block body %}{% include 'partials/_header.html.twig' %}
+>>>>>>> 4b368ba (Ajout mitier avancer)
 	<div class="page">
 		<div class="header-container">
 			<h1>Liste des articles</h1>
@@ -293,13 +303,16 @@
             <input 
                 type="text" 
                 name="search" 
+                id="dynamic-search-input"
                 placeholder="Rechercher un article..." 
                 value="{{ app.request.get('search') }}"
                 class="search-input"
+                autocomplete="off"
             >
-
+            <div id="search-clear-btn" class="search-clear" style="display:none;">
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M18 6L6 18M6 6l12 12"/></svg>
+            </div>
             <button type="submit" class="search-btn">
-                <!-- ICON MODERNE (SVG) -->
                 <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2">
                     <circle cx="8" cy="8" r="6"></circle>
                     <line x1="13" y1="13" x2="17" y2="17"></line>
@@ -314,6 +327,7 @@
         </select>
 
     </form>
+    <div id="search-results-count" class="search-results-count"></div>
 </div>
 
 		<div class="panel table-wrap">
@@ -329,7 +343,7 @@
 						<th>Actions</th>
 					</tr>
 				</thead>
-				<tbody>
+				<tbody id="articles-table-body">
 					{% for row in rows %}
 						{% set article = row[0] %}
 						<tr>
@@ -362,6 +376,147 @@
 			</table>
 		</div>
 	</div>
+<<<<<<< HEAD
 		</main>
 	</div>
+=======
+	
+
+<script>
+document.addEventListener('DOMContentLoaded', () => {
+    const searchInput = document.getElementById('dynamic-search-input');
+    const tableBody = document.getElementById('articles-table-body');
+    const clearBtn = document.getElementById('search-clear-btn');
+    const resultsCount = document.getElementById('search-results-count');
+    const allRows = Array.from(tableBody.querySelectorAll('tr'));
+
+    function filterTable() {
+        const query = searchInput.value.toLowerCase().trim();
+        let visibleCount = 0;
+
+        clearBtn.style.display = query.length > 0 ? 'flex' : 'none';
+
+        allRows.forEach(row => {
+            const cells = row.querySelectorAll('td');
+            if (cells.length <= 1) return;
+
+            const text = Array.from(cells).map(c => c.textContent.toLowerCase()).join(' ');
+            const match = text.includes(query);
+            
+            row.style.display = match ? '' : 'none';
+            if (match && query.length > 0) {
+                row.style.animation = 'rowFadeIn 0.3s ease';
+            } else {
+                row.style.animation = '';
+            }
+            if (match) visibleCount++;
+        });
+
+        if (query.length > 0) {
+            resultsCount.textContent = visibleCount + ' résultat' + (visibleCount !== 1 ? 's' : '') + ' trouvé' + (visibleCount !== 1 ? 's' : '');
+            resultsCount.style.display = 'inline-block';
+        } else {
+            resultsCount.style.display = 'none';
+        }
+    }
+
+    searchInput.addEventListener('input', filterTable);
+
+    clearBtn.addEventListener('click', () => {
+        searchInput.value = '';
+        filterTable();
+        searchInput.focus();
+    });
+
+    if (searchInput.value.trim().length > 0) {
+        filterTable();
+    }
+});
+</script>
+
+<style>
+@keyframes rowFadeIn {
+    from { opacity: 0; transform: translateY(-4px); }
+    to { opacity: 1; transform: translateY(0); }
+}
+
+.search-clear {
+    position: absolute;
+    right: 42px;
+    top: 50%;
+    transform: translateY(-50%);
+    background: #e5e7eb;
+    border: none;
+    border-radius: 50%;
+    width: 22px;
+    height: 22px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+    color: #6b7280;
+    transition: all 0.2s;
+}
+
+.search-clear:hover {
+    background: #d1d5db;
+    color: #374151;
+}
+
+.search-results-count {
+    display: none;
+    font-size: 13px;
+    color: #7c3aed;
+    font-weight: 600;
+    padding: 4px 12px;
+    background: #f5f3ff;
+    border-radius: 20px;
+    border: 1px solid #ede9fe;
+    white-space: nowrap;
+    margin-left: 8px;
+}
+
+#dynamic-search-input:not(:placeholder-shown) {
+    border-color: #7c3aed;
+    background: #fff;
+    box-shadow: 0 0 0 3px rgba(124, 58, 237, 0.08);
+}
+</style>
+
+<script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
+{% if app.request.query.get('download_pdf') %}
+    <script>
+        document.addEventListener('DOMContentLoaded', () => {
+            setTimeout(() => {
+                const url = new URL(window.location.href);
+                url.searchParams.delete('download_pdf');
+                window.history.replaceState({}, document.title, url);
+
+                Swal.fire({
+                    title: 'Article créé avec succès ! 🎉',
+                    text: "Voulez-vous télécharger les informations en PDF ?",
+                    icon: 'success',
+                    showCancelButton: true,
+                    confirmButtonColor: '#7c3aed',
+                    cancelButtonColor: '#d33',
+                    confirmButtonText: 'Oui, Télécharger',
+                    cancelButtonText: 'Non, Merci',
+                    background: '#ffffff',
+                    customClass: {
+                        popup: 'rounded-xl shadow-2xl border border-gray-100',
+                        title: 'text-2xl font-bold text-gray-800',
+                        confirmButton: 'rounded-lg font-bold px-6 py-2.5',
+                        cancelButton: 'rounded-lg font-bold px-6 py-2.5'
+                    }
+                }).then((result) => {
+                    if (result.isConfirmed) {
+                        window.location.href = "{{ path('article_download_pdf', {id: app.request.query.get('download_pdf')}) }}";
+                    }
+                });
+            }, 300);
+        });
+    </script>
+{% endif %}
+
+>>>>>>> 4b368ba (Ajout mitier avancer)
 {% endblock %}

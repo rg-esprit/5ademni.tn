@@ -83,7 +83,7 @@ textarea{
 </style>
 {% endblock %}
 
-{% block body %}
+{% block body %}{% include 'partials/_header.html.twig' %}
 <div class="page">
     <div class="page-header">
         <h1>Modifier article #{{ article.id }}</h1>
