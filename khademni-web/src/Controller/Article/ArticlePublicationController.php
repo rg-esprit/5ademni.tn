@@ -11,6 +11,7 @@ use App\Repository\ArticleRepository;
 use App\Repository\CommentaireRepository;
 use App\Repository\FavoriRepository;
 use App\Repository\GigRepository;
+use App\Service\CommentaireInapproprieService;
 use Doctrine\ORM\EntityManagerInterface;
 use Symfony\Bundle\FrameworkBundle\Controller\AbstractController;
 use Symfony\Component\HttpFoundation\RedirectResponse;
@@ -18,9 +19,10 @@ use Symfony\Component\HttpFoundation\Request;
 use Symfony\Component\HttpFoundation\Response;
 use Symfony\Component\Routing\Attribute\Route;
 use Symfony\Component\Validator\Validator\ValidatorInterface;
-
-use Pagerfanta\Pagerfanta;
-use Pagerfanta\Doctrine\ORM\QueryAdapter ;
+use App\Service\SentimentAnalysisService; 
+use App\Service\TranslationService;
+use Knp\Component\Pager\PaginatorInterface;
+use Symfony\Component\HttpFoundation\JsonResponse;
 
 #[Route('/publications')]
 class ArticlePublicationController extends AbstractController
@@ -51,31 +53,54 @@ public function index(
     Request $request,
     ArticleRepository $articleRepository,
     FavoriRepository $favoriRepository,
-    CommentaireRepository $commentaireRepository
+    CommentaireRepository $commentaireRepository,
+    SentimentAnalysisService $sentimentService, // <-- Ajout du service ici
+    PaginatorInterface $paginator
 ): Response {
     $sort = $request->query->get('sort', 'favoris');
-    $page = $request->query->getInt('page', 1); // Récupérer le numéro de la page
-
-    // Créer une requête paginée
-    $queryBuilder = $articleRepository->createQueryBuilderForVisibleOrderedBy($sort);
-    $pagination = new Pagerfanta(new QueryAdapter($queryBuilder));
-    $pagination->setMaxPerPage(5); // Afficher 5 articles par page
-    $pagination->setCurrentPage($page);
-
-    $articles = $pagination->getCurrentPageResults();
-
-     $articleIds = [];
+    $q = $request->query->get('q', '');
+    $page = $request->query->getInt('page', 1);
+    $queryBuilder = $articleRepository->createQueryBuilderForVisibleOrderedBy($sort, $q);
+    
+    $pagination = $paginator->paginate(
+        $queryBuilder,
+        $page,
+        5
+    );
+    
+    $articles = $pagination->getItems();
+    $articleIds = [];
     foreach ($articles as $a) {
         $articleIds[] = $a->getId();
     }
+    
     $favoriCounts = $favoriRepository->countByArticleIds($articleIds);
     $commentCounts = $commentaireRepository->countByArticleIds($articleIds);
-
     $commentsByArticle = [];
+    $pourcentagesPositifs = []; // <-- Tableau pour stocker le score de chaque article
     foreach ($articles as $article) {
-        $commentsByArticle[$article->getId()] = $commentaireRepository->findVisibleByArticle($article);
+        $commentaires = $commentaireRepository->findVisibleByArticle($article);
+        $commentsByArticle[$article->getId()] = $commentaires;
+        
+        // --- Calcul dynamique du pourcentage ici ---
+        $nombreFavoris = $favoriCounts[$article->getId()] ?? 0;
+        $nombreCommentairesPositifs = 0;
+        
+        foreach ($commentaires as $commentaire) {
+            // Analyse le sentiment pour chaque commentaire de cet article
+            if ($sentimentService->isPositif($commentaire->getContent())) {
+                $nombreCommentairesPositifs++;
+            }
+        }
+        
+        $interactionsTotales = count($commentaires) + $nombreFavoris;
+        $interactionsPositives = $nombreCommentairesPositifs + $nombreFavoris;
+        
+        // On calcule et on associe le pourcentage à l'ID de l'article
+        $pourcentagesPositifs[$article->getId()] = $interactionsTotales > 0 
+            ? round(($interactionsPositives / $interactionsTotales) * 100, 2) 
+            : 0;
     }
-
     $currentUser = $this->getCurrentAppUser();
     $userFavoris = [];
     if ($currentUser) {
@@ -83,16 +108,17 @@ public function index(
             $userFavoris[(int) $id] = true;
         }
     }
-
     return $this->render('article/publications.html.twig', [
         'articles' => $articles,
-        'pagination' => $pagination, // Passer la pagination au template
+        'pagination' => $pagination,
         'sort' => $sort,
+        'q' => $q,
         'favoriCounts' => $favoriCounts,
         'commentCounts' => $commentCounts,
         'commentsByArticle' => $commentsByArticle,
         'userFavoris' => $userFavoris,
         'currentUser' => $currentUser,
+        'pourcentagesPositifs' => $pourcentagesPositifs, // <-- On envoie le tableau à Twig
     ]);
 }
 
@@ -105,13 +131,33 @@ public function index(
          Article $article,
     Request $request,
     EntityManagerInterface $em,
-    ValidatorInterface $validator
+    ValidatorInterface $validator,
+    CommentaireInapproprieService $commentaireInapproprieService
 ): RedirectResponse {
     $comment = new Commentaire();
     $comment->setArticle($article);
-    $comment->setContent(trim((string) $request->request->get('content', '')));
+    $content = trim((string) $request->request->get('content', ''));
+
+     // Vérifier si le commentaire contient des propos inappropriés
+    if (!$commentaireInapproprieService->isCommentAcceptable($content)) {
+        $this->addFlash('error', 'Votre commentaire contient des propos inappropriés et ne peut pas être publié.');
+        return $this->redirectToRoute('article_publications');
+    }
+    // Check if the comment has more than 3 words
+    if (str_word_count($content) < 3) {
+        $this->addFlash('error', 'Le commentaire doit contenir au moins 3 mots.');
+        return $this->redirectBack($request);
+    }
+
+    $comment->setContent($content);
     $comment->setStatus('VISIBLE');
     $comment->setCreatedAt(new \DateTime());
+
+    // Associer l'utilisateur connecté au commentaire
+    $user = $this->getCurrentAppUser();
+    if ($user) {
+        $comment->setUser($user);
+    }
 
     // Validate the entity
     $errors = $validator->validate($comment);
@@ -132,21 +178,65 @@ public function index(
 
 
   
+// #[Route('/comments/{id}/edit', name: 'article_publication_comment_edit', methods: ['POST'])]
+// public function editComment(
+//     Commentaire $commentaire,
+//     Request $request,
+//     EntityManagerInterface $em,
+//     ValidatorInterface $validator,
+//     commentaireInapproprieService $commentaireInapproprieService
+// ): RedirectResponse {
+//     if (!$this->isCsrfTokenValid('comment_edit_' . $commentaire->getId(), $request->request->get('_token'))) {
+//         $this->addFlash('error', 'Token CSRF invalide.');
+//         return $this->redirectBack($request);
+//     }
+
+//     $commentaire->setContent(trim((string) $request->request->get('content', '')));
+//  // Vérifier si le commentaire contient des propos inappropriés
+//     if (!$commentaireInapproprieService->isCommentAcceptable($content)) {
+//         $this->addFlash('error', 'Votre commentaire contient des propos inappropriés et ne peut pas être publié.');
+//         return $this->redirectToRoute('article_publications');
+//     }
+//     // Validate the entity
+//     $errors = $validator->validate($commentaire);
+//     if (count($errors) > 0) {
+//         foreach ($errors as $error) {
+//             $this->addFlash('error', $error->getMessage());
+//         }
+//         return $this->redirectBack($request);
+//     }
+
+//     $em->flush();
+
+//     $this->addFlash('success', 'Commentaire modifié avec succès.');
+//     return $this->redirectBack($request);
+// }
+
+
+
 #[Route('/comments/{id}/edit', name: 'article_publication_comment_edit', methods: ['POST'])]
 public function editComment(
     Commentaire $commentaire,
     Request $request,
     EntityManagerInterface $em,
-    ValidatorInterface $validator
+    ValidatorInterface $validator,
+    CommentaireInapproprieService $commentaireInapproprieService
 ): RedirectResponse {
     if (!$this->isCsrfTokenValid('comment_edit_' . $commentaire->getId(), $request->request->get('_token'))) {
         $this->addFlash('error', 'Token CSRF invalide.');
         return $this->redirectBack($request);
     }
 
-    $commentaire->setContent(trim((string) $request->request->get('content', '')));
+    $content = trim((string) $request->request->get('content', ''));
+    $commentaire->setContent($content);
 
-    // Validate the entity
+    // Vérifier si le commentaire contient des propos inappropriés
+    if (!$commentaireInapproprieService->isCommentAcceptable($content)) {
+        $this->addFlash('error', 'Votre commentaire contient des propos inappropriés et ne peut pas être publié.');
+        return $this->redirectBack($request);
+    }
+
+    // Valider l'entité
     $errors = $validator->validate($commentaire);
     if (count($errors) > 0) {
         foreach ($errors as $error) {
@@ -160,6 +250,7 @@ public function editComment(
     $this->addFlash('success', 'Commentaire modifié avec succès.');
     return $this->redirectBack($request);
 }
+
 
     #[Route('/comments/{id}/delete', name: 'article_publication_comment_delete', methods: ['POST'])]
     public function deleteComment(
@@ -348,4 +439,27 @@ public function listFavoris(FavoriRepository $favoriRepository): Response
             'gigs' => $gigs,
         ]);
     }
+
+
+
+
+
+
+
+ 
+#[Route('/comments/{id}/translate/{lang}', name: 'comment_translate', methods: ['GET'])]
+public function translateComment(
+    Commentaire $commentaire,
+    string $lang,
+    TranslationService $translationService
+): JsonResponse {
+    $translatedContent = $translationService->translate($commentaire->getContent(), $lang);
+
+    return new JsonResponse([
+        'success' => true,
+        'translatedContent' => $translatedContent,
+    ]);
+}
+
+
 }

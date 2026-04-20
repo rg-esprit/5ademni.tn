@@ -80,28 +80,43 @@
     </nav>
     </nav>
 
-    <div class="menu-title label" style="margin-top:20px">OTHER</div>
-    <nav class="menu">
-        <a href="#">
-            <div class="icon-wrap">
-                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                    <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"></path>
-                    <circle cx="9" cy="7" r="4"></circle>
-                    <path d="M23 21v-2a4 4 0 0 0-3-3.87"></path>
-                    <path d="M16 3.13a4 4 0 0 1 0 7.75"></path>
-                </svg>
-            </div>
-            <span class="label">Users</span>
-        </a>
-        
-        <a href="#">
-            <div class="icon-wrap">
-                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                    <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"></path>
-                </svg>
-            </div>
-            <span class="label">Messages</span>
-        </a>
+<div class="menu-title label" style="margin-top:20px">PROFIL</div>
+
+<a href="{{ path('app_profile') }}"
+   class="menu-link {{ app.request.attributes.get('_route') == 'app_profile' ? 'active' : '' }}">
+    <div class="icon-wrap">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <circle cx="12" cy="7" r="4"></circle>
+            <path d="M5.5 21a7.5 7.5 0 0 1 13 0"></path>
+        </svg>
+    </div>
+    <span class="label">Profil</span>
+</a>
+
+<div class="menu-title label" style="margin-top:20px">GIGS</div>
+
+<a href="{{ path('app_gigs') }}"
+   class="menu-link {{ app.request.attributes.get('_route') == 'app_gigs' ? 'active' : '' }}">
+    <div class="icon-wrap">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <path d="M3 3h18v18H3z"></path>
+        </svg>
+    </div>
+    <span class="label">Gigs</span>
+</a>
+
+<div class="menu-title label" style="margin-top:20px">JOBS</div>
+
+<a href="{{ path('app_job_index') }}"
+   class="menu-link {{ app.request.attributes.get('_route') starts with 'job' ? 'active' : '' }}">
+    <div class="icon-wrap">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <path d="M3 3h18v18H3z"></path>
+        </svg>
+    </div>
+    <span class="label">Jobs</span>
+</a>
+        </nav>
     </nav>
 </aside>
 
@@ -109,7 +124,27 @@
 .sidebar{
     --icon-size: 22px;
 }
+.menu-link{
+    display:flex;
+    align-items:center;
+    gap:10px;
+    padding:10px 8px;
+    border-radius:10px;
+    text-decoration:none;
+    color:#7e739a;
+    transition:0.2s;
+}
 
+.menu-link:hover{
+    background:#f3edff;
+    color:#4b2ca3;
+}
+
+.menu-link.active{
+    background:#ede6ff;
+    color:#4b2ca3;
+    font-weight:600;
+}
 .icon-wrap{
     width:var(--icon-size);
     height:var(--icon-size);

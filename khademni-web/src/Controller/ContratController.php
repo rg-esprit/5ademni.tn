@@ -300,6 +300,7 @@ class ContratController extends AbstractController
     #[Route('/{id}/pay', name: 'app_contrat_pay', methods: ['GET'])]
     public function pay(Contrat $contrat, ContractPaymentService $contractPaymentService): Response
     {
+<<<<<<< HEAD
         $this->denyAccessUnlessClientCanPay($contrat);
 
         if ($contrat->getStatut() === 'PAYE') {
@@ -308,6 +309,11 @@ class ContratController extends AbstractController
             return $this->redirectToRoute('app_contrat_index');
         }
 
+=======
+        // Ownership check: only the client or an admin can pay
+        $this->denyAccessUnlessOwner($contrat);
+
+>>>>>>> 4b368ba (Ajout mitier avancer)
         $stripeSecretKey = $this->getStripeSecretKey();
         if ('' === $stripeSecretKey) {
             $this->addFlash('error', 'Stripe is not configured yet. Online payment is currently unavailable.');
@@ -315,6 +321,7 @@ class ContratController extends AbstractController
             return $this->redirectToRoute('app_contrat_index');
         }
 
+<<<<<<< HEAD
         try {
             $checkout = $contractPaymentService->getCheckoutDetails($contrat);
         } catch (\RuntimeException $e) {
@@ -323,6 +330,8 @@ class ContratController extends AbstractController
             return $this->redirectToRoute('app_contrat_index');
         }
 
+=======
+>>>>>>> 4b368ba (Ajout mitier avancer)
         Stripe::setApiKey($stripeSecretKey);
 
         try {
@@ -333,9 +342,15 @@ class ContratController extends AbstractController
                         'price_data' => [
                             'currency' => 'usd',
                             'product_data' => [
+<<<<<<< HEAD
                                 'name' => $checkout['name'],
                             ],
                             'unit_amount' => (int) round($checkout['amount'] * 100),
+=======
+                                'name' => $contrat->getTitre() ?: 'Contrat #' . $contrat->getId(),
+                            ],
+                            'unit_amount' => (int) ($contrat->getPrix() * 100),
+>>>>>>> 4b368ba (Ajout mitier avancer)
                         ],
                         'quantity' => 1,
                     ],
@@ -343,10 +358,13 @@ class ContratController extends AbstractController
                 'mode' => 'payment',
                 'success_url' => $this->generateUrl('app_payment_success', ['id' => $contrat->getId()], UrlGeneratorInterface::ABSOLUTE_URL) . '?session_id={CHECKOUT_SESSION_ID}',
                 'cancel_url' => $this->generateUrl('app_payment_cancel', ['id' => $contrat->getId()], UrlGeneratorInterface::ABSOLUTE_URL),
+<<<<<<< HEAD
                 'metadata' => [
                     'contrat_id' => (string) $contrat->getId(),
                     'pay_amount' => number_format($checkout['amount'], 2, '.', ''),
                 ],
+=======
+>>>>>>> 4b368ba (Ajout mitier avancer)
             ]);
         } catch (\Throwable) {
             $this->addFlash('error', 'The payment gateway is unavailable right now. Please try again later.');
@@ -372,6 +390,7 @@ class ContratController extends AbstractController
             try {
                 $stripeSession = Session::retrieve($sessionId);
                 if ($stripeSession && $stripeSession->payment_status === 'paid') {
+<<<<<<< HEAD
                     $metadataContratId = (int) ($stripeSession->metadata->contrat_id ?? 0);
 
                     if ($metadataContratId !== $contrat->getId()) {
@@ -386,6 +405,19 @@ class ContratController extends AbstractController
                 }
             } catch (\RuntimeException $e) {
                 $this->addFlash('error', $e->getMessage());
+=======
+                    $contrat->setStatut('PAYE');
+
+                    $payment = new Payment();
+                    $payment->setContrat($contrat);
+                    $payment->setAmount($contrat->getPrix());
+                    $payment->setStripeSessionId($sessionId);
+                    $payment->setStatus('PAID');
+
+                    $em->persist($payment);
+                    $em->flush();
+                }
+>>>>>>> 4b368ba (Ajout mitier avancer)
             } catch (\Throwable) {
                 $this->addFlash('error', 'The payment could not be verified automatically.');
             }
@@ -429,6 +461,7 @@ class ContratController extends AbstractController
         }
     }
 
+<<<<<<< HEAD
     private function denyAccessUnlessClientCanPay(Contrat $contrat): void
     {
         $user = $this->getUser();
@@ -540,3 +573,10 @@ class ContratController extends AbstractController
         return null;
     }
 }
+=======
+    private function getStripeSecretKey(): string
+    {
+        return trim((string) ($_ENV['STRIPE_SECRET_KEY'] ?? $_SERVER['STRIPE_SECRET_KEY'] ?? ''));
+    }
+}
+>>>>>>> 4b368ba (Ajout mitier avancer)

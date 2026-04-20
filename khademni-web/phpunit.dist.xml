@@ -19,6 +19,11 @@
         <!-- ###+ stripe/stripe-php ### -->
         <env name="STRIPE_SECRET_KEY" value="sk_test_***"/>
         <!-- ###- stripe/stripe-php ### -->
+
+        <!-- ###+ symfony/google-mailer ### -->
+        <!-- Gmail SHOULD NOT be used on production, use it in development only. -->
+        <!-- MAILER_DSN=gmail://USERNAME:PASSWORD@default -->
+        <!-- ###- symfony/google-mailer ### -->
     </php>
 
     <testsuites>

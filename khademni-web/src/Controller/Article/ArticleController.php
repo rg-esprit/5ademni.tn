@@ -15,6 +15,10 @@ use Symfony\Component\HttpFoundation\File\Exception\FileException;
 use App\Form\ArticleType;
 use Symfony\Component\String\Slugger\SluggerInterface;
 use Symfony\Component\Validator\Validator\ValidatorInterface;
+use App\Service\EmailService;
+use App\Service\SentimentAnalysisService;
+use Dompdf\Dompdf;
+use Dompdf\Options;
 
 #[Route('/articles')]
 class ArticleController extends AbstractController
@@ -56,108 +60,141 @@ class ArticleController extends AbstractController
 
 
     #[Route('/new', name: 'article_new', methods: ['GET', 'POST'])]
-    public function new(Request $request, EntityManagerInterface $em, SluggerInterface $slugger): Response
+    public function new(Request $request, EntityManagerInterface $em, SluggerInterface $slugger, EmailService $emailService): Response
     {
         $article = new Article();
-        $form = $this->createForm(ArticleType::class, $article);
-        $form->handleRequest($request);
+    $form = $this->createForm(ArticleType::class, $article);
+    $form->handleRequest($request);
 
+    if ($form->isSubmitted() && $form->isValid()) {
+        $imageFile = $form->get('image')->getData();
 
+        if ($imageFile) {
+            $originalFilename = pathinfo($imageFile->getClientOriginalName(), PATHINFO_FILENAME);
+            $safeFilename = $slugger->slug($originalFilename);
+            $newFilename = $safeFilename . '-' . uniqid() . '.' . $imageFile->guessExtension();
 
-        if ($form->isSubmitted() && $form->isValid()) {
-            $imageFile = $form->get('image')->getData();
+            try {
+                $imageFile->move(
+                    $this->getParameter('images_directory'),
+                    $newFilename
+                );
 
-            if ($imageFile) {
-                $originalFilename = pathinfo($imageFile->getClientOriginalName(), PATHINFO_FILENAME);
-                $safeFilename = $slugger->slug($originalFilename);
-                $newFilename = $safeFilename . '-' . uniqid() . '.' . $imageFile->guessExtension();
-
-                try {
-                    $imageFile->move(
-                        $this->getParameter('images_directory'),
-                        $newFilename
-                    );
-
-                    // Enregistrer le chemin complet dans la base de données
-                    $article->setImagePath($this->getParameter('images_directory') . DIRECTORY_SEPARATOR . $newFilename);
-                } catch (FileException $e) {
-                    $this->addFlash('error', 'Une erreur est survenue lors du téléchargement de l\'image.');
-                    return $this->redirectToRoute('article_new');
-                }
+                $article->setImagePath($this->getParameter('images_directory') . DIRECTORY_SEPARATOR . $newFilename);
+            } catch (FileException $e) {
+                $this->addFlash('error', 'Une erreur est survenue lors du téléchargement de l\'image.');
+                return $this->redirectToRoute('article_new');
             }
-
-            $article->setCreatedAt(new \DateTime());
-            $em->persist($article);
-            $em->flush();
-
-            $this->addFlash('success', 'Article ajouté avec succès.');
-            return $this->redirectToRoute('article_index');
         }
 
-        return $this->render('article/new.html.twig', [
-            'form' => $form->createView(),
-        ]);
-    }
+        $article->setCreatedAt(new \DateTime());
+        $em->persist($article);
+        $em->flush();
 
+        $this->addFlash('success', 'Article ajouté avec succès.');
 
-
-    #[Route('/{id}/edit', name: 'article_edit', methods: ['GET', 'POST'])]
-    public function edit(
-        Request $request,
-        Article $article,
-        EntityManagerInterface $em,
-        SluggerInterface $slugger
-    ): Response {
-        $form = $this->createForm(ArticleType::class, $article);
-        $form->handleRequest($request);
-
-        if ($form->isSubmitted() && $form->isValid()) {
-
-            $imageFile = $form->get('image')->getData();
-
-            if ($imageFile) {
-                $originalFilename = pathinfo($imageFile->getClientOriginalName(), PATHINFO_FILENAME);
-                $safeFilename = $slugger->slug($originalFilename);
-                $newFilename = $safeFilename . '-' . uniqid() . '.' . $imageFile->guessExtension();
-
-                try {
-                    $imageFile->move(
-                        $this->getParameter('images_directory'),
-                        $newFilename
-                    );
-
-                    // ✅ EXACTEMENT comme new()
-                    $article->setImagePath(
-                        $this->getParameter('images_directory') . DIRECTORY_SEPARATOR . $newFilename
-                    );
-                } catch (FileException $e) {
-                    $this->addFlash('error', 'Erreur upload image');
-                }
-            }
-
-            $em->flush();
-
-            $this->addFlash('success', 'Article modifié avec succès');
-            return $this->redirectToRoute('article_index');
+        // Récupérer l'utilisateur connecté
+        /** @var \App\Entity\User|null $user */
+        $user = $this->getUser();
+        if ($user && method_exists($user, 'getEmail')) {
+            $emailService->sendEmail(
+                $user->getEmail(),
+               'Nouvel article créé : ' . $article->getTitle(),
+    'Vous avez ajouté un nouvel article avec succès.',
+    $article
+            );
         }
 
-        return $this->render('article/edit.html.twig', [
-            'article' => $article,
-            'form' => $form->createView(),
-        ]);
+        return $this->redirectToRoute('article_index', ['download_pdf' => $article->getId()]);
     }
+
+    return $this->render('article/new.html.twig', [
+        'form' => $form->createView(),
+    ]);
+}
+
+
+
+
+#[Route('/{id}/edit', name: 'article_edit', methods: ['GET', 'POST'])]
+public function edit(
+    Request $request,
+    Article $article,
+    EntityManagerInterface $em,
+    SluggerInterface $slugger,
+    EmailService $emailService
+): Response {
+    $form = $this->createForm(ArticleType::class, $article);
+    $form->handleRequest($request);
+
+    if ($form->isSubmitted() && $form->isValid()) {
+        $imageFile = $form->get('image')->getData();
+
+        if ($imageFile) {
+            $originalFilename = pathinfo($imageFile->getClientOriginalName(), PATHINFO_FILENAME);
+            $safeFilename = $slugger->slug($originalFilename);
+            $newFilename = $safeFilename . '-' . uniqid() . '.' . $imageFile->guessExtension();
+
+            try {
+                $imageFile->move(
+                    $this->getParameter('images_directory'),
+                    $newFilename
+                );
+
+                $article->setImagePath(
+                    $this->getParameter('images_directory') . DIRECTORY_SEPARATOR . $newFilename
+                );
+            } catch (FileException $e) {
+                $this->addFlash('error', 'Erreur upload image');
+            }
+        }
+
+        $em->flush();
+
+        $this->addFlash('success', 'Article modifié avec succès.');
+
+        // Récupérer l'utilisateur connecté
+        /** @var \App\Entity\User|null $user */
+        $user = $this->getUser();
+        if ($user && method_exists($user, 'getEmail')) {
+            $emailService->sendEmail(
+                $user->getEmail(),
+                  'Article modifié : ' . $article->getTitle(),
+    'Vous avez modifié un article avec succès.',
+    $article
+            );
+        }
+
+        return $this->redirectToRoute('article_index');
+    }
+
+    return $this->render('article/edit.html.twig', [
+        'article' => $article,
+        'form' => $form->createView(),
+    ]);
+}
 
 
 
 #[Route('/{id}/delete', name: 'article_delete', methods: ['POST'])]
-public function delete(Article $article, Request $request, EntityManagerInterface $em): Response
+public function delete(Article $article, Request $request, EntityManagerInterface $em, EmailService $emailService): Response
 {
-    // Vérifiez le token CSRF pour éviter les suppressions non autorisées
     if ($this->isCsrfTokenValid('delete_article_' . $article->getId(), (string) $request->request->get('_token'))) {
         $em->remove($article);
         $em->flush();
 
         $this->addFlash('success', 'Article supprimé avec succès.');
+
+        // Récupérer l'utilisateur connecté
+        /** @var \App\Entity\User|null $user */
+        $user = $this->getUser();
+        if ($user && method_exists($user, 'getEmail')) {
+            $emailService->sendEmail(
+               $user->getEmail(),
+                'Article supprimé : ' . $article->getTitle(),
+    'Vous avez supprimé un article avec succès. Titre de l\'article supprimé : ' . $article->getTitle()
+            );
+        }
     } else {
         $this->addFlash('error', 'Échec de la suppression de l\'article.');
     }
@@ -165,7 +202,7 @@ public function delete(Article $article, Request $request, EntityManagerInterfac
     return $this->redirectToRoute('article_index');
 }
 
-    #[Route('/articles/dashboard', name: 'article_dashboard', methods: ['GET'])]
+    #[Route('/dashboard', name: 'article_dashboard', methods: ['GET'])]
     public function dashboard(
         ArticleRepository $articleRepository,
         CommentaireRepository $commentaireRepository,
@@ -387,5 +424,106 @@ public function delete(Article $article, Request $request, EntityManagerInterfac
         return $this->render('article/list.html.twig', [
             'rows' => $rows,
         ]);
+    }
+
+
+      #[Route('/article/{id}', name: 'app_article_show', methods: ['GET'])]
+    public function show(Article $article, SentimentAnalysisService $sentimentService): Response
+    {
+        $commentaires = $article->getCommentaires();
+        $nombreFavoris = $article->getFavoris()->count();
+        $nombreTotalCommentaires = $commentaires->count();
+        
+        // 1. On compte les commentaires positifs sans rien sauvegarder en base
+        $nombreCommentairesPositifs = 0;
+        foreach ($commentaires as $commentaire) {
+            // On vérifie le texte en direct
+            if ($sentimentService->isPositif($commentaire->getContent())) {
+                $nombreCommentairesPositifs++;
+            }
+        }
+        // 2. Le calcul des interactions
+        $interactionsTotales = $nombreTotalCommentaires + $nombreFavoris;
+        $interactionsPositives = $nombreCommentairesPositifs + $nombreFavoris;
+        
+        // Calcul du pourcentage (on évite la division par zéro)
+        $pourcentage = 0;
+        if ($interactionsTotales > 0) {
+            $pourcentage = ($interactionsPositives / $interactionsTotales) * 100;
+        }
+        return $this->render('article/publications.html.twig', [
+            'article' => $article,
+            'pourcentagePositif' => round($pourcentage, 2) // On envoie le chiffre final à la vue !
+        ]);
+    }
+
+    #[Route('/article/{id}/suggest-comments', name: 'api_article_suggest_comments', methods: ['GET'])]
+    public function suggestComments(Article $article, Request $request, \App\Service\AiCommentSuggestionService $aiService): \Symfony\Component\HttpFoundation\JsonResponse
+    {
+        try {
+            $context = trim((string) $request->query->get('context', ''));
+            $suggestions = $aiService->suggest($article->getTitle() ?? '', $article->getContent() ?? '', $context);
+            return $this->json(['success' => true, 'suggestions' => $suggestions]);
+        } catch (\Exception $e) {
+             return $this->json(['success' => false, 'error' => $e->getMessage()]);
+        }
+    }
+
+    #[Route('/{id}/download-pdf', name: 'article_download_pdf', methods: ['GET'])]
+    public function downloadPdf(Article $article): Response
+    {
+        $pdfOptions = new Options();
+        $pdfOptions->set('defaultFont', 'Arial');
+        $pdfOptions->set('isRemoteEnabled', true);
+
+        $dompdf = new Dompdf($pdfOptions);
+
+        $user = $this->getUser();
+        $userName = 'Anonyme';
+        if ($user) {
+            if (method_exists($user, 'getDisplayName')) {
+                $userName = $user->getDisplayName();
+            } elseif (method_exists($user, 'getEmail')) {
+                $userName = $user->getEmail();
+            }
+        }
+
+        // Encoder le logo en base64 pour être sûr qu'il s'affiche dans le PDF
+        $logoPath = $this->getParameter('kernel.project_dir') . '/public/images/logo.png';
+        $logoBase64 = '';
+        if (file_exists($logoPath)) {
+            $logoData = file_get_contents($logoPath);
+            $logoBase64 = 'data:image/png;base64,' . base64_encode($logoData);
+        }
+
+        // Encoder l'image de l'article si elle existe
+        $articleImageBase64 = '';
+        $articleImagePath = $article->getImagePath();
+        // $articleImagePath est censé être un chemin absolu d'après la création
+        if ($articleImagePath && file_exists($articleImagePath)) {
+            $ext = pathinfo($articleImagePath, PATHINFO_EXTENSION);
+            $imgData = file_get_contents($articleImagePath);
+            $articleImageBase64 = 'data:image/' . $ext . ';base64,' . base64_encode($imgData);
+        }
+
+        $html = $this->renderView('article/pdf.html.twig', [
+            'article' => $article,
+            'userName' => $userName,
+            'logoBase64' => $logoBase64,
+            'articleImageBase64' => $articleImageBase64
+        ]);
+
+        $dompdf->loadHtml($html);
+        $dompdf->setPaper('A4', 'portrait');
+        $dompdf->render();
+
+        return new Response(
+            $dompdf->output(),
+            Response::HTTP_OK,
+            [
+                'Content-Type' => 'application/pdf',
+                'Content-Disposition' => 'attachment; filename="article-' . $article->getId() . '.pdf"'
+            ]
+        );
     }
 }
