@@ -39,7 +39,7 @@
                 <a href="{{ path('article_list') }}">Liste</a>
             </div>
         </div>
-        <a href="{{ path('app_module_placeholder', {slug: 'articles'}) }}">Articles</a>
+        <a href="{{ path('article_publications') }}">Articles</a>
         {% if is_granted('ROLE_ADMIN') %}
             <a href="{{ path('app_admin_users') }}">Users Admin</a>
         {% endif %}
