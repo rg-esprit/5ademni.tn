@@ -33,20 +33,22 @@ class AiCommentSuggestionService
             throw new \RuntimeException('Le générateur de commentaires IA n\'est pas configuré.');
         }
 
-        $systemPrompt = 'Tu es un assistant qui aide à écrire des commentaires pour des articles. '
-            . 'Tu DOIS répondre avec exactement 3 lignes. Chaque ligne est un commentaire séparé. '
-            . 'Format OBLIGATOIRE (une suggestion par ligne, numérotée) :' . "\n"
-            . '1. Premier commentaire ici' . "\n"
-            . '2. Deuxième commentaire ici' . "\n"
-            . '3. Troisième commentaire ici' . "\n"
-            . 'Chaque commentaire fait 1 à 2 phrases maximum. Pas d\'introduction ni de conclusion.';
+        $keyword = trim($keyword);
+        
+        $systemPrompt = "Tu es un assistant d'écriture expert. Ton rôle est de générer 3 suggestions de commentaires. \n"
+            . "Article : {$articleTitle}\n"
+            . "CONSIGNE CRITIQUE : Tu DOIS générer exactement 3 lignes. \n";
 
-        $userPrompt = "Article: \"{$articleTitle}\".";
         if (!empty($keyword)) {
-            $userPrompt .= " L'utilisateur a commencé à écrire: \"{$keyword}\". Complète cette idée dans chaque suggestion.";
+            $systemPrompt .= "Chaque ligne DOIT impérativement COMMENCER par le texte exactement comme ceci : \"{$keyword}\". \n"
+                . "Tu complètes la suite de la pensée de 3 façons différentes et originales.";
+        } else {
+            $systemPrompt .= "Génère 3 commentaires variés, enthousiastes, commençant par 'Bonjour', 'Super' ou 'Merci'.";
         }
 
-        $lastError = 'Tous les modèles IA ont échoué. Réessayez dans un moment.';
+        $userPrompt = "Génère 3 suggestions pour l'article \"{$articleTitle}\". " . (!empty($keyword) ? "Rappel : commence par \"{$keyword}\"." : "");
+
+        $lastError = 'Pas de réponse de l\'IA.';
 
         foreach (self::CHAT_MODELS as $model) {
             try {
@@ -54,90 +56,65 @@ class AiCommentSuggestionService
                     'headers' => [
                         'Authorization' => 'Bearer ' . $this->apiKey,
                         'Content-Type' => 'application/json',
-                        'HTTP-Referer' => 'https://5ademni.tn',
-                        'X-Title' => '5ademni.tn Comments',
                     ],
                     'json' => [
                         'model' => $model,
                         'messages' => [
-                            [
-                                'role' => 'system',
-                                'content' => $systemPrompt,
-                            ],
-                            [
-                                'role' => 'user',
-                                'content' => $userPrompt,
-                            ],
+                            ['role' => 'system', 'content' => $systemPrompt],
+                            ['role' => 'user', 'content' => $userPrompt],
                         ],
+                        'temperature' => 0.7,
                     ],
                 ]);
-            } catch (TransportExceptionInterface $exception) {
-                $lastError = 'Le service IA est inaccessible.';
-                continue;
-            }
+                
+                $data = $response->toArray(false);
+                $content = $data['choices'][0]['message']['content'] ?? '';
 
-            $data = $response->toArray(false);
-
-            if (isset($data['choices'][0]['message']['content']) && is_string($data['choices'][0]['message']['content'])) {
-                $content = trim($data['choices'][0]['message']['content']);
-
-                if ('' !== $content) {
-                    $suggestions = $this->parseResponse($content);
-
-                    if (count($suggestions) > 0) {
+                if ('' !== trim($content)) {
+                    $suggestions = $this->parseResponse($content, $keyword);
+                    if (count($suggestions) >= 2) {
                         return array_slice($suggestions, 0, 3);
                     }
                 }
-            }
-
-            // Log model error and try next model
-            if (isset($data['error']['message']) && is_string($data['error']['message'])) {
-                $lastError = $data['error']['message'];
-            } else {
-                $lastError = sprintf('Le modèle %s n\'a retourné aucun contenu.', $model);
+            } catch (\Exception $e) {
+                $lastError = $e->getMessage();
             }
         }
 
         throw new \RuntimeException($lastError);
     }
 
-    /**
-     * Parse la réponse de l'IA en suggestions séparées.
-     * Essaye plusieurs méthodes de parsing pour gérer les différents formats de réponse.
-     */
-    private function parseResponse(string $content): array
+    private function parseResponse(string $content, string $keyword): array
     {
-        $suggestions = [];
+        // Nettoyer les blocs de code markdown si présents
+        $content = preg_replace('/```[a-z]*|```/i', '', $content);
+        
+        $lines = explode("\n", $content);
+        $results = [];
 
-        // Méthode 1 : Séparer par lignes numérotées (1. ... 2. ... 3. ...)
-        if (preg_match_all('/^\s*\d+[\.\)]\s*(.+)$/m', $content, $matches)) {
-            $suggestions = $matches[1];
+        foreach ($lines as $line) {
+            $line = trim($line);
+            if (empty($line)) continue;
+
+            // Enlever la numérotation "1. ", "2) ", etc.
+            $cleanLine = preg_replace('/^\s*\d+[\.\)]\s*/', '', $line);
+            $cleanLine = trim($cleanLine, "\" \t\n\r\0\x0B");
+
+            if (strlen($cleanLine) > 5) {
+                // Si on a un keyword, s'assurer que la ligne commence par celui-ci
+                if (!empty($keyword)) {
+                    if (!str_starts_with(strtolower($cleanLine), strtolower($keyword))) {
+                        // Si l'IA a oublié le prefix, on le rajoute proprement
+                        $results[] = $keyword . ' ' . ltrim($cleanLine);
+                    } else {
+                        $results[] = $cleanLine;
+                    }
+                } else {
+                    $results[] = $cleanLine;
+                }
+            }
         }
 
-        // Méthode 2 : Si pas de numérotation, séparer par "|||"
-        if (count($suggestions) < 2 && str_contains($content, '|||')) {
-            $suggestions = explode('|||', $content);
-        }
-
-        // Méthode 3 : Séparer par lignes non vides
-        if (count($suggestions) < 2) {
-            $lines = explode("\n", $content);
-            $suggestions = array_filter($lines, fn($line) => !empty(trim($line)));
-        }
-
-        // Nettoyage final de chaque suggestion
-        $suggestions = array_map(function ($s) {
-            $s = trim($s);
-            // Supprimer les numéros, tirets, puces, pipes au début
-            $s = preg_replace('/^[\d\.\)\-\•\*\|\s]+/', '', $s);
-            // Supprimer les pipes à la fin
-            $s = rtrim($s, '| ');
-            return trim($s);
-        }, $suggestions);
-
-        // Filtrer les entrées vides
-        $suggestions = array_filter($suggestions, fn($s) => !empty($s) && strlen($s) > 5);
-
-        return array_values($suggestions);
+        return array_values(array_unique($results));
     }
 }

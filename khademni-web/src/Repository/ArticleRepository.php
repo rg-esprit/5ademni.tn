@@ -98,8 +98,11 @@ class ArticleRepository extends ServiceEntityRepository
     public function createQueryBuilderForVisibleOrderedBy(string $sort, string $q = ''): \Doctrine\ORM\QueryBuilder
     {
         $qb = $this->createQueryBuilder('a')
+            ->leftJoin('a.favoris', 'f')
+            ->leftJoin('a.commentaires', 'c')
             ->where('UPPER(a.status) = :status')
-            ->setParameter('status', 'VISIBLE');
+            ->setParameter('status', 'VISIBLE')
+            ->groupBy('a.id');
 
         if ($q !== '') {
             $qb->andWhere('a.title LIKE :q OR a.content LIKE :q')
@@ -107,11 +110,11 @@ class ArticleRepository extends ServiceEntityRepository
         }
 
         if ($sort === 'favoris') {
-            $qb->addSelect('COUNT(DISTINCT f.id) AS HIDDEN sortCount')
-               ->orderBy('sortCount', 'DESC');
+            $qb->addSelect('COUNT(DISTINCT f.id) AS HIDDEN favoris')
+               ->orderBy('favoris', 'DESC');
         } elseif ($sort === 'commentaires') {
-            $qb->addSelect('COUNT(DISTINCT c.id) AS HIDDEN sortCount')
-               ->orderBy('sortCount', 'DESC');
+            $qb->addSelect('COUNT(DISTINCT c.id) AS HIDDEN commentaires')
+               ->orderBy('commentaires', 'DESC');
         } else {
             $qb->orderBy('a.createdAt', 'DESC');
         }
