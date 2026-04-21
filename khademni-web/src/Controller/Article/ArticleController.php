@@ -19,6 +19,7 @@ use App\Service\EmailService;
 use App\Service\SentimentAnalysisService;
 use Dompdf\Dompdf;
 use Dompdf\Options;
+use Knp\Component\Pager\PaginatorInterface;
 
 #[Route('/articles')]
 class ArticleController extends AbstractController
@@ -31,17 +32,34 @@ class ArticleController extends AbstractController
     }
 
     #[Route('', name: 'article_index', methods: ['GET'])]
-    public function index(ArticleRepository $articleRepository): Response
-    {
-        $rows = $articleRepository->findAllWithStats();
+    public function index(
+        ArticleRepository $articleRepository, 
+        PaginatorInterface $paginator, 
+        Request $request
+    ): Response {
+        $queryBuilder = $articleRepository->createQueryBuilder('a')
+            ->leftJoin('a.favoris', 'f')
+            ->leftJoin('a.commentaires', 'c')
+            ->addSelect('COUNT(DISTINCT f.id) AS favorisCount')
+            ->addSelect('COUNT(DISTINCT c.id) AS commentairesCount')
+            ->groupBy('a.id')
+            ->orderBy('a.createdAt', 'DESC');
+
+        $pagination = $paginator->paginate(
+            $queryBuilder,
+            $request->query->getInt('page', 1),
+            10
+        );
+
         $statusStats = $articleRepository->getStatusStats();
 
         $chartLabels = [];
         $favorisData = [];
         $commentairesData = [];
 
-        foreach ($rows as $row) {
-            /** @var Article $article */
+        // For the charts, we might want all visible ones or just a subset, 
+        // but let's keep the logic of using current rows if that's what was intended.
+        foreach ($pagination as $row) {
             $article = $row[0];
             $chartLabels[] = $article->getTitle();
             $favorisData[] = (int) $row['favorisCount'];
@@ -49,7 +67,7 @@ class ArticleController extends AbstractController
         }
 
         return $this->render('article/list.html.twig', [
-            'rows' => $rows,
+            'pagination' => $pagination,
             'statusStats' => $statusStats,
             'chartLabels' => $chartLabels,
             'favorisData' => $favorisData,
@@ -412,17 +430,40 @@ public function delete(Article $article, Request $request, EntityManagerInterfac
 
 
     #[Route('/articles/list', name: 'article_list', methods: ['GET'])]
-    public function list(ArticleRepository $articleRepository, Request $request): Response
+    public function list(ArticleRepository $articleRepository, PaginatorInterface $paginator, Request $request): Response
     {
         // Récupérer les paramètres de recherche et de filtrage
         $search = $request->query->get('search', '');
         $status = $request->query->get('status', '');
 
-        // Appeler une méthode personnalisée dans le repository pour appliquer les filtres
-        $rows = $articleRepository->findAllWithFilters($search, $status);
+        // Utiliser le QueryBuilder pour la pagination
+        $queryBuilder = $articleRepository->createQueryBuilder('a')
+            ->leftJoin('a.favoris', 'f')
+            ->leftJoin('a.commentaires', 'c')
+            ->addSelect('COUNT(DISTINCT f.id) AS favorisCount')
+            ->addSelect('COUNT(DISTINCT c.id) AS commentairesCount')
+            ->groupBy('a.id');
+
+        if ($search) {
+            $queryBuilder->andWhere('a.title LIKE :search OR a.content LIKE :search')
+                ->setParameter('search', '%' . $search . '%');
+        }
+
+        if ($status) {
+            $queryBuilder->andWhere('a.status = :status')
+                ->setParameter('status', $status);
+        }
+
+        $queryBuilder->orderBy('a.createdAt', 'DESC');
+
+        $pagination = $paginator->paginate(
+            $queryBuilder,
+            $request->query->getInt('page', 1),
+            10
+        );
 
         return $this->render('article/list.html.twig', [
-            'rows' => $rows,
+            'pagination' => $pagination,
         ]);
     }
 
