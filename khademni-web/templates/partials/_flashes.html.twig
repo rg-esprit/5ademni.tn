@@ -1,7 +1,24 @@
 {% for label, messages in app.flashes %}
     <div class="flash-stack">
         {% for message in messages %}
-            <div class="flash flash-{{ label }}">{{ message }}</div>
+            <div class="flash flash-{{ label }} auto-dismiss">{{ message }}</div>
         {% endfor %}
     </div>
 {% endfor %}
+
+<script>
+    document.addEventListener('DOMContentLoaded', () => {
+        const flashes = document.querySelectorAll('.flash.auto-dismiss');
+        flashes.forEach(flash => {
+            // Wait 3 seconds
+            setTimeout(() => {
+                flash.style.transition = 'opacity 0.5s ease-out, transform 0.5s ease-out';
+                flash.style.opacity = '0';
+                flash.style.transform = 'translateY(-10px)';
+                
+                // Remove from DOM after transition finishes
+                setTimeout(() => flash.remove(), 500);
+            }, 3000);
+        });
+    });
+</script>

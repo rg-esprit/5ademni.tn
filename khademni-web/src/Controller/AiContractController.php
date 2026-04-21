@@ -13,17 +13,23 @@ use Symfony\Component\Routing\Annotation\Route;
  * API endpoints for AI-powered contract features.
  * These are called via AJAX from the contract form (no template changes needed).
  */
-#[Route('/api/ai')]
+#[Route('/api')]
 class AiContractController extends AbstractController
 {
-    #[Route('/generate-description', name: 'api_ai_generate_description', methods: ['POST'])]
+    #[Route('/ai/generate-description', name: 'api_ai_generate_description', methods: ['POST'])]
+    #[Route('/generate', name: 'api_ai_generate_alias', methods: ['POST'])]
     public function generateDescription(Request $request, AiContractService $aiService): JsonResponse
     {
-        $this->denyAccessUnlessGranted('ROLE_USER');
+        if (!$this->getUser()) {
+            return new JsonResponse([
+                'success' => false,
+                'error' => 'Session expirée. Veuillez vous reconnecter.',
+            ], Response::HTTP_UNAUTHORIZED);
+        }
 
         $data = json_decode($request->getContent(), true);
 
-        $hint = trim($data['hint'] ?? '');
+        $hint = trim($data['hint'] ?? $data['description'] ?? '');
         $title = trim($data['title'] ?? '');
         $price = (float) ($data['price'] ?? 0);
 
