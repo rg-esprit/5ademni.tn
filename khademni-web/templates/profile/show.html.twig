@@ -93,22 +93,29 @@
                             <p>Set up Face ID for quicker access to your account.</p>
                         </div>
 
-                        <form method="post" action="{{ path('app_face_enroll') }}" enctype="multipart/form-data" class="form-grid face-form">
+                        <form method="post" action="{{ path('app_face_enroll') }}" enctype="multipart/form-data" class="form-grid face-form" data-face-camera-form data-face-camera-count="6">
                             <input type="hidden" name="_token" value="{{ face_enroll_csrf_token }}">
 
                             <div class="field-group">
-                                <label for="face_enroll_frames">Face ID Photos</label>
-                                <input id="face_enroll_frames" class="file-input" type="file" name="frames[]" accept="image/*" capture="user" multiple required>
-                                <p class="helper-text">
+                                <span class="field-label">Face ID Camera</span>
+                                <video class="face-video" data-face-camera-video autoplay playsinline muted></video>
+                                <input type="file" name="frames[]" accept="image/jpeg" multiple hidden data-face-camera-frames tabindex="-1">
+                                <p class="helper-text face-status" data-face-camera-status>
                                     {% if app.user.hasFaceEnrollment %}
-                                        Upload new photos to replace your current Face ID.
+                                        Use your device camera to capture a new Face ID scan.
                                     {% else %}
-                                        Upload or capture several clear photos to set up Face ID.
+                                        Use your device camera and keep your face centered while we capture a live Face ID scan.
                                     {% endif %}
                                 </p>
+                                <noscript>
+                                    <p class="helper-text">Face ID requires JavaScript and camera access.</p>
+                                </noscript>
                             </div>
 
-                            <button class="secondary-button" type="submit">Enroll / Update Face ID</button>
+                            <div class="face-camera-actions">
+                                <button class="ghost-button" type="button" data-face-camera-toggle>Start Camera</button>
+                                <button class="secondary-button" type="submit" data-face-camera-submit>Enroll / Update Face ID</button>
+                            </div>
                         </form>
                     </section>
 

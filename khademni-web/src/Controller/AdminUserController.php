@@ -13,6 +13,8 @@ use Symfony\Component\HttpFoundation\Request;
 use Symfony\Component\HttpFoundation\Response;
 use Symfony\Component\PasswordHasher\Hasher\UserPasswordHasherInterface;
 use Symfony\Component\Routing\Attribute\Route;
+use Symfony\UX\Chartjs\Builder\ChartBuilderInterface;
+use Symfony\UX\Chartjs\Model\Chart;
 
 class AdminUserController extends AbstractController
 {
@@ -23,6 +25,7 @@ class AdminUserController extends AbstractController
         EntityManagerInterface $entityManager,
         UserPasswordHasherInterface $passwordHasher,
         BlobStorageService $blobStorageService,
+        ChartBuilderInterface $chartBuilder,
     ): Response {
         $this->denyAccessUnlessGranted('ROLE_ADMIN');
 
@@ -88,29 +91,65 @@ class AdminUserController extends AbstractController
             : $userRepository->searchAdminUsers($searchQuery);
 
         $allUsers = $userRepository->findAll();
+        $totalUsers = count($allUsers);
         $adminCount = 0;
-        $faceEnrollmentCount = 0;
+        $profileImageCount = 0;
+        $balanceRangeCounts = [
+            'Below 0 TND' => 0,
+            '0-99 TND' => 0,
+            '100-499 TND' => 0,
+            '500+ TND' => 0,
+        ];
 
         foreach ($allUsers as $user) {
             if ($user->isAdmin()) {
                 ++$adminCount;
             }
 
-            if ($user->hasFaceEnrollment()) {
-                ++$faceEnrollmentCount;
+            if ($user->hasProfileImage()) {
+                ++$profileImageCount;
             }
+
+            $balanceRange = match (true) {
+                $user->getBalance() < 0 => 'Below 0 TND',
+                $user->getBalance() < 100 => '0-99 TND',
+                $user->getBalance() < 500 => '100-499 TND',
+                default => '500+ TND',
+            };
+
+            ++$balanceRangeCounts[$balanceRange];
         }
+
+        $adminRoleRows = $this->buildPercentageRows([
+            'Admins' => $adminCount,
+            'Non-admins' => $totalUsers - $adminCount,
+        ], $totalUsers);
+
+        $balanceDistributionRows = $this->buildPercentageRows($balanceRangeCounts, $totalUsers);
+
+        $profileImageRows = $this->buildPercentageRows([
+            'Profile image set' => $profileImageCount,
+            'No profile image' => $totalUsers - $profileImageCount,
+        ], $totalUsers);
 
         return $this->render('admin/users.html.twig', [
             'admin_user_form' => $form,
+            'admin_role_chart' => $totalUsers > 0 ? $this->buildDoughnutChart($chartBuilder, $adminRoleRows, ['#0b5fff', '#dbe5f0']) : null,
+            'admin_role_rows' => $adminRoleRows,
             'avatar_proxy_enabled' => $currentUser instanceof User && $blobStorageService->isConfigured() && $currentUser->hasProfileImage(),
+            'balance_distribution_chart' => $totalUsers > 0 ? $this->buildDoughnutChart($chartBuilder, $balanceDistributionRows, ['#dc2626', '#8b5cf6', '#0ea5e9', '#059669']) : null,
+            'balance_distribution_rows' => $balanceDistributionRows,
             'editing_user' => $editingUser,
             'listed_users' => $listedUsers,
+            'profile_image_chart' => $totalUsers > 0 ? $this->buildDoughnutChart($chartBuilder, $profileImageRows, ['#7c3aed', '#e2e8f0']) : null,
+            'profile_image_rows' => $profileImageRows,
             'search_query' => $searchQuery,
             'user_stats' => [
-                'total' => count($allUsers),
+                'total' => $totalUsers,
                 'admins' => $adminCount,
-                'face_enrolled' => $faceEnrollmentCount,
+                'admin_percentage' => $this->calculatePercentage($adminCount, $totalUsers),
+                'profile_image_percentage' => $this->calculatePercentage($profileImageCount, $totalUsers),
+                'with_profile_img' => $profileImageCount,
             ],
         ]);
     }
@@ -150,5 +189,69 @@ class AdminUserController extends AbstractController
         $this->addFlash('success', 'User deleted successfully.');
 
         return $this->redirectToRoute('app_admin_users', array_filter(['q' => trim((string) $request->request->get('q', ''))]));
+    }
+
+    /**
+     * @param array<string, int> $counts
+     *
+     * @return list<array{label: string, count: int, percentage: float}>
+     */
+    private function buildPercentageRows(array $counts, int $total): array
+    {
+        $rows = [];
+
+        foreach ($counts as $label => $count) {
+            $rows[] = [
+                'label' => $label,
+                'count' => $count,
+                'percentage' => $this->calculatePercentage($count, $total),
+            ];
+        }
+
+        return $rows;
+    }
+
+    /**
+     * @param list<array{label: string, count: int, percentage: float}> $rows
+     * @param list<string> $colors
+     */
+    private function buildDoughnutChart(ChartBuilderInterface $chartBuilder, array $rows, array $colors): Chart
+    {
+        $chart = $chartBuilder->createChart(Chart::TYPE_DOUGHNUT);
+
+        $chart->setData([
+            'labels' => array_map(static fn (array $row): string => $row['label'], $rows),
+            'datasets' => [[
+                'data' => array_map(static fn (array $row): float => $row['percentage'], $rows),
+                'backgroundColor' => $colors,
+                'borderWidth' => 0,
+                'hoverOffset' => 8,
+            ]],
+        ]);
+
+        $chart->setOptions([
+            'cutout' => '68%',
+            'maintainAspectRatio' => false,
+            'plugins' => [
+                'legend' => [
+                    'position' => 'bottom',
+                    'labels' => [
+                        'boxWidth' => 10,
+                        'usePointStyle' => true,
+                    ],
+                ],
+            ],
+        ]);
+
+        return $chart;
+    }
+
+    private function calculatePercentage(int $count, int $total): float
+    {
+        if ($total <= 0) {
+            return 0.0;
+        }
+
+        return round(($count / $total) * 100, 1);
     }
 }

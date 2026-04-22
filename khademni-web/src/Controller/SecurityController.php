@@ -3,9 +3,11 @@
 namespace App\Controller;
 
 use App\Entity\User;
+use App\Form\LoginFormType;
 use App\Repository\UserRepository;
 use App\Service\FaceBackendService;
 use Symfony\Bundle\FrameworkBundle\Controller\AbstractController;
+use Symfony\Component\Form\FormFactoryInterface;
 use Symfony\Bundle\SecurityBundle\Security;
 use Symfony\Component\HttpFoundation\Request;
 use Symfony\Component\HttpFoundation\Response;
@@ -17,16 +19,22 @@ use Symfony\Component\Security\Http\Authentication\AuthenticationUtils;
 class SecurityController extends AbstractController
 {
     #[Route('/login', name: 'app_login', methods: ['GET', 'POST'])]
-    public function login(AuthenticationUtils $authenticationUtils, CsrfTokenManagerInterface $csrfTokenManager): Response
+    public function login(AuthenticationUtils $authenticationUtils, CsrfTokenManagerInterface $csrfTokenManager, FormFactoryInterface $formFactory): Response
     {
         if ($this->getUser()) {
             return $this->redirectToRoute('app_profile');
         }
 
+        $loginForm = $formFactory->createNamed('', LoginFormType::class, [
+            'email' => $authenticationUtils->getLastUsername(),
+        ], [
+            'action' => $this->generateUrl('app_login'),
+        ]);
+
         return $this->render('security/login.html.twig', [
-            'last_username' => $authenticationUtils->getLastUsername(),
             'error' => $authenticationUtils->getLastAuthenticationError(),
             'face_login_csrf_token' => $csrfTokenManager->getToken('face_login')->getValue(),
+            'login_form' => $loginForm->createView(),
         ]);
     }
 
@@ -47,7 +55,7 @@ class SecurityController extends AbstractController
         $frames = array_values(array_filter($request->files->all('frames')));
 
         if ([] === $frames) {
-            $this->addFlash('error', 'Please upload or capture at least one Face ID photo.');
+            $this->addFlash('error', 'No Face ID frames were captured. Please use the camera and try again.');
 
             return $this->redirectToRoute('app_login');
         }

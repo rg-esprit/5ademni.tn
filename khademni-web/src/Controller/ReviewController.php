@@ -151,7 +151,7 @@ class ReviewController extends AbstractController
             }
 
             try {
-                $formData['review_text'] = $reviewAiService->generate($aiPrompt);
+                $formData['review_text'] = $reviewAiService->generate($aiPrompt, $request->getClientIp());
             } catch (\RuntimeException $exception) {
                 return $this->renderReviewPage(
                     $user,

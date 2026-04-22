@@ -11,5 +11,8 @@
     <body class="{% block body_class %}app-body{% endblock %}">
         {% include 'partials/_flashes.html.twig' %}
         {% block body %}{% endblock %}
+        {% block javascripts %}
+            {{ importmap('app') }}
+        {% endblock %}
     </body>
 </html>

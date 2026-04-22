@@ -158,7 +158,8 @@ textarea {
     gap: 8px;
 }
 
-.field-group label {
+.field-group label,
+.field-label {
     font-size: 0.94rem;
     font-weight: 600;
 }
@@ -326,11 +327,24 @@ textarea {
     border-radius: 20px;
     background: linear-gradient(180deg, #0f0b18, #24153c);
     object-fit: cover;
+    transform: scaleX(-1);
+}
+
+.face-camera-actions {
+    display: flex;
+    gap: 12px;
+    flex-wrap: wrap;
+}
+
+.face-camera-actions .ghost-button,
+.face-camera-actions .secondary-button {
+    flex: 1 1 180px;
 }
 
 .face-status {
     margin: 0;
     color: var(--muted);
+    min-height: 2.8em;
 }
 
 .face-status[data-error='true'] {
