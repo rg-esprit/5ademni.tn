@@ -7,7 +7,10 @@ use App\Entity\User;
 use App\Repository\CategoryRepository;
 use App\Service\BlobStorageService;
 use App\Service\GigAiService;
+use App\Service\SearchQueryFactory;
+use FOS\ElasticaBundle\Finder\TransformedFinder;
 use Doctrine\ORM\EntityManagerInterface;
+use Symfony\Component\DependencyInjection\Attribute\Autowire;
 use Symfony\Bundle\FrameworkBundle\Controller\AbstractController;
 use Symfony\Component\HttpFoundation\Request;
 use Symfony\Component\HttpFoundation\Response;
@@ -20,6 +23,9 @@ class CategoryController extends AbstractController
         Request $request,
         CategoryRepository $categoryRepository,
         BlobStorageService $blobStorageService,
+        #[Autowire(service: 'fos_elastica.finder.category')]
+        TransformedFinder $categoryFinder,
+        SearchQueryFactory $searchQueryFactory,
     ): Response {
         $user = $this->getCurrentUser();
         if (!$user instanceof User) {
@@ -36,7 +42,11 @@ class CategoryController extends AbstractController
             $status = 'all';
         }
 
-        $categories = $categoryRepository->findForFilters($query, $status);
+        try {
+            $categories = $categoryFinder->find($searchQueryFactory->buildCategorySearchQuery($query, $status));
+        } catch (\Throwable) {
+            $categories = $categoryRepository->findForFilters($query, $status);
+        }
         $dashboard = $categoryRepository->getDashboardData();
         $distributionById = [];
         foreach ($dashboard['rows'] as $row) {

@@ -1,0 +1,8 @@
+framework:
+    messenger:
+        transports:
+            async: '%env(MESSENGER_TRANSPORT_DSN)%'
+            sync: 'sync://'
+        routing:
+            App\Message\CategoryRequestEmailMessage: sync
+            App\Message\GigApprovedEmailMessage: sync

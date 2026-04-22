@@ -10,9 +10,12 @@ use App\Repository\GigRepository;
 use App\Service\BlobStorageService;
 use App\Service\ContentModerationService;
 use App\Service\GigAiService;
+use App\Service\SearchQueryFactory;
 use App\Service\PriceSuggestionService;
 use App\Service\SpamDetectionService;
+use FOS\ElasticaBundle\Finder\TransformedFinder;
 use Doctrine\ORM\EntityManagerInterface;
+use Symfony\Component\DependencyInjection\Attribute\Autowire;
 use Symfony\Bundle\FrameworkBundle\Controller\AbstractController;
 use Symfony\Component\HttpFoundation\Request;
 use Symfony\Component\HttpFoundation\Response;
@@ -26,6 +29,9 @@ class GigController extends AbstractController
         GigRepository $gigRepository,
         CategoryRepository $categoryRepository,
         BlobStorageService $blobStorageService,
+        #[Autowire(service: 'fos_elastica.finder.gig')]
+        TransformedFinder $gigFinder,
+        SearchQueryFactory $searchQueryFactory,
     ): Response {
         $user = $this->getCurrentUser();
         if (!$user instanceof User) {
@@ -34,7 +40,11 @@ class GigController extends AbstractController
 
         $filters = $this->extractFilters($request);
         $allGigs = $gigRepository->findAllWithCategory();
-        $filtered = $gigRepository->filterInMemory($allGigs, $filters);
+        try {
+            $filtered = $gigFinder->find($searchQueryFactory->buildGigSearchQuery($filters));
+        } catch (\Throwable) {
+            $filtered = $gigRepository->filterInMemory($allGigs, $filters);
+        }
         $stats = $gigRepository->summarize($allGigs);
         $categories = $categoryRepository->findAllOrdered();
 
@@ -170,9 +180,11 @@ class GigController extends AbstractController
             return $this->redirectToRoute('app_gigs');
         }
 
-        $isExpired = $isEdit && 'EXPIRED' === $entity->getDisplayStatus();
+        $isExpired = $isEdit && Gig::STATUS_EXPIRED === $entity->getDisplayStatus();
         $categories = $categoryRepository->findActiveOrdered();
         $categoryNames = array_map(static fn (Category $category): string => $category->getName(), $categories);
+        $userFormStatuses = Gig::getUserFormStatuses();
+        $allowedUserStatuses = array_map('strtolower', $userFormStatuses);
 
         $deliveryTime = $entity->getDeliveryTime();
         $values = [
@@ -183,14 +195,10 @@ class GigController extends AbstractController
             'delivery_date' => $deliveryTime instanceof \DateTimeInterface ? $deliveryTime->format('Y-m-d') : '',
             'delivery_hour' => $deliveryTime instanceof \DateTimeInterface ? (int) $deliveryTime->format('H') : 12,
             'image' => $isEdit ? (string) $entity->getImage() : '',
-            'status' => $isEdit ? strtolower($entity->getDisplayStatus()) : 'active',
+            'status' => $isEdit ? strtolower($entity->getWorkflowStatus()) : strtolower(Gig::STATUS_DRAFT),
             'ai_prompt' => '',
             'requested_category_name' => '',
         ];
-
-        if (!in_array($values['status'], ['active', 'inactive'], true)) {
-            $values['status'] = 'active';
-        }
 
         $errors = [];
         $aiStatus = null;
@@ -210,13 +218,14 @@ class GigController extends AbstractController
                 'delivery_date' => trim((string) $request->request->get('delivery_date', '')),
                 'delivery_hour' => max(0, min(23, (int) $request->request->get('delivery_hour', 12))),
                 'image' => trim((string) $request->request->get('image', '')),
-                'status' => strtolower(trim((string) $request->request->get('status', 'active'))),
+                'status' => strtolower(trim((string) $request->request->get('status', Gig::STATUS_DRAFT))),
                 'ai_prompt' => trim((string) $request->request->get('ai_prompt', '')),
                 'requested_category_name' => trim((string) $request->request->get('requested_category_name', '')),
             ];
 
-            if (!in_array($values['status'], ['active', 'inactive'], true)) {
-                $values['status'] = 'active';
+            if (!in_array($values['status'], $allowedUserStatuses, true)) {
+                $errors['status'] = 'Selected status is admin-managed. Use Draft, Pending, or Archived.';
+                $values['status'] = strtolower($entity->getWorkflowStatus());
             }
 
             $action = (string) $request->request->get('form_action', 'save');
@@ -229,7 +238,7 @@ class GigController extends AbstractController
                     $values['title'] = $generated['title'];
                     $values['description'] = $generated['description'];
                     $values['price'] = number_format($generated['price'], 2, '.', '');
-                    $values['status'] = 'active';
+                    $values['status'] = strtolower(Gig::STATUS_DRAFT);
                     $values['delivery_date'] = (new \DateTimeImmutable())->modify('+'.$generated['delivery_days'].' days')->format('Y-m-d');
                     $values['delivery_hour'] = 12;
                     $values['category_id'] = $this->findCategoryIdByName($generated['category'], $categories);
@@ -297,6 +306,19 @@ class GigController extends AbstractController
                 }
 
                 $selectedCategory = $this->findCategoryById($values['category_id'], $categories);
+                if (!$selectedCategory instanceof Category && '' !== $values['title'] && '' !== $values['description']) {
+                    $suggestion = $gigAiService->suggestCategory($values['title'], $values['description'], $categoryNames);
+                    if (null !== $suggestion) {
+                        $suggestedCategoryId = $this->findCategoryIdByName($suggestion, $categories);
+                        $selectedCategory = $this->findCategoryById($suggestedCategoryId, $categories);
+
+                        if ($selectedCategory instanceof Category) {
+                            $values['category_id'] = $selectedCategory->getId();
+                            $this->addFlash('success', sprintf('Category auto-suggested: %s.', $selectedCategory->getName()));
+                        }
+                    }
+                }
+
                 $delivery = $this->parseDeliveryDateTime($values['delivery_date'], $values['delivery_hour']);
                 $price = $this->parsePrice($values['price']);
 
@@ -315,7 +337,7 @@ class GigController extends AbstractController
                 }
 
                 if (!$selectedCategory instanceof Category) {
-                    $errors['category_id'] = 'Category is required.';
+                    $errors['category_id'] = 'Category is required. Try AI suggestion or submit a category request.';
                 }
 
                 if (!$delivery instanceof \DateTimeImmutable) {
@@ -337,6 +359,15 @@ class GigController extends AbstractController
                     }
                 }
 
+                $targetStatus = Gig::normalizeStatus($values['status']);
+                if ([] === $errors && !$entity->canTransitionTo($targetStatus, false)) {
+                    $errors['status'] = sprintf(
+                        'Transition not allowed from %s to %s for your role.',
+                        $entity->getWorkflowStatus(),
+                        $targetStatus,
+                    );
+                }
+
                 if ([] === $errors && null !== $price && $selectedCategory instanceof Category && $delivery instanceof \DateTimeImmutable) {
                     $entity
                         ->setTitle($values['title'])
@@ -345,7 +376,7 @@ class GigController extends AbstractController
                         ->setCategory($selectedCategory)
                         ->setDeliveryTime($delivery)
                         ->setImage($values['image'])
-                        ->setStatus(strtoupper($values['status']));
+                        ->setStatus($targetStatus);
 
                     if (!$isEdit) {
                         $entity->setUserId($user->getId());
@@ -353,7 +384,11 @@ class GigController extends AbstractController
                     }
 
                     $entityManager->flush();
-                    $this->addFlash('success', $isEdit ? 'Gig updated successfully.' : 'Gig created successfully.');
+                    $message = $isEdit ? 'Gig updated successfully.' : 'Gig created successfully.';
+                    if (Gig::STATUS_PENDING === $targetStatus) {
+                        $message .= ' Gig submitted for admin review.';
+                    }
+                    $this->addFlash('success', $message);
 
                     return $this->redirectToRoute('app_gigs');
                 }
@@ -378,7 +413,7 @@ class GigController extends AbstractController
     private function extractFilters(Request $request): array
     {
         $status = strtoupper(trim((string) $request->query->get('status', 'ALL')));
-        if (!in_array($status, ['ALL', 'ACTIVE', 'INACTIVE', 'EXPIRED'], true)) {
+        if (!in_array($status, Gig::getFilterableStatuses(), true)) {
             $status = 'ALL';
         }
 

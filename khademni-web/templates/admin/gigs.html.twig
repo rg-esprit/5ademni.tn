@@ -29,12 +29,24 @@
                     <strong>{{ stats.total }}</strong>
                 </article>
                 <article class="admin-stat-card">
-                    <span>Active</span>
-                    <strong>{{ stats.active }}</strong>
+                    <span>Draft</span>
+                    <strong>{{ stats.draft }}</strong>
                 </article>
                 <article class="admin-stat-card">
-                    <span>Inactive</span>
-                    <strong>{{ stats.inactive }}</strong>
+                    <span>Pending</span>
+                    <strong>{{ stats.pending }}</strong>
+                </article>
+                <article class="admin-stat-card">
+                    <span>Approved</span>
+                    <strong>{{ stats.approved }}</strong>
+                </article>
+                <article class="admin-stat-card">
+                    <span>Rejected</span>
+                    <strong>{{ stats.rejected }}</strong>
+                </article>
+                <article class="admin-stat-card">
+                    <span>Archived</span>
+                    <strong>{{ stats.archived }}</strong>
                 </article>
                 <article class="admin-stat-card">
                     <span>Expired</span>
@@ -63,8 +75,11 @@
                     </select>
                     <select name="status">
                         <option value="ALL" {% if filters.status == 'ALL' %}selected{% endif %}>All statuses</option>
-                        <option value="ACTIVE" {% if filters.status == 'ACTIVE' %}selected{% endif %}>Active</option>
-                        <option value="INACTIVE" {% if filters.status == 'INACTIVE' %}selected{% endif %}>Inactive</option>
+                        <option value="DRAFT" {% if filters.status == 'DRAFT' %}selected{% endif %}>Draft</option>
+                        <option value="PENDING" {% if filters.status == 'PENDING' %}selected{% endif %}>Pending</option>
+                        <option value="APPROVED" {% if filters.status == 'APPROVED' %}selected{% endif %}>Approved</option>
+                        <option value="REJECTED" {% if filters.status == 'REJECTED' %}selected{% endif %}>Rejected</option>
+                        <option value="ARCHIVED" {% if filters.status == 'ARCHIVED' %}selected{% endif %}>Archived</option>
                         <option value="EXPIRED" {% if filters.status == 'EXPIRED' %}selected{% endif %}>Expired</option>
                     </select>
                     <button class="btn-secondary" type="submit">Search</button>
@@ -75,7 +90,7 @@
             <section class="admin-panel">
                 <header>
                     <h2>Gig Listings</h2>
-                    <span>Admin actions: status update + delete</span>
+                    <span>Admin actions: workflow transitions + delete</span>
                 </header>
 
                 <div class="admin-table-wrap">
@@ -96,6 +111,7 @@
                             {% for gig in gigs %}
                                 {% set owner = gig.userId ? attribute(owner_by_id, gig.userId)|default('User #' ~ gig.userId) : 'Unknown' %}
                                 {% set display_status = gig.displayStatus %}
+                                {% set status_class = display_status == 'DRAFT' ? 'status-draft' : (display_status == 'PENDING' ? 'status-pending' : (display_status == 'APPROVED' ? 'status-approved' : (display_status == 'REJECTED' ? 'status-rejected' : (display_status == 'ARCHIVED' ? 'status-archived' : 'status-expired')))) %}
                                 <tr>
                                     <td>#{{ gig.id }}</td>
                                     <td>{{ gig.title }}</td>
@@ -103,16 +119,37 @@
                                     <td>{{ owner }}</td>
                                     <td>{{ gig.price|number_format(2, '.', ',') }} TND</td>
                                     <td>
-                                        <span class="status-pill {{ display_status == 'ACTIVE' ? 'status-active' : (display_status == 'INACTIVE' ? 'status-inactive' : 'status-expired') }}">{{ display_status }}</span>
+                                        <span class="status-pill {{ status_class }}">{{ display_status }}</span>
                                     </td>
                                     <td>{{ gig.deliveryTime ? gig.deliveryTime|date('Y-m-d H:i') : '-' }}</td>
                                     <td>
                                         <div class="table-actions">
-                                            {% if display_status != 'EXPIRED' %}
+                                            {% if display_status in ['DRAFT', 'PENDING', 'REJECTED'] %}
                                                 <form method="post" action="{{ path('app_admin_gig_status', {id: gig.id}) }}">
                                                     <input type="hidden" name="_token" value="{{ csrf_token('admin_gig_status_' ~ gig.id) }}">
-                                                    <input type="hidden" name="status" value="{{ display_status == 'ACTIVE' ? 'INACTIVE' : 'ACTIVE' }}">
-                                                    <button class="btn-soft" type="submit">{{ display_status == 'ACTIVE' ? 'Set Inactive' : 'Set Active' }}</button>
+                                                    <input type="hidden" name="status" value="APPROVED">
+                                                    <button class="btn-soft" type="submit">Approve</button>
+                                                </form>
+                                            {% endif %}
+                                            {% if display_status in ['DRAFT', 'PENDING', 'APPROVED'] %}
+                                                <form method="post" action="{{ path('app_admin_gig_status', {id: gig.id}) }}">
+                                                    <input type="hidden" name="_token" value="{{ csrf_token('admin_gig_status_' ~ gig.id) }}">
+                                                    <input type="hidden" name="status" value="REJECTED">
+                                                    <button class="btn-soft" type="submit">Reject</button>
+                                                </form>
+                                            {% endif %}
+                                            {% if display_status == 'REJECTED' %}
+                                                <form method="post" action="{{ path('app_admin_gig_status', {id: gig.id}) }}">
+                                                    <input type="hidden" name="_token" value="{{ csrf_token('admin_gig_status_' ~ gig.id) }}">
+                                                    <input type="hidden" name="status" value="PENDING">
+                                                    <button class="btn-soft" type="submit">Reopen Pending</button>
+                                                </form>
+                                            {% endif %}
+                                            {% if display_status != 'ARCHIVED' %}
+                                                <form method="post" action="{{ path('app_admin_gig_status', {id: gig.id}) }}">
+                                                    <input type="hidden" name="_token" value="{{ csrf_token('admin_gig_status_' ~ gig.id) }}">
+                                                    <input type="hidden" name="status" value="ARCHIVED">
+                                                    <button class="btn-soft" type="submit">Archive</button>
                                                 </form>
                                             {% endif %}
                                             <form method="post" action="{{ path('app_admin_gig_delete', {id: gig.id}) }}">

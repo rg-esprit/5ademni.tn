@@ -323,18 +323,33 @@
     color: #5b21b6;
 }
 
-.badge-status.badge-active {
-    background: #dcfce7;
-    color: #16a34a;
+.badge-status.badge-draft {
+    background: #e2e8f0;
+    color: #334155;
 }
 
-.badge-status.badge-inactive {
+.badge-status.badge-pending {
     background: #fef3c7;
     color: #92400e;
 }
 
-.badge-status.badge-expired {
+.badge-status.badge-approved {
+    background: #dcfce7;
+    color: #16a34a;
+}
+
+.badge-status.badge-rejected {
     background: #fee2e2;
+    color: #991b1b;
+}
+
+.badge-status.badge-archived {
+    background: #e0e7ff;
+    color: #3730a3;
+}
+
+.badge-status.badge-expired {
+    background: #fecaca;
     color: #991b1b;
 }
 
