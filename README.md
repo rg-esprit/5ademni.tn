@@ -41,3 +41,11 @@ curl http://127.0.0.1:5003/health
 Expected result after stopping: connection refused.
 
 The Symfony web app uses this service on port `5003` for Face ID login and enrollment.
+
+## Testing Accounts:
+
+here are the accounts you can use :
+freelancer@gmail.com
+client@gmail.com
+admin@gmail.com
+all these account password is : secret123
