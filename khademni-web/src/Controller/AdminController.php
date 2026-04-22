@@ -9,7 +9,12 @@ use App\Repository\CategoryRepository;
 use App\Repository\GigRepository;
 use App\Repository\UserRepository;
 use App\Service\BlobStorageService;
+use App\Service\CategoryRequestNotificationService;
+use App\Service\GigApprovalNotificationService;
+use App\Service\SearchQueryFactory;
+use FOS\ElasticaBundle\Finder\TransformedFinder;
 use Doctrine\ORM\EntityManagerInterface;
+use Symfony\Component\DependencyInjection\Attribute\Autowire;
 use Symfony\Bundle\FrameworkBundle\Controller\AbstractController;
 use Symfony\Component\HttpFoundation\Request;
 use Symfony\Component\HttpFoundation\Response;
@@ -54,8 +59,8 @@ class AdminController extends AbstractController
                 'categories' => $categoryStats['total_categories'],
                 'active_categories' => $categoryStats['active_categories'],
                 'gigs' => $gigStats['total'],
-                'active_gigs' => $gigStats['active'],
-                'inactive_gigs' => $gigStats['inactive'],
+                'active_gigs' => $gigStats['approved'],
+                'inactive_gigs' => $gigStats['draft'] + $gigStats['pending'] + $gigStats['rejected'] + $gigStats['archived'],
                 'expired_gigs' => $gigStats['expired'],
                 'revenue' => $gigStats['revenue'],
             ],
@@ -71,6 +76,9 @@ class AdminController extends AbstractController
         CategoryRepository $categoryRepository,
         EntityManagerInterface $entityManager,
         BlobStorageService $blobStorageService,
+        #[Autowire(service: 'fos_elastica.finder.category')]
+        TransformedFinder $categoryFinder,
+        SearchQueryFactory $searchQueryFactory,
     ): Response {
         $currentUser = $this->getCurrentUser();
         if (!$currentUser instanceof User) {
@@ -136,7 +144,11 @@ class AdminController extends AbstractController
             $filters['status'] = 'all';
         }
 
-        $categories = $categoryRepository->findForFilters($filters['q'], $filters['status']);
+        try {
+            $categories = $categoryFinder->find($searchQueryFactory->buildCategorySearchQuery($filters['q'], $filters['status']));
+        } catch (\Throwable) {
+            $categories = $categoryRepository->findForFilters($filters['q'], $filters['status']);
+        }
         $dashboard = $categoryRepository->getDashboardData();
         $distributionById = [];
 
@@ -160,6 +172,8 @@ class AdminController extends AbstractController
         Request $request,
         Category $category,
         EntityManagerInterface $entityManager,
+        UserRepository $userRepository,
+        CategoryRequestNotificationService $categoryRequestNotificationService,
     ): Response {
         if (!$this->isGranted('ROLE_ADMIN')) {
             return $this->redirectToRoute('app_profile');
@@ -171,10 +185,81 @@ class AdminController extends AbstractController
             return $this->redirectToRoute('app_admin_categories');
         }
 
-        $category->setIsActive(!$category->isActive());
+        $wasActive = $category->isActive();
+        $category->setIsActive(!$wasActive);
         $entityManager->flush();
 
+        if (!$wasActive && $category->isActive()) {
+            $requester = $this->findCategoryRequester($category, $userRepository);
+            if ($requester instanceof User) {
+                try {
+                    $categoryRequestNotificationService->sendApproval($requester, $category);
+                } catch (\Throwable) {
+                    $this->addFlash('warning', 'Category approved, but the approval email could not be sent.');
+                }
+            }
+        }
+
         $this->addFlash('success', sprintf('Category "%s" is now %s.', $category->getName(), $category->isActive() ? 'active' : 'inactive'));
+
+        return $this->redirectToRoute('app_admin_categories');
+    }
+
+    #[Route('/categories/{id}/reject', name: 'app_admin_category_reject', methods: ['POST'])]
+    public function rejectCategory(
+        Request $request,
+        Category $category,
+        EntityManagerInterface $entityManager,
+        UserRepository $userRepository,
+        CategoryRequestNotificationService $categoryRequestNotificationService,
+    ): Response {
+        if (!$this->isGranted('ROLE_ADMIN')) {
+            return $this->redirectToRoute('app_profile');
+        }
+
+        if (!$this->isCsrfTokenValid('admin_reject_category_'.$category->getId(), (string) $request->request->get('_token'))) {
+            $this->addFlash('error', 'Reject action expired. Please try again.');
+
+            return $this->redirectToRoute('app_admin_categories');
+        }
+
+        if (!$this->isCategoryPendingRequest($category)) {
+            $this->addFlash('error', 'Only pending category requests can be rejected with a reason.');
+
+            return $this->redirectToRoute('app_admin_categories');
+        }
+
+        if ($category->getGigs()->count() > 0) {
+            $this->addFlash('error', 'Cannot reject this category request while gigs are assigned to it.');
+
+            return $this->redirectToRoute('app_admin_categories');
+        }
+
+        $reason = trim((string) $request->request->get('reason', ''));
+        if (mb_strlen($reason) < 8) {
+            $this->addFlash('error', 'Rejection reason must be at least 8 characters.');
+
+            return $this->redirectToRoute('app_admin_categories');
+        }
+
+        $requester = $this->findCategoryRequester($category, $userRepository);
+        if (!$requester instanceof User) {
+            $this->addFlash('error', 'Could not identify the requester for this category.');
+
+            return $this->redirectToRoute('app_admin_categories');
+        }
+
+        $categoryName = $category->getName();
+        $entityManager->remove($category);
+        $entityManager->flush();
+
+        try {
+            $categoryRequestNotificationService->sendRejection($requester, $categoryName, $reason);
+        } catch (\Throwable) {
+            $this->addFlash('warning', 'Category request rejected, but the rejection email could not be sent.');
+        }
+
+        $this->addFlash('success', sprintf('Category request "%s" rejected.', $categoryName));
 
         return $this->redirectToRoute('app_admin_categories');
     }
@@ -217,6 +302,9 @@ class AdminController extends AbstractController
         CategoryRepository $categoryRepository,
         UserRepository $userRepository,
         BlobStorageService $blobStorageService,
+        #[Autowire(service: 'fos_elastica.finder.gig')]
+        TransformedFinder $gigFinder,
+        SearchQueryFactory $searchQueryFactory,
     ): Response {
         $currentUser = $this->getCurrentUser();
         if (!$currentUser instanceof User) {
@@ -237,12 +325,16 @@ class AdminController extends AbstractController
             'max_price' => null,
         ];
 
-        if (!in_array($filters['status'], ['ALL', 'ACTIVE', 'INACTIVE', 'EXPIRED'], true)) {
+        if (!in_array($filters['status'], Gig::getFilterableStatuses(), true)) {
             $filters['status'] = 'ALL';
         }
 
         $allGigs = $gigRepository->findAllWithCategory();
-        $gigs = $gigRepository->filterInMemory($allGigs, $filters);
+        try {
+            $gigs = $gigFinder->find($searchQueryFactory->buildGigSearchQuery($filters));
+        } catch (\Throwable) {
+            $gigs = $gigRepository->filterInMemory($allGigs, $filters);
+        }
         $stats = $this->buildGigStats($allGigs);
 
         $ownerById = $this->buildOwnerMap($gigs, $userRepository);
@@ -262,6 +354,8 @@ class AdminController extends AbstractController
         Request $request,
         Gig $gig,
         EntityManagerInterface $entityManager,
+        UserRepository $userRepository,
+        GigApprovalNotificationService $gigApprovalNotificationService,
     ): Response {
         if (!$this->isGranted('ROLE_ADMIN')) {
             return $this->redirectToRoute('app_profile');
@@ -273,15 +367,61 @@ class AdminController extends AbstractController
             return $this->redirectToRoute('app_admin_gigs');
         }
 
-        $status = strtoupper(trim((string) $request->request->get('status', '')));
-        if (!in_array($status, ['ACTIVE', 'INACTIVE'], true)) {
+        $status = Gig::normalizeStatus((string) $request->request->get('status', ''));
+        if (!in_array($status, Gig::getAdminActionStatuses(), true)) {
             $this->addFlash('error', 'Invalid status selected.');
 
             return $this->redirectToRoute('app_admin_gigs');
         }
 
+        if (!$gig->canTransitionTo($status, true)) {
+            $this->addFlash('error', sprintf('Transition not allowed from %s to %s.', $gig->getWorkflowStatus(), $status));
+
+            return $this->redirectToRoute('app_admin_gigs');
+        }
+
+        if (Gig::STATUS_APPROVED === $status) {
+            $validationErrors = $gig->getApprovalValidationErrors();
+            if ([] !== $validationErrors) {
+                $this->addFlash('error', 'Cannot approve this gig: '.implode(' ', $validationErrors));
+
+                return $this->redirectToRoute('app_admin_gigs');
+            }
+        }
+
+        $wasApproved = Gig::STATUS_APPROVED === $gig->getWorkflowStatus();
+        $wasRejected = Gig::STATUS_REJECTED === $gig->getWorkflowStatus();
+
         $gig->setStatus($status);
         $entityManager->flush();
+
+        if (!$wasApproved && Gig::STATUS_APPROVED === $gig->getWorkflowStatus()) {
+            $ownerId = $gig->getUserId();
+            if (null !== $ownerId) {
+                $owner = $userRepository->find($ownerId);
+                if ($owner instanceof User) {
+                    try {
+                        $gigApprovalNotificationService->sendApproval($owner, $gig);
+                    } catch (\Throwable) {
+                        $this->addFlash('warning', 'Gig approved, but the approval email could not be queued.');
+                    }
+                }
+            }
+        }
+
+        if (!$wasRejected && Gig::STATUS_REJECTED === $gig->getWorkflowStatus()) {
+            $ownerId = $gig->getUserId();
+            if (null !== $ownerId) {
+                $owner = $userRepository->find($ownerId);
+                if ($owner instanceof User) {
+                    try {
+                        $gigApprovalNotificationService->sendRejection($owner, $gig);
+                    } catch (\Throwable) {
+                        $this->addFlash('warning', 'Gig rejected, but the rejection email could not be queued.');
+                    }
+                }
+            }
+        }
 
         $this->addFlash('success', sprintf('Gig "%s" status updated to %s.', $gig->getTitle(), $status));
 
@@ -316,23 +456,32 @@ class AdminController extends AbstractController
     /**
      * @param Gig[] $gigs
      *
-     * @return array{total:int, active:int, inactive:int, expired:int, revenue:float}
+     * @return array{total:int, draft:int, pending:int, approved:int, rejected:int, archived:int, expired:int, revenue:float}
      */
     private function buildGigStats(array $gigs): array
     {
-        $active = 0;
-        $inactive = 0;
+        $draft = 0;
+        $pending = 0;
+        $approved = 0;
+        $rejected = 0;
+        $archived = 0;
         $expired = 0;
         $revenue = 0.0;
         $now = new \DateTimeImmutable();
 
         foreach ($gigs as $gig) {
             $status = $gig->getDisplayStatus($now);
-            if ('ACTIVE' === $status) {
-                ++$active;
-            } elseif ('INACTIVE' === $status) {
-                ++$inactive;
-            } elseif ('EXPIRED' === $status) {
+            if (Gig::STATUS_DRAFT === $status) {
+                ++$draft;
+            } elseif (Gig::STATUS_PENDING === $status) {
+                ++$pending;
+            } elseif (Gig::STATUS_APPROVED === $status) {
+                ++$approved;
+            } elseif (Gig::STATUS_REJECTED === $status) {
+                ++$rejected;
+            } elseif (Gig::STATUS_ARCHIVED === $status) {
+                ++$archived;
+            } elseif (Gig::STATUS_EXPIRED === $status) {
                 ++$expired;
             }
 
@@ -341,8 +490,11 @@ class AdminController extends AbstractController
 
         return [
             'total' => count($gigs),
-            'active' => $active,
-            'inactive' => $inactive,
+            'draft' => $draft,
+            'pending' => $pending,
+            'approved' => $approved,
+            'rejected' => $rejected,
+            'archived' => $archived,
             'expired' => $expired,
             'revenue' => $revenue,
         ];
@@ -375,6 +527,39 @@ class AdminController extends AbstractController
         }
 
         return $map;
+    }
+
+    private function isCategoryPendingRequest(Category $category): bool
+    {
+        return !$category->isActive() && null !== $this->extractCategoryRequesterId($category);
+    }
+
+    private function findCategoryRequester(Category $category, UserRepository $userRepository): ?User
+    {
+        $requesterId = $this->extractCategoryRequesterId($category);
+        if (null === $requesterId) {
+            return null;
+        }
+
+        $requester = $userRepository->find($requesterId);
+
+        return $requester instanceof User ? $requester : null;
+    }
+
+    private function extractCategoryRequesterId(Category $category): ?int
+    {
+        $description = (string) ($category->getDescription() ?? '');
+        if ('' === trim($description)) {
+            return null;
+        }
+
+        if (!preg_match('/\(user\s+#(\d+)\)/i', $description, $matches)) {
+            return null;
+        }
+
+        $userId = (int) ($matches[1] ?? 0);
+
+        return $userId > 0 ? $userId : null;
     }
 
     private function toNullableInt(mixed $value): ?int

@@ -47,8 +47,11 @@
                             <span>Status</span>
                             <select name="status">
                                 <option value="ALL" {% if filters.status == 'ALL' %}selected{% endif %}>All Status</option>
-                                <option value="ACTIVE" {% if filters.status == 'ACTIVE' %}selected{% endif %}>Active</option>
-                                <option value="INACTIVE" {% if filters.status == 'INACTIVE' %}selected{% endif %}>Inactive</option>
+                                <option value="DRAFT" {% if filters.status == 'DRAFT' %}selected{% endif %}>Draft</option>
+                                <option value="PENDING" {% if filters.status == 'PENDING' %}selected{% endif %}>Pending</option>
+                                <option value="APPROVED" {% if filters.status == 'APPROVED' %}selected{% endif %}>Approved</option>
+                                <option value="REJECTED" {% if filters.status == 'REJECTED' %}selected{% endif %}>Rejected</option>
+                                <option value="ARCHIVED" {% if filters.status == 'ARCHIVED' %}selected{% endif %}>Archived</option>
                                 <option value="EXPIRED" {% if filters.status == 'EXPIRED' %}selected{% endif %}>Expired</option>
                             </select>
                         </label>
@@ -80,8 +83,8 @@
                             <strong>{{ stats.total }}</strong>
                         </article>
                         <article>
-                            <span>Active Gigs</span>
-                            <strong class="text-active">{{ stats.active }}</strong>
+                            <span>Approved Gigs</span>
+                            <strong class="text-active">{{ stats.approved }}</strong>
                         </article>
                         <article>
                             <span>Total Revenue</span>

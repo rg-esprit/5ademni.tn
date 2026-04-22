@@ -101,20 +101,38 @@
                             {% for category in categories %}
                                 {% set stats = attribute(distribution_by_id, category.id)|default(null) %}
                                 {% set gigs_count = stats ? stats.gig_count : 0 %}
+                                {% set description = category.description ?: '' %}
+                                {% set is_pending_request = (not category.active) and (description matches '/\\(user\\s+#\\d+\\)/i') %}
                                 <tr>
                                     <td>#{{ category.id }}</td>
                                     <td>{{ category.name }}</td>
-                                    <td>{{ category.description ?: '-' }}</td>
+                                    <td>{{ description ?: '-' }}</td>
                                     <td>{{ gigs_count }}</td>
                                     <td>
-                                        <span class="status-pill {{ category.active ? 'status-active' : 'status-inactive' }}">{{ category.active ? 'Active' : 'Inactive' }}</span>
+                                        {% if is_pending_request %}
+                                            <span class="status-pill status-inactive">Pending Review</span>
+                                        {% else %}
+                                            <span class="status-pill {{ category.active ? 'status-active' : 'status-inactive' }}">{{ category.active ? 'Active' : 'Inactive' }}</span>
+                                        {% endif %}
                                     </td>
                                     <td>
                                         <div class="table-actions">
-                                            <form method="post" action="{{ path('app_admin_category_toggle', {id: category.id}) }}">
-                                                <input type="hidden" name="_token" value="{{ csrf_token('admin_toggle_category_' ~ category.id) }}">
-                                                <button class="btn-soft" type="submit">{{ category.active ? 'Deactivate' : 'Activate' }}</button>
-                                            </form>
+                                            {% if is_pending_request %}
+                                                <form method="post" action="{{ path('app_admin_category_toggle', {id: category.id}) }}">
+                                                    <input type="hidden" name="_token" value="{{ csrf_token('admin_toggle_category_' ~ category.id) }}">
+                                                    <button class="btn-soft" type="submit">Approve</button>
+                                                </form>
+                                                <form method="post" action="{{ path('app_admin_category_reject', {id: category.id}) }}" class="inline-reject-form">
+                                                    <input type="hidden" name="_token" value="{{ csrf_token('admin_reject_category_' ~ category.id) }}">
+                                                    <input type="text" name="reason" minlength="8" maxlength="255" required placeholder="Reason for rejection">
+                                                    <button class="btn-danger" type="submit">Reject</button>
+                                                </form>
+                                            {% else %}
+                                                <form method="post" action="{{ path('app_admin_category_toggle', {id: category.id}) }}">
+                                                    <input type="hidden" name="_token" value="{{ csrf_token('admin_toggle_category_' ~ category.id) }}">
+                                                    <button class="btn-soft" type="submit">{{ category.active ? 'Deactivate' : 'Activate' }}</button>
+                                                </form>
+                                            {% endif %}
                                             <form method="post" action="{{ path('app_admin_category_delete', {id: category.id}) }}">
                                                 <input type="hidden" name="_token" value="{{ csrf_token('admin_delete_category_' ~ category.id) }}">
                                                 <button class="btn-danger" type="submit">Delete</button>

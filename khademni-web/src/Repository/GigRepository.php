@@ -81,17 +81,17 @@ class GigRepository extends ServiceEntityRepository
     /**
      * @param Gig[] $gigs
      *
-     * @return array{total:int, active:int, revenue:float}
+     * @return array{total:int, approved:int, revenue:float}
      */
     public function summarize(array $gigs): array
     {
-        $active = 0;
+        $approved = 0;
         $revenue = 0.0;
         $now = new \DateTimeImmutable();
 
         foreach ($gigs as $gig) {
-            if ('ACTIVE' === $gig->getDisplayStatus($now)) {
-                ++$active;
+            if (Gig::STATUS_APPROVED === $gig->getDisplayStatus($now)) {
+                ++$approved;
             }
 
             $revenue += $gig->getPrice();
@@ -99,7 +99,7 @@ class GigRepository extends ServiceEntityRepository
 
         return [
             'total' => count($gigs),
-            'active' => $active,
+            'approved' => $approved,
             'revenue' => $revenue,
         ];
     }

@@ -111,9 +111,13 @@
                             <label>
                                 <span>Status</span>
                                 <select name="status">
-                                    <option value="active" {% if values.status == 'active' %}selected{% endif %}>Active</option>
-                                    <option value="inactive" {% if values.status == 'inactive' %}selected{% endif %}>Inactive</option>
+                                    <option value="draft" {% if values.status == 'draft' %}selected{% endif %}>Draft</option>
+                                    <option value="pending" {% if values.status == 'pending' %}selected{% endif %}>Pending Review</option>
+                                    <option value="approved" {% if values.status == 'approved' %}selected{% endif %}>Approved (Admin)</option>
+                                    <option value="rejected" {% if values.status == 'rejected' %}selected{% endif %}>Rejected (Admin)</option>
+                                    <option value="archived" {% if values.status == 'archived' %}selected{% endif %}>Archived</option>
                                 </select>
+                                {% if errors.status is defined %}<small class="field-error">{{ errors.status }}</small>{% endif %}
                             </label>
                         </div>
                     </section>
