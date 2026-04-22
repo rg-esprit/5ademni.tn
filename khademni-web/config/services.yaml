@@ -24,3 +24,16 @@ services:
 
     # add more service definitions when explicit configuration is needed
     # please note that last definitions always *replace* previous ones
+
+    App\Service\CommentaireInapproprieService:
+        arguments:
+            $apiKey: '%env(HUGGINGFACE_API_KEY)%'
+  # -------- AJOUTEZ CECI --------
+    App\Service\SentimentAnalysisService:
+        arguments:
+            $apiKey: '%env(HUGGINGFACE_API_KEY)%'
+
+
+    App\Service\TranslationService:
+        arguments:
+            $client: '@http_client'

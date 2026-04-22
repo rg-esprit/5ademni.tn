@@ -10,7 +10,8 @@
 			display: flex;
 			justify-content: space-between;
 			align-items: center;
-			margin-bottom: 20px;
+
+			margin: 0 30px 20px;
 		}
 		.page-header h1 {
 			margin: 0
@@ -32,10 +33,13 @@
 			position: relative;
 			overflow: hidden;
 		}
-		canvas {padding: 30px;
-    max-width: 1300px; /* Largeur maximale */
-    max-height: 500px; /* Hauteur maximale */
-}
+		canvas {
+			padding: 10px;
+			width: 100% !important;
+			max-width: 100%;
+			height: 500px !important;
+			margin: 0;
+		}
 		.card::before {
 			content: '';
 			position: absolute;
@@ -125,7 +129,7 @@
 			border-radius: 16px;
 			box-shadow: 0 6px 20px rgba(124, 58, 237, 0.08);
 			padding: 10px;
-			margin-bottom: 10px;
+			margin: 20px 40px; 
 		}
 
 		.charts {
@@ -365,7 +369,12 @@
 			position: relative;
 			overflow: hidden;
 		}
-
+.header-actions.align-right {
+    display: flex;
+    justify-content: flex-end; /* Aligne le contenu à droite */
+    align-items: center; /* Aligne verticalement les éléments */
+    gap: 10px; /* Ajoute un espacement entre les éléments */
+}
 		.btn-add:hover {
 			transform: translateY(-3px) scale(1.03);
 			box-shadow: 0 15px 35px rgba(124, 58, 237, 0.45);
@@ -454,10 +463,14 @@
 				--value: 0;
 			}
 		}
+		.page {
+			margin: 0 30px 30px; /* gauche + droite + bas */
+		}
 	</style>
 {% endblock %}
 
 {% block body %}
+ 
 	<div class="page-shell">
 		{% include 'partials/_header.html.twig' %}
 
@@ -465,20 +478,7 @@
 	<div class="page">
 		<div class="page-header">
 			<h1>Dashboard Articles</h1>
-			<div class="header-actions">
-				<a href="{{ path('article_new') }}" class="btn-add">
-					<span class="icon">＋</span>
-					<span>Ajouter</span>
-				</a>
-				<form method="GET" action="{{ path('article_dashboard') }}" class="filter">
-					<label for="period">Filtrer les graphes par:</label>
-					<select name="period" id="period" onchange="this.form.submit()">
-						<option value="1" {% if app.request.get('period') == '1' %} selected {% endif %}>1 mois</option>
-						<option value="2" {% if app.request.get('period') == '2' %} selected {% endif %}>2 mois</option>
-						<option value="12" {% if app.request.get('period') == '12' %} selected {% endif %}>1 an</option>
-					</select>
-				</form>
-			</div>
+
 		</div>
 
 		<div class="grid">
@@ -497,9 +497,9 @@
 				</div>
 
 				{# <div class="card-trend {{ trends.total.class }}">
-					{{ trends.total.arrow }}
-					ce mois vs mois dernier
-				</div> #}
+									{{ trends.total.arrow }}
+									ce mois vs mois dernier
+								</div> #}
 
 
 			</div>
@@ -518,10 +518,10 @@
 					<span>{{ trends.visible.percent }}%</span>
 				</div>
 
-				{# <div class="card-trend {{ trends.visible.class }}">
+				<div class="card-trend {{ trends.visible.class }}">
 					{{ trends.visible.arrow }}
 					ce mois vs mois dernier
-				</div> #}
+				</div>
 
 
 			</div>
@@ -540,10 +540,10 @@
 					<span>{{ trends.hidden.percent }}%</span>
 				</div>
 
-				{# <div class="card-trend {{ trends.hidden.class }}">
+				<div class="card-trend {{ trends.hidden.class }}">
 					{{ trends.hidden.arrow }}
 					ce mois vs mois dernier
-				</div> #}
+				</div>
 
 
 			</div>
@@ -562,17 +562,26 @@
 					<span>{{ trends.interactions.percent }}%</span>
 				</div>
 
-				{# <div class="card-trend {{ trends.interactions.class }}">
+				<div class="card-trend {{ trends.interactions.class }}">
 					{{ trends.interactions.arrow }}
 					ce mois vs mois dernier
-				</div> #}
+				</div>
 			</div>
 
 		</div>
 	</div>
 	<div class="panel">
 		<h3 style="margin:0 0 16px 0;color:#2c2240">Activité</h3>
-
+		<div class="header-actions align-right">
+    <form method="GET" action="{{ path('article_dashboard') }}" class="filter">
+        <label for="period">Filtrer les graphes par:</label>
+        <select name="period" id="period" onchange="this.form.submit()">
+            <option value="1" {% if app.request.get('period') == '1' %} selected {% endif %}>1 mois</option>
+            <option value="2" {% if app.request.get('period') == '2' %} selected {% endif %}>2 mois</option>
+            <option value="12" {% if app.request.get('period') == '12' %} selected {% endif %}>1 an</option>
+        </select>
+    </form>
+</div>
 		<canvas id="activityByDate"></canvas>
 
 	</div>
@@ -645,18 +654,18 @@ const statusVisible = {{ statusStats.VISIBLE|default(0) }};
 const statusMasque = {{ statusStats.MASQUE|default(0) }};
 
 const chartConfig = {
-responsive: true,
-maintainAspectRatio: true,
-plugins: {
-legend: {
-labels: {
-color: '#7e739a',
-font: {
-size: 12
-}
-}
-}
-}
+    responsive: true,
+    maintainAspectRatio: false,
+    plugins: {
+        legend: {
+            labels: {
+                color: '#7e739a',
+                font: {
+                    size: 14
+                }
+            }
+        }
+    }
 };
 
 new Chart(document.getElementById('statusPie'), {

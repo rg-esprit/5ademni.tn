@@ -1,0 +1,93 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <title>Détails de l'article</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            color: #333;
+            line-height: 1.6;
+        }
+        .header {
+            border-bottom: 2px solid #7c3aed;
+            padding-bottom: 20px;
+            margin-bottom: 20px;
+        }
+        .logo {
+            max-height: 50px;
+            vertical-align: middle;
+            margin-right: 15px;
+        }
+        .site-name {
+            font-size: 24px;
+            font-weight: bold;
+            color: #7c3aed;
+            vertical-align: middle;
+        }
+        h1 {
+            color: #333;
+            margin-top: 0;
+        }
+        .meta-info {
+            background-color: #f9f9f9;
+            padding: 15px;
+            border-radius: 8px;
+            margin-bottom: 30px;
+            font-size: 0.95em;
+        }
+        .meta-info p {
+            margin: 5px 0;
+        }
+        .article-image {
+            max-width: 100%;
+            border-radius: 10px;
+            margin: 20px 0;
+            box-shadow: 0 4px 8px rgba(0,0,0,0.1);
+        }
+        .content {
+            font-size: 1.1em;
+            text-align: justify;
+        }
+        .footer {
+            margin-top: 50px;
+            font-size: 0.8em;
+            text-align: center;
+            color: #999;
+            border-top: 1px solid #ddd;
+            padding-top: 15px;
+        }
+    </style>
+</head>
+<body>
+    <div class="header">
+        {% if logoBase64 %}
+            <img src="{{ logoBase64 }}" class="logo" alt="Logo">
+        {% endif %}
+        <span class="site-name">khademni.tn</span>
+    </div>
+
+    <h1>{{ article.title }}</h1>
+    
+    <div class="meta-info">
+        <p><strong>Auteur :</strong> {{ userName }}</p>
+        <p><strong>Date de publication :</strong> {{ article.createdAt|date('d/m/Y à H:i') }}</p>
+        <p><strong>Statut :</strong> {{ article.status }}</p>
+    </div>
+
+    {% if articleImageBase64 %}
+        <div>
+            <img src="{{ articleImageBase64 }}" class="article-image" alt="Image de l'article">
+        </div>
+    {% endif %}
+
+    <div class="content">
+        <h3>Contenu de l'article :</h3>
+        <p>{{ article.content|nl2br }}</p>
+    </div>
+
+    <div class="footer">
+        Document PDF généré le {{ 'now'|date('d/m/Y à H:i') }} depuis la plateforme Khademni.tn
+    </div>
+</body>
+</html>

@@ -56,11 +56,11 @@ class ArticleRepository extends ServiceEntityRepository
             ->groupBy('a.id');
 
         if ($sort === 'commentaires') {
-            $qb->addSelect('COUNT(DISTINCT c.id) AS HIDDEN sortCount')
-                ->orderBy('sortCount', 'DESC');
+            $qb->addSelect('COUNT(DISTINCT c.id) AS HIDDEN commentaires')
+                ->orderBy('commentaires', 'DESC');
         } else {
-            $qb->addSelect('COUNT(DISTINCT f.id) AS HIDDEN sortCount')
-                ->orderBy('sortCount', 'DESC');
+            $qb->addSelect('COUNT(DISTINCT f.id) AS HIDDEN favoris')
+                ->orderBy('favoris', 'DESC');
         }
 
         return $qb->addOrderBy('a.createdAt', 'DESC')
@@ -95,18 +95,26 @@ class ArticleRepository extends ServiceEntityRepository
     }
 
   
-    public function createQueryBuilderForVisibleOrderedBy(string $sort): \Doctrine\ORM\QueryBuilder
+    public function createQueryBuilderForVisibleOrderedBy(string $sort, string $q = ''): \Doctrine\ORM\QueryBuilder
     {
         $qb = $this->createQueryBuilder('a')
+            ->leftJoin('a.favoris', 'f')
+            ->leftJoin('a.commentaires', 'c')
             ->where('UPPER(a.status) = :status')
-            ->setParameter('status', 'VISIBLE');
+            ->setParameter('status', 'VISIBLE')
+            ->groupBy('a.id');
+
+        if ($q !== '') {
+            $qb->andWhere('a.title LIKE :q OR a.content LIKE :q')
+               ->setParameter('q', '%' . $q . '%');
+        }
 
         if ($sort === 'favoris') {
-            $qb->addSelect(sprintf('(SELECT COUNT(f.id) FROM %s f WHERE f.article = a) AS HIDDEN sortCount', Favori::class))
-               ->orderBy('sortCount', 'DESC');
+            $qb->addSelect('COUNT(DISTINCT f.id) AS HIDDEN favoris')
+               ->orderBy('favoris', 'DESC');
         } elseif ($sort === 'commentaires') {
-            $qb->addSelect(sprintf("(SELECT COUNT(c.id) FROM %s c WHERE c.article = a AND UPPER(c.status) = 'VISIBLE') AS HIDDEN sortCount", Commentaire::class))
-               ->orderBy('sortCount', 'DESC');
+            $qb->addSelect('COUNT(DISTINCT c.id) AS HIDDEN commentaires')
+               ->orderBy('commentaires', 'DESC');
         } else {
             $qb->orderBy('a.createdAt', 'DESC');
         }

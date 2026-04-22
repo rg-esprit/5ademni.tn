@@ -300,6 +300,7 @@ class ContratController extends AbstractController
     #[Route('/{id}/pay', name: 'app_contrat_pay', methods: ['GET'])]
     public function pay(Contrat $contrat, ContractPaymentService $contractPaymentService): Response
     {
+
         $this->denyAccessUnlessClientCanPay($contrat);
 
         if ($contrat->getStatut() === 'PAYE') {
@@ -308,6 +309,10 @@ class ContratController extends AbstractController
             return $this->redirectToRoute('app_contrat_index');
         }
 
+
+        // Ownership check: only the client or an admin can pay
+        $this->denyAccessUnlessOwner($contrat);
+
         $stripeSecretKey = $this->getStripeSecretKey();
         if ('' === $stripeSecretKey) {
             $this->addFlash('error', 'Stripe is not configured yet. Online payment is currently unavailable.');
@@ -315,6 +320,8 @@ class ContratController extends AbstractController
             return $this->redirectToRoute('app_contrat_index');
         }
 
+
+        
         try {
             $checkout = $contractPaymentService->getCheckoutDetails($contrat);
         } catch (\RuntimeException $e) {
@@ -322,6 +329,7 @@ class ContratController extends AbstractController
 
             return $this->redirectToRoute('app_contrat_index');
         }
+
 
         Stripe::setApiKey($stripeSecretKey);
 
@@ -343,10 +351,12 @@ class ContratController extends AbstractController
                 'mode' => 'payment',
                 'success_url' => $this->generateUrl('app_payment_success', ['id' => $contrat->getId()], UrlGeneratorInterface::ABSOLUTE_URL) . '?session_id={CHECKOUT_SESSION_ID}',
                 'cancel_url' => $this->generateUrl('app_payment_cancel', ['id' => $contrat->getId()], UrlGeneratorInterface::ABSOLUTE_URL),
+
                 'metadata' => [
                     'contrat_id' => (string) $contrat->getId(),
                     'pay_amount' => number_format($checkout['amount'], 2, '.', ''),
                 ],
+
             ]);
         } catch (\Throwable) {
             $this->addFlash('error', 'The payment gateway is unavailable right now. Please try again later.');
@@ -372,6 +382,8 @@ class ContratController extends AbstractController
             try {
                 $stripeSession = Session::retrieve($sessionId);
                 if ($stripeSession && $stripeSession->payment_status === 'paid') {
+
+                
                     $metadataContratId = (int) ($stripeSession->metadata->contrat_id ?? 0);
 
                     if ($metadataContratId !== $contrat->getId()) {
@@ -429,6 +441,8 @@ class ContratController extends AbstractController
         }
     }
 
+
+    
     private function denyAccessUnlessClientCanPay(Contrat $contrat): void
     {
         $user = $this->getUser();
