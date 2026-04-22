@@ -143,7 +143,7 @@ class ProfileController extends AbstractController
         $frames = array_values(array_filter($request->files->all('frames')));
 
         if ([] === $frames) {
-            $this->addFlash('error', 'Please upload or capture at least one Face ID photo.');
+            $this->addFlash('error', 'No Face ID frames were captured. Please use the camera and try again.');
 
             return $this->redirectToRoute('app_profile');
         }

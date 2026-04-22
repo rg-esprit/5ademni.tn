@@ -84,7 +84,7 @@
                         </div>
                     {% endif %}
 
-                    <form method="post" action="{{ path('app_reviews_save') }}" class="form-grid">
+                    <form method="post" action="{{ path('app_reviews_save') }}" class="form-grid" data-turbo="false">
                         <input type="hidden" name="_token" value="{{ csrf_token('review_form') }}">
                         <input type="hidden" name="review_id" value="{{ form_data.review_id ?? '' }}">
                         <input type="hidden" name="freelancer_id" value="{{ form_data.freelancer_id ?? '' }}">

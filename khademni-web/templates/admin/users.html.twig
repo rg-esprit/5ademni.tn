@@ -1,6 +1,11 @@
 {% extends 'base.html.twig' %}
 
 {% block title %}Users Admin | 5ademni.tn{% endblock %}
+{% block body_class %}app-body admin-page{% endblock %}
+
+{% block stylesheets %}
+    <link rel="stylesheet" href="{{ asset('styles/admin.css') }}">
+{% endblock %}
 
 {% block body %}
     <div class="page-shell">
@@ -14,21 +19,91 @@
                     <p class="placeholder-copy">Create accounts, update key profile fields, and remove users from one small admin area.</p>
                 </div>
 
-                <div class="review-metrics">
+                <div class="review-metrics admin-user-metrics">
                     <div class="profile-stat">
                         <span>Total Users</span>
                         <strong>{{ user_stats.total }}</strong>
+                        <small class="admin-user-stat-note">Live platform accounts available in backoffice.</small>
                     </div>
                     <div class="profile-stat">
                         <span>Admins</span>
                         <strong>{{ user_stats.admins }}</strong>
+                        <small class="admin-user-stat-note">{{ user_stats.admin_percentage|number_format(1, '.', ',') }}% of all users.</small>
                     </div>
                     <div class="profile-stat">
-                        <span>Face ID Enrolled</span>
-                        <strong>{{ user_stats.face_enrolled }}</strong>
+                        <span>Profile Images</span>
+                        <strong>{{ user_stats.with_profile_img }}</strong>
+                        <small class="admin-user-stat-note">{{ user_stats.profile_image_percentage|number_format(1, '.', ',') }}% of all users.</small>
                     </div>
                 </div>
             </section>
+
+            {% if user_stats.total > 0 %}
+                <section class="admin-user-chart-grid">
+                    <article class="admin-panel admin-user-chart-panel">
+                        <header>
+                            <div>
+                                <h2>Admin Share</h2>
+                                <span>Percentage of admin and standard accounts.</span>
+                            </div>
+                        </header>
+                        <div class="chart-box admin-user-chart-box">
+                            {{ render_chart(admin_role_chart, {'class': 'admin-user-chart-canvas'}) }}
+                        </div>
+                        <div class="admin-user-chart-list">
+                            {% for row in admin_role_rows %}
+                                <div class="admin-user-chart-row">
+                                    <span>{{ row.label }}</span>
+                                    <strong>{{ row.percentage|number_format(1, '.', ',') }}%</strong>
+                                    <small>{{ row.count }} of {{ user_stats.total }} user{{ user_stats.total == 1 ? '' : 's' }}</small>
+                                </div>
+                            {% endfor %}
+                        </div>
+                    </article>
+
+                    <article class="admin-panel admin-user-chart-panel">
+                        <header>
+                            <div>
+                                <h2>Balance Ranges</h2>
+                                <span>Percentage split across simple balance brackets.</span>
+                            </div>
+                        </header>
+                        <div class="chart-box admin-user-chart-box">
+                            {{ render_chart(balance_distribution_chart, {'class': 'admin-user-chart-canvas'}) }}
+                        </div>
+                        <div class="admin-user-chart-list">
+                            {% for row in balance_distribution_rows %}
+                                <div class="admin-user-chart-row">
+                                    <span>{{ row.label }}</span>
+                                    <strong>{{ row.percentage|number_format(1, '.', ',') }}%</strong>
+                                    <small>{{ row.count }} user{{ row.count == 1 ? '' : 's' }}</small>
+                                </div>
+                            {% endfor %}
+                        </div>
+                    </article>
+
+                    <article class="admin-panel admin-user-chart-panel">
+                        <header>
+                            <div>
+                                <h2>Profile Images</h2>
+                                <span>Percentage of users who uploaded a profile image.</span>
+                            </div>
+                        </header>
+                        <div class="chart-box admin-user-chart-box">
+                            {{ render_chart(profile_image_chart, {'class': 'admin-user-chart-canvas'}) }}
+                        </div>
+                        <div class="admin-user-chart-list">
+                            {% for row in profile_image_rows %}
+                                <div class="admin-user-chart-row">
+                                    <span>{{ row.label }}</span>
+                                    <strong>{{ row.percentage|number_format(1, '.', ',') }}%</strong>
+                                    <small>{{ row.count }} user{{ row.count == 1 ? '' : 's' }}</small>
+                                </div>
+                            {% endfor %}
+                        </div>
+                    </article>
+                </section>
+            {% endif %}
 
             <section class="profile-layout review-layout admin-user-layout">
                 <article class="panel review-form-panel admin-user-form-panel">
