@@ -51,7 +51,6 @@ class JobApplication
     #[ORM\Column(name: 'application_date', type: Types::DATETIME_MUTABLE, options: ['default' => 'CURRENT_TIMESTAMP'])]
     private ?\DateTimeInterface $applicationDate = null;
 
-    #[ORM\Column(name: 'ai_match_score', type: Types::INTEGER, nullable: true)]
     private ?int $aiMatchScore = null;
 
     public function __construct()

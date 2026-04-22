@@ -65,17 +65,6 @@ class JobRepository extends ServiceEntityRepository
                ->setParameter('jobType', $jobType);
         }
 
-        if ($minSalary > 0 || $maxSalary < 1000000) {
-            if ($minSalary > 0) {
-                $qb->andWhere('j.maxSalary >= :minSal')
-                   ->setParameter('minSal', $minSalary);
-            }
-            if ($maxSalary < 1000000) {
-                $qb->andWhere('j.minSalary <= :maxSal')
-                   ->setParameter('maxSal', $maxSalary);
-            }
-        }
-
         $qb->groupBy('j.id');
 
         match ($sort) {
@@ -85,15 +74,58 @@ class JobRepository extends ServiceEntityRepository
             default      => $qb->orderBy('j.postedDate', 'DESC'),
         };
 
-        return $qb->getQuery()->getResult();
+        $results = $qb->getQuery()->getResult();
+
+        if ($minSalary > 0 || $maxSalary < 1000000) {
+            $results = array_values(array_filter($results, function (Job $job) use ($minSalary, $maxSalary): bool {
+                [$jobMinSalary, $jobMaxSalary] = $this->extractSalaryBounds($job->getSalaryRange());
+
+                if (null === $jobMinSalary && null === $jobMaxSalary) {
+                    return false;
+                }
+
+                $effectiveMin = $jobMinSalary ?? $jobMaxSalary;
+                $effectiveMax = $jobMaxSalary ?? $jobMinSalary;
+
+                if (null === $effectiveMin || null === $effectiveMax) {
+                    return false;
+                }
+
+                return $effectiveMax >= $minSalary && $effectiveMin <= $maxSalary;
+            }));
+        }
+
+        return $results;
     }
 
     public function getMinMaxSalaries(): array
     {
-        return $this->createQueryBuilder('j')
-            ->select('MIN(j.minSalary) as minSal, MAX(j.maxSalary) as maxSal')
+        $rows = $this->createQueryBuilder('j')
+            ->select('j.salaryRange AS salaryRange')
             ->getQuery()
-            ->getSingleResult();
+            ->getArrayResult();
+
+        $minimums = [];
+        $maximums = [];
+
+        foreach ($rows as $row) {
+            [$minSalary, $maxSalary] = $this->extractSalaryBounds($row['salaryRange'] ?? null);
+
+            if (null !== $minSalary) {
+                $minimums[] = $minSalary;
+            }
+
+            if (null !== $maxSalary) {
+                $maximums[] = $maxSalary;
+            } elseif (null !== $minSalary) {
+                $maximums[] = $minSalary;
+            }
+        }
+
+        return [
+            'minSal' => [] === $minimums ? 0 : min($minimums),
+            'maxSal' => [] === $maximums ? 10000 : max($maximums),
+        ];
     }
 
     public function countTotalSavesForUserJobs(User $user): int
@@ -116,5 +148,24 @@ class JobRepository extends ServiceEntityRepository
             ->join('u.savedJobs', 'j')
             ->getQuery()
             ->getSingleScalarResult();
+    }
+
+    private function extractSalaryBounds(?string $salaryRange): array
+    {
+        if (null === $salaryRange || '' === trim($salaryRange)) {
+            return [null, null];
+        }
+
+        preg_match_all('/\d+(?:\.\d+)?/', $salaryRange, $matches);
+        $values = $matches[0] ?? [];
+
+        if ([] === $values) {
+            return [null, null];
+        }
+
+        $minSalary = (float) $values[0];
+        $maxSalary = isset($values[1]) ? (float) $values[1] : $minSalary;
+
+        return [$minSalary, $maxSalary];
     }
 }

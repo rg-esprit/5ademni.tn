@@ -11,14 +11,14 @@
                 }
             }
         },
-        "@symfony/ux-notify": {
-            "notify": {
+        "@symfony/ux-chartjs": {
+            "chart": {
                 "enabled": true,
                 "fetch": "eager"
             }
         },
-        "@symfony/ux-chartjs": {
-            "chart": {
+        "@symfony/ux-notify": {
+            "notify": {
                 "enabled": true,
                 "fetch": "eager"
             }

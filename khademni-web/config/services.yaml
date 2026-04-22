@@ -6,8 +6,16 @@
 parameters:
     images_directory: '%kernel.project_dir%/public/uploads/images'
     stripe_secret_key: '%env(STRIPE_SECRET_KEY)%'
-    app.gemini_api_key: '%env(GEMINI_API_KEY)%'
-    api_ninjas_key: '%env(API_NINJAS_KEY)%'
+    gemini_api_key_default: ''
+    api_ninjas_key_default: ''
+    huggingface_api_key_default: ''
+    app.gemini_api_key: '%env(default:gemini_api_key_default:GEMINI_API_KEY)%'
+    api_ninjas_key: '%env(default:api_ninjas_key_default:API_NINJAS_KEY)%'
+    huggingface_api_key: '%env(default:huggingface_api_key_default:HUGGINGFACE_API_KEY)%'
+    mercure_url: 'http://127.0.0.1:3000/.well-known/mercure'
+    mercure_public_url: 'http://127.0.0.1:3000/.well-known/mercure'
+    mercure_jwt_secret: '!ChangeThisMercureHubJWTSecretKey!'
+    mercure_dsn: 'mercure://default'
 services:
     # default configuration for services in *this* file
     _defaults:
@@ -30,11 +38,11 @@ services:
 
     App\Service\CommentaireInapproprieService:
         arguments:
-            $apiKey: '%env(HUGGINGFACE_API_KEY)%'
+            $apiKey: '%huggingface_api_key%'
   # -------- AJOUTEZ CECI --------
     App\Service\SentimentAnalysisService:
         arguments:
-            $apiKey: '%env(HUGGINGFACE_API_KEY)%'
+            $apiKey: '%huggingface_api_key%'
 
 
     App\Service\TranslationService:

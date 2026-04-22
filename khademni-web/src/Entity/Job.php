@@ -43,10 +43,11 @@ class Job
     #[Assert\NotBlank(message: 'Please select a category.')]
     private ?string $category = null;
 
-    #[ORM\Column(name: 'min_salary', type: Types::DECIMAL, precision: 10, scale: 2, nullable: true)]
+    #[ORM\Column(name: 'salary_range', length: 100, nullable: true)]
+    private ?string $salaryRange = null;
+
     private ?string $minSalary = null;
 
-    #[ORM\Column(name: 'max_salary', type: Types::DECIMAL, precision: 10, scale: 2, nullable: true)]
     private ?string $maxSalary = null;
 
     #[ORM\Column(length: 20, options: ['default' => 'OPEN'])]
@@ -145,25 +146,46 @@ class Job
         return $this;
     }
 
+    public function getSalaryRange(): ?string
+    {
+        return $this->salaryRange;
+    }
+
+    public function setSalaryRange(?string $salaryRange): static
+    {
+        $this->salaryRange = $salaryRange;
+        $this->hydrateSalaryBoundsFromRange();
+
+        return $this;
+    }
+
     public function getMinSalary(): ?string
     {
+        $this->hydrateSalaryBoundsFromRange();
+
         return $this->minSalary;
     }
 
     public function setMinSalary(?string $minSalary): static
     {
         $this->minSalary = $minSalary;
+        $this->syncSalaryRange();
+
         return $this;
     }
 
     public function getMaxSalary(): ?string
     {
+        $this->hydrateSalaryBoundsFromRange();
+
         return $this->maxSalary;
     }
 
     public function setMaxSalary(?string $maxSalary): static
     {
         $this->maxSalary = $maxSalary;
+        $this->syncSalaryRange();
+
         return $this;
     }
 
@@ -180,15 +202,22 @@ class Job
 
     public function getSalaryDisplay(): string
     {
-        if ($this->minSalary && $this->maxSalary) {
-            return sprintf('%g - %g', $this->minSalary, $this->maxSalary);
+        $minSalary = $this->getMinSalary();
+        $maxSalary = $this->getMaxSalary();
+
+        if ($minSalary && $maxSalary) {
+            return sprintf('%g - %g', $minSalary, $maxSalary);
         }
-        if ($this->minSalary) {
-            return sprintf('From %g', $this->minSalary);
+        if ($minSalary) {
+            return sprintf('From %g', $minSalary);
         }
-        if ($this->maxSalary) {
-            return sprintf('Up to %g', $this->maxSalary);
+        if ($maxSalary) {
+            return sprintf('Up to %g', $maxSalary);
         }
+        if ($this->salaryRange) {
+            return $this->salaryRange;
+        }
+
         return 'Not specified';
     }
 
@@ -292,6 +321,17 @@ class Job
         return false;
     }
 
+    public function getAcceptedApplication(): ?JobApplication
+    {
+        foreach ($this->applications as $application) {
+            if ($application->getStatus() === 'ACCEPTED') {
+                return $application;
+            }
+        }
+
+        return null;
+    }
+
     /**
      * @return Collection<int, JobMilestone>
      */
@@ -327,5 +367,63 @@ class Job
 
         $completed = $this->milestones->filter(fn(JobMilestone $m) => $m->isCompleted())->count();
         return (int) (($completed / $this->milestones->count()) * 100);
+    }
+
+    private function syncSalaryRange(): void
+    {
+        $minSalary = $this->normalizeSalaryValue($this->minSalary);
+        $maxSalary = $this->normalizeSalaryValue($this->maxSalary);
+
+        if (null !== $minSalary && null !== $maxSalary) {
+            $this->salaryRange = sprintf('%s - %s', $minSalary, $maxSalary);
+
+            return;
+        }
+
+        if (null !== $minSalary) {
+            $this->salaryRange = $minSalary;
+
+            return;
+        }
+
+        if (null !== $maxSalary) {
+            $this->salaryRange = $maxSalary;
+
+            return;
+        }
+
+        $this->salaryRange = null;
+    }
+
+    private function hydrateSalaryBoundsFromRange(): void
+    {
+        if ((null !== $this->minSalary && '' !== $this->minSalary) || (null !== $this->maxSalary && '' !== $this->maxSalary)) {
+            return;
+        }
+
+        if (null === $this->salaryRange || '' === trim($this->salaryRange)) {
+            return;
+        }
+
+        preg_match_all('/\d+(?:\.\d+)?/', $this->salaryRange, $matches);
+        $values = $matches[0] ?? [];
+
+        if ([] === $values) {
+            return;
+        }
+
+        $this->minSalary = $values[0];
+        $this->maxSalary = $values[1] ?? null;
+    }
+
+    private function normalizeSalaryValue(?string $value): ?string
+    {
+        if (null === $value) {
+            return null;
+        }
+
+        $trimmed = trim($value);
+
+        return '' === $trimmed ? null : $trimmed;
     }
 }
