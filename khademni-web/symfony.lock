@@ -190,6 +190,27 @@
             "ref": "fadbfe33303a76e25cb63401050439aa9b1a9c7f"
         }
     },
+    "symfony/mercure-bundle": {
+        "version": "0.4",
+        "recipe": {
+            "repo": "github.com/symfony/recipes",
+            "branch": "main",
+            "version": "0.4",
+            "ref": "b141b8c8f13bc8c31d718a5488039b712c0d3592"
+        },
+        "files": [
+            "./config/packages/mercure.yaml"
+        ]
+    },
+    "symfony/mercure-notifier": {
+        "version": "6.4",
+        "recipe": {
+            "repo": "github.com/symfony/recipes",
+            "branch": "main",
+            "version": "5.3",
+            "ref": "4eaf30b6f48b69934a49e26dd0348e6ebfb97f12"
+        }
+    },
     "symfony/messenger": {
         "version": "6.4",
         "recipe": {
@@ -297,6 +318,35 @@
     },
     "symfony/ux-toggle-password": {
         "version": "v2.35.0"
+    },
+    "symfony/ux-autocomplete": {
+        "version": "2.35",
+        "recipe": {
+            "repo": "github.com/symfony/recipes",
+            "branch": "main",
+            "version": "2.6",
+            "ref": "07d9602b7231ba355f484305d6cea58310c01741"
+        },
+        "files": [
+            "./config/routes/ux_autocomplete.yaml"
+        ]
+    },
+    "symfony/ux-notify": {
+        "version": "v2.35.0"
+    },
+    "symfony/ux-translator": {
+        "version": "2.35",
+        "recipe": {
+            "repo": "github.com/symfony/recipes",
+            "branch": "main",
+            "version": "2.32",
+            "ref": "20e2abac415da4c3a9a6bafa059a6419beb74593"
+        },
+        "files": [
+            "./assets/translator.js",
+            "./config/packages/ux_translator.yaml",
+            "./var/translations/index.js"
+        ]
     },
     "symfony/ux-turbo": {
         "version": "2.34",

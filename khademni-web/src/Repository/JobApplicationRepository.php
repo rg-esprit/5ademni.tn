@@ -53,9 +53,13 @@ class JobApplicationRepository extends ServiceEntityRepository
     {
         return $this->createQueryBuilder('a')
             ->andWhere('a.job = :job')
-            ->andWhere('a.status = :status')
+            ->andWhere('a.status IN (:statuses)')
             ->setParameter('job', $job)
-            ->setParameter('status', 'ACCEPTED')
+            ->setParameter('statuses', [
+                JobApplication::STATUS_ACCEPTED,
+                JobApplication::STATUS_IN_PROGRESS,
+                JobApplication::STATUS_COMPLETED
+            ])
             ->setMaxResults(1)
             ->getQuery()
             ->getOneOrNullResult();

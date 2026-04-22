@@ -17,16 +17,13 @@ class JobType extends AbstractType
     {
         $builder
             ->add('title', TextType::class, [
-                'constraints' => [new NotBlank(['message' => 'Please enter a job title'])],
-                'attr' => ['placeholder' => 'e.g. Senior PHP Developer'],
+                'attr' => ['placeholder' => 'e.g. Senior PHP Developer', 'minlength' => 5, 'maxlength' => 100],
             ])
             ->add('company', TextType::class, [
-                'constraints' => [new NotBlank(['message' => 'Please enter a company name'])],
-                'attr' => ['placeholder' => 'e.g. Tech Corp'],
+                'attr' => ['placeholder' => 'e.g. Tech Corp', 'minlength' => 2, 'maxlength' => 100],
             ])
             ->add('location', TextType::class, [
-                'constraints' => [new NotBlank(['message' => 'Please enter a location'])],
-                'attr' => ['placeholder' => 'e.g. Tunis, Remote'],
+                'attr' => ['placeholder' => 'e.g. Tunis, Remote', 'minlength' => 2, 'maxlength' => 100],
             ])
             ->add('category', ChoiceType::class, [
                 'choices' => [
@@ -37,7 +34,6 @@ class JobType extends AbstractType
                     'Sales & Support' => 'Sales & Support',
                     'Other' => 'Other',
                 ],
-                'constraints' => [new NotBlank(['message' => 'Please select a category'])],
                 'placeholder' => 'Choose a category',
             ])
             ->add('jobType', ChoiceType::class, [
@@ -49,19 +45,24 @@ class JobType extends AbstractType
                     'Internship' => 'Internship',
                 ],
                 'placeholder' => 'Choose job type',
-                'required' => false,
+                'required' => true,
             ])
-            ->add('salaryRange', TextType::class, [
+            ->add('minSalary', TextType::class, [
+                'label' => 'Minimum Salary',
                 'required' => false,
-                'attr' => ['placeholder' => 'e.g. 1500 - 2500 TND / month'],
+                'attr' => ['placeholder' => 'e.g. 1000', 'type' => 'number'],
+            ])
+            ->add('maxSalary', TextType::class, [
+                'label' => 'Maximum Salary',
+                'required' => false,
+                'attr' => ['placeholder' => 'e.g. 2500', 'type' => 'number'],
             ])
             ->add('description', TextareaType::class, [
-                'constraints' => [new NotBlank(['message' => 'Please enter a job description'])],
-                'attr' => ['rows' => 5, 'placeholder' => 'Describe the job responsibilities...'],
+                'attr' => ['rows' => 5, 'placeholder' => 'Describe the job responsibilities...', 'minlength' => 20],
             ])
             ->add('requirements', TextareaType::class, [
                 'required' => false,
-                'attr' => ['rows' => 5, 'placeholder' => 'List the requirements, skills, etc...'],
+                'attr' => ['rows' => 5, 'placeholder' => 'List the requirements, skills, etc...', 'maxlength' => 2000],
             ])
         ;
     }

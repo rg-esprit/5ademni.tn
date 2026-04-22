@@ -21,12 +21,10 @@ class JobApplicationType extends AbstractType
 
         $builder
             ->add('title', TextType::class, [
-                'constraints' => [new NotBlank(['message' => 'Please enter a title for your application'])],
-                'attr' => ['placeholder' => 'e.g. Software Engineer Application'],
+                'attr' => ['placeholder' => 'e.g. Software Engineer Application', 'minlength' => 5, 'maxlength' => 100],
             ])
             ->add('description', TextareaType::class, [
-                'constraints' => [new NotBlank(['message' => 'Please provide a cover letter or description'])],
-                'attr' => ['rows' => 6, 'placeholder' => 'Tell us why you are a great fit for this position...'],
+                'attr' => ['rows' => 6, 'placeholder' => 'Tell us why you are a great fit for this position...', 'minlength' => 20],
             ])
             ->add('cvFile', FileType::class, [
                 'label' => 'Upload CV (PDF file)',

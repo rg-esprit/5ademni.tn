@@ -5,6 +5,7 @@ namespace App\Entity;
 use App\Repository\JobApplicationRepository;
 use Doctrine\DBAL\Types\Types;
 use Doctrine\ORM\Mapping as ORM;
+use Symfony\Component\Validator\Constraints as Assert;
 
 #[ORM\Entity(repositoryClass: JobApplicationRepository::class)]
 #[ORM\Table(name: 'job_applications')]
@@ -12,6 +13,12 @@ use Doctrine\ORM\Mapping as ORM;
 #[ORM\Index(name: 'fk_applications_user', columns: ['user_id'])]
 class JobApplication
 {
+    public const STATUS_PENDING     = 'PENDING';
+    public const STATUS_ACCEPTED    = 'ACCEPTED';
+    public const STATUS_IN_PROGRESS = 'IN_PROGRESS';
+    public const STATUS_COMPLETED   = 'COMPLETED';
+    public const STATUS_REJECTED    = 'REJECTED';
+
     #[ORM\Id]
     #[ORM\GeneratedValue]
     #[ORM\Column]
@@ -26,9 +33,13 @@ class JobApplication
     private ?User $user = null;
 
     #[ORM\Column(length: 255)]
+    #[Assert\NotBlank(message: 'Please enter a subject for your application.')]
+    #[Assert\Length(min: 5, max: 100, minMessage: 'Subject must be at least {{ limit }} characters.')]
     private ?string $title = null;
 
     #[ORM\Column(type: Types::TEXT)]
+    #[Assert\NotBlank(message: 'Please provide a cover letter or description.')]
+    #[Assert\Length(min: 20, minMessage: 'Your application should be at least {{ limit }} characters long.')]
     private ?string $description = null;
 
     #[ORM\Column(name: 'cv_path', length: 500, nullable: true)]
@@ -39,6 +50,9 @@ class JobApplication
 
     #[ORM\Column(name: 'application_date', type: Types::DATETIME_MUTABLE, options: ['default' => 'CURRENT_TIMESTAMP'])]
     private ?\DateTimeInterface $applicationDate = null;
+
+    #[ORM\Column(name: 'ai_match_score', type: Types::INTEGER, nullable: true)]
+    private ?int $aiMatchScore = null;
 
     public function __construct()
     {
@@ -130,6 +144,18 @@ class JobApplication
     public function setApplicationDate(\DateTimeInterface $applicationDate): static
     {
         $this->applicationDate = $applicationDate;
+
+        return $this;
+    }
+
+    public function getAiMatchScore(): ?int
+    {
+        return $this->aiMatchScore;
+    }
+
+    public function setAiMatchScore(?int $aiMatchScore): static
+    {
+        $this->aiMatchScore = $aiMatchScore;
 
         return $this;
     }

@@ -14,5 +14,9 @@
         {% block javascripts %}
             {{ importmap('app') }}
         {% endblock %}
+        {% block extra_javascripts %}{% endblock %}
+        {% if app.user %}
+            {{ stream_notifications(['/user/' ~ app.user.id ~ '/notifications']) }}
+        {% endif %}
     </body>
 </html>

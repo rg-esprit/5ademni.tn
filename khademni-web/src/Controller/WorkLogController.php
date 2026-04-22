@@ -3,10 +3,12 @@
 namespace App\Controller;
 
 use App\Entity\Job;
+use App\Entity\JobApplication;
 use App\Entity\User;
 use App\Entity\WorkLog;
 use App\Repository\JobApplicationRepository;
 use App\Repository\WorkLogRepository;
+use App\Service\ApplicationManager;
 use Doctrine\ORM\EntityManagerInterface;
 use Symfony\Bundle\FrameworkBundle\Controller\AbstractController;
 use Symfony\Component\HttpFoundation\Request;
@@ -22,6 +24,7 @@ class WorkLogController extends AbstractController
         JobApplicationRepository $applicationRepository,
         WorkLogRepository $workLogRepository,
         EntityManagerInterface $entityManager,
+        ApplicationManager $applicationManager,
     ): Response {
         $user = $this->getUser();
         if (!$user instanceof User) {
@@ -32,7 +35,11 @@ class WorkLogController extends AbstractController
 
         // Find the accepted application for this freelancer (or if owner, any accepted one)
         $application = $applicationRepository->findByJobAndUser($job, $user);
-        $isFreelancer = $application && $application->getStatus() === 'ACCEPTED';
+        $isFreelancer = $application && in_array($application->getStatus(), [
+            JobApplication::STATUS_ACCEPTED,
+            JobApplication::STATUS_IN_PROGRESS,
+            JobApplication::STATUS_COMPLETED
+        ]);
 
         if (!$isOwner && !$isFreelancer) {
             $this->addFlash('error', 'You do not have access to view or log progress for this job.');
@@ -81,6 +88,9 @@ class WorkLogController extends AbstractController
 
                 $entityManager->persist($log);
                 $entityManager->flush();
+
+                // Sync status (auto-move to IN_PROGRESS or COMPLETED)
+                $applicationManager->syncCompletionStatus($job);
 
                 $this->addFlash('success', sprintf('+%d%% progress logged.', $progressChange));
                 return $this->redirectToRoute('app_job_progress', ['id' => $job->getId()]);

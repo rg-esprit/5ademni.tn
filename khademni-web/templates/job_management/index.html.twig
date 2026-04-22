@@ -98,7 +98,7 @@
                         <div style="display:flex; flex-wrap:wrap; gap:.4rem 1rem; font-size:.84rem; color:#6b7280; margin:.4rem 0 .6rem;">
                             <span>🏢 {{ job.company }}</span>
                             <span>📍 {{ job.location }}</span>
-                            {% if job.salaryRange %}<span>💰 {{ job.salaryRange }}</span>{% endif %}
+                            <span>💰 {{ job.salaryDisplay }}</span>
                             <span title="{{ job.postedDate|date('M d, Y H:i') }}">🕒 {{ job.postedAgo }}</span>
                             {% if is_granted('ROLE_ADMIN') %}
                                 <span style="background:#f3f4f6; color:#1f2937; padding:0 .4rem; border-radius:4px; font-weight:700; font-size:.75rem;">👤 Owner: {{ job.user.displayName }}</span>
