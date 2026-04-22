@@ -1,0 +1,44 @@
+fos_elastica:
+    clients:
+        default:
+            hosts: ['%env(resolve:ELASTICSEARCH_URL)%']
+
+    indexes:
+        gig:
+            index_name: '%kernel.environment%_gigs'
+            finder: ~
+            persistence:
+                driver: orm
+                model: App\Entity\Gig
+                provider: ~
+                listener: false
+            properties:
+                title: { type: text }
+                description: { type: text }
+                price: { type: float }
+                status: { type: keyword }
+                deliveryTime: { type: date }
+                createdAt: { type: date }
+                updatedAt: { type: date }
+                category:
+                    type: object
+                    properties:
+                        id: { type: integer }
+                        name: { type: text }
+                        slug: { type: keyword }
+
+        category:
+            index_name: '%kernel.environment%_categories'
+            finder: ~
+            persistence:
+                driver: orm
+                model: App\Entity\Category
+                provider: ~
+                listener: false
+            properties:
+                name: { type: text }
+                slug: { type: keyword }
+                description: { type: text }
+                isActive: { type: boolean }
+                createdAt: { type: date }
+                updatedAt: { type: date }

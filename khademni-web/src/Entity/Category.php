@@ -6,6 +6,7 @@ use App\Repository\CategoryRepository;
 use Doctrine\Common\Collections\ArrayCollection;
 use Doctrine\Common\Collections\Collection;
 use Doctrine\ORM\Mapping as ORM;
+use Gedmo\Mapping\Annotation as Gedmo;
 
 #[ORM\Entity(repositoryClass: CategoryRepository::class)]
 #[ORM\Table(name: 'category')]
@@ -19,11 +20,23 @@ class Category
     #[ORM\Column(length: 100)]
     private string $name = '';
 
+    #[Gedmo\Slug(fields: ['name'], updatable: false)]
+    #[ORM\Column(length: 140, unique: true)]
+    private string $slug = '';
+
     #[ORM\Column(type: 'text', nullable: true)]
     private ?string $description = null;
 
     #[ORM\Column(name: 'is_active', type: 'boolean', nullable: true, options: ['default' => true])]
     private ?bool $isActive = true;
+
+    #[Gedmo\Timestampable(on: 'create')]
+    #[ORM\Column(name: 'created_at', type: 'datetime_immutable')]
+    private ?\DateTimeImmutable $createdAt = null;
+
+    #[Gedmo\Timestampable(on: 'update')]
+    #[ORM\Column(name: 'updated_at', type: 'datetime_immutable')]
+    private ?\DateTimeImmutable $updatedAt = null;
 
     /**
      * @var Collection<int, Gig>
@@ -44,6 +57,18 @@ class Category
     public function getName(): string
     {
         return $this->name;
+    }
+
+    public function getSlug(): string
+    {
+        return $this->slug;
+    }
+
+    public function setSlug(string $slug): static
+    {
+        $this->slug = trim($slug);
+
+        return $this;
     }
 
     public function setName(string $name): static
@@ -74,6 +99,30 @@ class Category
     public function setIsActive(bool $isActive): static
     {
         $this->isActive = $isActive;
+
+        return $this;
+    }
+
+    public function getCreatedAt(): ?\DateTimeImmutable
+    {
+        return $this->createdAt;
+    }
+
+    public function setCreatedAt(?\DateTimeImmutable $createdAt): static
+    {
+        $this->createdAt = $createdAt;
+
+        return $this;
+    }
+
+    public function getUpdatedAt(): ?\DateTimeImmutable
+    {
+        return $this->updatedAt;
+    }
+
+    public function setUpdatedAt(?\DateTimeImmutable $updatedAt): static
+    {
+        $this->updatedAt = $updatedAt;
 
         return $this;
     }

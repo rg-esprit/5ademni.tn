@@ -64,11 +64,11 @@
 .admin-stats-grid {
     display: grid;
     gap: 12px;
-    grid-template-columns: repeat(5, minmax(0, 1fr));
+    grid-template-columns: repeat(auto-fit, minmax(120px, 1fr));
 }
 
 .admin-stats-compact {
-    grid-template-columns: repeat(5, minmax(0, 1fr));
+    grid-template-columns: repeat(auto-fit, minmax(120px, 1fr));
 }
 
 .admin-stat-card {
@@ -374,25 +374,62 @@
     font-weight: 700;
 }
 
-.status-active {
+.status-draft {
+    background: #e2e8f0;
+    color: #334155;
+}
+
+.status-pending {
+    background: #fef3c7;
+    color: #92400e;
+}
+
+.status-approved {
     background: #dcfce7;
     color: var(--admin-success);
 }
 
-.status-inactive {
-    background: #fef3c7;
-    color: var(--admin-warning);
+.status-rejected {
+    background: #fee2e2;
+    color: var(--admin-danger);
+}
+
+.status-archived {
+    background: #e0e7ff;
+    color: #3730a3;
 }
 
 .status-expired {
-    background: #fee2e2;
-    color: var(--admin-danger);
+    background: #fecaca;
+    color: #991b1b;
 }
 
 .table-actions {
     display: flex;
     gap: 8px;
     flex-wrap: wrap;
+}
+
+.inline-reject-form {
+    display: flex;
+    gap: 8px;
+    align-items: center;
+    flex-wrap: wrap;
+}
+
+.inline-reject-form input {
+    min-width: 180px;
+    border: 1px solid var(--admin-line);
+    border-radius: 10px;
+    padding: 8px 10px;
+    background: #fff;
+    color: #0f172a;
+}
+
+.inline-reject-form input:focus {
+    outline: none;
+    border-color: var(--admin-primary);
+    box-shadow: 0 0 0 4px rgba(11, 95, 255, 0.14);
 }
 
 .gigs-search-bar {
