@@ -4,6 +4,7 @@ namespace App\Entity;
 
 use Doctrine\ORM\Mapping as ORM;
 use Symfony\Component\Validator\Constraints as Assert;
+use Symfony\Component\Validator\Context\ExecutionContextInterface;
 
 #[ORM\Entity(repositoryClass: \App\Repository\ContratRepository::class)]
 #[ORM\Table(name: "contrats")]
@@ -23,7 +24,6 @@ class Contrat
     private ?int $freelancerId = null;
 
     #[ORM\Column(type: "string", length: 255, nullable: true)]
-    #[Assert\NotBlank(message: "Titre is required.")]
     private ?string $titre = null;
 
     #[ORM\Column(type: "date")]
@@ -31,16 +31,19 @@ class Contrat
     private ?\DateTimeInterface $dateContrat = null;
 
     #[ORM\Column(type: "text", nullable: true)]
+    #[Assert\NotBlank(message: "La description est obligatoire.")]
     private ?string $description = null;
 
     #[ORM\Column(type: "float", nullable: true)]
-    #[Assert\Positive(message: "Prix must be positive.")]
+    #[Assert\NotBlank(message: "Le prix est obligatoire.")]
     private ?float $prix = null;
 
     #[ORM\Column(type: "string", length: 50, nullable: true, options: ["default" => "EN_ATTENTE"])]
     private ?string $statut = 'EN_ATTENTE';
 
     #[ORM\Column(type: "string", length: 20, nullable: true)]
+    #[Assert\NotBlank(message: "Le numéro de téléphone est obligatoire.")]
+    #[Assert\Regex(pattern: "/^[0-9]{8}$/", message: "Le numéro de téléphone doit contenir exactement 8 chiffres.")]
     private ?string $numTelephone = null;
 
     public function getId(): ?int
@@ -126,5 +129,60 @@ class Contrat
     {
         $this->numTelephone = $numTelephone;
         return $this;
+    }
+    #[Assert\Callback]
+    public function validatePrix(ExecutionContextInterface $context): void
+    {
+        if ($this->prix === null) {
+            return;
+        }
+
+        // Dynamic Range based on Title
+        $isBusinessAnalyst = $this->titre && stripos($this->titre, 'Business Analyst') !== false;
+        $min = $isBusinessAnalyst ? 500 : 3000;
+        $max = $isBusinessAnalyst ? 800 : 5000;
+
+        if ($this->prix < $min || $this->prix > $max) {
+            $context->buildViolation("Pour ce type de projet, le prix doit être compris entre $min et $max TND.")
+                ->atPath('prix')
+                ->addViolation();
+        }
+
+        // Rounding rule (ends with 0 or 5)
+        $lastDigit = (int) round($this->prix) % 10;
+        if ($lastDigit !== 0 && $lastDigit !== 5) {
+            $context->buildViolation('Le prix doit se terminer par 0 ou 5 (ex: 3000, 3055, 4500).')
+                ->atPath('prix')
+                ->addViolation();
+        }
+    }
+
+    #[Assert\Callback]
+    public function validateMilestones(ExecutionContextInterface $context): void
+    {
+        if (!$this->description) {
+            return;
+        }
+
+        // PARSE MILESTONES: Supports (Milestones: 50/50), (Milestones: 30 / 30 / 40)
+        if (preg_match('/\(Milestones:\s*([\d\/%\s]+)\)/i', $this->description, $matches)) {
+            $ratios = explode('/', str_replace(['%', ' '], '', $matches[1]));
+            $total = 0;
+            foreach ($ratios as $r) {
+                if (!is_numeric($r)) {
+                    $context->buildViolation('Format de milestone invalide (ex: 50/50).')
+                        ->atPath('description')
+                        ->addViolation();
+                    return;
+                }
+                $total += (float) $r;
+            }
+
+            if (abs($total - 100) > 0.01) {
+                $context->buildViolation("La somme des milestones doit être égale à 100% (actuelle: $total%).")
+                    ->atPath('description')
+                    ->addViolation();
+            }
+        }
     }
 }
