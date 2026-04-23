@@ -11,7 +11,7 @@ class ReviewAiService
     private const LEGACY_ENDPOINT = 'http://208.115.212.179:11434/api/generate';
     private const LEGACY_MODEL = 'gemma4:e4b';
     private const LEGACY_KEEP_ALIVE = '30m';
-    private const MAX_EXECUTION_TIME = 30;
+    private const MAX_EXECUTION_TIME = 60;
     private const OPENROUTER_MODELS = [
         'google/gemma-3-27b-it:free',
         'mistralai/mistral-small-3.1-24b-instruct:free',
@@ -32,15 +32,16 @@ class ReviewAiService
 
     public function generate(string $prompt, ?string $userIp = null): string
     {
-        @ini_set('max_execution_time', (string) self::MAX_EXECUTION_TIME);
-        @set_time_limit(self::MAX_EXECUTION_TIME);
-
-        $this->promptSafetyService->assertSafe($prompt, $userIp);
-
         $normalizedPrompt = trim($prompt);
         if ('' === $normalizedPrompt) {
             throw new \RuntimeException('Describe what you want the review to say first.');
         }
+
+        $this->promptSafetyService->assertSafe($normalizedPrompt, $userIp);
+
+        // Give the model call its full timeout window after prompt validation finishes.
+        @ini_set('max_execution_time', (string) self::MAX_EXECUTION_TIME);
+        @set_time_limit(self::MAX_EXECUTION_TIME);
 
         if ('' !== trim($this->openRouterApiKey)) {
             $content = $this->generateWithOpenRouter($normalizedPrompt);
