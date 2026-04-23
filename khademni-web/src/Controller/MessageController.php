@@ -8,6 +8,8 @@ use App\Entity\User;
 use App\Repository\ConversationRepository;
 use App\Repository\MessageRepository;
 use App\Service\BlobStorageService;
+use App\Service\GoogleCalendarService;
+use App\Service\MeetingNotificationService;
 use Doctrine\ORM\EntityManagerInterface;
 use Symfony\Bundle\FrameworkBundle\Controller\AbstractController;
 use Symfony\Component\HttpFoundation\File\UploadedFile;
@@ -18,8 +20,10 @@ use Symfony\Component\Routing\Attribute\Route;
 
 class MessageController extends AbstractController
 {
+    private const MESSAGE_COOLDOWN_SECONDS = 10;
+
     #[Route('/messages/{id}', name: 'app_message_thread', methods: ['GET', 'POST'])]
-    public function thread(int $id, Request $request, ConversationRepository $conversationRepository, MessageRepository $messageRepository, EntityManagerInterface $entityManager, ?BlobStorageService $blobStorageService = null): Response
+    public function thread(int $id, Request $request, ConversationRepository $conversationRepository, MessageRepository $messageRepository, EntityManagerInterface $entityManager, MeetingNotificationService $meetingNotificationService, GoogleCalendarService $googleCalendarService, ?BlobStorageService $blobStorageService = null): Response
     {
         $this->denyAccessUnlessGranted('ROLE_USER');
 
@@ -37,24 +41,64 @@ class MessageController extends AbstractController
             if (!$this->isCsrfTokenValid('send_message_'.$conversation->getId(), (string) $request->request->get('_token'))) {
                 $this->addFlash('error', 'Jeton CSRF invalide. Le message n’a pas été envoyé.');
             } else {
+                $session = $request->getSession();
+                $cooldownKey = 'last_message_sent_at_' . $conversation->getId();
+                $now = new \DateTimeImmutable();
+                $lastSent = $session->get($cooldownKey);
+                $hasError = false;
+
+                if ($lastSent instanceof \DateTimeInterface) {
+                    $secondsSinceLastSend = $now->getTimestamp() - $lastSent->getTimestamp();
+                    if ($secondsSinceLastSend < self::MESSAGE_COOLDOWN_SECONDS) {
+                        $this->addFlash('error', sprintf('Veuillez attendre %d secondes avant d’envoyer un nouveau message.', self::MESSAGE_COOLDOWN_SECONDS - $secondsSinceLastSend));
+                        $hasError = true;
+                    }
+                }
+
                 $action = (string) $request->request->get('action', 'send_message');
                 $content = '';
                 $type = 'TEXTE';
                 $attachmentUrl = null;
                 $audioDuration = null;
-                $hasError = false;
+                $sendDate = new \DateTimeImmutable();
 
                 if ('schedule_meeting' === $action) {
                     $subject = trim((string) $request->request->get('meeting_subject', ''));
                     $datetime = trim((string) $request->request->get('meeting_datetime', ''));
                     $details = trim((string) $request->request->get('meeting_details', ''));
+                    $meetingStart = null;
+                    $meetingEnd = null;
 
                     if ('' === $subject || '' === $datetime) {
                         $this->addFlash('error', 'Veuillez renseigner le sujet et la date de la réunion.');
                         $hasError = true;
                     } else {
-                        $type = 'MEETING';
-                        $content = sprintf("Réunion planifiée : %s\nQuand : %s\n%s", $subject, $datetime, $details ?: '');
+                        try {
+                            $meetingStart = new \DateTimeImmutable($datetime);
+                            $meetingEnd = $meetingStart->modify('+1 hour');
+                            $type = 'MEETING';
+                            $content = sprintf("Réunion planifiée : %s\nQuand : %s\n%s", $subject, $meetingStart->format('d/m/Y H:i'), $details ?: '');
+                            $sendDate = $meetingStart;
+                        } catch (\Throwable) {
+                            $this->addFlash('error', 'La date de réunion n’est pas valide.');
+                            $hasError = true;
+                        }
+                    }
+                } elseif ('schedule_message' === $action) {
+                    $content = trim((string) $request->request->get('content', ''));
+                    $datetime = trim((string) $request->request->get('scheduled_datetime', ''));
+
+                    if ('' === $content || '' === $datetime) {
+                        $this->addFlash('error', 'Veuillez renseigner le message et la date de programmation.');
+                        $hasError = true;
+                    } else {
+                        try {
+                            $sendDate = new \DateTimeImmutable($datetime);
+                            $type = 'SCHEDULED';
+                        } catch (\Throwable) {
+                            $this->addFlash('error', 'La date de programmation n’est pas valide.');
+                            $hasError = true;
+                        }
                     }
                 } else {
                     $content = trim((string) $request->request->get('content', ''));
@@ -99,8 +143,12 @@ class MessageController extends AbstractController
                     $message->markSentBy($user);
                     $message->setContenu($content);
                     $message->setTypeMessage($type);
-                    $message->setDateEnvoi(new \DateTimeImmutable());
+                    $message->setDateEnvoi($sendDate);
                     $message->setPieceJointeUrl($attachmentUrl);
+
+                    if ('SCHEDULED' === $type) {
+                        $message->setContenu(sprintf("Message programmé pour %s : %s", $sendDate->format('d/m/Y H:i'), $content));
+                    }
 
                     if (null !== $audioDuration) {
                         $message->setDureeAudio($audioDuration);
@@ -114,6 +162,32 @@ class MessageController extends AbstractController
 
                     $entityManager->persist($message);
                     $entityManager->flush();
+                    $session->set($cooldownKey, $now);
+
+                    if ('MEETING' === $type && isset($meetingStart, $meetingEnd)) {
+                        $otherParticipant = $conversation->getOtherParticipant($user);
+                        try {
+                            if ($otherParticipant instanceof User) {
+                                $meetingNotificationService->sendMeetingInvitation($user, $otherParticipant, $subject, $details, $meetingStart, $meetingEnd);
+                            }
+
+                            if ($googleCalendarService->isConfigured()) {
+                                $attendees = [];
+                                if ($otherParticipant instanceof User && '' !== trim((string) $otherParticipant->getEmail())) {
+                                    $attendees[] = $otherParticipant->getEmail();
+                                }
+                                if ('' !== trim((string) $user->getEmail())) {
+                                    $attendees[] = $user->getEmail();
+                                }
+
+                                if ([] !== $attendees) {
+                                    $googleCalendarService->createEvent($subject, $content, $meetingStart, $meetingEnd, $attendees);
+                                }
+                            }
+                        } catch (\Throwable $exception) {
+                            $this->addFlash('warning', 'La réunion a bien été planifiée, mais la notification ou l’ajout à Google Calendar a échoué.');
+                        }
+                    }
 
                     $this->addFlash('success', 'Message envoyé.');
 
@@ -123,13 +197,79 @@ class MessageController extends AbstractController
         }
 
         $messages = $messageRepository->findByConversation($conversation);
+        $meetingCalendarLinks = [];
+
+        foreach ($messages as $message) {
+            if ('MEETING' === $message->getTypeMessage()) {
+                $meetingUrl = $this->buildMeetingCalendarUrl($message);
+                if (null !== $meetingUrl) {
+                    $meetingCalendarLinks[$message->getId()] = $meetingUrl;
+                }
+            }
+        }
+
         $this->markConversationAsRead($conversation, $user, $entityManager);
 
         return $this->render('modules/message_thread.html.twig', [
             'conversation' => $conversation,
             'messages' => $messages,
             'currentUser' => $user,
+            'meetingCalendarLinks' => $meetingCalendarLinks,
         ]);
+    }
+
+    private function buildMeetingCalendarUrl(Message $message): ?string
+    {
+        $content = trim($message->getContenu());
+        if ('' === $content) {
+            return null;
+        }
+
+        $lines = preg_split('/\r\n|\r|\n/', $content);
+        if (!is_array($lines) || count($lines) < 2) {
+            return null;
+        }
+
+        $subjectLine = trim($lines[0] ?? '');
+        $dateLine = trim($lines[1] ?? '');
+        $details = trim(implode("\n", array_slice($lines, 2)));
+
+        $subject = preg_replace('/^Réunion planifiée\s*:\s*/i', '', $subjectLine);
+        $dateText = preg_replace('/^Quand\s*:\s*/i', '', $dateLine);
+
+        if ('' === $subject || '' === $dateText) {
+            return null;
+        }
+
+        $start = \DateTimeImmutable::createFromFormat('d/m/Y H:i', $dateText);
+        if (!$start instanceof \DateTimeImmutable) {
+            try {
+                $start = new \DateTimeImmutable($dateText);
+            } catch (\Throwable) {
+                return null;
+            }
+        }
+
+        $end = $start->modify('+1 hour');
+
+        return $this->buildGoogleCalendarTemplateUrl($subject, $start, $end, $details);
+    }
+
+    private function buildGoogleCalendarTemplateUrl(string $subject, \DateTimeImmutable $start, \DateTimeImmutable $end, string $details): string
+    {
+        $startUtc = $start->setTimezone(new \DateTimeZone('UTC'))->format('Ymd\THis\Z');
+        $endUtc = $end->setTimezone(new \DateTimeZone('UTC'))->format('Ymd\THis\Z');
+
+        $params = [
+            'action' => 'TEMPLATE',
+            'text' => $subject,
+            'dates' => sprintf('%s/%s', $startUtc, $endUtc),
+            'details' => $details,
+            'sf' => 'true',
+            'output' => 'xml',
+        ];
+
+        return 'https://calendar.google.com/calendar/render?' . http_build_query($params);
     }
 
     #[Route('/api/messages/{id}/edit', name: 'api_message_edit', methods: ['POST'])]
