@@ -37,6 +37,9 @@ class ApiSummarizeController extends AbstractController
                     'contenu' => $message->getContenu(),
                     'senderName' => $message->getSenderDisplayName($conversation),
                     'dateEnvoi' => $message->getDateEnvoi()?->format('d/m/Y H:i') ?? '',
+                    'typeMessage' => $message->getTypeMessage(),
+                    'pieceJointeUrl' => $message->getPieceJointeUrl(),
+                    'dureeAudio' => $message->getDureeAudio(),
                 ];
             }
 

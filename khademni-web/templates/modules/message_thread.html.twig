@@ -14,6 +14,9 @@
                         <h1>{{ conversation.getTitle() }}</h1>
                         <p class="meta">Avec {{ conversation.getOtherParticipant(currentUser).getDisplayName() }} • Ouverte le {{ conversation.getDateCreation()|date('d/m/Y') }}</p>
                     </div>
+                    <div class="thread-topbar-search">
+                        <input id="chatSearchInput" type="search" class="text-input" placeholder="Rechercher dans le chat..." aria-label="Rechercher dans le chat" />
+                    </div>
                     <div class="thread-topbar-actions">
                         <button class="icon-button" id="startAudioCall" type="button" title="Appel vocal"><span>📞</span> Appel</button>
                         <button class="icon-button" id="startVideoCall" type="button" title="Appel vidéo"><span>🎥</span> Vidéo</button>
@@ -44,9 +47,33 @@
 
                                     <div class="message-content-wrapper">
                                         {% if message.getTypeMessage() == 'MEETING' %}
+                                            {% set meetingLines = message.getContenu()|split('\n') %}
+                                            {% set meetingSubject = meetingLines[0]|default('')|replace({'Réunion planifiée : ':'', 'Réunion planifiée: ':'', 'Réunion planifiée&nbsp;: ':'', 'Réunion planifiée&nbsp;:':''})|trim %}
+                                            {% set meetingDate = meetingLines[1]|default('')|replace({'Quand : ':'', 'Quand: ':'', 'Quand&nbsp;: ':'', 'Quand&nbsp;:':''})|trim %}
+                                            {% set meetingDetails = meetingLines|slice(2)|join('\n')|trim %}
                                             <div class="message-bubble-content meeting-card">
-                                                <strong>Réunion planifiée</strong>
-                                                <p>{{ message.getContenu()|nl2br }}</p>
+                                                <div class="meeting-card-header">
+                                                    <h3>Invitation à une réunion</h3>
+                                                </div>
+                                                <div class="meeting-card-row"><strong>Sujet :</strong> {{ meetingSubject }}</div>
+                                                <div class="meeting-card-row"><strong>Date et heure :</strong> {{ meetingDate }}</div>
+                                                <div class="meeting-card-row"><strong>Organisateur :</strong> {{ message.getSenderDisplayName(conversation) }}</div>
+                                                <div class="meeting-card-row"><strong>Détails :</strong></div>
+                                                <div class="meeting-card-details">{{ meetingDetails ? meetingDetails|nl2br : 'Aucun détail supplémentaire' }}</div>
+                                                {% if meetingCalendarLinks[message.getId()] is defined %}
+                                                    <div class="meeting-card-actions">
+                                                        <a class="primary-button" href="{{ meetingCalendarLinks[message.getId()] }}" target="_blank" rel="noopener noreferrer">Voir dans mon calendrier</a>
+                                                    </div>
+                                                {% endif %}
+                                            </div>
+                                        {% elseif message.getTypeMessage() == 'SCHEDULED' %}
+                                            <div class="message-bubble-content scheduled-card">
+                                                <div class="meeting-card-header">
+                                                    <h3>Message programmé</h3>
+                                                </div>
+                                                <div class="meeting-card-row"><strong>À envoyer le :</strong> {{ message.getDateEnvoi()|date('d/m/Y H:i') }}</div>
+                                                <div class="meeting-card-row"><strong>Contenu :</strong></div>
+                                                <div class="message-card-details">{{ message.getContenu()|nl2br }}</div>
                                             </div>
                                         {% else %}
                                             <div class="message-bubble-content">
@@ -115,7 +142,7 @@
 
                                 <div class="composer-actions-group">
                                     <button class="ghost-button compact-button" type="button" id="scheduleButton">Planifier</button>
-                                    <button class="primary-button icon-send-button" type="submit" aria-label="Envoyer">
+                                    <button class="primary-button icon-send-button" id="composerSendButton" type="submit" aria-label="Envoyer">
                                         <span>➤</span>
                                     </button>
                                 </div>
@@ -172,6 +199,35 @@
         </div>
     </div>
 
+    <div class="modal-overlay" id="scheduleMessageModal" aria-hidden="true">
+        <div class="modal-card">
+            <div class="modal-header">
+                <div>
+                    <h2>Planifier un message</h2>
+                    <p class="helper-text">Programmez un message pour une date ultérieure.</p>
+                </div>
+                <button type="button" class="modal-close" id="closeScheduleMessageModal">✕</button>
+            </div>
+            <form method="post" class="schedule-message-form" novalidate>
+                <input type="hidden" name="_token" value="{{ csrf_token('send_message_' ~ conversation.getId()) }}" />
+                <input type="hidden" name="action" value="schedule_message" />
+
+                <div class="field-group">
+                    <label for="scheduled_message_content">Message</label>
+                    <textarea id="scheduled_message_content" name="content" class="textarea-input" rows="4" placeholder="Écrivez le message à programmer..." required></textarea>
+                </div>
+                <div class="field-group">
+                    <label for="scheduled_datetime">Date et heure d'envoi</label>
+                    <input id="scheduled_datetime" name="scheduled_datetime" type="datetime-local" class="text-input" required />
+                </div>
+                <div class="modal-actions">
+                    <button type="button" class="ghost-button" id="cancelScheduleMessage">Annuler</button>
+                    <button type="submit" class="primary-button">Programmer</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
     <div class="modal-overlay" id="summaryModal" aria-hidden="true">
         <div class="modal-card">
             <div class="modal-header">
@@ -219,6 +275,7 @@
     <script>
         const conversationId = {{ conversation.getId() }};
         const currentUserId = {{ app.user.id }};
+        const summarizeUrl = '{{ path('api_summarize_conversation', {'conversationId': conversation.getId()}) }}';
         let lastMessageId = 0;
         let isPolling = false;
 
@@ -307,8 +364,22 @@
             summaryLoading.style.display = 'block';
             summaryText.style.display = 'none';
 
-            fetch('/api/conversations/' + conversationId + '/summarize')
-                .then(response => response.json())
+            fetch(summarizeUrl, {
+                headers: {
+                    'Accept': 'application/json',
+                },
+                credentials: 'same-origin',
+                cache: 'no-store',
+            })
+                .then(response => {
+                    if (!response.ok) {
+                        return response.text().then(text => {
+                            throw new Error(text || response.statusText);
+                        });
+                    }
+
+                    return response.json();
+                })
                 .then(data => {
                     if (data.success) {
                         summaryLoading.style.display = 'none';
@@ -320,7 +391,7 @@
                 })
                 .catch(error => {
                     console.error('Summarize error:', error);
-                    summaryLoading.innerHTML = '<p style="color: #d92d20;">Erreur lors de la génération du résumé</p>';
+                    summaryLoading.innerHTML = '<p style="color: #d92d20;">Erreur lors de la génération du résumé: ' + error.message + '</p>';
                 });
         }
 
@@ -507,14 +578,22 @@
             const attachmentPreview = document.getElementById('attachmentPreview');
             const recordAudioButton = document.getElementById('recordAudioButton');
             const audioDurationField = document.getElementById('audioDuration');
+            const searchInput = document.getElementById('chatSearchInput');
             const scheduleButton = document.getElementById('scheduleButton');
-            const scheduleModal = document.getElementById('scheduleMeetingModal');
+            const scheduleModal = document.getElementById('scheduleMessageModal');
+            const scheduleMeetingModal = document.getElementById('scheduleMeetingModal');
             const openScheduleMeeting = document.getElementById('openScheduleMeeting');
             const closeScheduleModal = document.getElementById('closeScheduleModal');
             const cancelSchedule = document.getElementById('cancelSchedule');
-            const composerAction = document.getElementById('composerAction');
+            const closeScheduleMessageModal = document.getElementById('closeScheduleMessageModal');
+            const cancelScheduleMessage = document.getElementById('cancelScheduleMessage');
             const scheduleForm = document.querySelector('.schedule-form');
+            const scheduleMessageForm = document.querySelector('.schedule-message-form');
+            const composerAction = document.getElementById('composerAction');
             const composerForm = document.querySelector('.composer-form');
+            const composerSendButton = document.getElementById('composerSendButton');
+            const cooldownKey = 'messageCooldown_' + conversationId;
+            const cooldownSeconds = 10;
             let mediaRecorder = null;
             let recordedChunks = [];
 
@@ -542,20 +621,32 @@
                 }
             });
 
-            function openModal() {
+            function openMessageScheduleModal() {
                 scheduleModal.setAttribute('aria-hidden', 'false');
                 scheduleModal.classList.add('modal-open');
             }
 
-            function closeModal() {
+            function closeMessageScheduleModal() {
                 scheduleModal.setAttribute('aria-hidden', 'true');
                 scheduleModal.classList.remove('modal-open');
             }
 
-            scheduleButton.addEventListener('click', openModal);
-            openScheduleMeeting.addEventListener('click', openModal);
-            closeScheduleModal.addEventListener('click', closeModal);
-            cancelSchedule.addEventListener('click', closeModal);
+            function openMeetingScheduleModal() {
+                scheduleMeetingModal.setAttribute('aria-hidden', 'false');
+                scheduleMeetingModal.classList.add('modal-open');
+            }
+
+            function closeMeetingScheduleModal() {
+                scheduleMeetingModal.setAttribute('aria-hidden', 'true');
+                scheduleMeetingModal.classList.remove('modal-open');
+            }
+
+            scheduleButton.addEventListener('click', openMessageScheduleModal);
+            openScheduleMeeting.addEventListener('click', openMeetingScheduleModal);
+            closeScheduleModal.addEventListener('click', closeMeetingScheduleModal);
+            cancelSchedule.addEventListener('click', closeMeetingScheduleModal);
+            closeScheduleMessageModal.addEventListener('click', closeMessageScheduleModal);
+            cancelScheduleMessage.addEventListener('click', closeMessageScheduleModal);
 
             scheduleForm.addEventListener('submit', function () {
                 if (composerAction) {
@@ -563,11 +654,73 @@
                 }
             });
 
-            composerForm.addEventListener('submit', function () {
+            scheduleMessageForm.addEventListener('submit', function () {
                 if (composerAction) {
-                    composerAction.value = 'send_message';
+                    composerAction.value = 'schedule_message';
                 }
             });
+
+            if (searchInput) {
+                searchInput.addEventListener('input', function () {
+                    const query = this.value.trim().toLowerCase();
+                    document.querySelectorAll('.message-bubble').forEach(bubble => {
+                        const text = bubble.textContent.trim().toLowerCase();
+                        bubble.style.display = text.includes(query) ? '' : 'none';
+                    });
+                });
+            }
+
+            function getCooldownRemaining() {
+                const stored = localStorage.getItem(cooldownKey);
+                if (!stored) {
+                    return 0;
+                }
+
+                const expiresAt = parseInt(stored, 10);
+                if (Number.isNaN(expiresAt)) {
+                    return 0;
+                }
+
+                return Math.max(0, expiresAt - Date.now());
+            }
+
+            function updateSendButtonState() {
+                const remaining = getCooldownRemaining();
+                if (!composerSendButton) {
+                    return;
+                }
+
+                if (remaining > 0) {
+                    composerSendButton.disabled = true;
+                    composerSendButton.textContent = `Attendre ${Math.ceil(remaining / 1000)}s`;
+                    setTimeout(updateSendButtonState, 250);
+                } else {
+                    composerSendButton.disabled = false;
+                    composerSendButton.innerHTML = '<span>➤</span>';
+                }
+            }
+
+            function startCooldown() {
+                localStorage.setItem(cooldownKey, String(Date.now() + cooldownSeconds * 1000));
+                updateSendButtonState();
+            }
+
+            if (composerForm) {
+                composerForm.addEventListener('submit', function (event) {
+                    if (composerAction && composerAction.value === 'send_message') {
+                        const remaining = getCooldownRemaining();
+                        if (remaining > 0) {
+                            event.preventDefault();
+                            alert(`Veuillez attendre ${Math.ceil(remaining / 1000)} secondes avant d'envoyer un nouveau message.`);
+                            return;
+                        }
+
+                        startCooldown();
+                    }
+                });
+            }
+
+            updateSendButtonState();
 
             if (!navigator.mediaDevices || !window.MediaRecorder) {
                 recordAudioButton.disabled = true;
