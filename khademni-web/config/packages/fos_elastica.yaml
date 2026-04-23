@@ -1,7 +1,7 @@
 fos_elastica:
     clients:
         default:
-            hosts: ['%env(resolve:ELASTICSEARCH_URL)%']
+            hosts: ['%elasticsearch_url%']
 
     indexes:
         gig:

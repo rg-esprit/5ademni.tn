@@ -5,7 +5,6 @@ namespace App\Entity;
 use App\Repository\GigRepository;
 use Doctrine\DBAL\Types\Types;
 use Doctrine\ORM\Mapping as ORM;
-use Gedmo\Mapping\Annotation as Gedmo;
 
 #[ORM\Entity(repositoryClass: GigRepository::class)]
 #[ORM\Table(name: 'gig')]
@@ -65,12 +64,8 @@ class Gig
     #[ORM\Column(name: 'user_id', nullable: true)]
     private ?int $userId = null;
 
-    #[Gedmo\Timestampable(on: 'create')]
-    #[ORM\Column(name: 'created_at', type: Types::DATETIME_IMMUTABLE)]
     private ?\DateTimeImmutable $createdAt = null;
 
-    #[Gedmo\Timestampable(on: 'update')]
-    #[ORM\Column(name: 'updated_at', type: Types::DATETIME_IMMUTABLE)]
     private ?\DateTimeImmutable $updatedAt = null;
 
     public function getId(): ?int

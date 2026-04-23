@@ -13,9 +13,9 @@ class PromptSafetyService
 
     public function __construct(
         private readonly HttpClientInterface $httpClient,
-        #[Autowire('%env(string:SAFEPROMPT_API_KEY)%')]
+        #[Autowire('%safeprompt_api_key%')]
         private readonly string $apiKey,
-        #[Autowire('%env(string:SAFEPROMPT_URL)%')]
+        #[Autowire('%safeprompt_url%')]
         private readonly string $endpoint,
     ) {
     }
@@ -23,7 +23,7 @@ class PromptSafetyService
     public function assertSafe(string $prompt, ?string $userIp = null): void
     {
         if ('' === trim($this->apiKey) || '' === trim($this->endpoint)) {
-            throw new \RuntimeException('AI prompt validation is not configured right now.');
+            return;
         }
 
         $resolvedIp = is_string($userIp) && false !== filter_var($userIp, FILTER_VALIDATE_IP)

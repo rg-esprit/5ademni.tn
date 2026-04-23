@@ -1,0 +1,8 @@
+*
+!.gitignore
+!cv/
+!images/
+cv/*
+!cv/.gitignore
+images/*
+!images/.gitignore

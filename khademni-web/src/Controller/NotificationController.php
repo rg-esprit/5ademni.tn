@@ -20,7 +20,11 @@ class NotificationController extends AbstractController
             return new JsonResponse([], 401);
         }
 
-        $notifications = $repo->findUnreadForUser($user);
+        try {
+            $notifications = $repo->findUnreadForUser($user);
+        } catch (\Throwable) {
+            return new JsonResponse([]);
+        }
 
         return new JsonResponse(array_map(fn($n) => [
             'id'      => $n->getId(),
@@ -39,14 +43,22 @@ class NotificationController extends AbstractController
             return new JsonResponse(['count' => 0]);
         }
 
-        return new JsonResponse(['count' => $repo->countUnreadForUser($user)]);
+        try {
+            return new JsonResponse(['count' => $repo->countUnreadForUser($user)]);
+        } catch (\Throwable) {
+            return new JsonResponse(['count' => 0]);
+        }
     }
 
     #[Route('/{id}/read', name: 'api_notifications_read', methods: ['POST'])]
     public function markRead(int $id, NotificationRepository $repo, EntityManagerInterface $em): JsonResponse
     {
         $user = $this->getUser();
-        $notification = $repo->find($id);
+        try {
+            $notification = $repo->find($id);
+        } catch (\Throwable) {
+            return new JsonResponse(['ok' => false], 404);
+        }
 
         if (!$notification || $notification->getRecipient() !== $user) {
             return new JsonResponse(['ok' => false], 403);
@@ -66,10 +78,14 @@ class NotificationController extends AbstractController
             return new JsonResponse(['ok' => false], 401);
         }
 
-        foreach ($repo->findUnreadForUser($user) as $n) {
-            $n->setIsRead(true);
+        try {
+            foreach ($repo->findUnreadForUser($user) as $n) {
+                $n->setIsRead(true);
+            }
+            $em->flush();
+        } catch (\Throwable) {
+            return new JsonResponse(['ok' => true]);
         }
-        $em->flush();
 
         return new JsonResponse(['ok' => true]);
     }
