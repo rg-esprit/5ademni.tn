@@ -28,6 +28,7 @@ khademni-web/.env.local
 khademni-web/.env.local.php
 khademni-web/.env.*.local
 khademni-web/config/secrets/prod/prod.decrypt.private.php
+khademni-web/config/google-calendar-service-account.json
 khademni-web/public/bundles/
 khademni-web/var/
 khademni-web/vendor/

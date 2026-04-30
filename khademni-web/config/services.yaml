@@ -12,12 +12,16 @@ parameters:
     elasticsearch_url_default: 'http://127.0.0.1:9200'
     safeprompt_api_key_default: ''
     safeprompt_url_default: ''
+    google_calendar_service_account_json_default: ''
+    google_calendar_id_default: ''
     app.gemini_api_key: '%env(default:gemini_api_key_default:GEMINI_API_KEY)%'
     api_ninjas_key: '%env(default:api_ninjas_key_default:API_NINJAS_KEY)%'
     huggingface_api_key: '%env(default:huggingface_api_key_default:HUGGINGFACE_API_KEY)%'
     elasticsearch_url: '%env(default:elasticsearch_url_default:ELASTICSEARCH_URL)%'
     safeprompt_api_key: '%env(default:safeprompt_api_key_default:SAFEPROMPT_API_KEY)%'
     safeprompt_url: '%env(default:safeprompt_url_default:SAFEPROMPT_URL)%'
+    google_calendar_service_account_json: '%env(default:google_calendar_service_account_json_default:GOOGLE_CALENDAR_SERVICE_ACCOUNT_JSON)%'
+    google_calendar_id: '%env(default:google_calendar_id_default:GOOGLE_CALENDAR_ID)%'
     mercure_url: 'http://127.0.0.1:3000/.well-known/mercure'
     mercure_public_url: 'http://127.0.0.1:3000/.well-known/mercure'
     mercure_jwt_secret: '!ChangeThisMercureHubJWTSecretKey!'
@@ -38,6 +42,15 @@ services:
             - '../src/DependencyInjection/'
             - '../src/Entity/'
             - '../src/Kernel.php'
+
+    App\Service\GoogleCalendarService:
+        arguments:
+            $serviceAccountJsonPath: '%google_calendar_service_account_json%'
+            $calendarId: '%google_calendar_id%'
+
+    App\Service\MeetingNotificationService:
+        arguments:
+            $fromEmail: '%env(MAILER_FROM_ADDRESS)%'
 
     # add more service definitions when explicit configuration is needed
     # please note that last definitions always *replace* previous ones
