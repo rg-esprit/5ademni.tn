@@ -6,7 +6,8 @@
 parameters:
     images_directory: '%kernel.project_dir%/public/uploads/images'
     stripe_secret_key: '%env(STRIPE_SECRET_KEY)%'
-    app.gemini_api_key: '%env(GEMINI_API_KEY)%'
+    app.groq_api_key: '%env(GROQ_API_KEY)%'
+    app.groq_url: '%env(GROQ_URL)%'
 services:
     # default configuration for services in *this* file
     _defaults:
