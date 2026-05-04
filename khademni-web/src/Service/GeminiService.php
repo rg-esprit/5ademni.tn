@@ -3,20 +3,104 @@
 namespace App\Service;
 
 use Symfony\Contracts\HttpClient\HttpClientInterface;
+use Symfony\Contracts\HttpClient\Exception\TransportExceptionInterface;
 use Symfony\Component\DependencyInjection\ParameterBag\ParameterBagInterface;
 use Psr\Log\LoggerInterface;
 
+/**
+ * AI service backed by Groq while preserving the existing GeminiService API.
+ */
 class GeminiService
 {
+    private const MODEL = 'llama-3.3-70b-versatile';
+
     private HttpClientInterface $httpClient;
     private string $apiKey;
+    private string $apiUrl;
     private LoggerInterface $logger;
 
     public function __construct(HttpClientInterface $httpClient, ParameterBagInterface $params, LoggerInterface $logger)
     {
         $this->httpClient = $httpClient;
-        $this->apiKey = $params->get('app.gemini_api_key');
+        $this->apiKey = (string) $params->get('app.groq_api_key');
+        $this->apiUrl = (string) $params->get('app.groq_url');
         $this->logger = $logger;
+
+        if (trim($this->apiUrl) === '') {
+            $this->apiUrl = 'https://api.groq.com/openai/v1/chat/completions';
+        }
+    }
+
+    private function chat(string $systemPrompt, string $userMessage): string
+    {
+        if (trim($this->apiKey) === '') {
+            throw new \RuntimeException('Groq API key is missing.');
+        }
+
+        try {
+            $response = $this->httpClient->request('POST', $this->apiUrl, [
+                'headers' => [
+                    'Authorization' => 'Bearer ' . $this->apiKey,
+                    'Content-Type' => 'application/json',
+                ],
+                'timeout' => 60,
+                'json' => [
+                    'model' => self::MODEL,
+                    'temperature' => 0.3,
+                    'messages' => [
+                        ['role' => 'system', 'content' => $systemPrompt],
+                        ['role' => 'user', 'content' => $userMessage],
+                    ],
+                ],
+            ]);
+
+            $statusCode = $response->getStatusCode();
+            $content = $response->getContent(false);
+
+            if ($statusCode !== 200) {
+                $errorData = json_decode($content, true);
+                $errorMessage = $errorData['error']['message'] ?? $content;
+                $this->logger->error(sprintf('Groq API Error (%d): %s', $statusCode, $errorMessage));
+
+                throw new \RuntimeException(sprintf('Groq API Error (%d): %s', $statusCode, $errorMessage));
+            }
+
+            $result = json_decode($content, true);
+            $text = $result['choices'][0]['message']['content'] ?? null;
+
+            if (!is_string($text) || trim($text) === '') {
+                throw new \RuntimeException('Groq API returned an empty response.');
+            }
+
+            return $text;
+        } catch (TransportExceptionInterface $e) {
+            $this->logger->error('Groq API transport error: ' . $e->getMessage());
+
+            throw new \RuntimeException('Network error while connecting to Groq API: ' . $e->getMessage());
+        }
+    }
+
+    private function extractJson(string $text): ?array
+    {
+        $clean = trim($text);
+
+        if (preg_match('/```(?:json)?\s*(.*?)```/s', $clean, $matches)) {
+            $clean = trim($matches[1]);
+        }
+
+        $decoded = json_decode($clean, true);
+        if (json_last_error() === JSON_ERROR_NONE && is_array($decoded)) {
+            return $decoded;
+        }
+
+        if (preg_match('/\{.*\}/s', $clean, $matches)) {
+            $decoded = json_decode($matches[0], true);
+            if (json_last_error() === JSON_ERROR_NONE && is_array($decoded)) {
+                return $decoded;
+            }
+        }
+
+        return null;
     }
 
     /**
@@ -24,50 +108,23 @@ class GeminiService
      */
     public function generateJobPosting(string $idea): ?array
     {
-        // Using gemini-flash-latest as it is confirmed available for this API key
-        $apiUrl = "https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=" . $this->apiKey;
-
-        $prompt = $this->constructPrompt($idea);
+        $system = 'Act as a professional recruitment expert. Only output valid JSON, never markdown.';
+        $user = $this->constructPrompt($idea);
 
         try {
-            $response = $this->httpClient->request('POST', $apiUrl, [
-                'headers' => [
-                    'Content-Type' => 'application/json',
-                ],
-                'json' => [
-                    'contents' => [
-                        [
-                            'parts' => [
-                                ['text' => $prompt]
-                            ]
-                        ]
-                    ]
-                ]
-            ]);
-
-            if ($response->getStatusCode() !== 200) {
-                $errorMsg = $response->getContent(false);
-                $this->logger->error('Gemini API Error (' . $response->getStatusCode() . '): ' . $errorMsg);
-                return ['error' => 'API Error: ' . $response->getStatusCode() . ' - ' . $errorMsg];
-            }
-
-            $result = $response->toArray();
-            $text = $result['candidates'][0]['content']['parts'][0]['text'] ?? '';
-            
-            // Extract JSON from the response
-            if (preg_match('/\{.*\}/s', $text, $matches)) {
-                $decoded = json_decode($matches[0], true);
-                if (json_last_error() === JSON_ERROR_NONE) {
-                    return $decoded;
-                }
-            }
-
-            $this->logger->error('Gemini response was not a valid JSON: ' . $text);
-            return ['error' => 'Invalid JSON from Gemini'];
-        } catch (\Exception $e) {
-            $this->logger->error('Gemini Integration failed: ' . $e->getMessage());
-            return ['error' => 'Connection failed: ' . $e->getMessage()];
+            $text = $this->chat($system, $user);
+        } catch (\RuntimeException $e) {
+            return ['error' => $e->getMessage()];
         }
+
+        $decoded = $this->extractJson($text);
+        if ($decoded === null) {
+            $this->logger->error('Groq job generation response was not valid JSON: ' . $text);
+
+            return ['error' => 'AI returned an invalid JSON format.'];
+        }
+
+        return $decoded;
     }
 
     /**
@@ -75,10 +132,9 @@ class GeminiService
      */
     public function analyzeCVText(string $cvText): ?array
     {
-        $apiUrl = "https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=" . $this->apiKey;
+        $system = 'You are an expert recruiter and CV evaluator. Only output valid JSON, never markdown.';
 
-        $prompt = "You are an expert recruiter and CV evaluator.
-Analyze the following CV and evaluate its quality.
+        $user = "Analyze the following CV and evaluate its quality.
 Give a score from 0 to 100 based on:
 * clarity of experience
 * presence of skills
@@ -86,13 +142,13 @@ Give a score from 0 to 100 based on:
 * completeness of information
 
 Rules:
-* 0–40: good and clear CV (Status: SAFE)
-* 40–70: average CV (Status: AVERAGE)
-* 70–100: suspicious or low quality (Status: SUSPICIOUS)
+* 0-40: good and clear CV (Status: SAFE)
+* 40-70: average CV (Status: AVERAGE)
+* 70-100: suspicious or low quality (Status: SUSPICIOUS)
 
 Return ONLY this JSON format:
 {
-  \"score\": number,
+  \"score\": <number>,
   \"status\": \"SAFE or AVERAGE or SUSPICIOUS\",
   \"reason\": \"short explanation\"
 }
@@ -101,65 +157,37 @@ CV CONTENT:
 \"$cvText\"";
 
         try {
-            $response = $this->httpClient->request('POST', $apiUrl, [
-                'headers' => [
-                    'Content-Type' => 'application/json',
-                ],
-                'json' => [
-                    'contents' => [
-                        [
-                            'parts' => [
-                                ['text' => $prompt]
-                            ]
-                        ]
-                    ]
-                ]
-            ]);
-
-            if ($response->getStatusCode() !== 200) {
-                $errorMsg = $response->getContent(false);
-                $this->logger->error('Gemini API Error (' . $response->getStatusCode() . '): ' . $errorMsg);
-                return ['error' => 'API Error: ' . $response->getStatusCode() . ' - ' . $errorMsg];
-            }
-
-            $result = $response->toArray();
-            $text = $result['candidates'][0]['content']['parts'][0]['text'] ?? '';
-            
-            // Log the raw response for debugging
-            $this->logger->info('Gemini CV Analysis Raw Response: ' . $text);
-            
-            if (preg_match('/\{.*\}/s', $text, $matches)) {
-                $decoded = json_decode($matches[0], true);
-                if (json_last_error() === JSON_ERROR_NONE) {
-                    // Ensure the expected keys exist, otherwise it might break the JS
-                    if (!isset($decoded['score']) || !isset($decoded['status']) || !isset($decoded['reason'])) {
-                        $this->logger->error('Gemini response missing required keys: ' . $text);
-                        return null;
-                    }
-                    return $decoded;
-                }
-            }
-
-            $this->logger->error('Gemini CV analysis response was not a valid JSON: ' . $text);
-            return ['error' => 'Invalid JSON from Gemini'];
-        } catch (\Exception $e) {
-            $this->logger->error('Gemini CV Analysis failed: ' . $e->getMessage());
-            return ['error' => 'Connection failed: ' . $e->getMessage()];
+            $text = $this->chat($system, $user);
+        } catch (\RuntimeException $e) {
+            return ['error' => $e->getMessage()];
         }
+
+        $decoded = $this->extractJson($text);
+        if ($decoded === null) {
+            $this->logger->error('Groq CV analysis response was not valid JSON: ' . $text);
+
+            return ['error' => 'AI returned an invalid JSON format.'];
+        }
+
+        if (!isset($decoded['score'], $decoded['status'], $decoded['reason'])) {
+            $this->logger->error('Groq CV analysis response missing required keys: ' . $text);
+
+            return null;
+        }
+
+        return $decoded;
     }
 
     public function translateJobData(string $title, string $description, ?string $requirements, string $targetLanguage): ?array
     {
-        $apiUrl = "https://generativelanguage.googleapis.com/v1beta/models/gemini-flash-latest:generateContent?key=" . $this->apiKey;
-
         $targetLangStr = strtolower($targetLanguage) === 'fr' ? 'French' : 'Arabic';
+        $system = 'You are a professional translator specializing in HR and recruitment. Only output valid JSON, never markdown.';
 
-        $prompt = "You are a professional translator specializing in HR and recruitment. 
-Translate the following job data from its original language into $targetLangStr.
+        $user = "Translate the following job data from its original language into $targetLangStr.
 Ensure the translation sounds natural, professional, and uses standard industry terminology in $targetLangStr.
 Preserve the exact formatting, including any line breaks (\\n).
 
-MANDATORY: Your response MUST be a valid JSON object ONLY. Do NOT include markdown code blocks like ```json.
+MANDATORY: Your response MUST be a valid JSON object ONLY. Do NOT include markdown code blocks.
 
 INPUT DATA:
 Title: \"$title\"
@@ -174,42 +202,19 @@ JSON Structure:
 }";
 
         try {
-            $response = $this->httpClient->request('POST', $apiUrl, [
-                'headers' => [
-                    'Content-Type' => 'application/json',
-                ],
-                'json' => [
-                    'contents' => [
-                        [
-                            'parts' => [
-                                ['text' => $prompt]
-                            ]
-                        ]
-                    ]
-                ]
-            ]);
-
-            $data = $response->toArray(false);
-
-            if (isset($data['error'])) {
-                $this->logger->error('Gemini API Error (Translation): ' . $data['error']['message']);
-                return ['error' => 'API Error: ' . $data['error']['code'] . ' - ' . $data['error']['message']];
-            }
-
-            $text = $data['candidates'][0]['content']['parts'][0]['text'] ?? '';
-            $text = str_replace(['```json', '```'], '', trim($text));
-
-            $decoded = json_decode($text, true);
-            if (json_last_error() === JSON_ERROR_NONE) {
-                return $decoded;
-            }
-
-            $this->logger->error('Gemini Translation response was not valid JSON: ' . $text);
-            return ['error' => 'Invalid JSON from Gemini'];
-        } catch (\Exception $e) {
-            $this->logger->error('Gemini Translation failed: ' . $e->getMessage());
-            return ['error' => 'Connection failed: ' . $e->getMessage()];
+            $text = $this->chat($system, $user);
+        } catch (\RuntimeException $e) {
+            return ['error' => $e->getMessage()];
         }
+
+        $decoded = $this->extractJson($text);
+        if ($decoded === null) {
+            $this->logger->error('Groq translation response was not valid JSON: ' . $text);
+
+            return ['error' => 'AI returned an invalid JSON format.'];
+        }
+
+        return $decoded;
     }
 
     /**
@@ -217,9 +222,9 @@ JSON Structure:
      */
     public function calculateMatchScore(string $cvText, string $jobRequirements): ?int
     {
-        $apiUrl = "https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=" . $this->apiKey;
+        $system = 'You are an expert recruitment AI. Only output valid JSON, never markdown.';
 
-        $prompt = "You are an expert recruitment AI. Calculate the match percentage between the candidate's CV and the job requirements.
+        $user = "Calculate the match percentage between the candidate's CV and the job requirements.
 Return ONLY a valid JSON object with a single key 'match_score' containing an integer from 0 to 100.
 
 CV CONTENT:
@@ -229,41 +234,21 @@ JOB REQUIREMENTS:
 \"$jobRequirements\"";
 
         try {
-            $response = $this->httpClient->request('POST', $apiUrl, [
-                'headers' => [
-                    'Content-Type' => 'application/json',
-                ],
-                'json' => [
-                    'contents' => [
-                        [
-                            'parts' => [
-                                ['text' => $prompt]
-                            ]
-                        ]
-                    ]
-                ]
-            ]);
+            $text = $this->chat($system, $user);
+        } catch (\RuntimeException $e) {
+            $this->logger->error('Groq match score failed: ' . $e->getMessage());
 
-            if ($response->getStatusCode() !== 200) {
-                $this->logger->error('Gemini API Error (Match): ' . $response->getContent(false));
-                return null;
-            }
-
-            $result = $response->toArray();
-            $text = $result['candidates'][0]['content']['parts'][0]['text'] ?? '';
-            
-            if (preg_match('/\{.*\}/s', $text, $matches)) {
-                $decoded = json_decode($matches[0], true);
-                if (json_last_error() === JSON_ERROR_NONE && isset($decoded['match_score'])) {
-                    return (int)$decoded['match_score'];
-                }
-            }
-            
-            return null;
-        } catch (\Exception $e) {
-            $this->logger->error('Gemini Match Score failed: ' . $e->getMessage());
             return null;
         }
+
+        $decoded = $this->extractJson($text);
+        if ($decoded !== null && isset($decoded['match_score'])) {
+            return (int) $decoded['match_score'];
+        }
+
+        $this->logger->error('Groq match score response was not valid JSON: ' . $text);
+
+        return null;
     }
 
     private function constructPrompt(string $idea): string
@@ -271,11 +256,11 @@ JOB REQUIREMENTS:
         $categories = ['IT & Software', 'Design & Creative', 'Marketing', 'Writing & Translation', 'Sales & Support', 'Other'];
         $jobTypes = ['Full-time', 'Part-time', 'Contract', 'Freelance', 'Internship'];
 
-        return "Act as a professional recruitment expert. Based on the user's idea provided below, generate a complete and formal job posting.
+        return "Based on the user's idea provided below, generate a complete and formal job posting.
         
         INPUT IDEA: \"$idea\"
         
-        MANDATORY: Your response MUST be a valid JSON object only. Do NOT include any markdown formatting like ```json.
+        MANDATORY: Your response MUST be a valid JSON object only. Do NOT include any markdown formatting.
         
         JSON Structure:
         {
