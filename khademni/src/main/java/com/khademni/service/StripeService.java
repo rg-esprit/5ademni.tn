@@ -24,9 +24,11 @@ public class StripeService {
 
         try (InputStream is = getClass().getResourceAsStream("/stripe.properties")) {
             if (is != null) {
+                System.out.println("[StripeService] stripe.properties found.");
                 Properties props = new Properties();
                 props.load(is);
                 fileSecret = props.getProperty("stripe.secret_key");
+                System.out.println("[StripeService] Key from file: " + (fileSecret != null ? "Present" : "Null"));;
                 currency = props.getProperty("stripe.default_currency");
             }
         } catch (Exception ignored) {
@@ -40,6 +42,7 @@ public class StripeService {
 
         if (!this.secretKey.isBlank()) {
             Stripe.apiKey = this.secretKey;
+            System.out.println("[StripeService] API Key configured: " + this.secretKey.substring(0, 7) + "********");
         }
     }
 
@@ -142,7 +145,7 @@ public class StripeService {
             Map<String, String> metadata = session.getMetadata();
             String expectedPhone = metadata != null ? metadata.get("expected_phone") : null;
 
-            // Normalize and compare — strip all non-digit chars
+            // Normalize and compare ÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â¢EURÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬Ãƒâ€šÃ‚Â strip all non-digit chars
             boolean phoneMatch = true; // default to true if no expected phone
             if (expectedPhone != null && !expectedPhone.isBlank()) {
                 String normalizedExpected = expectedPhone.replaceAll("[^0-9]", "");
@@ -169,7 +172,7 @@ public class StripeService {
             throw new Exception("Stripe secret key not configured. Set STRIPE_SECRET_KEY.");
         }
         if (amountEur <= 0) {
-            throw new IllegalArgumentException("Le montant doit être strictement positif.");
+            throw new IllegalArgumentException("Le montant doit ÃƒÆ’Ã†â€™Ãƒâ€ Ã¢â‚¬â„¢ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Âªtre strictement positif.");
         }
         long amountCents = Math.round(amountEur * 100);
 
@@ -188,10 +191,10 @@ public class StripeService {
                                                 .setUnitAmount(amountCents)
                                                 .setProductData(
                                                         SessionCreateParams.LineItem.PriceData.ProductData.builder()
-                                                                .setName("Dépôt sur le portefeuille 5ademni")
+                                                                .setName("DÃƒÆ’Ã†â€™Ãƒâ€ Ã¢â‚¬â„¢ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â©pÃƒÆ’Ã†â€™Ãƒâ€ Ã¢â‚¬â„¢ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â´t sur le portefeuille 5ademni")
                                                                 .setDescription(
                                                                         "Ajout de " + String.format("%.2f", amountEur)
-                                                                                + " € à votre solde")
+                                                                                + " ÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â¢ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬Ãƒâ€¦Ã‚Â¡ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â¬ ÃƒÆ’Ã†â€™Ãƒâ€ Ã¢â‚¬â„¢ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â  votre solde")
                                                                 .build())
                                                 .build())
                                 .build())
@@ -218,7 +221,7 @@ public class StripeService {
 
             Map<String, String> metadata = session.getMetadata();
             if (metadata == null) {
-                return new DepositVerificationResult(0, 0, null, false, "Métadonnées de session manquantes.");
+                return new DepositVerificationResult(0, 0, null, false, "MÃƒÆ’Ã†â€™Ãƒâ€ Ã¢â‚¬â„¢ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â©tadonnÃƒÆ’Ã†â€™Ãƒâ€ Ã¢â‚¬â„¢ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â©es de session manquantes.");
             }
             String userIdStr = metadata.get("user_id");
             String amountEurStr = metadata.get("amount_eur");
@@ -254,7 +257,7 @@ public class StripeService {
         } catch (StripeException e) {
             return new DepositVerificationResult(0, 0, null, false, "Stripe: " + e.getMessage());
         } catch (NumberFormatException e) {
-            return new DepositVerificationResult(0, 0, null, false, "Métadonnées invalides: " + e.getMessage());
+            return new DepositVerificationResult(0, 0, null, false, "MÃƒÆ’Ã†â€™Ãƒâ€ Ã¢â‚¬â„¢ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â©tadonnÃƒÆ’Ã†â€™Ãƒâ€ Ã¢â‚¬â„¢ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â©es invalides: " + e.getMessage());
         }
     }
 }
