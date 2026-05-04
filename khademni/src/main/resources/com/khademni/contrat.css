@@ -679,3 +679,129 @@
 .bento-date-picker .button .glass {
   -fx-fill: #6c5ce7;
 }
+
+/* ===== LIST CARD (Expandable Contract Cards) ===== */
+
+.list-card {
+    -fx-background-color: white;
+    -fx-background-radius: 20;
+    -fx-border-color: #f0eefe;
+    -fx-border-radius: 20;
+    -fx-border-width: 1;
+    -fx-effect: dropshadow(gaussian, rgba(30, 10, 59, 0.04), 12, 0, 0, 4);
+}
+
+.list-card:hover {
+    -fx-border-color: rgba(124, 58, 237, 0.25);
+    -fx-effect: dropshadow(gaussian, rgba(124, 58, 237, 0.10), 18, 0, 0, 6);
+}
+
+.list-card-selected {
+    -fx-background-color: #faf7ff;
+    -fx-border-color: #7c3aed;
+    -fx-border-width: 1.5;
+    -fx-effect: dropshadow(gaussian, rgba(124, 58, 237, 0.16), 24, 0, 0, 8);
+}
+
+.action-panel {
+    -fx-background-color: #f9f7ff;
+    -fx-padding: 20 24 24 24;
+    -fx-border-color: #ede9fe;
+    -fx-border-width: 1 0 0 0;
+}
+
+.info-label {
+    -fx-font-size: 10;
+    -fx-font-weight: 800;
+    -fx-text-fill: #9ca3af;
+    -fx-letter-spacing: 2;
+}
+
+.info-value {
+    -fx-font-size: 13;
+    -fx-text-fill: #374151;
+    -fx-line-spacing: 3;
+}
+
+.phone-value {
+    -fx-font-size: 14;
+    -fx-text-fill: #7c3aed;
+    -fx-font-weight: 700;
+}
+
+/* ===== BADGES ===== */
+
+.badge-warning {
+    -fx-background-color: #fef3c7;
+    -fx-text-fill: #d97706;
+    -fx-padding: 4 12;
+    -fx-background-radius: 20;
+    -fx-font-size: 11;
+    -fx-font-weight: 800;
+}
+
+.badge-success {
+    -fx-background-color: #d1fae5;
+    -fx-text-fill: #059669;
+    -fx-padding: 4 12;
+    -fx-background-radius: 20;
+    -fx-font-size: 11;
+    -fx-font-weight: 800;
+}
+
+/* ===== SUMMARY CARDS ===== */
+
+.summary-card {
+    -fx-background-color: white;
+    -fx-background-radius: 24;
+    -fx-border-radius: 24;
+    -fx-border-color: rgba(232, 226, 239, 0.9);
+    -fx-border-width: 1;
+    -fx-padding: 20 24;
+    -fx-effect: dropshadow(gaussian, rgba(30, 10, 59, 0.06), 20, 0, 0, 8);
+}
+
+.summary-icon-box {
+    -fx-background-color: rgba(108, 13, 242, 0.1);
+    -fx-background-radius: 16;
+    -fx-min-width: 56; -fx-min-height: 56;
+    -fx-max-width: 56; -fx-max-height: 56;
+}
+
+.summary-icon-amber { -fx-background-color: rgba(245, 158, 11, 0.1); }
+.summary-icon-green { -fx-background-color: rgba(16, 185, 129, 0.1); }
+
+/* ===== ACTION BUTTONS ===== */
+
+.btn-nouveau {
+    -fx-background-color: #7c3aed;
+    -fx-text-fill: white;
+    -fx-font-size: 14;
+    -fx-font-weight: 700;
+    -fx-background-radius: 12;
+    -fx-padding: 10 20;
+    -fx-cursor: hand;
+    -fx-effect: dropshadow(gaussian, rgba(124, 58, 237, 0.3), 10, 0, 0, 4);
+}
+
+.btn-nouveau:hover { -fx-background-color: #6d28d9; }
+
+.btn-reset {
+    -fx-background-color: transparent;
+    -fx-text-fill: #6b7280;
+    -fx-font-size: 14;
+    -fx-font-weight: 600;
+    -fx-padding: 10 20;
+    -fx-background-radius: 12;
+    -fx-border-color: #e5e7eb;
+    -fx-border-radius: 12;
+    -fx-cursor: hand;
+}
+
+.btn-reset:hover { -fx-background-color: #f3f4f6; }
+
+.result-count {
+    -fx-font-size: 14;
+    -fx-font-weight: 500;
+    -fx-text-fill: #6b7280;
+}
