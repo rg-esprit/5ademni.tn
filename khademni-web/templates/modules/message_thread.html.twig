@@ -7,7 +7,7 @@
         {% include 'partials/_header.html.twig' %}
 
         <main class="page-content">
-            <section class="page-card page-card-thread">
+            <section class="page-card page-card-thread" data-controller="message" data-message-conversation-id-value="{{ conversation.getId() }}" data-message-user-id-value="{{ currentUser.getId() }}">
                 <div class="thread-topbar">
                     <div class="thread-topbar-meta">
                         <p class="eyebrow">Messagerie</p>
@@ -15,19 +15,19 @@
                         <p class="meta">Avec {{ conversation.getOtherParticipant(currentUser).getDisplayName() }} • Ouverte le {{ conversation.getDateCreation()|date('d/m/Y') }}</p>
                     </div>
                     <div class="thread-topbar-search">
-                        <input id="chatSearchInput" type="search" class="text-input" placeholder="Rechercher dans le chat..." aria-label="Rechercher dans le chat" />
+                        <input id="chatSearchInput" data-message-target="chatSearchInput" type="search" class="text-input" placeholder="Rechercher dans le chat..." aria-label="Rechercher dans le chat" />
                     </div>
                     <div class="thread-topbar-actions">
-                        <button class="icon-button" id="startAudioCall" type="button" title="Appel vocal"><span>📞</span> Appel</button>
-                        <button class="icon-button" id="startVideoCall" type="button" title="Appel vidéo"><span>🎥</span> Vidéo</button>
-                        <button class="icon-button" id="summarizeChat" type="button" title="Résumer le chat par IA"><span>✨</span> Résumé IA</button>
-                        <button type="button" class="icon-button" id="openScheduleMeeting" title="Planifier une réunion"><span>📅</span> Réunion</button>
+                        <button class="icon-button" id="startAudioCall" data-message-target="startAudioCall" type="button" title="Appel vocal"><span>📞</span> Appel</button>
+                        <button class="icon-button" id="startVideoCall" data-message-target="startVideoCall" type="button" title="Appel vidéo"><span>🎥</span> Vidéo</button>
+                        <button class="icon-button" id="summarizeChat" data-message-target="summarizeChat" type="button" title="Résumer le chat par IA"><span>✨</span> Résumé IA</button>
+                        <button type="button" class="icon-button" id="openScheduleMeeting" data-message-target="openScheduleMeeting" title="Planifier une réunion"><span>📅</span> Réunion</button>
                         <a class="secondary-button" href="{{ path('app_conversations') }}">Retour</a>
                     </div>
                 </div>
 
                 <div class="thread-container">
-                    <div class="thread-messages" id="threadMessages">
+                    <div class="thread-messages" id="threadMessages" data-message-target="threadMessages">
                         {% if messages is empty %}
                             <div class="empty-state thread-empty">
                                 <p>Aucun message pour le moment. Envoyez le premier message pour démarrer la discussion.</p>
@@ -127,38 +127,38 @@
                     <div class="thread-composer">
                         <form method="post" enctype="multipart/form-data" class="composer-form" novalidate>
                             <input type="hidden" name="_token" value="{{ csrf_token('send_message_' ~ conversation.getId()) }}" />
-                            <input type="hidden" name="action" value="send_message" id="composerAction" />
-                            <input type="hidden" name="audio_duration" id="audioDuration" value="" />
+                            <input type="hidden" name="action" value="send_message" id="composerAction" data-message-target="composerAction" />
+                            <input type="hidden" name="audio_duration" id="audioDuration" data-message-target="audioDuration" value="" />
 
                             <div class="composer-body-wrapper">
                                 <div class="composer-icons-group">
-                                    <button type="button" class="toolbar-icon" id="emojiToggle" title="Emoji">😊</button>
-                                    <button type="button" class="toolbar-icon" id="attachPhoto" title="Ajouter une photo">🖼️</button>
-                                    <button type="button" class="toolbar-icon" id="attachFile" title="Ajouter un fichier">📎</button>
-                                    <button type="button" class="toolbar-icon" id="recordAudioButton" title="Enregistrer un message vocal">🎤</button>
+                                    <button type="button" class="toolbar-icon" id="emojiToggle" data-message-target="emojiToggle" title="Emoji">😊</button>
+                                    <button type="button" class="toolbar-icon" id="attachPhoto" data-message-target="attachPhoto" title="Ajouter une photo">🖼️</button>
+                                    <button type="button" class="toolbar-icon" id="attachFile" data-message-target="attachFile" title="Ajouter un fichier">📎</button>
+                                    <button type="button" class="toolbar-icon" id="recordAudioButton" data-message-target="recordAudioButton" title="Enregistrer un message vocal">🎤</button>
                                 </div>
 
-                                <textarea id="content" name="content" rows="2" maxlength="3000" placeholder="Écrivez un message...">{{ app.request.request.get('content', '') }}</textarea>
+                                <textarea id="content" data-message-target="content" name="content" rows="2" maxlength="3000" placeholder="Écrivez un message...">{{ app.request.request.get('content', '') }}</textarea>
 
                                 <div class="composer-actions-group">
-                                    <button class="ghost-button compact-button" type="button" id="scheduleButton">Planifier</button>
-                                    <button class="primary-button icon-send-button" id="composerSendButton" type="submit" aria-label="Envoyer">
+                                    <button class="ghost-button compact-button" type="button" id="scheduleButton" data-message-target="scheduleButton">Planifier</button>
+                                    <button class="primary-button icon-send-button" id="composerSendButton" data-message-target="composerSendButton" type="submit" aria-label="Envoyer">
                                         <span>➤</span>
                                     </button>
                                 </div>
                             </div>
 
                             <div class="composer-status-panel">
-                                <span class="composer-status" id="attachmentPreview">Aucune pièce jointe</span>
+                                <span class="composer-status" id="attachmentPreview" data-message-target="attachmentPreview">Aucune pièce jointe</span>
                             </div>
 
-                            <div class="emoji-picker" id="emojiPicker">
+                            <div class="emoji-picker" id="emojiPicker" data-message-target="emojiPicker">
                                 {% for emoji in ['😀','😄','😉','😍','👍','🎉','📎','📷','🎤'] %}
                                     <button type="button" class="emoji-button">{{ emoji }}</button>
                                 {% endfor %}
                             </div>
 
-                            <input type="file" id="attachment" name="attachment" class="file-input" accept="image/*,audio/*,application/pdf" hidden />
+                            <input type="file" id="attachment" data-message-target="fileInput" name="attachment" class="file-input" accept="image/*,audio/*,application/pdf" hidden />
                         </form>
                     </div>
                 </div>

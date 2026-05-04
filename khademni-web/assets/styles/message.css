@@ -1,0 +1,706 @@
+/* Message Thread Chat Styles */
+
+.thread-container {
+    display: flex;
+    flex-direction: column;
+    height: 100%;
+    gap: 1rem;
+}
+
+.thread-messages {
+    flex: 1;
+    overflow-y: auto;
+    padding: 1rem;
+    display: flex;
+    flex-direction: column;
+    gap: 0.5rem;
+}
+
+.message-bubble {
+    display: flex;
+    margin-bottom: 0.5rem;
+    animation: slideIn 0.3s ease-out;
+}
+
+@keyframes slideIn {
+    from {
+        opacity: 0;
+        transform: translateY(10px);
+    }
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
+}
+
+.message-bubble.outgoing {
+    justify-content: flex-end;
+}
+
+.message-bubble.incoming {
+    justify-content: flex-start;
+}
+
+.message-bubble-wrapper {
+    display: flex;
+    flex-direction: column;
+    gap: 0.25rem;
+    max-width: 60%;
+}
+
+.message-bubble.outgoing .message-bubble-wrapper {
+    align-items: flex-end;
+}
+
+.message-bubble.incoming .message-bubble-wrapper {
+    align-items: flex-start;
+}
+
+.message-bubble-content {
+    background: var(--surface-soft);
+    padding: 0.75rem 1rem;
+    border-radius: 12px;
+    word-wrap: break-word;
+    line-height: 1.4;
+}
+
+.message-bubble.outgoing .message-bubble-content {
+    background: var(--primary);
+    color: white;
+}
+
+.message-bubble-meta {
+    display: flex;
+    gap: 0.5rem;
+    font-size: 0.75rem;
+    color: var(--muted);
+}
+
+.message-sender {
+    font-weight: 600;
+    color: var(--primary);
+}
+
+/* Attachment Styles */
+.attachment-preview {
+    margin-top: 0.5rem;
+    border-radius: 8px;
+    overflow: hidden;
+}
+
+.attachment-image {
+    background: #f0f0f0;
+}
+
+.attachment-image img {
+    width: 100%;
+    max-height: 300px;
+    object-fit: cover;
+}
+
+.attachment-audio {
+    background: var(--line);
+    padding: 0.75rem;
+}
+
+.attachment-audio audio {
+    width: 100%;
+}
+
+.attachment-file {
+    background: var(--line);
+    padding: 1rem;
+}
+
+.attachment-file a {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    color: var(--primary);
+    text-decoration: none;
+}
+
+/* Meeting Card Styles */
+.meeting-card,
+.scheduled-card {
+    background: linear-gradient(135deg, #6c0df2 0%, #8b5cf6 100%);
+    color: white;
+    padding: 1rem;
+    border-radius: 12px;
+    margin-top: 0.5rem;
+}
+
+.meeting-card-header {
+    margin-bottom: 0.75rem;
+}
+
+.meeting-card-header h3 {
+    margin: 0;
+    font-size: 1rem;
+    font-weight: 600;
+}
+
+.meeting-card-row {
+    font-size: 0.9rem;
+    margin-bottom: 0.5rem;
+    display: flex;
+    gap: 0.5rem;
+}
+
+.meeting-card-details,
+.message-card-details {
+    background: rgba(255, 255, 255, 0.1);
+    padding: 0.75rem;
+    border-radius: 6px;
+    margin-top: 0.5rem;
+    font-size: 0.9rem;
+    line-height: 1.4;
+}
+
+.meeting-card-actions {
+    display: flex;
+    gap: 0.5rem;
+    margin-top: 1rem;
+}
+
+.meeting-card-actions a,
+.meeting-card-actions button {
+    flex: 1;
+    padding: 0.75rem 1rem;
+    border: none;
+    border-radius: 6px;
+    background: white;
+    color: var(--primary);
+    font-weight: 600;
+    cursor: pointer;
+    text-align: center;
+    font-size: 0.9rem;
+}
+
+/* Composer Styles */
+.composer-form {
+    display: flex;
+    flex-direction: column;
+    gap: 0.75rem;
+    padding: 1rem;
+    background: var(--surface);
+    border-top: 1px solid var(--line);
+}
+
+.composer-body-wrapper {
+    display: flex;
+    gap: 0.75rem;
+    align-items: flex-end;
+}
+
+.composer-icons-group {
+    display: flex;
+    gap: 0.5rem;
+}
+
+.toolbar-icon {
+    background: none;
+    border: none;
+    font-size: 1.25rem;
+    cursor: pointer;
+    padding: 0.5rem;
+    border-radius: 6px;
+    transition: background 0.2s;
+}
+
+.toolbar-icon:hover {
+    background: var(--line);
+}
+
+#content {
+    flex: 1;
+    border: 1px solid var(--line);
+    border-radius: 12px;
+    padding: 0.75rem 1rem;
+    resize: none;
+    font-size: 0.95rem;
+}
+
+#content:focus {
+    outline: none;
+    border-color: var(--primary);
+    box-shadow: 0 0 0 3px rgba(108, 13, 242, 0.1);
+}
+
+.composer-actions-group {
+    display: flex;
+    gap: 0.5rem;
+}
+
+.ghost-button {
+    padding: 0.75rem 1rem;
+    background: transparent;
+    border: 1px solid var(--line);
+    border-radius: 6px;
+    color: var(--ink);
+    font-size: 0.9rem;
+    cursor: pointer;
+    transition: all 0.2s;
+}
+
+.ghost-button:hover {
+    background: var(--surface-soft);
+    border-color: var(--primary);
+}
+
+.primary-button {
+    padding: 0.75rem 1.5rem;
+    background: var(--primary);
+    color: white;
+    border: none;
+    border-radius: 6px;
+    font-weight: 600;
+    cursor: pointer;
+    transition: background 0.2s;
+}
+
+.primary-button:hover {
+    background: var(--primary-dark);
+}
+
+.compact-button {
+    padding: 0.5rem 1rem;
+    font-size: 0.85rem;
+}
+
+.icon-send-button {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 0.25rem;
+    padding: 0.75rem;
+    min-width: 44px;
+    min-height: 44px;
+}
+
+.composer-status-panel {
+    font-size: 0.85rem;
+    color: var(--muted);
+    padding: 0.5rem 1rem;
+}
+
+.emoji-picker {
+    display: none;
+    position: absolute;
+    bottom: 100%;
+    left: 0;
+    background: var(--surface);
+    border: 1px solid var(--line);
+    border-radius: 8px;
+    padding: 0.75rem;
+    display: grid;
+    grid-template-columns: repeat(6, 1fr);
+    gap: 0.5rem;
+    z-index: 100;
+}
+
+.emoji-picker.visible {
+    display: grid;
+}
+
+.emoji-button {
+    background: none;
+    border: none;
+    font-size: 1.5rem;
+    cursor: pointer;
+    padding: 0.25rem;
+    border-radius: 4px;
+    transition: background 0.2s;
+}
+
+.emoji-button:hover {
+    background: var(--line);
+}
+
+/* Modal Styles */
+.modal-overlay {
+    display: none;
+    position: fixed;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background: rgba(0, 0, 0, 0.5);
+    z-index: 1000;
+    align-items: center;
+    justify-content: center;
+}
+
+.modal-overlay.visible {
+    display: flex;
+}
+
+.modal-card {
+    background: var(--surface);
+    border-radius: 12px;
+    box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
+    max-width: 500px;
+    width: 90%;
+    max-height: 80vh;
+    overflow-y: auto;
+}
+
+.modal-header {
+    padding: 1.5rem;
+    border-bottom: 1px solid var(--line);
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-start;
+}
+
+.modal-header h2 {
+    margin: 0;
+    font-size: 1.25rem;
+}
+
+.helper-text {
+    margin: 0.5rem 0 0 0;
+    color: var(--muted);
+    font-size: 0.9rem;
+}
+
+.modal-close {
+    background: none;
+    border: none;
+    font-size: 1.5rem;
+    cursor: pointer;
+    color: var(--muted);
+}
+
+.schedule-form {
+    padding: 1.5rem;
+}
+
+.field-group {
+    margin-bottom: 1.5rem;
+}
+
+.field-group label {
+    display: block;
+    margin-bottom: 0.5rem;
+    font-weight: 600;
+    font-size: 0.9rem;
+    color: var(--ink);
+}
+
+.text-input,
+.textarea-input {
+    width: 100%;
+    padding: 0.75rem;
+    border: 1px solid var(--line);
+    border-radius: 6px;
+    font-size: 0.9rem;
+    font-family: inherit;
+}
+
+.text-input:focus,
+.textarea-input:focus {
+    outline: none;
+    border-color: var(--primary);
+    box-shadow: 0 0 0 3px rgba(108, 13, 242, 0.1);
+}
+
+.textarea-input {
+    resize: vertical;
+    min-height: 100px;
+}
+
+.modal-actions {
+    display: flex;
+    gap: 1rem;
+    justify-content: flex-end;
+    padding: 0 1.5rem 1.5rem 1.5rem;
+}
+
+.modal-actions button {
+    padding: 0.75rem 1.5rem;
+    border: none;
+    border-radius: 6px;
+    font-weight: 600;
+    cursor: pointer;
+    transition: all 0.2s;
+}
+
+/* Thread topbar */
+.thread-topbar {
+    display: flex;
+    gap: 1rem;
+    align-items: center;
+    justify-content: space-between;
+    padding-bottom: 1rem;
+    border-bottom: 1px solid var(--line);
+}
+
+.thread-topbar-meta {
+    flex: 1;
+}
+
+.thread-topbar-search {
+    flex: 1;
+}
+
+.thread-topbar-search input {
+    width: 100%;
+    padding: 0.75rem 1rem;
+    border: 1px solid var(--line);
+    border-radius: 6px;
+    background: var(--surface-soft);
+}
+
+.thread-topbar-actions {
+    display: flex;
+    gap: 0.5rem;
+    flex-wrap: wrap;
+}
+
+.icon-button {
+    padding: 0.75rem 1rem;
+    background: var(--surface-soft);
+    border: 1px solid var(--line);
+    border-radius: 6px;
+    cursor: pointer;
+    font-size: 0.9rem;
+    transition: all 0.2s;
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    white-space: nowrap;
+}
+
+.icon-button:hover {
+    background: var(--line);
+    color: var(--primary);
+}
+
+.secondary-button {
+    padding: 0.75rem 1rem;
+    background: var(--surface-soft);
+    border: 1px solid var(--line);
+    border-radius: 6px;
+    color: var(--ink);
+    cursor: pointer;
+    text-decoration: none;
+    font-weight: 600;
+    font-size: 0.9rem;
+    transition: all 0.2s;
+    display: inline-block;
+}
+
+.secondary-button:hover {
+    background: var(--line);
+}
+
+/* Message actions */
+.message-actions {
+    display: flex;
+    gap: 0.25rem;
+    margin-top: 0.5rem;
+}
+
+.msg-action-btn {
+    background: rgba(0, 0, 0, 0.1);
+    border: none;
+    border-radius: 4px;
+    padding: 0.25rem 0.5rem;
+    cursor: pointer;
+    font-size: 0.9rem;
+    transition: background 0.2s;
+}
+
+.msg-action-btn:hover {
+    background: rgba(0, 0, 0, 0.2);
+}
+
+/* Highlight search results */
+.message-bubble.highlighted {
+    background: rgba(108, 13, 242, 0.1);
+}
+
+/* Audio recording indicator */
+.recording {
+    animation: pulse 1s infinite;
+}
+
+@keyframes pulse {
+    0%, 100% {
+        background: var(--danger);
+        color: white;
+    }
+    50% {
+        background: var(--danger);
+        opacity: 0.7;
+    }
+}
+
+/* Call interface */
+.call-page {
+    background: #1a1a1a;
+    color: white;
+}
+
+.call-interface {
+    display: flex;
+    flex-direction: column;
+    height: 100vh;
+    background: #000;
+}
+
+.call-video-area {
+    flex: 1;
+    position: relative;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    overflow: hidden;
+}
+
+.video-container {
+    position: absolute;
+    width: 100%;
+    height: 100%;
+    background: #000;
+}
+
+.video-container video {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+}
+
+.video-container.local {
+    width: 25%;
+    height: 25%;
+    bottom: 20px;
+    right: 20px;
+    border: 3px solid white;
+    border-radius: 12px;
+    box-shadow: 0 4px 20px rgba(0, 0, 0, 0.3);
+}
+
+.video-label {
+    position: absolute;
+    bottom: 10px;
+    left: 10px;
+    background: rgba(0, 0, 0, 0.6);
+    padding: 0.5rem 1rem;
+    border-radius: 6px;
+    font-size: 0.9rem;
+    z-index: 10;
+}
+
+.call-info {
+    display: flex;
+    justify-content: center;
+    gap: 2rem;
+    padding: 1rem;
+    background: #1a1a1a;
+}
+
+#callStatus,
+#callDuration {
+    font-size: 1.1rem;
+    margin: 0;
+}
+
+.call-controls {
+    display: flex;
+    justify-content: center;
+    gap: 1rem;
+    padding: 1.5rem;
+    background: #1a1a1a;
+    border-top: 1px solid #333;
+}
+
+.control-button {
+    width: 56px;
+    height: 56px;
+    border-radius: 50%;
+    border: none;
+    font-size: 1.5rem;
+    cursor: pointer;
+    transition: all 0.2s;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.audio-button,
+.video-button {
+    background: #333;
+    color: white;
+}
+
+.audio-button:hover,
+.video-button:hover {
+    background: #555;
+}
+
+.hang-up-button {
+    background: var(--danger);
+    color: white;
+}
+
+.hang-up-button:hover {
+    background: #c41f1f;
+}
+
+.control-button:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+}
+
+/* Empty states */
+.thread-empty {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    text-align: center;
+    padding: 3rem 1rem;
+    color: var(--muted);
+    flex: 1;
+}
+
+/* Search highlighting */
+.message-bubble {
+    transition: background-color 0.3s ease;
+}
+
+.message-bubble.highlighted {
+    background-color: rgba(108, 13, 242, 0.15);
+}
+
+/* Responsive */
+@media (max-width: 768px) {
+    .message-bubble-wrapper {
+        max-width: 85%;
+    }
+
+    .thread-topbar {
+        flex-direction: column;
+        gap: 0.75rem;
+    }
+
+    .thread-topbar-actions {
+        width: 100%;
+    }
+
+    .icon-button {
+        flex: 1;
+        justify-content: center;
+    }
+
+    .modal-card {
+        width: 95%;
+    }
+
+    .video-container.local {
+        width: 40%;
+        height: 40%;
+    }
+}

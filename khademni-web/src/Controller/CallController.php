@@ -94,4 +94,117 @@ class CallController extends AbstractController
 
         return new JsonResponse(['success' => true]);
     }
+
+    #[Route('/api/call/{sessionId}/offer', name: 'api_call_offer', methods: ['POST'])]
+    public function handleOffer(string $sessionId, Request $request, RequestStack $requestStack): JsonResponse
+    {
+        $this->denyAccessUnlessGranted('ROLE_USER');
+
+        $callData = $requestStack->getSession()->get('call_'.$sessionId);
+        if (!is_array($callData)) {
+            return new JsonResponse(['success' => false, 'detail' => 'Call not found'], Response::HTTP_NOT_FOUND);
+        }
+
+        $offerData = [
+            'sdp' => $request->getPayload()->get('sdp', ''),
+            'type' => $request->getPayload()->get('type', 'offer'),
+            'timestamp' => date('c'),
+        ];
+
+        $callData['offer'] = $offerData;
+        $requestStack->getSession()->set('call_'.$sessionId, $callData);
+
+        return new JsonResponse(['success' => true]);
+    }
+
+    #[Route('/api/call/{sessionId}/answer', name: 'api_call_answer', methods: ['POST'])]
+    public function handleAnswer(string $sessionId, Request $request, RequestStack $requestStack): JsonResponse
+    {
+        $this->denyAccessUnlessGranted('ROLE_USER');
+
+        $callData = $requestStack->getSession()->get('call_'.$sessionId);
+        if (!is_array($callData)) {
+            return new JsonResponse(['success' => false, 'detail' => 'Call not found'], Response::HTTP_NOT_FOUND);
+        }
+
+        $answerData = [
+            'sdp' => $request->getPayload()->get('sdp', ''),
+            'type' => $request->getPayload()->get('type', 'answer'),
+            'timestamp' => date('c'),
+        ];
+
+        $callData['answer'] = $answerData;
+        $requestStack->getSession()->set('call_'.$sessionId, $callData);
+
+        return new JsonResponse(['success' => true]);
+    }
+
+    #[Route('/api/call/{sessionId}/candidate', name: 'api_call_candidate', methods: ['POST'])]
+    public function handleCandidate(string $sessionId, Request $request, RequestStack $requestStack): JsonResponse
+    {
+        $this->denyAccessUnlessGranted('ROLE_USER');
+
+        $callData = $requestStack->getSession()->get('call_'.$sessionId);
+        if (!is_array($callData)) {
+            return new JsonResponse(['success' => false, 'detail' => 'Call not found'], Response::HTTP_NOT_FOUND);
+        }
+
+        if (!isset($callData['candidates'])) {
+            $callData['candidates'] = [];
+        }
+
+        $candidateData = [
+            'candidate' => $request->getPayload()->get('candidate', ''),
+            'sdpMLineIndex' => $request->getPayload()->get('sdpMLineIndex'),
+            'sdpMid' => $request->getPayload()->get('sdpMid'),
+            'timestamp' => date('c'),
+        ];
+
+        $callData['candidates'][] = $candidateData;
+        $requestStack->getSession()->set('call_'.$sessionId, $callData);
+
+        return new JsonResponse(['success' => true]);
+    }
+
+    #[Route('/api/call/{sessionId}/offer', name: 'api_call_get_offer', methods: ['GET'])]
+    public function getOffer(string $sessionId, RequestStack $requestStack): JsonResponse
+    {
+        $callData = $requestStack->getSession()->get('call_'.$sessionId);
+        if (!is_array($callData)) {
+            return new JsonResponse(['success' => false, 'detail' => 'Call not found'], Response::HTTP_NOT_FOUND);
+        }
+
+        return new JsonResponse([
+            'success' => true,
+            'offer' => $callData['offer'] ?? null,
+        ]);
+    }
+
+    #[Route('/api/call/{sessionId}/answer', name: 'api_call_get_answer', methods: ['GET'])]
+    public function getAnswer(string $sessionId, RequestStack $requestStack): JsonResponse
+    {
+        $callData = $requestStack->getSession()->get('call_'.$sessionId);
+        if (!is_array($callData)) {
+            return new JsonResponse(['success' => false, 'detail' => 'Call not found'], Response::HTTP_NOT_FOUND);
+        }
+
+        return new JsonResponse([
+            'success' => true,
+            'answer' => $callData['answer'] ?? null,
+        ]);
+    }
+
+    #[Route('/api/call/{sessionId}/candidates', name: 'api_call_get_candidates', methods: ['GET'])]
+    public function getCandidates(string $sessionId, RequestStack $requestStack): JsonResponse
+    {
+        $callData = $requestStack->getSession()->get('call_'.$sessionId);
+        if (!is_array($callData)) {
+            return new JsonResponse(['success' => false, 'detail' => 'Call not found'], Response::HTTP_NOT_FOUND);
+        }
+
+        return new JsonResponse([
+            'success' => true,
+            'candidates' => $callData['candidates'] ?? [],
+        ]);
+    }
 }
