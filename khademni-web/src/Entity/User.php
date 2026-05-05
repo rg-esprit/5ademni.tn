@@ -90,9 +90,9 @@ class User implements UserInterface, PasswordAuthenticatedUserInterface
         return $this->firstName;
     }
 
-    public function setFirstName(string $firstName): static
+    public function setFirstName(?string $firstName): static
     {
-        $this->firstName = $firstName;
+        $this->firstName = trim((string) $firstName);
 
         return $this;
     }
@@ -102,9 +102,9 @@ class User implements UserInterface, PasswordAuthenticatedUserInterface
         return $this->lastName;
     }
 
-    public function setLastName(string $lastName): static
+    public function setLastName(?string $lastName): static
     {
-        $this->lastName = $lastName;
+        $this->lastName = trim((string) $lastName);
 
         return $this;
     }
@@ -126,9 +126,9 @@ class User implements UserInterface, PasswordAuthenticatedUserInterface
         return $this->balance;
     }
 
-    public function setBalance(float $balance): static
+    public function setBalance(?float $balance): static
     {
-        $this->balance = $balance;
+        $this->balance = $balance ?? 0.0;
 
         return $this;
     }
@@ -138,9 +138,9 @@ class User implements UserInterface, PasswordAuthenticatedUserInterface
         return $this->email;
     }
 
-    public function setEmail(string $email): static
+    public function setEmail(?string $email): static
     {
-        $this->email = strtolower(trim($email));
+        $this->email = strtolower(trim((string) $email));
 
         return $this;
     }

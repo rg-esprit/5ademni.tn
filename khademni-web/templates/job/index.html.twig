@@ -30,7 +30,15 @@
     gap: .75rem;
     align-items: end;
 }
-@media(max-width:700px){ .search-grid{ grid-template-columns:1fr; } }
+@media(max-width:700px){
+    .search-grid,
+    .search-grid[style] {
+        grid-template-columns:1fr !important;
+    }
+
+    .job-hero { padding:1.5rem 1rem; }
+    .search-btn { width:100%; align-self:stretch; }
+}
 
 .sf { display:flex; flex-direction:column; gap:.35rem; }
 .sf label { font-size:.72rem; font-weight:800; color:#4b5563; text-transform:uppercase; letter-spacing:.07em; }

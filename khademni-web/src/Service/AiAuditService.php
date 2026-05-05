@@ -17,13 +17,13 @@ class AiAuditService
 {
     public function __construct(
         private readonly HttpClientInterface $httpClient,
-        #[Autowire('%env(string:GEMINI_API_KEY)%')]
+        #[Autowire('%env(default:gemini_api_key_default:GEMINI_API_KEY)%')]
         private readonly string $geminiKey,
-        #[Autowire('%env(string:GEMINI_URL)%')]
+        #[Autowire('%env(default:gemini_url_default:GEMINI_URL)%')]
         private readonly string $geminiUrl,
-        #[Autowire('%env(string:OPENROUTER_API_KEY)%')]
+        #[Autowire('%env(default:openrouter_api_key_default:OPENROUTER_API_KEY)%')]
         private readonly string $openRouterKey,
-        #[Autowire('%env(string:OPENROUTER_URL)%')]
+        #[Autowire('%env(default:openrouter_url_default:OPENROUTER_URL)%')]
         private readonly string $openRouterUrl,
         private readonly LoggerInterface $logger
     ) {
