@@ -805,3 +805,20 @@
     -fx-font-weight: 500;
     -fx-text-fill: #6b7280;
 }
+
+.btn-secondary {
+    -fx-background-color: white;
+    -fx-text-fill: #1f2937;
+    -fx-font-size: 14;
+    -fx-font-weight: 700;
+    -fx-background-radius: 12;
+    -fx-padding: 10 20;
+    -fx-border-color: #e5e7eb;
+    -fx-border-radius: 12;
+    -fx-cursor: hand;
+}
+
+.btn-secondary:hover {
+    -fx-background-color: #f9fafb;
+    -fx-border-color: #d1d5db;
+}
