@@ -2,8 +2,8 @@ package com.khademni.controller;
 
 import com.khademni.App;
 import com.khademni.service.StripeService;
+import com.khademni.utils.CustomAlert;
 import javafx.fxml.FXML;
-import javafx.scene.control.Alert;
 import javafx.scene.control.TextField;
 import java.io.IOException;
 
@@ -23,14 +23,14 @@ public class PaiementFormController {
         String description = descriptionField.getText().trim();
 
         if (amountStr.isEmpty() || description.isEmpty()) {
-            showAlert(Alert.AlertType.WARNING, "Champs Requis", "Veuillez remplir tous les champs.");
+            CustomAlert.showWarning("Champs Requis", "Veuillez remplir tous les champs.");
             return;
         }
 
         try {
             double amount = Double.parseDouble(amountStr);
             if (amount <= 0) {
-                showAlert(Alert.AlertType.WARNING, "Montant Invalide", "Le montant doit etre superieur a zero.");
+                CustomAlert.showWarning("Montant Invalide", "Le montant doit etre superieur a zero.");
                 return;
             }
 
@@ -38,30 +38,22 @@ public class PaiementFormController {
 
             if (App.getAppHostServices() != null) {
                 App.getAppHostServices().showDocument(paymentUrl);
-                showAlert(Alert.AlertType.INFORMATION, "Redirection",
+                CustomAlert.showSuccess("Redirection",
                         "Le lien de paiement a ete ouvert dans votre navigateur.");
             } else {
-                showAlert(Alert.AlertType.ERROR, "Erreur", "Impossible d'ouvrir le navigateur. Lien: " + paymentUrl);
+                CustomAlert.showError("Erreur", "Impossible d'ouvrir le navigateur. Lien: " + paymentUrl);
             }
 
         } catch (NumberFormatException e) {
-            showAlert(Alert.AlertType.ERROR, "Format Invalide", "Veuillez saisir un nombre valide pour le montant.");
+            CustomAlert.showError("Format Invalide", "Veuillez saisir un nombre valide pour le montant.");
         } catch (Exception e) {
             e.printStackTrace();
-            showAlert(Alert.AlertType.ERROR, "Erreur Stripe", "Erreur lors de la generation: " + e.getMessage());
+            CustomAlert.showError("Erreur Stripe", "Erreur lors de la generation: " + e.getMessage());
         }
     }
 
     @FXML
     private void handleCancel() throws IOException {
         App.setRoot("paiement");
-    }
-
-    private void showAlert(Alert.AlertType type, String title, String content) {
-        Alert alert = new Alert(type);
-        alert.setTitle(title);
-        alert.setHeaderText(null);
-        alert.setContentText(content);
-        alert.showAndWait();
     }
 }
