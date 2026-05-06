@@ -29,7 +29,7 @@
                     <div class="form-banner">{{ ai_status }}</div>
                 {% endif %}
 
-                <form method="post" class="gig-form-grid">
+                <form method="post" class="gig-form-grid" data-turbo="false">
                     <input type="hidden" name="_token" value="{{ csrf_token('gig_form') }}">
 
                     <section class="ai-prompt-panel">
