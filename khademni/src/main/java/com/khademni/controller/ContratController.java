@@ -3,20 +3,39 @@ package com.khademni.controller;
 import com.khademni.App;
 import com.khademni.model.ContratModel;
 import com.khademni.model.UserModel;
+import com.khademni.model.JobModel;
+import com.khademni.service.AiService;
+import java.time.LocalDateTime;
+import com.khademni.utils.CustomAlert;
 import com.khademni.utils.MyDataBase;
 import com.khademni.service.ExchangeRateService;
 
+import javafx.scene.image.Image;
+import javafx.scene.image.ImageView;
 import javafx.application.Platform;
 import javafx.collections.FXCollections;
 import javafx.collections.ObservableList;
 import javafx.fxml.FXML;
+import javafx.geometry.Insets;
 import javafx.geometry.Pos;
 import javafx.scene.control.*;
 import javafx.scene.layout.*;
 import javafx.animation.FadeTransition;
-import javafx.animation.ScaleTransition;
 import javafx.util.Duration;
+import com.khademni.service.StripeService;
+import javafx.scene.web.WebEngine;
+import javafx.scene.web.WebView;
+import javafx.stage.Modality;
+import javafx.stage.Stage;
+import javafx.scene.Scene;
+import javafx.concurrent.Task;
+import java.net.URI;
+import java.net.URLDecoder;
+import java.nio.charset.StandardCharsets;
+import java.util.Random;
+import java.util.Optional;
 
+import java.io.File;
 import java.io.FileOutputStream;
 import java.io.IOException;
 import java.sql.Connection;
@@ -28,27 +47,22 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.stream.Collectors;
 
-import com.lowagie.text.Document;
-import com.lowagie.text.Paragraph;
-import com.lowagie.text.pdf.PdfWriter;
-
 public class ContratController {
 
     @FXML
-    private FlowPane bentoGrid;
+    private VBox contratListContainer;
     @FXML
-    private HBox floatingActionBar;
-    @FXML
-    private Button fabEditBtn;
-    @FXML
-    private Button fabDeleteBtn;
-    @FXML
-    private Button fabPdfBtn;
+    private VBox contratFormView;
     @FXML
     private TextField searchField;
     @FXML
-    private TabPane mainTabPane;
-
+    private Label statTotal;
+    @FXML
+    private Label statPaye;
+    @FXML
+    private Label statEnAttente;
+    @FXML
+    private Label countLabel;
     @FXML
     private TextField freelancerSearchField;
     @FXML
@@ -69,210 +83,418 @@ public class ContratController {
     private TextArea descriptionField;
     @FXML
     private DatePicker dateContratPicker;
-
-    @FXML
-    private Label errorLabel;
     @FXML
     private TextField numTelephoneField;
     @FXML
-    private Label statTotal;
+    private TextField aiHintField;
     @FXML
-    private Label statPaye;
-    @FXML
-    private Label statEnAttente;
+    private Label errorLabel;
 
     private ContratModel selectedContrat;
     private ContratModel contratToEdit;
     private int selectedFreelancerId = -1;
+    @FXML
+    private ComboBox<JobModel> jobSelectionCombo;
+    @FXML
+    private VBox jobSelectionBox;
+
     private ObservableList<ContratModel> contratList = FXCollections.observableArrayList();
+    private ObservableList<JobModel> availableJobs = FXCollections.observableArrayList();
+    private ExchangeRateService exchangeRateService = ExchangeRateService.getInstance();
+    private StripeService stripeService = new StripeService();
 
     @FXML
     public void initialize() {
-        ExchangeRateService.getInstance();
+        exchangeRateService = ExchangeRateService.getInstance();
         setupSearch();
         setupFreelancerSearch();
         loadContrats();
+        setupJobPicker();
     }
 
-    private void renderBentoGrid(List<ContratModel> contrats) {
-        bentoGrid.getChildren().clear();
+    private void setupJobPicker() {
+        if (jobSelectionCombo == null) return;
+        jobSelectionCombo.setItems(availableJobs);
+        jobSelectionCombo.setCellFactory(lv -> new ListCell<JobModel>() {
+            @Override
+            protected void updateItem(JobModel item, boolean empty) {
+                super.updateItem(item, empty);
+                setText(empty ? null : item.getTitle() + " (Freelancer: " + item.getUserName() + ")");
+            }
+        });
+        jobSelectionCombo.setButtonCell(new ListCell<JobModel>() {
+            @Override
+            protected void updateItem(JobModel item, boolean empty) {
+                super.updateItem(item, empty);
+                setText(empty ? null : item.getTitle());
+            }
+        });
+
+        jobSelectionCombo.valueProperty().addListener((obs, oldVal, newVal) -> {
+            if (newVal != null) {
+                prefillFromJob(newVal);
+            }
+        });
+    }
+
+    private void prefillFromJob(JobModel job) {
+        titleField.setText(job.getTitle());
+        titleField.setDisable(true);
+        descriptionField.setText(job.getDescription());
+        
+        // Auto-select freelancer
+        selectedFreelancerId = job.getAcceptedFreelancerId();
+        selectedFreelancerName.setText(job.getUserName());
+        selectedFreelancerInitials.setText(getInitials(job.getUserName()));
+        selectedFreelancerEmail.setText("Freelancer accepté");
+        selectedFreelancerBox.setVisible(true);
+        selectedFreelancerBox.setManaged(true);
+        freelancerSearchField.setVisible(false);
+        freelancerSearchField.setManaged(false);
+    }
+
+    @FXML
+    private void generateWithAi() {
+        String hint = aiHintField.getText().trim();
+        if (hint.isEmpty()) {
+            showAlert(Alert.AlertType.WARNING, "Indications manquantes", "Veuillez décrire brièvement le projet pour l'IA.");
+            return;
+        }
+        
+        double price = 0;
+        try { price = Double.parseDouble(priceField.getText()); } catch (Exception e) {}
+        
+        String generated = AiService.getInstance().generateDescription(hint, titleField.getText(), price);
+        descriptionField.setText(generated);
+    }
+
+    private void renderContractList(List<ContratModel> contrats) {
+        contratListContainer.getChildren().clear();
+        countLabel.setText(contrats.size() + " contrats trouves");
         int delay = 0;
         for (ContratModel item : contrats) {
-            VBox card = createBentoCard(item);
+            VBox card = createListCard(item);
             card.setOpacity(0);
-            FadeTransition ft = new FadeTransition(Duration.millis(500), card);
+            FadeTransition ft = new FadeTransition(Duration.millis(400), card);
             ft.setFromValue(0);
             ft.setToValue(1);
             ft.setDelay(Duration.millis(delay));
             ft.play();
-            bentoGrid.getChildren().add(card);
-            delay += 50;
+            contratListContainer.getChildren().add(card);
+            delay += 60;
         }
     }
 
-    private VBox createBentoCard(ContratModel item) {
-        VBox card = new VBox(20);
-        card.getStyleClass().add("glass-card");
-        card.setPrefWidth(384);
-        card.setMinWidth(384);
+    private VBox createListCard(ContratModel item) {
+        VBox card = new VBox();
+        card.getStyleClass().add("list-card");
+        card.setPadding(new Insets(20, 24, 20, 24));
 
-        HBox header = new HBox();
+        // === HEADER ROW ===
+        HBox header = new HBox(14);
         header.setAlignment(Pos.CENTER_LEFT);
-        Label badge = new Label(item.getStatut());
-        badge.getStyleClass().add("squishy-badge");
-        if ("PAYE".equalsIgnoreCase(item.getStatut()))
-            badge.setStyle("-fx-background-color: #27ae60;");
+        header.setStyle("-fx-cursor: hand;");
 
-        Region s = new Region();
-        HBox.setHgrow(s, Priority.ALWAYS);
-        Label price = new Label(String.format("%.0f DT", item.getPrix()));
-        price.getStyleClass().add("cyber-price");
-        header.getChildren().addAll(badge, s, price);
+        // Avatar circle
+        // Logo Area (Bento style)
+        StackPane logoBox = new StackPane();
+        logoBox.setPrefSize(48, 48);
+        logoBox.setMinSize(48, 48);
+        logoBox.setStyle("-fx-background-color: white; -fx-background-radius: 12; " +
+                "-fx-effect: dropshadow(gaussian, rgba(0,0,0,0.05), 10, 0, 0, 2);");
 
-        Label title = new Label(item.getTitre());
-        title.getStyleClass().add("bento-card-title");
-        title.setWrapText(true);
+        String clientName = item.getClientName() != null ? item.getClientName() : "Unknown";
+        String cleanName = clientName.toLowerCase()
+                .replaceAll("(?i)(inc|corp|ltd|llc|group|solutions|tech|client|customer)\\.?$", "")
+                .trim();
+        
+        // Try to find a known brand in the name
+        String domain = "placeholder.com";
+        String lowerName = clientName.toLowerCase();
+        
+        if (lowerName.contains("netflix")) domain = "netflix.com";
+        else if (lowerName.contains("google")) domain = "google.com";
+        else if (lowerName.contains("apple")) domain = "apple.com";
+        else if (lowerName.contains("microsoft")) domain = "microsoft.com";
+        else if (lowerName.contains("amazon")) domain = "amazon.com";
+        else if (lowerName.contains("facebook") || lowerName.contains("meta")) domain = "facebook.com";
+        else if (lowerName.contains("twitter") || lowerName.contains(" x ")) domain = "twitter.com";
+        else if (lowerName.contains("linkedin")) domain = "linkedin.com";
+        else {
+            // Fallback: use first word
+            String[] words = cleanName.split("\\s+");
+            if (words.length > 0 && !words[0].isEmpty()) {
+                domain = words[0] + ".com";
+            }
+        }
+        
+        // Google Favicon API is often more reliable than Clearbit for generic lookups
+        String logoUrl = "https://www.google.com/s2/favicons?domain=" + domain + "&sz=128";
 
-        VBox meta = new VBox(8);
-        Label client = new Label("Client: " + item.getClientName());
-        Label freelancer = new Label("Freelancer: " + item.getFreelancerName());
-        client.setStyle(
-                "-fx-text-fill: #6b7280; -fx-font-size: 12; -fx-font-weight: 600;");
-        freelancer.setStyle(
-                "-fx-text-fill: #6b7280; -fx-font-size: 12; -fx-font-weight: 600;");
-        meta.getChildren().addAll(client, freelancer);
+        ImageView logoView = new ImageView();
+        logoView.setFitWidth(30);
+        logoView.setFitHeight(30);
+        logoView.setPreserveRatio(true);
 
-        // Show phone number if available
-        if (item.getNumTelephone() != null && !item.getNumTelephone().isBlank()) {
-            Label phoneLabel = new Label("Tel: " + item.getNumTelephone());
-            phoneLabel.setStyle("-fx-text-fill: #6c5ce7; -fx-font-size: 12; -fx-font-weight: 700;");
-            meta.getChildren().add(phoneLabel);
+        Label initialsFallback = new Label(getInitials(clientName));
+        initialsFallback.setStyle("-fx-text-fill: #6c5ce7; -fx-font-weight: 900; -fx-font-size: 14;");
+
+        // Load image
+        Image img = new Image(logoUrl, true);
+        
+        final String finalDomain = domain;
+        
+        img.progressProperty().addListener((obs, old, progress) -> {
+            if (progress.doubleValue() == 1.0) {
+                Platform.runLater(() -> {
+                    if (!img.isError() && img.getWidth() > 1) { // width > 1 check to ensure it's not a 1x1 error pixel
+                        logoView.setImage(img);
+                        logoView.setVisible(true);
+                        initialsFallback.setVisible(false);
+                        System.out.println("✅ Logo loaded for: " + finalDomain);
+                    } else {
+                        System.err.println("❌ Logo failed for: " + finalDomain);
+                    }
+                });
+            }
+        });
+
+        // Set initial state
+        logoView.setVisible(false);
+        initialsFallback.setVisible(true);
+        logoBox.getChildren().addAll(initialsFallback, logoView);
+
+        // Title area
+        VBox titleArea = new VBox(4);
+        HBox.setHgrow(titleArea, Priority.ALWAYS);
+
+        Label badge = new Label(formatStatut(item.getStatut()));
+        if ("PAYE".equalsIgnoreCase(item.getStatut())) {
+            badge.getStyleClass().add("badge-success");
+        } else {
+            badge.getStyleClass().add("badge-warning");
         }
 
-        HBox footer = new HBox(15);
-        footer.setAlignment(Pos.CENTER_LEFT);
-        Label dateLabel = new Label(
-                "Date: " + item.getDateContrat().format(DateTimeFormatter.ofPattern("dd/MM/yyyy")));
-        dateLabel.setStyle(
-                "-fx-text-fill: #9ca3af; -fx-font-size: 11;");
-        footer.getChildren().add(dateLabel);
+        Label title = new Label(item.getTitre() != null ? item.getTitre() : "Sans titre");
+        title.setStyle("-fx-font-size: 16; -fx-font-weight: 800; -fx-text-fill: #1f2937;");
+        title.setWrapText(true);
 
-        card.getChildren().addAll(header, title, meta, footer);
+        Label clientInfo = new Label("Client: " + safe(item.getClientName()) + " - " + safe(item.getFreelancerName()));
+        clientInfo.setStyle("-fx-font-size: 12; -fx-text-fill: #6b7280; -fx-font-weight: 600;");
 
-        card.setOnMouseClicked(e -> {
-            bentoGrid.getChildren().forEach(n -> n.getStyleClass().remove("card-selected"));
-            card.getStyleClass().add("card-selected");
-            selectedContrat = item;
-            floatingActionBar.setVisible(true);
-            floatingActionBar.setManaged(true);
+        titleArea.getChildren().addAll(badge, title, clientInfo);
+
+        // Price area
+        VBox priceArea = new VBox(4);
+        priceArea.setAlignment(Pos.CENTER_RIGHT);
+        Label price = new Label(String.format("%,.0f TND", item.getPrix()));
+        price.setStyle("-fx-font-size: 18; -fx-font-weight: 900; -fx-text-fill: #6c5ce7;");
+
+        Label expandLabel = new Label("\u25BC Actions");
+        expandLabel.setStyle("-fx-font-size: 11; -fx-text-fill: #9ca3af; -fx-font-weight: 600;");
+        priceArea.getChildren().addAll(price, expandLabel);
+
+        header.getChildren().addAll(logoBox, titleArea, priceArea);
+
+        // === ACTION PANEL (hidden by default) ===
+        VBox actionPanel = new VBox(16);
+        actionPanel.getStyleClass().add("action-panel");
+        actionPanel.setVisible(false);
+        actionPanel.setManaged(false);
+
+        // Info row
+        HBox infoRow = new HBox(40);
+        VBox descBox = new VBox(6);
+        HBox.setHgrow(descBox, Priority.ALWAYS);
+        Label descLabel = new Label("DESCRIPTION");
+        descLabel.getStyleClass().add("info-label");
+        Label descValue = new Label(item.getDescription() != null ? item.getDescription() : "Aucune description");
+        descValue.getStyleClass().add("info-value");
+        descValue.setWrapText(true);
+        descBox.getChildren().addAll(descLabel, descValue);
+
+        VBox phoneBox = new VBox(6);
+        Label phoneLabel = new Label("TELEPHONE");
+        phoneLabel.getStyleClass().add("info-label");
+        Label phoneValue = new Label(item.getNumTelephone() != null ? item.getNumTelephone() : "Non specifie");
+        phoneValue.getStyleClass().add("phone-value");
+        phoneBox.getChildren().addAll(phoneLabel, phoneValue);
+
+        infoRow.getChildren().addAll(descBox, phoneBox);
+
+        // Action row with buttons
+        HBox actionRow = new HBox(10);
+        actionRow.setAlignment(Pos.CENTER_LEFT);
+        actionRow.setPadding(new Insets(8, 0, 0, 0));
+
+        // Currency converter
+        HBox converter = new HBox(8);
+        converter.setAlignment(Pos.CENTER_LEFT);
+        converter.setStyle(
+                "-fx-background-color: white; -fx-padding: 6 14; -fx-background-radius: 10; -fx-border-color: #e5e7eb; -fx-border-radius: 10;");
+        ComboBox<String> currCombo = new ComboBox<>(FXCollections.observableArrayList("TND", "EUR", "USD"));
+        currCombo.setValue("EUR");
+        currCombo.setStyle("-fx-background-color: transparent; -fx-font-weight: 600; -fx-font-size: 12;");
+        double eurInit = exchangeRateService.convertPrice(item.getPrix(), "EUR");
+        Label convLabel = new Label(
+                String.format("| %,.0f TND = %.2f EUR", item.getPrix(), eurInit > 0 ? eurInit : item.getPrix() * 0.30));
+        convLabel.setStyle("-fx-font-size: 12; -fx-text-fill: #6b7280;");
+        currCombo.valueProperty().addListener((o, ov, nv) -> {
+            if ("TND".equals(nv)) {
+                convLabel.setText(String.format("| %,.0f TND", item.getPrix()));
+            } else {
+                double c = exchangeRateService.convertPrice(item.getPrix(), nv);
+                convLabel.setText(
+                        c > 0 ? String.format("| %,.0f TND = %.2f %s", item.getPrix(), c, nv) : "| Taux indisponible");
+            }
         });
+        converter.getChildren().addAll(currCombo, convLabel);
 
-        card.setOnMouseEntered(e -> {
-            ScaleTransition st = new ScaleTransition(Duration.millis(200), card);
-            st.setToX(1.02);
-            st.setToY(1.02);
-            st.play();
-        });
-        card.setOnMouseExited(e -> {
-            ScaleTransition st = new ScaleTransition(Duration.millis(200), card);
-            st.setToX(1.0);
-            st.setToY(1.0);
-            st.play();
+        Region spacer = new Region();
+        HBox.setHgrow(spacer, Priority.ALWAYS);
+
+        Button payBtn = makeBtn("\uD83D\uDCB3 Payer", "#7c3aed", "white");
+        payBtn.setOnAction(e -> handlePay(item));
+        Button editBtn = makeBtn("\u270F\uFE0F Editer", "white", "#374151");
+        editBtn.setStyle(editBtn.getStyle() + "-fx-border-color: #e5e7eb; -fx-border-radius: 10;");
+        editBtn.setOnAction(e -> handleEdit(item));
+        Button pdfBtn = makeBtn("\uD83D\uDCC4 PDF", "white", "#374151");
+        pdfBtn.setStyle(pdfBtn.getStyle() + "-fx-border-color: #e5e7eb; -fx-border-radius: 10;");
+        pdfBtn.setOnAction(e -> generatePDF(item));
+        Button auditBtn = makeBtn("\u2728 Audit IA", "#f3f0ff", "#7c3aed");
+        auditBtn.setOnAction(e -> showAlert(Alert.AlertType.INFORMATION, "Audit IA",
+                "Service IA non disponible dans cette version."));
+        Button delBtn = makeBtn("\uD83D\uDDD1 Supprimer", "white", "#ef4444");
+        delBtn.setStyle(delBtn.getStyle() + "-fx-border-color: #fecaca; -fx-border-radius: 10;");
+        delBtn.setOnAction(e -> handleDelete(item));
+
+        actionRow.getChildren().addAll(converter, spacer, payBtn, editBtn, pdfBtn, auditBtn, delBtn);
+        actionPanel.getChildren().addAll(infoRow, actionRow);
+
+        card.getChildren().addAll(header, actionPanel);
+
+        // Toggle expand/collapse
+        header.setOnMouseClicked(e -> {
+            boolean show = !actionPanel.isVisible();
+            // Collapse others
+            for (var node : contratListContainer.getChildren()) {
+                if (node instanceof VBox) {
+                    VBox c2 = (VBox) node;
+                    c2.getStyleClass().remove("list-card-selected");
+                    if (c2.getChildren().size() > 1) {
+                        c2.getChildren().get(1).setVisible(false);
+                        c2.getChildren().get(1).setManaged(false);
+                    }
+                }
+            }
+            if (show) {
+                actionPanel.setVisible(true);
+                actionPanel.setManaged(true);
+                card.getStyleClass().add("list-card-selected");
+                expandLabel.setText("\u25B2 Reduire");
+                selectedContrat = item;
+            } else {
+                expandLabel.setText("\u25BC Actions");
+                selectedContrat = null;
+            }
         });
 
         return card;
     }
 
+    private Button makeBtn(String text, String bg, String fg) {
+        Button b = new Button(text);
+        b.setStyle("-fx-background-color: " + bg + "; -fx-text-fill: " + fg + "; -fx-font-weight: 700; " +
+                "-fx-font-size: 12; -fx-padding: 8 16; -fx-background-radius: 10; -fx-cursor: hand;");
+        return b;
+    }
+
+    private String getInitials(String name) {
+        if (name == null || name.isBlank())
+            return "?";
+        String[] p = name.trim().split("\\s+");
+        if (p.length >= 2)
+            return ("" + p[0].charAt(0) + p[1].charAt(0)).toUpperCase();
+        return ("" + p[0].charAt(0)).toUpperCase();
+    }
+
+    private String safe(String s) {
+        return s != null ? s : "N/A";
+    }
+
+    private String formatStatut(String s) {
+        if (s == null)
+            return "Inconnu";
+        if ("EN_ATTENTE".equalsIgnoreCase(s))
+            return "En attente";
+        if ("PAYE".equalsIgnoreCase(s))
+            return "Actif";
+        return s;
+    }
+
     private void setupSearch() {
-        searchField.textProperty().addListener((observable, oldValue, newValue) -> {
-            String filter = newValue == null ? "" : newValue.toLowerCase().trim();
+        searchField.textProperty().addListener((obs, o, n) -> {
+            String f = n == null ? "" : n.toLowerCase().trim();
             List<ContratModel> filtered = contratList.stream()
-                    .filter(c -> c.getTitre().toLowerCase().contains(filter)
-                            || c.getDescription().toLowerCase().contains(filter))
+                    .filter(c -> (c.getTitre() != null && c.getTitre().toLowerCase().contains(f))
+                            || (c.getDescription() != null && c.getDescription().toLowerCase().contains(f)))
                     .collect(Collectors.toList());
-            renderBentoGrid(filtered);
+            renderContractList(filtered);
         });
     }
 
     private void setupFreelancerSearch() {
-        freelancerSearchField.textProperty().addListener((obs, oldVal, newVal) -> {
-            if (newVal == null || newVal.trim().length() < 2) {
+        freelancerSearchField.textProperty().addListener((obs, o, n) -> {
+            if (n == null || n.trim().length() < 2) {
                 freelancerSearchResults.setVisible(false);
                 freelancerSearchResults.setManaged(false);
                 return;
             }
-            searchFreelancers(newVal.trim());
+            searchFreelancers(n.trim());
         });
     }
 
     private void searchFreelancers(String query) {
-        UserModel currentUser = App.getCurrentUser();
-        if (currentUser == null) return;
-
-        Thread searchThread = new Thread(() -> {
+        UserModel cu = App.getCurrentUser();
+        if (cu == null)
+            return;
+        new Thread(() -> {
             try {
-                String sql = "SELECT id, first_name, last_name, email FROM users " +
-                        "WHERE id != ? AND (LOWER(first_name) LIKE ? OR LOWER(last_name) LIKE ? " +
-                        "OR LOWER(CONCAT(first_name, ' ', last_name)) LIKE ?) LIMIT 8";
+                String sql = "SELECT id, first_name, last_name, email FROM users WHERE id != ? AND (LOWER(first_name) LIKE ? OR LOWER(last_name) LIKE ? OR LOWER(CONCAT(first_name, ' ', last_name)) LIKE ?) LIMIT 8";
                 try (Connection conn = MyDataBase.getConnection();
                         PreparedStatement stmt = conn.prepareStatement(sql)) {
-                    String pattern = "%" + query.toLowerCase() + "%";
-                    stmt.setInt(1, currentUser.getId());
-                    stmt.setString(2, pattern);
-                    stmt.setString(3, pattern);
-                    stmt.setString(4, pattern);
+                    String p = "%" + query.toLowerCase() + "%";
+                    stmt.setInt(1, cu.getId());
+                    stmt.setString(2, p);
+                    stmt.setString(3, p);
+                    stmt.setString(4, p);
                     ResultSet rs = stmt.executeQuery();
-
                     List<Object[]> results = new ArrayList<>();
-                    while (rs.next()) {
-                        results.add(new Object[] {
-                                rs.getInt("id"),
-                                rs.getString("first_name"),
-                                rs.getString("last_name"),
-                                rs.getString("email")
-                        });
-                    }
-
+                    while (rs.next())
+                        results.add(new Object[] { rs.getInt("id"), rs.getString("first_name"),
+                                rs.getString("last_name"), rs.getString("email") });
                     Platform.runLater(() -> {
                         freelancerSearchResults.getChildren().clear();
-                        if (results.isEmpty()) {
-                            Label noResult = new Label("Aucun utilisateur trouve");
-                            noResult.setStyle("-fx-text-fill: #9ca3af; -fx-padding: 12 16; -fx-font-size: 13;");
-                            freelancerSearchResults.getChildren().add(noResult);
-                        } else {
-                            for (Object[] row : results) {
-                                int userId = (int) row[0];
-                                String firstName = (String) row[1];
-                                String lastName = (String) row[2];
-                                String email = (String) row[3];
-
-                                HBox item = new HBox(12);
-                                item.setAlignment(Pos.CENTER_LEFT);
-                                item.setStyle("-fx-padding: 10 16; -fx-cursor: hand;");
-
-                                String initials = ("" + firstName.charAt(0) + lastName.charAt(0)).toUpperCase();
-                                Label avatar = new Label(initials);
-                                avatar.setStyle("-fx-background-color: #6c5ce7; -fx-text-fill: white; " +
-                                        "-fx-font-weight: bold; -fx-padding: 6 10; -fx-background-radius: 50; -fx-font-size: 11;");
-
-                                VBox info = new VBox(2);
-                                Label nameLabel = new Label(firstName + " " + lastName);
-                                nameLabel.setStyle("-fx-font-weight: bold; -fx-text-fill: #1a1a1a; -fx-font-size: 13;");
-                                Label emailLabel = new Label(email);
-                                emailLabel.setStyle("-fx-text-fill: #6b7280; -fx-font-size: 11;");
-                                info.getChildren().addAll(nameLabel, emailLabel);
-                                HBox.setHgrow(info, Priority.ALWAYS);
-
-                                item.getChildren().addAll(avatar, info);
-
-                                item.setOnMouseEntered(e -> item.setStyle(
-                                        "-fx-padding: 10 16; -fx-cursor: hand; -fx-background-color: #f3f0ff;"));
-                                item.setOnMouseExited(e -> item.setStyle(
-                                        "-fx-padding: 10 16; -fx-cursor: hand; -fx-background-color: transparent;"));
-
-                                item.setOnMouseClicked(e -> selectFreelancer(userId, firstName, lastName, email));
-                                freelancerSearchResults.getChildren().add(item);
-                            }
+                        for (Object[] r : results) {
+                            int uid = (int) r[0];
+                            String fn = (String) r[1];
+                            String ln = (String) r[2];
+                            String em = (String) r[3];
+                            HBox row = new HBox(12);
+                            row.setAlignment(Pos.CENTER_LEFT);
+                            row.setStyle("-fx-padding: 10 16; -fx-cursor: hand;");
+                            Label av = new Label(("" + fn.charAt(0) + ln.charAt(0)).toUpperCase());
+                            av.setStyle(
+                                    "-fx-background-color: #6c5ce7; -fx-text-fill: white; -fx-font-weight: bold; -fx-padding: 6 10; -fx-background-radius: 50;");
+                            VBox info = new VBox(2);
+                            info.getChildren().addAll(new Label(fn + " " + ln), new Label(em));
+                            HBox.setHgrow(info, Priority.ALWAYS);
+                            row.getChildren().addAll(av, info);
+                            row.setOnMouseClicked(ev -> selectFreelancer(uid, fn, ln, em));
+                            row.setOnMouseEntered(ev -> row
+                                    .setStyle("-fx-padding: 10 16; -fx-cursor: hand; -fx-background-color: #f3f0ff;"));
+                            row.setOnMouseExited(ev -> row.setStyle("-fx-padding: 10 16; -fx-cursor: hand;"));
+                            freelancerSearchResults.getChildren().add(row);
                         }
                         freelancerSearchResults.setVisible(true);
                         freelancerSearchResults.setManaged(true);
@@ -281,22 +503,16 @@ public class ContratController {
             } catch (SQLException e) {
                 e.printStackTrace();
             }
-        }, "freelancer-search");
-        searchThread.setDaemon(true);
-        searchThread.start();
+        }, "freelancer-search").start();
     }
 
-    private void selectFreelancer(int userId, String firstName, String lastName, String email) {
-        selectedFreelancerId = userId;
-        String initials = ("" + firstName.charAt(0) + lastName.charAt(0)).toUpperCase();
-
-        selectedFreelancerInitials.setText(initials);
-        selectedFreelancerName.setText(firstName + " " + lastName);
+    private void selectFreelancer(int uid, String fn, String ln, String email) {
+        selectedFreelancerId = uid;
+        selectedFreelancerInitials.setText(("" + fn.charAt(0) + ln.charAt(0)).toUpperCase());
+        selectedFreelancerName.setText(fn + " " + ln);
         selectedFreelancerEmail.setText(email);
-
         selectedFreelancerBox.setVisible(true);
         selectedFreelancerBox.setManaged(true);
-
         freelancerSearchField.setVisible(false);
         freelancerSearchField.setManaged(false);
         freelancerSearchResults.setVisible(false);
@@ -315,32 +531,26 @@ public class ContratController {
 
     private void loadContrats() {
         contratList.clear();
-        UserModel currentUser = App.getCurrentUser();
-        if (currentUser == null)
+        UserModel cu = App.getCurrentUser();
+        if (cu == null)
             return;
-
-        String query = "SELECT c.*, u1.first_name as cfname, u1.last_name as clname, " +
-                "u2.first_name as ffname, u2.last_name as flname " +
-                "FROM contrats c " +
-                "LEFT JOIN users u1 ON c.client_id = u1.id " +
-                "LEFT JOIN users u2 ON c.freelancer_id = u2.id " +
-                "WHERE c.client_id = ? OR c.freelancer_id = ?";
-
-        try (Connection conn = MyDataBase.getConnection();
-                PreparedStatement pstmt = conn.prepareStatement(query)) {
-            pstmt.setInt(1, currentUser.getId());
-            pstmt.setInt(2, currentUser.getId());
-            ResultSet rs = pstmt.executeQuery();
+        String q = "SELECT c.*, u1.first_name as cfname, u1.last_name as clname, u2.first_name as ffname, u2.last_name as flname FROM contrats c LEFT JOIN users u1 ON c.client_id = u1.id LEFT JOIN users u2 ON c.freelancer_id = u2.id WHERE (c.client_id = ? OR c.freelancer_id = ?) AND c.statut = 'EN_ATTENTE'";
+        try (Connection conn = MyDataBase.getConnection(); PreparedStatement ps = conn.prepareStatement(q)) {
+            ps.setInt(1, cu.getId());
+            ps.setInt(2, cu.getId());
+            ResultSet rs = ps.executeQuery();
             while (rs.next()) {
-                contratList.add(new ContratModel(
-                        rs.getInt("id"), rs.getInt("client_id"), rs.getInt("freelancer_id"),
-                        rs.getString("cfname") + " " + rs.getString("clname"),
-                        rs.getString("ffname") + " " + rs.getString("flname"),
-                        rs.getString("titre"), rs.getString("description"),
-                        rs.getDouble("prix"), rs.getDate("date_contrat").toLocalDate(),
+                contratList.add(new ContratModel(rs.getInt("id"), rs.getInt("client_id"), rs.getInt("freelancer_id"),
+                        (rs.getString("cfname") != null ? rs.getString("cfname") : "") + " "
+                                + (rs.getString("clname") != null ? rs.getString("clname") : ""),
+                        (rs.getString("ffname") != null ? rs.getString("ffname") : "") + " "
+                                + (rs.getString("flname") != null ? rs.getString("flname") : ""),
+                        rs.getString("titre"), rs.getString("description"), rs.getDouble("prix"),
+                        rs.getDate("date_contrat") != null ? rs.getDate("date_contrat").toLocalDate()
+                                : java.time.LocalDate.now(),
                         rs.getString("statut"), rs.getString("num_telephone")));
             }
-            renderBentoGrid(contratList);
+            renderContractList(contratList);
             updateStats();
         } catch (SQLException e) {
             showAlert(Alert.AlertType.ERROR, "Erreur", e.getMessage());
@@ -355,152 +565,155 @@ public class ContratController {
                 String.valueOf(contratList.stream().filter(c -> "EN_ATTENTE".equalsIgnoreCase(c.getStatut())).count()));
     }
 
-    @FXML
-    private void onFabEdit() {
-        if (selectedContrat != null)
-            handleEdit(selectedContrat);
+    private void loadAvailableJobs() {
+        availableJobs.clear();
+        UserModel cu = App.getCurrentUser();
+        if (cu == null) return;
+        
+        String q = "SELECT j.*, u.first_name, u.last_name, u.id as fid " +
+                   "FROM jobs j " +
+                   "JOIN job_applications ja ON j.id = ja.job_id " +
+                   "JOIN users u ON ja.user_id = u.id " +
+                   "WHERE j.user_id = ? AND ja.status = 'ACCEPTED'";
+        
+        try (Connection conn = MyDataBase.getConnection(); PreparedStatement ps = conn.prepareStatement(q)) {
+            ps.setInt(1, cu.getId());
+            ResultSet rs = ps.executeQuery();
+            while (rs.next()) {
+                JobModel j = new JobModel(rs.getInt("id"), rs.getString("title"), rs.getString("company"),
+                        rs.getString("location"), rs.getString("description"), rs.getString("category"),
+                        rs.getString("salary_range"), rs.getString("job_type"),
+                        rs.getTimestamp("posted_date") != null ? rs.getTimestamp("posted_date").toLocalDateTime() : LocalDateTime.now(),
+                        new String[]{}, rs.getInt("user_id"), rs.getString("first_name") + " " + rs.getString("last_name"));
+                j.setAcceptedFreelancerId(rs.getInt("fid"));
+                availableJobs.add(j);
+            }
+        } catch (SQLException e) { e.printStackTrace(); }
     }
 
     @FXML
-    private void onFabDelete() {
-        if (selectedContrat != null)
-            handleDelete(selectedContrat);
-    }
-
-    @FXML
-    private void onFabPdf() {
-        if (selectedContrat != null)
-            generatePDF(selectedContrat);
-    }
-
-    private void handleEdit(ContratModel contrat) {
-        this.contratToEdit = contrat;
-
-        // Show selected freelancer as non-editable chip
-        selectedFreelancerId = contrat.getIdFreelancer();
-        String fName = contrat.getFreelancerName();
-        if (fName != null && fName.contains(" ")) {
-            String[] parts = fName.split(" ", 2);
-            String initials = ("" + parts[0].charAt(0) + parts[1].charAt(0)).toUpperCase();
-            selectedFreelancerInitials.setText(initials);
-        } else {
-            selectedFreelancerInitials.setText("?");
-        }
-        selectedFreelancerName.setText(contrat.getFreelancerName());
-        selectedFreelancerEmail.setText("ID: " + contrat.getIdFreelancer());
+    private void handleEdit(ContratModel c) {
+        contratToEdit = c;
+        jobSelectionBox.setVisible(false);
+        jobSelectionBox.setManaged(false);
+        selectedFreelancerId = c.getIdFreelancer();
+        String fn = c.getFreelancerName();
+        selectedFreelancerInitials.setText(getInitials(fn));
+        selectedFreelancerName.setText(fn != null ? fn : "?");
+        selectedFreelancerEmail.setText("ID: " + c.getIdFreelancer());
         selectedFreelancerBox.setVisible(true);
         selectedFreelancerBox.setManaged(true);
         freelancerSearchField.setVisible(false);
         freelancerSearchField.setManaged(false);
-
         if (titleField != null) {
-            titleField.setText(contrat.getTitre());
+            titleField.setText(c.getTitre());
             titleField.setDisable(true);
         }
         if (priceField != null) {
-            priceField.setText(String.valueOf(contrat.getPrix()));
+            priceField.setText(String.valueOf(c.getPrix()));
             priceField.setDisable(true);
         }
-
-        descriptionField.setText(contrat.getDescription());
-        dateContratPicker.setValue(contrat.getDateContrat());
-        if (numTelephoneField != null && contrat.getNumTelephone() != null) {
-            numTelephoneField.setText(contrat.getNumTelephone());
+        descriptionField.setText(c.getDescription());
+        dateContratPicker.setValue(c.getDateContrat());
+        if (numTelephoneField != null && c.getNumTelephone() != null) {
+            numTelephoneField.setText(c.getNumTelephone());
             numTelephoneField.setEditable(false);
-            numTelephoneField.setOpacity(0.6);
-            numTelephoneField.setTooltip(
-                    new Tooltip("Le numero de telephone ne peut pas etre modifie apres la creation du contrat."));
         }
-        mainTabPane.getSelectionModel().select(1);
+        contratFormView.setVisible(true);
+        contratFormView.setManaged(true);
+        contratListContainer.setVisible(false);
+        contratListContainer.setManaged(false);
+    }
+
+    @FXML
+    private void showNewContratForm() {
+        resetForm();
+        loadAvailableJobs();
+        jobSelectionBox.setVisible(true);
+        jobSelectionBox.setManaged(true);
+        contratFormView.setVisible(true);
+        contratFormView.setManaged(true);
+        contratListContainer.setVisible(false);
+        contratListContainer.setManaged(false);
+    }
+
+    @FXML
+    private void cancelForm() {
+        resetForm();
+        contratFormView.setVisible(false);
+        contratFormView.setManaged(false);
+        contratListContainer.setVisible(true);
+        contratListContainer.setManaged(true);
     }
 
     @FXML
     private void saveContrat() {
         errorLabel.setVisible(false);
         errorLabel.setManaged(false);
-
         try {
-            UserModel currentUser = App.getCurrentUser();
-            if (currentUser == null) {
-                throw new Exception("Utilisateur non connecte.");
-            }
+            UserModel cu = App.getCurrentUser();
+            if (cu == null) throw new Exception("Utilisateur non connecté.");
 
             if (contratToEdit == null) {
-                // Creating new contract — search selection + manual fields required
-                String titre = titleField.getText().trim();
-                String priceStr = priceField.getText().trim();
-
-                if (selectedFreelancerId == -1) {
-                    throw new Exception("Veuillez rechercher et selectionner un freelancer.");
+                if (jobSelectionCombo != null && jobSelectionCombo.getValue() == null) {
+                    throw new Exception("Veuillez sélectionner une offre d'emploi.");
                 }
-                if (titre.isEmpty()) {
-                    throw new Exception("Veuillez saisir le titre du contrat.");
+                if (selectedFreelancerId <= 0) {
+                    throw new Exception("Freelancer non identifié. Veuillez re-sélectionner l'offre.");
                 }
-                if (priceStr.isEmpty()) {
-                    throw new Exception("Veuillez saisir le prix.");
-                }
-
-                double prix;
-                try {
-                    prix = Double.parseDouble(priceStr);
-                } catch (NumberFormatException e) {
-                    throw new Exception("Le prix doit etre un nombre valide.");
-                }
-
-                if (prix <= 0) {
-                    throw new Exception("Le prix doit etre superieur a zero.");
+                if (titleField.getText().trim().isEmpty()) {
+                    throw new Exception("Le titre du contrat est manquant.");
                 }
             }
 
-            if (dateContratPicker.getValue() == null) {
-                throw new Exception("Veuillez remplir la date d'expiration.");
+            String priceStr = priceField.getText().trim();
+            if (priceStr.isEmpty()) throw new Exception("Veuillez saisir le prix.");
+            double prix;
+            try {
+                prix = Double.parseDouble(priceStr);
+            } catch (NumberFormatException e) {
+                throw new Exception("Le prix doit être un nombre valide.");
             }
+            if (prix <= 0) throw new Exception("Le prix doit être supérieur à zéro.");
 
-            String numTelephone = numTelephoneField.getText().trim();
-            if (numTelephone.isEmpty()) {
-                throw new Exception("Le numero de telephone est obligatoire pour le paiement Stripe.");
-            }
-            String digitsOnly = numTelephone.replaceAll("[^0-9]", "");
-            if (digitsOnly.length() < 8) {
-                throw new Exception("Le numero de telephone doit contenir au moins 8 chiffres.");
-            }
+            if (dateContratPicker.getValue() == null) throw new Exception("Veuillez choisir une date d'échéance.");
 
-            if (contratToEdit == null) {
-                // INSERT new contract
-                String titre = titleField.getText().trim();
-                double prix = Double.parseDouble(priceField.getText().trim());
+            String phone = numTelephoneField.getText().trim();
+            if (phone.isEmpty()) throw new Exception("Le numéro de téléphone est obligatoire.");
+            if (phone.replaceAll("[^0-9]", "").length() < 8) throw new Exception("Le téléphone doit contenir au moins 8 chiffres.");
 
-                String insertSQL = "INSERT INTO contrats (client_id, freelancer_id, titre, description, prix, date_contrat, statut, num_telephone) "
-                        + "VALUES (?, ?, ?, ?, ?, ?, 'EN_ATTENTE', ?)";
-                try (Connection conn = MyDataBase.getConnection();
-                        PreparedStatement stmt = conn.prepareStatement(insertSQL)) {
-                    stmt.setInt(1, currentUser.getId());
-                    stmt.setInt(2, selectedFreelancerId);
-                    stmt.setString(3, titre);
-                    stmt.setString(4, descriptionField.getText());
-                    stmt.setDouble(5, prix);
-                    stmt.setDate(6, java.sql.Date.valueOf(dateContratPicker.getValue()));
-                    stmt.setString(7, numTelephone);
-                    stmt.executeUpdate();
+            try (Connection conn = MyDataBase.getConnection()) {
+                if (contratToEdit == null) {
+                    String sql = "INSERT INTO contrats (client_id, freelancer_id, titre, description, prix, date_contrat, statut, num_telephone) VALUES (?, ?, ?, ?, ?, ?, 'EN_ATTENTE', ?)";
+                    try (PreparedStatement stmt = conn.prepareStatement(sql)) {
+                        stmt.setInt(1, cu.getId());
+                        stmt.setInt(2, selectedFreelancerId);
+                        stmt.setString(3, titleField.getText().trim());
+                        stmt.setString(4, descriptionField.getText());
+                        stmt.setDouble(5, prix);
+                        stmt.setDate(6, java.sql.Date.valueOf(dateContratPicker.getValue()));
+                        stmt.setString(7, phone);
+                        stmt.executeUpdate();
+                    }
+                } else {
+                    String sql = "UPDATE contrats SET description = ?, date_contrat = ?, prix = ?, num_telephone = ? WHERE id = ?";
+                    try (PreparedStatement stmt = conn.prepareStatement(sql)) {
+                        stmt.setString(1, descriptionField.getText());
+                        stmt.setDate(2, java.sql.Date.valueOf(dateContratPicker.getValue()));
+                        stmt.setDouble(3, prix);
+                        stmt.setString(4, phone);
+                        stmt.setInt(5, contratToEdit.getIdContrat());
+                        stmt.executeUpdate();
+                    }
                 }
-            } else {
-                // UPDATE existing contract (only description, date)
-                String updateSQL = "UPDATE contrats SET description = ?, date_contrat = ? WHERE id = ?";
-                try (Connection conn = MyDataBase.getConnection();
-                        PreparedStatement stmt = conn.prepareStatement(updateSQL)) {
-                    stmt.setString(1, descriptionField.getText());
-                    stmt.setDate(2, java.sql.Date.valueOf(dateContratPicker.getValue()));
-                    stmt.setInt(3, contratToEdit.getIdContrat());
-                    stmt.executeUpdate();
-                }
             }
-
-            showAlert(Alert.AlertType.INFORMATION, "Succes", "Protocole initialise avec succes.");
-            resetForm();
+            
+            showAlert(Alert.AlertType.INFORMATION, "Succès", "Le contrat a été enregistré avec succès.");
+            cancelForm();
             loadContrats();
-            mainTabPane.getSelectionModel().select(0);
         } catch (Exception e) {
-            showError(e.getMessage());
+            e.printStackTrace(); // Still print to console for dev
+            showAlert(Alert.AlertType.ERROR, "Erreur de validation", e.getMessage());
         }
     }
 
@@ -508,8 +721,11 @@ public class ContratController {
     private void resetForm() {
         contratToEdit = null;
         selectedFreelancerId = -1;
-
-        // Reset freelancer search
+        if (jobSelectionCombo != null) {
+            jobSelectionCombo.getSelectionModel().clearSelection();
+            jobSelectionCombo.setValue(null);
+        }
+        aiHintField.clear();
         freelancerSearchField.clear();
         freelancerSearchField.setVisible(true);
         freelancerSearchField.setManaged(true);
@@ -517,7 +733,6 @@ public class ContratController {
         freelancerSearchResults.setManaged(false);
         selectedFreelancerBox.setVisible(false);
         selectedFreelancerBox.setManaged(false);
-
         if (titleField != null) {
             titleField.clear();
             titleField.setDisable(false);
@@ -529,44 +744,136 @@ public class ContratController {
         descriptionField.clear();
         numTelephoneField.clear();
         numTelephoneField.setEditable(true);
-        numTelephoneField.setOpacity(1.0);
-        numTelephoneField.setTooltip(null);
         dateContratPicker.setValue(null);
     }
 
-    private void handleDelete(ContratModel contrat) {
-        Alert alert = new Alert(Alert.AlertType.CONFIRMATION, "Terminer ce protocole ?", ButtonType.YES, ButtonType.NO);
-        if (alert.showAndWait().get() == ButtonType.YES) {
+    private void handleDelete(ContratModel c) {
+        if (CustomAlert.confirmDelete("Supprimer ce contrat ?", "Cette action est irréversible. Le contrat sera définitivement supprimé.")) {
             try (Connection conn = MyDataBase.getConnection();
                     PreparedStatement stmt = conn.prepareStatement("DELETE FROM contrats WHERE id = ?")) {
-                stmt.setInt(1, contrat.getIdContrat());
+                stmt.setInt(1, c.getIdContrat());
                 stmt.executeUpdate();
                 loadContrats();
-                floatingActionBar.setVisible(false);
             } catch (SQLException e) {
                 showAlert(Alert.AlertType.ERROR, "Erreur", e.getMessage());
             }
         }
     }
 
-    private void generatePDF(ContratModel contrat) {
-        String path = System.getProperty("user.home") + "/Downloads/Contract_" + contrat.getIdContrat() + ".pdf";
-        try (FileOutputStream fos = new FileOutputStream(path)) {
-            Document document = new Document();
-            PdfWriter.getInstance(document, fos);
-            document.open();
-            document.add(new Paragraph("LEGAL PROTOCOL - 5ADEMNI.TN"));
-            document.add(new Paragraph("--------------------------------------------------"));
-            document.add(new Paragraph("Title: " + contrat.getTitre()));
-            document.add(new Paragraph("Client: " + contrat.getClientName()));
-            document.add(new Paragraph("Freelancer: " + contrat.getFreelancerName()));
-            document.add(new Paragraph("Amount: " + contrat.getPrix() + " DT"));
-            document.add(new Paragraph("Status: " + contrat.getStatut()));
-            document.close();
-            showAlert(Alert.AlertType.INFORMATION, "Succes", "PDF exporte.");
+    private void generatePDF(ContratModel c) {
+        String home = System.getProperty("user.home");
+        File dl = new File(home, "Downloads");
+        if (!dl.exists())
+            dl = new File(home, "Documents");
+        try {
+            String fn = ("PAYE".equalsIgnoreCase(c.getStatut()) ? "Contrat_Paye_" : "Contrat_") + c.getIdContrat()
+                    + ".pdf";
+            File out = new File(dl, fn);
+            com.lowagie.text.Document doc = new com.lowagie.text.Document(com.lowagie.text.PageSize.A4, 50, 50, 50, 50);
+            com.lowagie.text.pdf.PdfWriter.getInstance(doc, new FileOutputStream(out));
+            doc.open();
+            java.awt.Color purple = new java.awt.Color(108, 92, 231);
+            java.awt.Color dark = new java.awt.Color(26, 26, 26);
+            java.awt.Color gray = new java.awt.Color(107, 114, 128);
+            com.lowagie.text.Font tF = new com.lowagie.text.Font(com.lowagie.text.Font.HELVETICA, 22,
+                    com.lowagie.text.Font.BOLD, java.awt.Color.WHITE);
+            com.lowagie.text.Font sF = new com.lowagie.text.Font(com.lowagie.text.Font.HELVETICA, 11,
+                    com.lowagie.text.Font.NORMAL, java.awt.Color.WHITE);
+            com.lowagie.text.Font hF = new com.lowagie.text.Font(com.lowagie.text.Font.HELVETICA, 16,
+                    com.lowagie.text.Font.BOLD, dark);
+            com.lowagie.text.Font lF = new com.lowagie.text.Font(com.lowagie.text.Font.HELVETICA, 10,
+                    com.lowagie.text.Font.BOLD, gray);
+            com.lowagie.text.Font vF = new com.lowagie.text.Font(com.lowagie.text.Font.HELVETICA, 12,
+                    com.lowagie.text.Font.NORMAL, dark);
+            com.lowagie.text.Font pF = new com.lowagie.text.Font(com.lowagie.text.Font.HELVETICA, 20,
+                    com.lowagie.text.Font.BOLD, purple);
+            com.lowagie.text.Font smF = new com.lowagie.text.Font(com.lowagie.text.Font.HELVETICA, 9,
+                    com.lowagie.text.Font.NORMAL, gray);
+
+            com.lowagie.text.pdf.PdfPTable ht = new com.lowagie.text.pdf.PdfPTable(1);
+            ht.setWidthPercentage(100);
+            com.lowagie.text.pdf.PdfPCell hc = new com.lowagie.text.pdf.PdfPCell();
+            hc.setBackgroundColor(purple);
+            hc.setPadding(20);
+            hc.setBorder(0);
+            hc.addElement(new com.lowagie.text.Paragraph("CONTRAT DE PRESTATION DE SERVICES", tF));
+            hc.addElement(new com.lowagie.text.Paragraph(
+                    "Reference: CT-2026-" + String.format("%04d", c.getIdContrat()), sF));
+            ht.addCell(hc);
+            doc.add(ht);
+            doc.add(new com.lowagie.text.Paragraph(" "));
+            doc.add(new com.lowagie.text.Paragraph(safe(c.getTitre()), hF));
+            doc.add(new com.lowagie.text.Paragraph(" "));
+
+            com.lowagie.text.pdf.PdfPTable it = new com.lowagie.text.pdf.PdfPTable(2);
+            it.setWidthPercentage(100);
+            it.setWidths(new float[] { 30, 70 });
+            addRow(it, "Date",
+                    c.getDateContrat() != null ? c.getDateContrat().format(DateTimeFormatter.ofPattern("dd/MM/yyyy"))
+                            : "N/A",
+                    lF, vF);
+            addRow(it, "Statut", safe(c.getStatut()), lF, vF);
+            addRow(it, "Client", safe(c.getClientName()), lF, vF);
+            addRow(it, "Freelancer", safe(c.getFreelancerName()), lF, vF);
+            addRow(it, "Telephone", c.getNumTelephone() != null ? c.getNumTelephone() : "N/A", lF, vF);
+            doc.add(it);
+            doc.add(new com.lowagie.text.Paragraph(" "));
+            doc.add(new com.lowagie.text.Paragraph("Montant: " + String.format("%.2f", c.getPrix()) + " TND", pF));
+            double eurP = exchangeRateService.convertPrice(c.getPrix(), "EUR");
+            double usdP = exchangeRateService.convertPrice(c.getPrix(), "USD");
+            String cv = "";
+            if (eurP > 0)
+                cv += "~ " + String.format("%.2f", eurP) + " EUR";
+            if (usdP > 0)
+                cv += "  |  ~ " + String.format("%.2f", usdP) + " USD";
+            if (!cv.isEmpty())
+                doc.add(new com.lowagie.text.Paragraph(cv, smF));
+            doc.add(new com.lowagie.text.Paragraph(" "));
+            doc.add(new com.lowagie.text.Paragraph("Description", hF));
+            doc.add(new com.lowagie.text.Paragraph(safe(c.getDescription()), vF));
+            doc.add(new com.lowagie.text.Paragraph(" "));
+            doc.add(new com.lowagie.text.Paragraph(" "));
+
+            com.lowagie.text.pdf.PdfPTable sg = new com.lowagie.text.pdf.PdfPTable(2);
+            sg.setWidthPercentage(100);
+            com.lowagie.text.pdf.PdfPCell sc = new com.lowagie.text.pdf.PdfPCell(
+                    new com.lowagie.text.Phrase("Signature Client\n\n\n_________________", vF));
+            sc.setHorizontalAlignment(1);
+            sc.setBorder(0);
+            com.lowagie.text.pdf.PdfPCell sf = new com.lowagie.text.pdf.PdfPCell(
+                    new com.lowagie.text.Phrase("Signature Freelancer\n\n\n_________________", vF));
+            sf.setHorizontalAlignment(1);
+            sf.setBorder(0);
+            sg.addCell(sc);
+            sg.addCell(sf);
+            doc.add(sg);
+            doc.add(new com.lowagie.text.Paragraph(" "));
+            com.lowagie.text.Paragraph ft = new com.lowagie.text.Paragraph(
+                    "5ademni.tn - Genere le "
+                            + java.time.LocalDateTime.now().format(DateTimeFormatter.ofPattern("dd/MM/yyyy HH:mm")),
+                    smF);
+            ft.setAlignment(1);
+            doc.add(ft);
+            doc.close();
+            showAlert(Alert.AlertType.INFORMATION, "Succes", "PDF genere: " + out.getName());
+            try {
+                java.awt.Desktop.getDesktop().open(out);
+            } catch (Exception ex) {
+            }
         } catch (Exception e) {
-            showAlert(Alert.AlertType.ERROR, "Erreur", e.getMessage());
+            showAlert(Alert.AlertType.ERROR, "Erreur PDF", e.getMessage());
         }
+    }
+
+    private void addRow(com.lowagie.text.pdf.PdfPTable t, String l, String v, com.lowagie.text.Font lf,
+            com.lowagie.text.Font vf) {
+        com.lowagie.text.pdf.PdfPCell lc = new com.lowagie.text.pdf.PdfPCell(new com.lowagie.text.Phrase(l, lf));
+        lc.setBackgroundColor(new java.awt.Color(249, 249, 249));
+        lc.setPadding(10);
+        com.lowagie.text.pdf.PdfPCell vc = new com.lowagie.text.pdf.PdfPCell(new com.lowagie.text.Phrase(v, vf));
+        vc.setPadding(10);
+        t.addCell(lc);
+        t.addCell(vc);
     }
 
     @FXML
@@ -574,17 +881,186 @@ public class ContratController {
         App.setRoot("paiement");
     }
 
-    private void showAlert(Alert.AlertType type, String title, String content) {
-        Alert alert = new Alert(type);
-        alert.setTitle(title);
-        alert.setHeaderText(null);
-        alert.setContentText(content);
-        alert.show();
+    private void showAlert(Alert.AlertType t, String title, String msg) {
+        CustomAlert.show(t, title, msg);
     }
 
-    private void showError(String message) {
-        errorLabel.setText(message);
+    private void showError(String msg) {
+        errorLabel.setText(msg);
         errorLabel.setVisible(true);
         errorLabel.setManaged(true);
+    }
+
+    private void handlePay(ContratModel c) {
+        UserModel cu = App.getCurrentUser();
+        if (cu == null || cu.getEmail() == null) {
+            showAlert(Alert.AlertType.ERROR, "Erreur", "Utilisateur non connecte ou email manquant.");
+            return;
+        }
+
+        // AI Fraud Guard: analyze the payment amount before proceeding
+        double amount = c.getPrix();
+        double avg = 0;
+        double max = 0;
+        try (Connection conn = MyDataBase.getConnection();
+             PreparedStatement ps = conn.prepareStatement("SELECT AVG(prix) as avg_p, MAX(prix) as max_p FROM contrats")) {
+            ResultSet rs = ps.executeQuery();
+            if (rs.next()) {
+                avg = rs.getDouble("avg_p");
+                max = rs.getDouble("max_p");
+            }
+        } catch (SQLException e) { e.printStackTrace(); }
+
+        var risk = AiService.getInstance().analyzePaymentRisk(amount, avg, max, c.getTitre());
+        if ((boolean) risk.get("suspicious")) {
+            String reason = (String) risk.get("reason");
+            String suggestion = (String) risk.get("suggestion");
+            String msg = reason + (suggestion != null ? " " + suggestion : "");
+            
+            if (!CustomAlert.confirmDelete("Alerte Sécurité IA", msg + "\n\nVoulez-vous quand même continuer ?")) {
+                return;
+            }
+        }
+
+        String otp = String.format("%06d", new Random().nextInt(1000000));
+        try {
+            com.khademni.utils.EmailService.sendEmail(cu.getEmail(), "Verification de Paiement - Khademni",
+                    "Votre code de verification pour le paiement du contrat '" + c.getTitre() + "' est : " + otp);
+
+            Optional<String> result = CustomAlert.showOTPDialog("Verification par Email", 
+                "Un code de verification a ete envoye a " + cu.getEmail() + "\nVeuillez saisir le code OTP :");
+            
+            if (result.isPresent() && result.get().equals(otp)) {
+                proceedWithStripePayment(c);
+            } else if (result.isPresent()) {
+                showAlert(Alert.AlertType.ERROR, "Erreur", "Code OTP incorrect.");
+            }
+        } catch (Exception e) {
+            showAlert(Alert.AlertType.ERROR, "Erreur Email", "Impossible d'envoyer l'email : " + e.getMessage());
+        }
+    }
+
+    private void proceedWithStripePayment(ContratModel c) {
+        String expectedPhone = c.getNumTelephone();
+        String description = "Paiement Contrat ID: " + c.getIdContrat() + " - " + c.getTitre();
+        double amountTND = c.getPrix();
+
+        // Convert to EUR for Stripe (assuming Stripe doesn't support TND or you want
+        // EUR)
+        double initialCharge = exchangeRateService.convertPrice(amountTND, "EUR");
+        double tempCharge = (initialCharge < 0) ? (amountTND * 0.3) : initialCharge;
+        if (tempCharge < 0.5)
+            tempCharge = 0.5; // Stripe minimum
+        final double chargeAmount = tempCharge;
+
+        Task<String> paymentTask = new Task<>() {
+            @Override
+            protected String call() throws Exception {
+                System.out.println("[ContratController] Calling Stripe for amount: " + chargeAmount + " EUR");
+                return stripeService.createCheckoutSession(chargeAmount, "eur", description, c.getIdContrat(),
+                        expectedPhone);
+            }
+        };
+
+        paymentTask.setOnSucceeded(evt -> {
+            String url = paymentTask.getValue();
+            if (url == null || url.isBlank()) {
+                showAlert(Alert.AlertType.ERROR, "Erreur", "Lien Stripe non genere.");
+                return;
+            }
+            Platform.runLater(() -> {
+                Stage webStage = new Stage();
+                webStage.initModality(Modality.APPLICATION_MODAL);
+                webStage.setTitle("Paiement Stripe");
+                WebView wv = new WebView();
+                WebEngine engine = wv.getEngine();
+                engine.load(url);
+                engine.locationProperty().addListener((obs, oldLoc, newLoc) -> {
+                    if (newLoc != null && newLoc.toLowerCase().contains("/success")) {
+                        String sessionId = extractQueryParam(newLoc, "session_id");
+                        verifyPayment(sessionId, c, webStage);
+                    } else if (newLoc != null && newLoc.toLowerCase().contains("/cancel")) {
+                        webStage.close();
+                        showAlert(Alert.AlertType.WARNING, "Annule", "Paiement annule.");
+                    }
+                });
+                webStage.setScene(new Scene(wv, 900, 700));
+                webStage.show();
+            });
+        });
+
+        paymentTask.setOnFailed(evt -> {
+            Throwable ex = paymentTask.getException();
+            if (ex != null)
+                ex.printStackTrace();
+            showAlert(Alert.AlertType.ERROR, "Erreur Stripe",
+                    "Impossible de generer le paiement : " + (ex != null ? ex.getMessage() : "Inconnu"));
+        });
+        new Thread(paymentTask).start();
+    }
+
+    private void verifyPayment(String sessionId, ContratModel c, Stage webStage) {
+        Task<Object[]> verifyTask = new Task<>() {
+            @Override
+            protected Object[] call() throws Exception {
+                return stripeService.verifySessionWithPhone(sessionId);
+            }
+        };
+        verifyTask.setOnSucceeded(v -> {
+            Object[] res = verifyTask.getValue();
+            boolean paid = (boolean) res[0];
+            boolean phoneMatch = (boolean) res[1];
+            if (paid && phoneMatch) {
+                updateContratStatus(c, "PAYE");
+                savePaymentRecord(c, sessionId);
+                webStage.close();
+                showAlert(Alert.AlertType.INFORMATION, "Succes", "Paiement effectue avec succes !");
+                loadContrats();
+            } else {
+                showAlert(Alert.AlertType.ERROR, "Echec", "Verification echouee (Paiement ou Telephone).");
+            }
+        });
+        new Thread(verifyTask).start();
+    }
+
+    private void updateContratStatus(ContratModel c, String status) {
+        try (Connection conn = MyDataBase.getConnection();
+                PreparedStatement ps = conn.prepareStatement("UPDATE contrats SET statut = ? WHERE id = ?")) {
+            ps.setString(1, status);
+            ps.setInt(2, c.getIdContrat());
+            ps.executeUpdate();
+        } catch (SQLException e) {
+            e.printStackTrace();
+        }
+    }
+
+    private void savePaymentRecord(ContratModel c, String sid) {
+        try (Connection conn = MyDataBase.getConnection();
+                PreparedStatement ps = conn.prepareStatement(
+                        "INSERT INTO payments (contrat_id, stripe_session_id, amount, status) VALUES (?, ?, ?, 'PAID')")) {
+            ps.setInt(1, c.getIdContrat());
+            ps.setString(2, sid);
+            ps.setDouble(3, c.getPrix());
+            ps.executeUpdate();
+        } catch (SQLException e) {
+            e.printStackTrace();
+        }
+    }
+
+    private String extractQueryParam(String url, String name) {
+        try {
+            URI uri = new URI(url);
+            String q = uri.getQuery();
+            if (q == null)
+                return null;
+            for (String p : q.split("&")) {
+                String[] kv = p.split("=");
+                if (kv.length > 1 && URLDecoder.decode(kv[0], StandardCharsets.UTF_8).equals(name)) {
+                    return URLDecoder.decode(kv[1], StandardCharsets.UTF_8);
+                }
+            }
+        } catch (Exception e) {
+        }
+        return null;
     }
 }

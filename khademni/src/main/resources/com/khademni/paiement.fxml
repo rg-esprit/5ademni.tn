@@ -10,41 +10,57 @@
     stylesheets="@contrat.css">
 
     <VBox alignment="TOP_CENTER" spacing="0" styleClass="bento-root">
-        
+
         <!-- Global Header -->
         <fx:include source="header.fxml" />
 
-        <VBox alignment="TOP_CENTER" spacing="48" style="-fx-padding: 60 40 100 40;">
-            
-            <!-- Bento Header -->
-            <VBox alignment="CENTER" spacing="12">
-                <Label text="TRANSACTIONS SECURISEES" styleClass="kinetic-label-small" />
-                <Label text="Paiements des Contrats" styleClass="bento-title" />
-                <Label text="Finalisez vos contrats et reglez les paiements via Stripe" 
-                       style="-fx-text-fill: #6b7280; -fx-font-size: 16;" />
-            </VBox>
+        <VBox alignment="TOP_LEFT" spacing="0" style="-fx-padding: 40 40 100 40;">
 
-            <!-- Bento Grid -->
-            <FlowPane fx:id="bentoGrid" hgap="24" vgap="24" alignment="TOP_CENTER" 
-                      prefWrapLength="1200" maxWidth="1200" />
-
-            <!-- Floating Action Bar -->
-            <HBox fx:id="floatingActionBar" alignment="CENTER" spacing="20" visible="false" managed="false"
-                  style="-fx-background-color: rgba(0,0,0,0.8); -fx-padding: 16 32; -fx-background-radius: 100; 
-                         -fx-border-color: rgba(108, 92, 231, 1.0); -fx-border-width: 2;">
-                <ComboBox fx:id="currencyCombo" promptText="Devise"
-                          style="-fx-background-color: #2a2a2a; -fx-background-radius: 50; -fx-text-fill: white; -fx-font-weight: bold; -fx-padding: 8 16;" />
-                <Label fx:id="convertedAmountLabel" text=""
-                       style="-fx-text-fill: #a5b4fc; -fx-font-size: 14; -fx-font-weight: 700;" />
-                <Button fx:id="payBtn" text="Pay with Stripe" styleClass="button-primary" onAction="#handlePay" 
-                        style="-fx-background-radius: 100; -fx-background-color: #6c5ce7; -fx-padding: 12 40;" />
-                <Button text="Cancel" onAction="#goToContrats" 
-                        style="-fx-background-color: transparent; -fx-text-fill: #999; -fx-font-weight: bold;" />
+            <!-- TOP BAR -->
+            <HBox alignment="CENTER_LEFT" spacing="16" style="-fx-padding: 0 0 30 0;">
+                <VBox spacing="4" HBox.hgrow="ALWAYS">
+                    <Label text="MES PAIEMENTS" styleClass="kinetic-label-small" />
+                    <Label text="Contrats Payés" style="-fx-font-size: 32; -fx-font-weight: 900; -fx-text-fill: #1a1a1a;" />
+                </VBox>
+                <HBox styleClass="floating-search" alignment="CENTER_LEFT" spacing="8">
+                    <Label text="&#xe8b6;" style="-fx-font-family: 'Material Symbols Outlined'; -fx-font-size: 18; -fx-text-fill: #6b7280;" />
+                    <TextField fx:id="searchField" promptText="Rechercher un paiement..." HBox.hgrow="ALWAYS"
+                               style="-fx-background-color: transparent; -fx-border-width: 0; -fx-font-size: 14;" />
+                </HBox>
+                <Button text="📄 Contrats" onAction="#goToContrats" styleClass="btn-nouveau" style="-fx-cursor: hand;" />
             </HBox>
 
+            <!-- STATS ROW -->
+            <HBox spacing="24" style="-fx-padding: 0 0 24 0;" alignment="CENTER_LEFT">
+                <HBox styleClass="summary-card" spacing="16" alignment="CENTER_LEFT" HBox.hgrow="ALWAYS">
+                    <VBox styleClass="summary-icon-box summary-icon-green" alignment="CENTER">
+                        <Label text="&#x2705;" style="-fx-font-size: 24;" />
+                    </VBox>
+                    <VBox spacing="2">
+                        <Label text="TRANSACTIONS" styleClass="kinetic-label-small" style="-fx-text-fill: #0f9d66;" />
+                        <Label fx:id="paymentCountLabel" text="0" style="-fx-font-size: 28; -fx-font-weight: 900; -fx-text-fill: #17111f;" />
+                    </VBox>
+                </HBox>
+                <HBox styleClass="summary-card" spacing="16" alignment="CENTER_LEFT" HBox.hgrow="ALWAYS">
+                    <VBox styleClass="summary-icon-box" alignment="CENTER">
+                        <Label text="&#x1F3E6;" style="-fx-font-size: 24;" />
+                    </VBox>
+                    <VBox spacing="2">
+                        <Label text="TOTAL PAYÉ" styleClass="kinetic-label-small" style="-fx-text-fill: #3b82f6;" />
+                        <Label fx:id="totalPaidLabel" text="0 TND" style="-fx-font-size: 28; -fx-font-weight: 900; -fx-text-fill: #17111f;" />
+                    </VBox>
+                </HBox>
+            </HBox>
+
+            <!-- RESULT COUNT -->
+            <Label fx:id="countLabel" text="Chargement..." styleClass="result-count" style="-fx-padding: 0 0 16 0;" />
+
+            <!-- PAYMENT LIST -->
+            <VBox fx:id="paiementListContainer" spacing="16" />
+
             <!-- Footer -->
-            <VBox alignment="CENTER" style="-fx-padding: 24 0 0 0;">
-                <Label text="2026 5ademni.tn. All rights reserved." styleClass="footer-text" />
+            <VBox alignment="CENTER" style="-fx-padding: 40 0 0 0;">
+                <Label text="© 2026 5ademni.tn. All rights reserved." styleClass="footer-text" />
             </VBox>
         </VBox>
     </VBox>
