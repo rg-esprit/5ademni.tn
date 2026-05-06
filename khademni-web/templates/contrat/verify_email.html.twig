@@ -198,7 +198,7 @@
             <div class="otp-success">✅ Code envoyé avec succès!</div>
         {% endif %}
 
-        <form method="post" action="{{ path('app_contrat_verify_email', {id: contrat.id}) }}" id="otpForm">
+        <form method="post" action="{{ path('app_contrat_verify_email', {id: contrat.id}) }}" id="otpForm" data-turbo="false">
             <input type="hidden" name="_token" value="{{ csrf_token('verify_otp_' ~ contrat.id) }}">
             <input type="hidden" name="otp_code" id="otpHidden" value="">
 

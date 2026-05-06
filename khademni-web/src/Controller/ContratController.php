@@ -4,8 +4,10 @@ namespace App\Controller;
 
 use App\Entity\Contrat;
 use App\Entity\Job;
+use App\Entity\JobApplication;
 use App\Entity\User;
 use App\Form\ContratType;
+use App\Repository\JobApplicationRepository;
 use App\Repository\JobRepository;
 use App\Repository\UserRepository;
 use App\Service\ContractPaymentService;
@@ -99,8 +101,12 @@ class ContratController extends AbstractController
             return $this->redirectToRoute('app_login');
         }
 
-        if (!$this->isGranted('ROLE_ADMIN') && $job->getUser()?->getId() !== $user->getId()) {
-            throw $this->createAccessDeniedException('Vous devez etre le proprietaire de cette offre.');
+        $acceptedFreelancer = $job->getAcceptedApplication()?->getUser();
+        $canCreateFromJob = $job->getUser()?->getId() === $user->getId()
+            || $acceptedFreelancer?->getId() === $user->getId();
+
+        if (!$this->isGranted('ROLE_ADMIN') && !$canCreateFromJob) {
+            throw $this->createAccessDeniedException('Vous devez etre le proprietaire de cette offre ou le freelancer accepte.');
         }
 
         if (null === $job->getAcceptedApplication()?->getUser()) {
@@ -117,7 +123,8 @@ class ContratController extends AbstractController
         Request $request,
         EntityManagerInterface $em,
         UserRepository $userRepository,
-        JobRepository $jobRepository
+        JobRepository $jobRepository,
+        JobApplicationRepository $jobApplicationRepository
     ): Response
     {
         $user = $this->getUser();
@@ -126,7 +133,7 @@ class ContratController extends AbstractController
         }
 
         $isAdmin = $this->isGranted('ROLE_ADMIN');
-        $availableJobs = $isAdmin ? [] : $this->getAccessibleContractJobs($user, $jobRepository);
+        $availableJobs = $isAdmin ? [] : $this->getAccessibleContractJobs($user, $jobRepository, $jobApplicationRepository);
         $selectedJobId = trim((string) $request->query->get('jobId', ''));
         $selectedJob = null;
 
@@ -175,10 +182,9 @@ class ContratController extends AbstractController
             $chosenJob = $this->findAccessibleJobById((string) $form->get('titre')->getData(), $availableJobs);
 
             if (!$chosenJob instanceof Job) {
-                $form->get('titre')->addError(new FormError('Veuillez selectionner une offre avec un freelancer accepte.'));
+                $form->get('titre')->addError(new FormError('Veuillez selectionner une offre ou vous etes le proprietaire ou le freelancer accepte.'));
             } else {
                 $this->syncContractFromJob($contrat, $chosenJob, true);
-                $contrat->setClientId($user->getId());
                 $contrat->setStatut('EN_ATTENTE');
             }
         }
@@ -206,7 +212,7 @@ class ContratController extends AbstractController
             'form' => $form->createView(),
             'is_admin' => $isAdmin,
             'available_job_count' => count($availableJobs),
-        ]);
+        ], new Response(null, $form->isSubmitted() ? Response::HTTP_UNPROCESSABLE_ENTITY : Response::HTTP_OK));
     }
 
     #[Route('/{id}/edit', name: 'app_contrat_edit', methods: ['GET', 'POST'])]
@@ -253,7 +259,7 @@ class ContratController extends AbstractController
         return $this->render('contrat/edit.html.twig', [
             'contrat' => $contrat,
             'form' => $form->createView(),
-        ]);
+        ], new Response(null, $form->isSubmitted() ? Response::HTTP_UNPROCESSABLE_ENTITY : Response::HTTP_OK));
     }
 
     #[Route('/{id}', name: 'app_contrat_delete', methods: ['POST'])]
@@ -586,13 +592,28 @@ class ContratController extends AbstractController
     /**
      * @return Job[]
      */
-    private function getAccessibleContractJobs(User $user, JobRepository $jobRepository): array
+    private function getAccessibleContractJobs(User $user, JobRepository $jobRepository, JobApplicationRepository $jobApplicationRepository): array
     {
-        $jobs = $jobRepository->findBy(['user' => $user], ['postedDate' => 'DESC']);
+        $jobsById = [];
 
-        return array_values(array_filter($jobs, static function (Job $job): bool {
-            return null !== $job->getAcceptedApplication()?->getUser();
-        }));
+        foreach ($jobRepository->findBy(['user' => $user], ['postedDate' => 'DESC']) as $job) {
+            if (null !== $job->getAcceptedApplication()?->getUser()) {
+                $jobsById[$job->getId()] = $job;
+            }
+        }
+
+        foreach ($jobApplicationRepository->findByUser($user) as $application) {
+            if ($application->getStatus() !== JobApplication::STATUS_ACCEPTED) {
+                continue;
+            }
+
+            $job = $application->getJob();
+            if ($job instanceof Job && $job->getAcceptedApplication()?->getUser()?->getId() === $user->getId()) {
+                $jobsById[$job->getId()] = $job;
+            }
+        }
+
+        return array_values($jobsById);
     }
 
     /**

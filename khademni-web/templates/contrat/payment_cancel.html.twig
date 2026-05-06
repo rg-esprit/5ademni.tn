@@ -19,7 +19,7 @@
         
         <div style="margin-top: 40px;">
             <a href="{{ path('app_contrat_index') }}" class="button-primary" style="background-color: #6c5ce7;">← Retour aux contrats</a>
-            <a href="{{ path('app_contrat_pay', {'id': contrat.id}) }}" class="button-primary" style="background-color: #10b981; margin-left: 10px;">💳  Réessayer</a>
+            <a href="{{ path('app_contrat_pay', {'id': contrat.id}) }}" class="button-primary" data-turbo="false" style="background-color: #10b981; margin-left: 10px;">💳  Réessayer</a>
         </div>
     </div>
 </div>

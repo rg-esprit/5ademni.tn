@@ -137,13 +137,8 @@ class Contrat
             return;
         }
 
-        // Dynamic Range based on Title
-        $isBusinessAnalyst = $this->titre && stripos($this->titre, 'Business Analyst') !== false;
-        $min = $isBusinessAnalyst ? 500 : 3000;
-        $max = $isBusinessAnalyst ? 800 : 5000;
-
-        if ($this->prix < $min || $this->prix > $max) {
-            $context->buildViolation("Pour ce type de projet, le prix doit être compris entre $min et $max TND.")
+        if ($this->prix <= 0) {
+            $context->buildViolation('Le prix doit être supérieur à 0 TND.')
                 ->atPath('prix')
                 ->addViolation();
         }

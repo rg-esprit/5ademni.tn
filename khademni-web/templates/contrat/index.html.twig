@@ -97,7 +97,7 @@
                     <div style="display: flex; gap: 8px;">
                         <a href="{{ path('app_contrat_edit', {'id': contrat.id}) }}" class="button-primary" style="height: 35px; padding: 0 15px; font-size: 13px;">✏️ Editer</a>
                         {% if contrat.statut != 'PAYE' %}
-                            <a href="{{ path('app_contrat_pay', {'id': contrat.id}) }}" class="button-primary" style="height: 35px; padding: 0 15px; font-size: 13px; background-color: #10b981;">💳 Payer</a>
+                            <a href="{{ path('app_contrat_pay', {'id': contrat.id}) }}" class="button-primary" data-turbo="false" style="height: 35px; padding: 0 15px; font-size: 13px; background-color: #10b981;">💳 Payer</a>
                         {% endif %}
                         <a href="{{ path('app_contrat_export_pdf', {'id': contrat.id}) }}" target="_blank" class="button-primary" style="height: 35px; padding: 0 15px; font-size: 13px; background-color: #3b82f6;">📄 PDF</a>
                     </div>
