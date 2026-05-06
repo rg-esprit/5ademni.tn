@@ -273,6 +273,11 @@
     </div>
 
     <script>
+        (() => {
+        function onMessageThreadReady(callback) {
+            callback();
+        }
+
         const conversationId = {{ conversation.getId() }};
         const currentUserId = {{ app.user.id }};
         const summarizeUrl = '{{ path('api_summarize_conversation', {'conversationId': conversation.getId()}) }}';
@@ -301,7 +306,7 @@
         }
 
         // Boutons d'appel
-        document.addEventListener('DOMContentLoaded', function () {
+        onMessageThreadReady(function () {
             const startAudioCall = document.getElementById('startAudioCall');
             const startVideoCall = document.getElementById('startVideoCall');
             const summarizeBtn = document.getElementById('summarizeChat');
@@ -567,7 +572,7 @@
         // Démarrer le polling toutes les 2 secondes
         setInterval(pollForNewMessages, 2000);
 
-        document.addEventListener('DOMContentLoaded', function () {
+        onMessageThreadReady(function () {
             const emojiToggle = document.getElementById('emojiToggle');
             const emojiPicker = document.getElementById('emojiPicker');
             const emojiButtons = document.querySelectorAll('.emoji-button');
@@ -598,7 +603,7 @@
             let recordedChunks = [];
 
             emojiToggle.addEventListener('click', function () {
-                emojiPicker.classList.toggle('emoji-picker--visible');
+                emojiPicker.classList.toggle('open');
             });
 
             emojiButtons.forEach(button => {
@@ -609,8 +614,15 @@
                 });
             });
 
-            attachPhoto.addEventListener('click', () => attachmentInput.click());
-            attachFile.addEventListener('click', () => attachmentInput.click());
+            attachPhoto.addEventListener('click', () => {
+                attachmentInput.accept = 'image/*';
+                attachmentInput.click();
+            });
+
+            attachFile.addEventListener('click', () => {
+                attachmentInput.removeAttribute('accept');
+                attachmentInput.click();
+            });
 
             attachmentInput.addEventListener('change', function () {
                 const file = this.files && this.files[0];
@@ -766,5 +778,6 @@
 
             document.getElementById('threadMessages').scrollTop = document.getElementById('threadMessages').scrollHeight;
         });
+        })();
     </script>
 {% endblock %}
