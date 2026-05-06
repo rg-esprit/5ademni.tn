@@ -254,14 +254,22 @@
 {% endblock %}
 
 {% block javascripts %}
+{{ parent() }}
 <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
 <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
 <script>
-document.addEventListener('DOMContentLoaded', function() {
+function initJobForm() {
     // --- 1. AI Generation Logic ---
     const aiBtn = document.getElementById('btn-generate-ai');
     const aiInput = document.getElementById('ai-prompt');
     const aiLoading = document.getElementById('ai-loading');
+    const locationInput = document.getElementById('job_location');
+    const openBtn = document.getElementById('btn-open-map');
+
+    if ((!aiBtn && !locationInput && !openBtn) || document.body.dataset.jobFormInitialized === 'true') {
+        return;
+    }
+    document.body.dataset.jobFormInitialized = 'true';
 
     if (aiBtn) {
         aiBtn.addEventListener('click', async function() {
@@ -316,10 +324,8 @@ document.addEventListener('DOMContentLoaded', function() {
     }
 
     // --- 2. Location Autocomplete logic ---
-    const locationInput = document.getElementById('job_location');
     const resultsContainer = document.getElementById('autocomplete-results');
     const modal = document.getElementById('map-modal');
-    const openBtn = document.getElementById('btn-open-map');
     const closeBtn = document.getElementById('btn-close-map');
     
     if (locationInput) {
@@ -397,6 +403,18 @@ document.addEventListener('DOMContentLoaded', function() {
     if (openBtn) openBtn.addEventListener('click', openModal);
     if (closeBtn) closeBtn.addEventListener('click', closeModal);
     if (modal) modal.addEventListener('click', (e) => { if (e.target === modal) closeModal(); });
-});
+}
+
+if (!window.jobFormListenersRegistered) {
+    window.jobFormListenersRegistered = true;
+    document.addEventListener('turbo:before-cache', function() {
+        delete document.body.dataset.jobFormInitialized;
+    });
+    document.addEventListener('turbo:load', initJobForm);
+    document.addEventListener('DOMContentLoaded', initJobForm);
+}
+if (document.readyState !== 'loading') {
+    initJobForm();
+}
 </script>
 {% endblock %}
