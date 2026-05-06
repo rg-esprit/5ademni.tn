@@ -541,35 +541,55 @@ document.addEventListener('DOMContentLoaded', () => {
 <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
 {% if app.request.query.get('download_pdf') %}
     <script>
-        document.addEventListener('DOMContentLoaded', () => {
-            setTimeout(() => {
-                const url = new URL(window.location.href);
-                url.searchParams.delete('download_pdf');
-                window.history.replaceState({}, document.title, url);
+        (() => {
+            const articlePdfId = '{{ app.request.query.get('download_pdf')|e('js') }}';
+            const showArticlePdfPrompt = () => {
+                if (window.__articlePdfPromptShownFor === articlePdfId) {
+                    return;
+                }
 
-                Swal.fire({
-                    title: 'Article créé avec succès ! 🎉',
-                    text: "Voulez-vous télécharger les informations en PDF ?",
-                    icon: 'success',
-                    showCancelButton: true,
-                    confirmButtonColor: '#7c3aed',
-                    cancelButtonColor: '#d33',
-                    confirmButtonText: 'Oui, Télécharger',
-                    cancelButtonText: 'Non, Merci',
-                    background: '#ffffff',
-                    customClass: {
-                        popup: 'rounded-xl shadow-2xl border border-gray-100',
-                        title: 'text-2xl font-bold text-gray-800',
-                        confirmButton: 'rounded-lg font-bold px-6 py-2.5',
-                        cancelButton: 'rounded-lg font-bold px-6 py-2.5'
-                    }
-                }).then((result) => {
-                    if (result.isConfirmed) {
-                        window.location.href = "{{ path('article_download_pdf', {id: app.request.query.get('download_pdf')}) }}";
-                    }
-                });
-            }, 300);
-        });
+                if (!window.Swal) {
+                    setTimeout(showArticlePdfPrompt, 100);
+                    return;
+                }
+
+                window.__articlePdfPromptShownFor = articlePdfId;
+
+                setTimeout(() => {
+                    const url = new URL(window.location.href);
+                    url.searchParams.delete('download_pdf');
+                    window.history.replaceState({}, document.title, url);
+
+                    Swal.fire({
+                        title: 'Article créé avec succès ! 🎉',
+                        text: "Voulez-vous télécharger les informations en PDF ?",
+                        icon: 'success',
+                        showCancelButton: true,
+                        confirmButtonColor: '#7c3aed',
+                        cancelButtonColor: '#d33',
+                        confirmButtonText: 'Oui, Télécharger',
+                        cancelButtonText: 'Non, Merci',
+                        background: '#ffffff',
+                        customClass: {
+                            popup: 'rounded-xl shadow-2xl border border-gray-100',
+                            title: 'text-2xl font-bold text-gray-800',
+                            confirmButton: 'rounded-lg font-bold px-6 py-2.5',
+                            cancelButton: 'rounded-lg font-bold px-6 py-2.5'
+                        }
+                    }).then((result) => {
+                        if (result.isConfirmed) {
+                            window.location.href = "{{ path('article_download_pdf', {id: app.request.query.get('download_pdf')}) }}";
+                        }
+                    });
+                }, 300);
+            };
+
+            if (document.readyState === 'loading') {
+                document.addEventListener('DOMContentLoaded', showArticlePdfPrompt, { once: true });
+            } else {
+                showArticlePdfPrompt();
+            }
+        })();
     </script>
 {% endif %}
 

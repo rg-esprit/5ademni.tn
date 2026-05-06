@@ -4,24 +4,27 @@ namespace App\Service;
 
 use App\Entity\Article;
 use Symfony\Component\Mailer\MailerInterface;
+use Symfony\Component\Mime\Address;
 use Symfony\Component\Mime\Email;
 use Twig\Environment;
 
 class EmailService
 {
-    private $mailer;
-    private $twig;
+    private MailerInterface $mailer;
+    private Environment $twig;
+    private string $fromEmail;
 
-    public function __construct(MailerInterface $mailer, Environment $twig)
+    public function __construct(MailerInterface $mailer, Environment $twig, string $fromEmail)
     {
         $this->mailer = $mailer;
         $this->twig = $twig;
+        $this->fromEmail = $fromEmail;
     }
 
     public function sendEmail(string $to, string $subject, string $message, ?Article $article = null): void
     {
         $email = (new Email())
-            ->from('your-email@gmail.com')
+            ->from(new Address($this->fromEmail, '5ademni'))
             ->to($to)
             ->subject($subject)
             ->html($this->twig->render('article/emails/article_notification.html.twig', [

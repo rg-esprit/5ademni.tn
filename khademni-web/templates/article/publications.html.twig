@@ -44,7 +44,7 @@
 
 
 				{% if article.imagePath %}
-					{% set filename = article.imagePath|split('\\')|last %}
+					{% set filename = article.imagePath|replace({'\\': '/'})|split('/')|last %}
 					<img src="{{ asset('uploads/images/' ~ filename) }}" class="article-image">
 				{% endif %}
 
@@ -54,6 +54,11 @@
 				<div class="card-main">
 					<h3>{{ article.title }}</h3>
 					<p class="card-text">{{ article.content }}</p>
+					{% set satisfaction = pourcentagesPositifs[article.id]|default(0) %}
+					<div class="satisfaction-badge" title="Calculé à partir des favoris et commentaires positifs">
+						<span class="satisfaction-value">{{ satisfaction|number_format(satisfaction == satisfaction|round ? 0 : 2, ',', ' ') }}%</span>
+						<span class="satisfaction-label">Satisfaction</span>
+					</div>
 				</div>
 
 
@@ -818,6 +823,28 @@ function loadAiSuggestions(articleId) {
 						}
 						.card-main {
 						    flex: 1;
+						}
+						.satisfaction-badge {
+						    display: inline-flex;
+						    align-items: baseline;
+						    gap: 6px;
+						    margin-top: 12px;
+						    padding: 8px 12px;
+						    border-radius: 999px;
+						    background: #ecfdf5;
+						    color: #047857;
+						    border: 1px solid #a7f3d0;
+						    font-size: 13px;
+						    font-weight: 600;
+						}
+
+						.satisfaction-value {
+						    font-size: 15px;
+						    font-weight: 800;
+						}
+
+						.satisfaction-label {
+						    color: #065f46;
 						}
 							/* LIGNE VERTICALE */
 						.divider-vertical {

@@ -118,7 +118,7 @@ textarea{
         </div>
 
         {% if article.imagePath %}
-            {% set filename = article.imagePath|split('\\')|last %}
+            {% set filename = article.imagePath|replace({'\\': '/'})|split('/')|last %}
             <img src="{{ asset('uploads/images/' ~ filename) }}" style="max-width:200px;">
         {% endif %}
     </div>

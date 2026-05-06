@@ -20,7 +20,7 @@
                 </div>
                 <div class="card-body">
               	{% if favori.article.imagePath %}
-					{% set filename = favori.article.imagePath|split('\\')|last %}
+					{% set filename = favori.article.imagePath|replace({'\\': '/'})|split('/')|last %}
 					<img src="{{ asset('uploads/images/' ~ filename) }}" class="card-image">
 				{% endif %}
                     <p>{{ favori.article.content|slice(0, 100) }}...</p>

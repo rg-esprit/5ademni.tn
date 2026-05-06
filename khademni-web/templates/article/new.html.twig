@@ -103,6 +103,19 @@ textarea{
     margin-top:5px;
 }
 
+.form-error-message,
+.form-error-message ul{
+    color:red;
+    font-size:12px;
+    list-style:none;
+    margin:5px 0 0;
+    padding:0;
+}
+
+.form-error-message li{
+    margin:0;
+}
+
 /* Responsive */
 @media (max-width: 760px){
     .form-grid{
@@ -126,29 +139,38 @@ textarea{
         'novalidate': 'novalidate'
     }
 }) }}
+            {% if form.vars.errors|length > 0 %}
+                <div class="form-error-message full">
+                    {{ form_errors(form) }}
+                </div>
+            {% endif %}
             <div class="form-grid">
                 <div class="form-group">
                     {{ form_label(form.title) }}
                     {{ form_widget(form.title, {'attr': {'class': 'form-control', 'placeholder': 'Titre de l\'article'}}) }}
+                    <div class="form-error-message">{{ form_errors(form.title) }}</div>
                     <div class="error-message" id="error-title"></div>
                 </div>
 
                 <div class="form-group">
                     {{ form_label(form.status) }}
                     {{ form_widget(form.status, {'attr': {'class': 'form-control'}}) }}
+                    <div class="form-error-message">{{ form_errors(form.status) }}</div>
                     <div class="error-message" id="error-status"></div>
                 </div>
 
                 <div class="form-group">
                     {{ form_label(form.content) }}
                     {{ form_widget(form.content, {'attr': {'class': 'form-control', 'placeholder': 'Contenu de l\'article'}}) }}
+                    <div class="form-error-message">{{ form_errors(form.content) }}</div>
                     <div class="error-message" id="error-content"></div>
                 </div>
 
                 <div class="form-group">
                     {{ form_label(form.image) }}
                     {{ form_widget(form.image, {'attr': {'class': 'form-control'}}) }}
-             
+                    <div class="form-error-message">{{ form_errors(form.image) }}</div>
+              
                 </div>
             </div>
 

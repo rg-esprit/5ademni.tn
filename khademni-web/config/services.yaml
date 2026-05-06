@@ -59,6 +59,10 @@ services:
         arguments:
             $fromEmail: '%env(MAILER_FROM_ADDRESS)%'
 
+    App\Service\EmailService:
+        arguments:
+            $fromEmail: '%env(MAILER_FROM_ADDRESS)%'
+
     # add more service definitions when explicit configuration is needed
     # please note that last definitions always *replace* previous ones
 
