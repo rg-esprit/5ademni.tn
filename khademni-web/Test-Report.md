@@ -194,3 +194,14 @@ Doctrine Doctor is a runtime Web Profiler analyzer, so the app was run locally a
 - Money fields: replace floats for balances/prices/payments before relying on financial accuracy.
 - Production metadata cache: configure before deployment.
 - Collection joins with `setMaxResults()` and cartesian products: review because they can cause incorrect hydration or poor scaling.
+
+## Fixes Applied
+
+- `src/Entity/User.php`: added Symfony serializer `#[Ignore]` to `User::$password`.
+- `src/Entity/User.php`: added Symfony serializer `#[Ignore]` to `User::getPassword()`.
+
+## What Happened
+
+- Doctrine Doctor reported that the password field and its public getter could be exposed during serialization.
+- The fix only changes serialization metadata; it does not change the database, Doctrine mapping, login behavior, or password storage.
+- After rechecking Doctrine Doctor, the two password-related security warnings disappeared. The remaining security warnings are about using the database `root` user with an empty password.
