@@ -34,14 +34,12 @@ class JobRepository extends ServiceEntityRepository
         string $jobType  = '',
         string $sort     = 'newest',
         int $minSalary   = 0,
-        int $maxSalary   = 1000000
+        int $maxSalary   = 1000000,
+        int $limit       = 20
     ): array {
         $qb = $this->createQueryBuilder('j')
-            ->leftJoin('j.applications', 'a')
-            ->leftJoin('j.savedByUsers', 's')
             ->leftJoin('j.user', 'u')
-            ->addSelect('COUNT(DISTINCT a.id) AS HIDDEN appCount')
-            ->addSelect('COUNT(DISTINCT s.id) AS HIDDEN saveCount');
+            ->addSelect('u');
 
         if ($query !== '') {
             $pattern = '%' . strtolower($query) . '%';
@@ -65,16 +63,19 @@ class JobRepository extends ServiceEntityRepository
                ->setParameter('jobType', $jobType);
         }
 
-        $qb->groupBy('j.id');
+        if ('most_liked' === $sort) {
+            $qb->leftJoin('j.savedByUsers', 's')
+                ->addSelect('COUNT(DISTINCT s.id) AS HIDDEN saveCount')
+                ->groupBy('j.id')
+                ->orderBy('saveCount', 'DESC');
+        } else {
+            match ($sort) {
+                'oldest' => $qb->orderBy('j.postedDate', 'ASC'),
+                default => $qb->orderBy('j.postedDate', 'DESC'),
+            };
+        }
 
-        match ($sort) {
-            'oldest'     => $qb->orderBy('j.postedDate', 'ASC'),
-            'most_popular' => $qb->orderBy('appCount', 'DESC'),
-            'most_liked' => $qb->orderBy('saveCount', 'DESC'),
-            default      => $qb->orderBy('j.postedDate', 'DESC'),
-        };
-
-        $results = $qb->getQuery()->getResult();
+        $results = $qb->setMaxResults($limit)->getQuery()->getResult();
 
         if ($minSalary > 0 || $maxSalary < 1000000) {
             $results = array_values(array_filter($results, function (Job $job) use ($minSalary, $maxSalary): bool {

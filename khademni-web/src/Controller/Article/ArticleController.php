@@ -38,11 +38,8 @@ class ArticleController extends AbstractController
         Request $request
     ): Response {
         $queryBuilder = $articleRepository->createQueryBuilder('a')
-            ->leftJoin('a.favoris', 'f')
-            ->leftJoin('a.commentaires', 'c')
-            ->addSelect('COUNT(DISTINCT f.id) AS favorisCount')
-            ->addSelect('COUNT(DISTINCT c.id) AS commentairesCount')
-            ->groupBy('a.id')
+            ->addSelect('(SELECT COUNT(f2.id) FROM App\\Entity\\Favori f2 WHERE f2.article = a) AS favorisCount')
+            ->addSelect('(SELECT COUNT(c2.id) FROM App\\Entity\\Commentaire c2 WHERE c2.article = a) AS commentairesCount')
             ->orderBy('a.createdAt', 'DESC');
 
         $pagination = $paginator->paginate(
@@ -438,11 +435,8 @@ public function delete(Article $article, Request $request, EntityManagerInterfac
 
         // Utiliser le QueryBuilder pour la pagination
         $queryBuilder = $articleRepository->createQueryBuilder('a')
-            ->leftJoin('a.favoris', 'f')
-            ->leftJoin('a.commentaires', 'c')
-            ->addSelect('COUNT(DISTINCT f.id) AS favorisCount')
-            ->addSelect('COUNT(DISTINCT c.id) AS commentairesCount')
-            ->groupBy('a.id');
+            ->addSelect('(SELECT COUNT(f2.id) FROM App\\Entity\\Favori f2 WHERE f2.article = a) AS favorisCount')
+            ->addSelect('(SELECT COUNT(c2.id) FROM App\\Entity\\Commentaire c2 WHERE c2.article = a) AS commentairesCount');
 
         if ($search) {
             $queryBuilder->andWhere('a.title LIKE :search OR a.content LIKE :search')

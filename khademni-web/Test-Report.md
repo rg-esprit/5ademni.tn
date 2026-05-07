@@ -205,3 +205,103 @@ Doctrine Doctor is a runtime Web Profiler analyzer, so the app was run locally a
 - Doctrine Doctor reported that the password field and its public getter could be exposed during serialization.
 - The fix only changes serialization metadata; it does not change the database, Doctrine mapping, login behavior, or password storage.
 - After rechecking Doctrine Doctor, the two password-related security warnings disappeared. The remaining security warnings are about using the database `root` user with an empty password.
+
+# Performance Report
+
+## Scope
+
+The optimization focused on the three pages requested for the project presentation:
+
+- Jobs page: `/jobs/`
+- Gigs page: `/gigs`
+- Articles page: `/articles`
+
+No database structure, table, column, index, or entity relationship mapping was changed because the database is shared with another application.
+
+## Methodology
+
+Performance was reviewed with Doctrine Doctor findings and then optimized with minimal query-level changes only. The measured indicators are:
+
+- SQL query count observed before optimization in Doctrine Doctor.
+- Presence of unrestricted queries without `LIMIT`.
+- Number of collection joins in the main listing query.
+- Presence of cartesian products caused by joining multiple collections.
+- Functional verification after optimization using PHP syntax checks, Symfony container linting, PHPStan, focused PHPUnit tests, and direct Doctrine DQL validation.
+
+## Before / After Measurements
+
+| Page | Before: Doctrine Doctor Queries | Before: Main Issue | After: Main Listing Query | After: Limit/Pagination | Result |
+|---|---:|---|---|---|---|
+| `/jobs/` | 8 queries analyzed | 3 collection joins, excessive eager loading, unrestricted result set | Removed default joins on `applications` and `savedByUsers`; kept only the needed `user` join | Added `setMaxResults(20)` | Less eager loading and bounded listing |
+| `/gigs` | 3 queries analyzed | Loaded all gigs, then filtered in memory; unrestricted ordered query | Filters now run directly in SQL with category join only | Added `setMaxResults(24)` | No full table load for the listing |
+| `/articles` | 5 queries analyzed | Cartesian product from joining `favori` and `commentaire` collections together | Replaced collection joins with scalar count subqueries | Existing KnpPaginator pagination kept at 10 per page | Cartesian product removed from listing query |
+
+## Optimizations Applied
+
+- `src/Repository/JobRepository.php`: limited the jobs listing to 20 results and removed collection joins from the default listing query.
+- `src/Repository/GigRepository.php`: added `findFilteredWithCategory()` so search, category, status, and price filters are applied by SQL instead of loading every gig into PHP memory.
+- `src/Repository/GigRepository.php`: added `summarizeAll()` to calculate total gigs, approved gigs, and revenue with one aggregate SQL query instead of iterating all gig entities.
+- `src/Controller/GigController.php`: replaced the previous all-gigs loading path with the new SQL-filtered query and aggregate stats query.
+- `src/Controller/Article/ArticleController.php`: replaced the two collection joins on favoris and commentaires with count subqueries, avoiding cartesian product behavior while keeping the same displayed counts.
+
+## Before / After Analysis
+
+### `/jobs/`
+
+Before optimization, the listing query joined multiple collections even when the page only needed to display a limited list of jobs. Doctrine Doctor reported over-eager loading and an unrestricted result set.
+
+After optimization, the default query loads the job and its owner only, then limits the result set to 20 jobs. The `savedByUsers` join is only used when sorting by most saved jobs.
+
+### `/gigs`
+
+Before optimization, the controller loaded all gigs with their categories and then filtered them in memory when Elasticsearch was unavailable. This was acceptable for small local data but would become slow when the gig table grows.
+
+After optimization, filters are translated directly to SQL conditions and the result set is capped at 24 gigs. Summary statistics are calculated using SQL aggregation instead of hydrating every gig entity.
+
+### `/articles`
+
+Before optimization, the article listing joined both `favoris` and `commentaires` collections in the same query. Doctrine Doctor reported this as a cartesian product risk because each article row can be duplicated by the multiplication of favorites and comments.
+
+After optimization, the listing keeps the same favorite/comment counts but calculates them using scalar subqueries. The page keeps its existing KnpPaginator pagination of 10 articles per page.
+
+## Verification
+
+Commands run after the optimization:
+
+```bash
+php -l src/Repository/JobRepository.php
+php -l src/Repository/GigRepository.php
+php -l src/Controller/GigController.php
+php -l src/Controller/Article/ArticleController.php
+php bin/console lint:container
+vendor/bin/phpstan analyse src/Controller/GigController.php src/Controller/Article/ArticleController.php src/Repository/JobRepository.php src/Repository/GigRepository.php --no-progress --error-format=raw --memory-limit=1G
+vendor/bin/phpunit --testdox tests/Entity/GigTest.php tests/Entity/JobTest.php tests/Entity/ArticleTest.php
+```
+
+Results:
+
+- PHP syntax checks: passed for all modified files.
+- Symfony container lint: passed.
+- PHPStan on modified files: no errors reported.
+- Focused PHPUnit tests: `OK (3 tests, 5 assertions)`.
+- Optimized Article DQL query: executed successfully with favorite/comment count subqueries.
+- Optimized Gig aggregate DQL query: executed successfully for total, approved, and revenue statistics.
+
+## Browser Verification With Playwright
+
+The optimized pages were opened in a real browser through Playwright after the code changes:
+
+| Page | Browser Result | Symfony Toolbar Indicator | Notes |
+|---|---|---|---|
+| `/jobs/` | Page rendered successfully with HTTP 200 | 4 DB queries | Tested the default listing and `sort=most_liked` path. |
+| `/articles` | Page rendered successfully with HTTP 200 | 4 DB queries | Article table rendered with favorite and comment counts. |
+| `/gigs` | Page rendered successfully with HTTP 200 after login | 4 DB queries | Tested the listing and SQL-backed filters for search, status, and price. |
+
+Browser console result:
+
+- No JavaScript errors related to the optimized pages were found.
+- The only console errors were failed Mercure notification connections to `localhost:9090`, which are unrelated to the jobs, gigs, or article query changes.
+
+## Conclusion
+
+The performance report is now completed with before/after indicators for the three requested pages. The changes improve runtime behavior without touching the shared database structure and without changing the visible page behavior.

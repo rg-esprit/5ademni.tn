@@ -30,6 +30,81 @@ class GigRepository extends ServiceEntityRepository
     }
 
     /**
+     * @param array{query:string, category_id:?int, status:string, min_price:?float, max_price:?float} $filters
+     *
+     * @return Gig[]
+     */
+    public function findFilteredWithCategory(array $filters, int $limit = 24): array
+    {
+        $now = new \DateTimeImmutable();
+        $qb = $this->createQueryBuilder('gig')
+            ->addSelect('category')
+            ->leftJoin('gig.category', 'category')
+            ->orderBy('gig.id', 'DESC')
+            ->setMaxResults($limit);
+
+        $query = mb_strtolower(trim($filters['query']));
+        if ('' !== $query) {
+            $qb->andWhere('LOWER(gig.title) LIKE :query OR LOWER(gig.description) LIKE :query')
+                ->setParameter('query', '%'.$query.'%');
+        }
+
+        if (null !== $filters['category_id']) {
+            $qb->andWhere('category.id = :categoryId')
+                ->setParameter('categoryId', $filters['category_id']);
+        }
+
+        if (null !== $filters['min_price']) {
+            $qb->andWhere('gig.price >= :minPrice')
+                ->setParameter('minPrice', $filters['min_price']);
+        }
+
+        if (null !== $filters['max_price']) {
+            $qb->andWhere('gig.price <= :maxPrice')
+                ->setParameter('maxPrice', $filters['max_price']);
+        }
+
+        if ('EXPIRED' === $filters['status']) {
+            $qb->andWhere('gig.status IN (:approvedStatuses)')
+                ->andWhere('gig.deliveryTime < :now')
+                ->setParameter('approvedStatuses', [Gig::STATUS_APPROVED, 'ACTIVE'])
+                ->setParameter('now', $now);
+        } elseif (Gig::STATUS_APPROVED === $filters['status']) {
+            $qb->andWhere('gig.status IN (:approvedStatuses)')
+                ->andWhere('gig.deliveryTime IS NULL OR gig.deliveryTime >= :now')
+                ->setParameter('approvedStatuses', [Gig::STATUS_APPROVED, 'ACTIVE'])
+                ->setParameter('now', $now);
+        } elseif ('ALL' !== $filters['status']) {
+            $qb->andWhere('gig.status = :status')
+                ->setParameter('status', $filters['status']);
+        }
+
+        return $qb->getQuery()->getResult();
+    }
+
+    /**
+     * @return array{total:int, approved:int, revenue:float}
+     */
+    public function summarizeAll(): array
+    {
+        $now = new \DateTimeImmutable();
+        $row = $this->createQueryBuilder('gig')
+            ->select('COUNT(gig.id) AS total')
+            ->addSelect('SUM(CASE WHEN gig.status IN (:approvedStatuses) AND (gig.deliveryTime IS NULL OR gig.deliveryTime >= :now) THEN 1 ELSE 0 END) AS approved')
+            ->addSelect('COALESCE(SUM(gig.price), 0) AS revenue')
+            ->setParameter('approvedStatuses', [Gig::STATUS_APPROVED, 'ACTIVE'])
+            ->setParameter('now', $now)
+            ->getQuery()
+            ->getSingleResult();
+
+        return [
+            'total' => (int) $row['total'],
+            'approved' => (int) $row['approved'],
+            'revenue' => (float) $row['revenue'],
+        ];
+    }
+
+    /**
      * @param Gig[] $gigs
      * @param array{query:string, category_id:?int, status:string, min_price:?float, max_price:?float} $filters
      *

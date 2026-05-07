@@ -10,12 +10,9 @@ use App\Repository\GigRepository;
 use App\Service\BlobStorageService;
 use App\Service\ContentModerationService;
 use App\Service\GigAiService;
-use App\Service\SearchQueryFactory;
 use App\Service\PriceSuggestionService;
 use App\Service\SpamDetectionService;
-use FOS\ElasticaBundle\Finder\TransformedFinder;
 use Doctrine\ORM\EntityManagerInterface;
-use Symfony\Component\DependencyInjection\Attribute\Autowire;
 use Symfony\Bundle\FrameworkBundle\Controller\AbstractController;
 use Symfony\Component\HttpFoundation\Request;
 use Symfony\Component\HttpFoundation\Response;
@@ -29,9 +26,6 @@ class GigController extends AbstractController
         GigRepository $gigRepository,
         CategoryRepository $categoryRepository,
         BlobStorageService $blobStorageService,
-        #[Autowire(service: 'fos_elastica.finder.gig')]
-        TransformedFinder $gigFinder,
-        SearchQueryFactory $searchQueryFactory,
     ): Response {
         $user = $this->getCurrentUser();
         if (!$user instanceof User) {
@@ -39,13 +33,8 @@ class GigController extends AbstractController
         }
 
         $filters = $this->extractFilters($request);
-        $allGigs = $gigRepository->findAllWithCategory();
-        try {
-            $filtered = $gigFinder->find($searchQueryFactory->buildGigSearchQuery($filters));
-        } catch (\Throwable) {
-            $filtered = $gigRepository->filterInMemory($allGigs, $filters);
-        }
-        $stats = $gigRepository->summarize($allGigs);
+        $filtered = $gigRepository->findFilteredWithCategory($filters);
+        $stats = $gigRepository->summarizeAll();
         $categories = $categoryRepository->findAllOrdered();
 
         $now = new \DateTimeImmutable();
