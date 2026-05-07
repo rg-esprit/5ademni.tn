@@ -14,7 +14,7 @@ use Symfony\Component\HttpFoundation\Request;
 use Symfony\Component\HttpFoundation\Response;
 use Symfony\Component\Routing\Attribute\Route;
 use Symfony\Component\Security\Core\Authentication\Token\Storage\TokenStorageInterface;
-use Symfony\Component\Security\Core\Exception\CsrfTokenNotFoundException;
+use Symfony\Component\Security\Core\Exception\InvalidCsrfTokenException;
 use Symfony\Component\Security\Csrf\CsrfToken;
 use Symfony\Component\Security\Csrf\CsrfTokenManagerInterface;
 
@@ -82,7 +82,7 @@ class ProfileController extends AbstractController
         }
 
         if (!$this->isCsrfTokenValid('delete_account', (string) $request->request->get('_token'))) {
-            throw new CsrfTokenNotFoundException('Invalid delete-account token.');
+            throw new InvalidCsrfTokenException('Invalid delete-account token.');
         }
 
         $entityManager->remove($user);

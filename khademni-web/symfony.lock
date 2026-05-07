@@ -47,6 +47,9 @@
             "ref": "46c9cd2c1e07f0fcfd97e96f12b03b2e0845c4cd"
         }
     },
+    "knplabs/knp-paginator-bundle": {
+        "version": "v6.10.0"
+    },
     "php-http/discovery": {
         "version": "1.20",
         "recipe": {
@@ -59,8 +62,14 @@
             "./config/packages/http_discovery.yaml"
         ]
     },
-    "knplabs/knp-paginator-bundle": {
-        "version": "v6.10.0"
+    "phpstan/phpstan": {
+        "version": "2.1",
+        "recipe": {
+            "repo": "github.com/symfony/recipes-contrib",
+            "branch": "main",
+            "version": "1.0",
+            "ref": "5e490cc197fb6bb1ae22e5abbc531ddc633b6767"
+        }
     },
     "phpunit/phpunit": {
         "version": "13.0",
@@ -325,12 +334,6 @@
             "templates/base.html.twig"
         ]
     },
-    "symfony/ux-chartjs": {
-        "version": "v2.35.0"
-    },
-    "symfony/ux-toggle-password": {
-        "version": "v2.35.0"
-    },
     "symfony/ux-autocomplete": {
         "version": "2.35",
         "recipe": {
@@ -343,7 +346,13 @@
             "./config/routes/ux_autocomplete.yaml"
         ]
     },
+    "symfony/ux-chartjs": {
+        "version": "v2.35.0"
+    },
     "symfony/ux-notify": {
+        "version": "v2.35.0"
+    },
+    "symfony/ux-toggle-password": {
         "version": "v2.35.0"
     },
     "symfony/ux-translator": {
