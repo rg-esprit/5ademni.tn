@@ -142,6 +142,8 @@ public class MessageController {
             return;
         }
 
+        App.setNavigationCleanup(this::cleanupBeforeNavigation);
+
         // Démarrer le serveur WebSocket
         WebSocketServerStarter.start();
 
@@ -1525,14 +1527,41 @@ public class MessageController {
 
     @FXML
     private void handleRetour() {
-        if (webSocketClient != null) {
-            webSocketClient.close();
-        }
         try {
             App.setRoot("Conversation");
         } catch (IOException e) {
             showError("Erreur retour");
         }
+    }
+
+    private void cleanupBeforeNavigation() {
+        if (webSocketClient != null) {
+            webSocketClient.close();
+            webSocketClient = null;
+        }
+
+        if (isRecording) {
+            isRecording = false;
+            if (microphone != null) {
+                microphone.stop();
+                microphone.close();
+            }
+        }
+
+        stopRingtone();
+
+        if (mediaPlayer != null) {
+            mediaPlayer.stop();
+            mediaPlayer.dispose();
+            mediaPlayer = null;
+        }
+
+        if (callStage != null) {
+            callStage.close();
+            callStage = null;
+        }
+
+        isInCall = false;
     }
 
     private void showError(String message) {

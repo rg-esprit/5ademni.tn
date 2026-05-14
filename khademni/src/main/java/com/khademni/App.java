@@ -24,6 +24,7 @@ public class App extends Application {
     private static Application appInstance;
     public static UserModel currentUser;
     private static int pendingConversationId = -1;
+    private static Runnable navigationCleanup;
 
     @Override
     public void start(Stage stage) throws IOException {
@@ -40,6 +41,7 @@ public class App extends Application {
     }
 
     public static void setRoot(String fxml) throws IOException {
+        runNavigationCleanup();
         scene.setRoot(loadFXML(fxml));
 
         // Update title and CSS based on the scene
@@ -126,6 +128,24 @@ public class App extends Application {
 
     public static HostServices getAppHostServices() {
         return appInstance != null ? appInstance.getHostServices() : null;
+    }
+
+    public static void setNavigationCleanup(Runnable cleanup) {
+        navigationCleanup = cleanup;
+    }
+
+    private static void runNavigationCleanup() {
+        if (navigationCleanup == null) {
+            return;
+        }
+
+        Runnable cleanup = navigationCleanup;
+        navigationCleanup = null;
+        try {
+            cleanup.run();
+        } catch (Exception e) {
+            System.err.println("Navigation cleanup failed: " + e.getMessage());
+        }
     }
 
 }

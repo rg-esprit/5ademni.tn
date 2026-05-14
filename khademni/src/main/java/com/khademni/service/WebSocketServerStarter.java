@@ -6,23 +6,34 @@ import java.util.Scanner;
 public class WebSocketServerStarter {
 
     private static Server server;
+    private static boolean started = false;
 
-    public static void start() {
-        new Thread(() -> {
+    public static synchronized void start() {
+        if (started) {
+            return;
+        }
+
+        started = true;
+        Thread serverThread = new Thread(() -> {
             try {
                 server = new Server("localhost", 8081, "/ws", null, ChatWebSocketServer.class);
                 server.start();
-                System.out.println("✅ Serveur WebSocket démarré sur ws://localhost:8080/ws/chat/");
+                System.out.println("✅ Serveur WebSocket démarré sur ws://localhost:8081/ws/chat/");
                 System.out.println("⏳ En attente de connexions...");
             } catch (Exception e) {
+                started = false;
                 System.err.println("❌ Erreur démarrage serveur: " + e.getMessage());
             }
-        }).start();
+        });
+        serverThread.setDaemon(true);
+        serverThread.start();
     }
 
-    public static void stop() {
+    public static synchronized void stop() {
         if (server != null) {
             server.stop();
+            server = null;
+            started = false;
             System.out.println("🛑 Serveur WebSocket arrêté");
         }
     }
