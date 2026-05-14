@@ -2,8 +2,6 @@
 
 <?import javafx.scene.control.*?>
 <?import javafx.scene.layout.*?>
-<?import javafx.scene.image.ImageView?>
-<?import javafx.scene.image.Image?>
 <?import javafx.geometry.Insets?>
 <?import org.kordamp.ikonli.javafx.FontIcon?>
 
@@ -119,10 +117,7 @@
                     onAction="#onGoogleSignIn" HBox.hgrow="ALWAYS" maxWidth="Infinity"
                     graphicTextGap="12">
                     <graphic>
-                        <ImageView fitWidth="20" fitHeight="20" preserveRatio="true">
-                            <Image
-                                url="https://www.gstatic.com/firebasejs/ui/2.0.0/images/auth/google.svg" />
-                        </ImageView>
+                        <FontIcon iconLiteral="fab-google" styleClass="google-icon" />
                     </graphic>
                 </Button>
                 <Button fx:id="appleButton" text="Apple" styleClass="social-button"

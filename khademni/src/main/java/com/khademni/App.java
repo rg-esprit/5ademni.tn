@@ -28,16 +28,26 @@ public class App extends Application {
 
     @Override
     public void start(Stage stage) throws IOException {
+        Thread.setDefaultUncaughtExceptionHandler((thread, error) -> error.printStackTrace());
+
         appInstance = this;
+        System.out.println("Starting 5ademni JavaFX app...");
         MyDataBase.init();
+        System.out.println("Database initialization finished.");
         primaryStage = stage;
 
         scene = new Scene(loadFXML("login"), 540, 700);
+        System.out.println("Login FXML loaded.");
         scene.getStylesheets().add(App.class.getResource("login.css").toExternalForm());
         stage.setTitle("5ademni.tn — Sign In");
-        stage.setFullScreen(true);
+        stage.setWidth(900);
+        stage.setHeight(760);
+        stage.centerOnScreen();
         stage.setScene(scene);
         stage.show();
+        stage.toFront();
+        stage.requestFocus();
+        System.out.println("JavaFX window shown.");
     }
 
     public static void setRoot(String fxml) throws IOException {
@@ -89,10 +99,9 @@ public class App extends Application {
             scene.getStylesheets().add(App.class.getResource("contrat.css").toExternalForm());
         }
         
-        // Only set full screen if it's not already, to avoid focus issues
-        if (!primaryStage.isFullScreen()) {
-            primaryStage.setFullScreen(true);
-        }
+        primaryStage.centerOnScreen();
+        primaryStage.toFront();
+        primaryStage.requestFocus();
     }
 
     private static Parent loadFXML(String fxml) throws IOException {
