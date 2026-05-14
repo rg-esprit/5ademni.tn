@@ -28,8 +28,14 @@ public class EmailService {
         Properties properties = new Properties();
         properties.put("mail.smtp.auth", "true");
         properties.put("mail.smtp.starttls.enable", "true");
+        properties.put("mail.smtp.starttls.required", "true");
         properties.put("mail.smtp.host", SMTP_HOST);
         properties.put("mail.smtp.port", SMTP_PORT);
+        properties.put("mail.smtp.connectiontimeout", "10000");
+        properties.put("mail.smtp.timeout", "10000");
+        properties.put("mail.smtp.writetimeout", "10000");
+        properties.put("mail.smtp.ssl.trust", SMTP_HOST);
+        properties.put("mail.smtp.ssl.protocols", "TLSv1.2 TLSv1.3");
 
         // Authentification
         Session session = Session.getInstance(properties, new Authenticator() {

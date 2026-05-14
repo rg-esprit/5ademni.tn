@@ -6,7 +6,6 @@ import javafx.animation.ScaleTransition;
 import javafx.fxml.FXML;
 import javafx.geometry.Insets;
 import javafx.geometry.Pos;
-import javafx.scene.Scene;
 import javafx.scene.chart.*;
 import javafx.scene.control.*;
 import javafx.scene.control.cell.PropertyValueFactory;
@@ -15,8 +14,6 @@ import javafx.scene.layout.HBox;
 import javafx.scene.layout.StackPane;
 import javafx.scene.layout.VBox;
 import javafx.stage.FileChooser;
-import javafx.stage.Modality;
-import javafx.stage.Stage;
 import javafx.util.Duration;
 import org.kordamp.ikonli.javafx.FontIcon;
 import com.khademni.service.*;
@@ -242,29 +239,20 @@ public class ArticleGUIController {
         loadStatistics();
 
     }
-private void showModernDialog(String title, String message, String type) {
-    Stage dialog = new Stage();
-    dialog.initModality(Modality.APPLICATION_MODAL);
-    dialog.setTitle(title);
+    private void showModernDialog(String title, String message, String type) {
+        Alert alert = new Alert("success".equalsIgnoreCase(type)
+                ? Alert.AlertType.INFORMATION
+                : Alert.AlertType.ERROR);
+        alert.setTitle(title);
+        alert.setHeaderText(null);
+        alert.setContentText(message);
 
-    VBox dialogVBox = new VBox(20);
-    dialogVBox.setAlignment(Pos.CENTER);
-    dialogVBox.setPadding(new Insets(20));
-    dialogVBox.setStyle("-fx-background-color: white; -fx-border-radius: 10; -fx-background-radius: 10;");
+        if (tableArticles != null && tableArticles.getScene() != null) {
+            alert.initOwner(tableArticles.getScene().getWindow());
+        }
 
-    Label lblMessage = new Label(message);
-    lblMessage.setStyle("-fx-font-size: 14px; -fx-text-fill: #374151; -fx-font-weight: bold;");
-
-    Button btnClose = new Button("OK");
-    btnClose.setStyle("-fx-background-color: #6c0df2; -fx-text-fill: white; -fx-font-size: 14px; -fx-font-weight: bold; -fx-background-radius: 20;");
-    btnClose.setOnAction(e -> dialog.close());
-
-    dialogVBox.getChildren().addAll(lblMessage, btnClose);
-
-    Scene dialogScene = new Scene(dialogVBox, 300, 150);
-    dialog.setScene(dialogScene);
-    dialog.showAndWait();
-}
+        alert.showAndWait();
+    }
     private void supprimerArticle(Article article) {
 
         Alert confirm = new Alert(Alert.AlertType.CONFIRMATION);
@@ -286,25 +274,12 @@ private void showModernDialog(String title, String message, String type) {
                     loadStatistics();
                     clearForm();
 
-                    // Envoi de l'email après la suppression de l'article
-                    try {
-                        UserModel currentUser = SessionManager.getCurrentUser();
-                        if (currentUser != null) {
-                            String userEmail = currentUser.getEmail();
-                            EmailService.sendEmail(
-                                    userEmail,
-                                    "Article supprimé : " + article.getTitle(),
-                                    "L'article suivant a été supprimé :\n\n" +
-                                            "Titre : " + article.getTitle() + "\n" +
-                                            "Contenu : " + article.getContent());
-                            System.out.println("Email envoyé à : " + userEmail);
-                        } else {
-                            System.out.println("Aucun utilisateur connecté. Impossible d'envoyer l'email.");
-                        }
-                    } catch (Exception e) {
-                        e.printStackTrace();
-                        showAlert(Alert.AlertType.ERROR, "Erreur", "Impossible d'envoyer l'email !");
-                    }
+                    sendCurrentUserEmailAsync(
+                            "Article supprimé : " + article.getTitle(),
+                            "L'article suivant a été supprimé :\n\n" +
+                                    "Titre : " + article.getTitle() + "\n" +
+                                    "Contenu : " + article.getContent(),
+                            "suppression d'article");
 
                     showModernDialog(
                             "Succès",
@@ -510,27 +485,8 @@ private void showModernDialog(String title, String message, String type) {
 
                 System.out.println("Article ajouté avec succès dans la base de données.");
 
-                showModernDialog( "Succès", "Article ajouté avec succès !", "success");
-                // Envoi de l'email après l'ajout de l'article
-                try {
-                    UserModel currentUser = SessionManager.getCurrentUser();
-                    if (currentUser != null) {
-                        String userEmail = currentUser.getEmail();
-                        EmailService.sendArticleCreationEmail(
-                                userEmail,
-                                article.getTitle(),
-                                article.getContent(),
-                                article.getCreatedAt().toString());
-                        System.out.println("Email envoyé à : " + userEmail);
-                    } else {
-                        System.out.println("Aucun utilisateur connecté. Impossible d'envoyer l'email.");
-                    }
-                } catch (Exception e) {
-                    e.printStackTrace();
-                    showAlert(Alert.AlertType.ERROR, "Erreur", "Impossible d'envoyer l'email !");
-                }
-
-                showModernDialog( "Succès", "Article ajouté avec succès !", "success");
+                sendArticleCreationEmailAsync(article);
+                showModernDialog("Succès", "Article ajouté avec succès !", "success");
             } else {
                 // ===== MODIFICATION =====
                 articleSelectionne.setTitle(txtTitle.getText());
@@ -571,26 +527,13 @@ private void showModernDialog(String title, String message, String type) {
 
             articleController.update(articleSelectionne);
 
-            // Envoi de l'email après la modification de l'article
-            try {
-                UserModel currentUser = SessionManager.getCurrentUser();
-                if (currentUser != null) {
-                    String userEmail = currentUser.getEmail();
-                    EmailService.sendEmail(
-                            userEmail,
-                            "Article modifié : " + articleSelectionne.getTitle(),
-                            "L'article suivant a été modifié :\n\n" +
-                                    "Titre : " + articleSelectionne.getTitle() + "\n" +
-                                    "Contenu : " + articleSelectionne.getContent() + "\n" +
-                                    "Statut : " + articleSelectionne.getStatus());
-                    System.out.println("Email envoyé à : " + userEmail);
-                } else {
-                    System.out.println("Aucun utilisateur connecté. Impossible d'envoyer l'email.");
-                }
-            } catch (Exception e) {
-                e.printStackTrace();
-                showAlert(Alert.AlertType.ERROR, "Erreur", "Impossible d'envoyer l'email !");
-            }
+            sendCurrentUserEmailAsync(
+                    "Article modifié : " + articleSelectionne.getTitle(),
+                    "L'article suivant a été modifié :\n\n" +
+                            "Titre : " + articleSelectionne.getTitle() + "\n" +
+                            "Contenu : " + articleSelectionne.getContent() + "\n" +
+                            "Statut : " + articleSelectionne.getStatus(),
+                    "modification d'article");
 
             loadArticles();
             loadStatistics();
@@ -618,6 +561,52 @@ private void showModernDialog(String title, String message, String type) {
         alert.setContentText(message);
         alert.initOwner(tableArticles.getScene().getWindow());
         alert.showAndWait();
+    }
+
+    private void sendArticleCreationEmailAsync(Article article) {
+        Thread emailThread = new Thread(() -> sendCurrentUserArticleCreationEmail(article), "article-creation-email");
+        emailThread.setDaemon(true);
+        emailThread.start();
+    }
+
+    private void sendCurrentUserArticleCreationEmail(Article article) {
+        try {
+            UserModel currentUser = SessionManager.getCurrentUser();
+            if (currentUser != null) {
+                String userEmail = currentUser.getEmail();
+                EmailService.sendArticleCreationEmail(
+                        userEmail,
+                        article.getTitle(),
+                        article.getContent(),
+                        article.getCreatedAt().toString());
+                System.out.println("Email envoyé à : " + userEmail);
+            } else {
+                System.out.println("Aucun utilisateur connecté. Impossible d'envoyer l'email.");
+            }
+        } catch (Exception e) {
+            System.err.println("Impossible d'envoyer l'email de création d'article.");
+            e.printStackTrace();
+        }
+    }
+
+    private void sendCurrentUserEmailAsync(String subject, String body, String operation) {
+        Thread emailThread = new Thread(() -> {
+            try {
+                UserModel currentUser = SessionManager.getCurrentUser();
+                if (currentUser != null) {
+                    String userEmail = currentUser.getEmail();
+                    EmailService.sendEmail(userEmail, subject, body);
+                    System.out.println("Email envoyé à : " + userEmail);
+                } else {
+                    System.out.println("Aucun utilisateur connecté. Impossible d'envoyer l'email.");
+                }
+            } catch (Exception e) {
+                System.err.println("Impossible d'envoyer l'email de " + operation + ".");
+                e.printStackTrace();
+            }
+        }, "article-email-" + operation.replace(' ', '-'));
+        emailThread.setDaemon(true);
+        emailThread.start();
     }
 
     private void clearForm() {
