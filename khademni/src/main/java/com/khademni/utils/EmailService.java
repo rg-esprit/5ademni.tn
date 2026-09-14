@@ -9,11 +9,29 @@ import java.util.Properties;
 public class EmailService {
 
     // Configuration SMTP
-    private static final String SMTP_HOST = "smtp.gmail.com"; // Serveur SMTP
-    private static final String SMTP_PORT = "587"; // Port pour TLS
-    private static final String EMAIL_USERNAME = "noreply@khademni.tn"; // Remplacez par votre email
-    private static final String EMAIL_PASSWORD = "your_mail_password_here"; // Remplacez par votre mot de passe ou mot de passe
-                                                                     // d'application
+    private static final String SMTP_HOST = getEnvOrProp("MAIL_HOST", "smtp.gmail.com");
+    private static final String SMTP_PORT = getEnvOrProp("MAIL_PORT", "587");
+    private static final String EMAIL_USERNAME = getEnvOrProp("MAIL_USERNAME", "");
+    private static final String EMAIL_PASSWORD = getEnvOrProp("MAIL_PASSWORD", "");
+
+    private static String getEnvOrProp(String key, String defaultValue) {
+        String val = System.getenv(key);
+        if (val != null && !val.isBlank()) {
+            return val.trim();
+        }
+        try (java.io.InputStream input = EmailService.class.getClassLoader().getResourceAsStream("config.properties")) {
+            if (input != null) {
+                Properties prop = new Properties();
+                prop.load(input);
+                String pVal = prop.getProperty(key);
+                if (pVal != null && !pVal.isBlank() && !pVal.contains("your_")) {
+                    return pVal.trim();
+                }
+            }
+        } catch (Exception ignored) {
+        }
+        return defaultValue;
+    }
 
     /**
      * Envoie un email à un destinataire.
@@ -24,6 +42,10 @@ public class EmailService {
      * @throws MessagingException En cas d'erreur lors de l'envoi.
      */
     public static void sendEmail(String to, String subject, String body) throws MessagingException {
+        if (EMAIL_USERNAME == null || EMAIL_USERNAME.isBlank() || EMAIL_PASSWORD == null || EMAIL_PASSWORD.isBlank()) {
+            System.out.println("EmailService: Mail credentials not configured. Skipping email to " + to);
+            return;
+        }
         // Configuration des propriétés SMTP
         Properties properties = new Properties();
         properties.put("mail.smtp.auth", "true");

@@ -639,10 +639,26 @@ public class ReviewController {
         return icon;
     }
 
-    // ==================================================
-    // AI Review Generation
-    // ==================================================
-    private static final String OPENROUTER_API_KEY = "your_openrouter_api_key_here";
+    private static final String OPENROUTER_API_KEY = loadOpenRouterKey();
+
+    private static String loadOpenRouterKey() {
+        String key = System.getenv("OPENROUTER_API_KEY");
+        if (key != null && !key.isBlank()) {
+            return key.trim();
+        }
+        try (java.io.InputStream input = ReviewController.class.getClassLoader().getResourceAsStream("config.properties")) {
+            if (input != null) {
+                java.util.Properties prop = new java.util.Properties();
+                prop.load(input);
+                String val = prop.getProperty("OPENROUTER_API_KEY", "").trim();
+                if (!val.isEmpty() && !val.contains("your_")) {
+                    return val;
+                }
+            }
+        } catch (Exception ignored) {
+        }
+        return "";
+    }
     private static final String OPENROUTER_URL = "https://openrouter.ai/api/v1/chat/completions";
     // Fallback chain — tried in order until one succeeds
     private static final String[] CHAT_MODELS = {
@@ -660,6 +676,11 @@ public class ReviewController {
         String prompt = aiPromptField.getText() != null ? aiPromptField.getText().trim() : "";
         if (prompt.isEmpty()) {
             showError("Please describe what you want the review to say.");
+            return;
+        }
+
+        if (OPENROUTER_API_KEY == null || OPENROUTER_API_KEY.isBlank()) {
+            showError("OpenRouter API key is not configured. Please set OPENROUTER_API_KEY.");
             return;
         }
 

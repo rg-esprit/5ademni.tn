@@ -19,26 +19,42 @@ public class SMSService {
     }
 
     private static void loadCredentials() {
-        try (InputStream input = SMSService.class.getClassLoader()
-                .getResourceAsStream("config.properties")) {
-            if (input != null) {
-                Properties prop = new Properties();
-                prop.load(input);
-                ACCOUNT_SID = prop.getProperty("TWILIO_ACCOUNT_SID", "").trim();
-                AUTH_TOKEN = prop.getProperty("TWILIO_AUTH_TOKEN", "").trim();
-                FROM_NUMBER = prop.getProperty("TWILIO_PHONE_NUMBER", "").trim();
+        ACCOUNT_SID = System.getenv("TWILIO_ACCOUNT_SID");
+        AUTH_TOKEN = System.getenv("TWILIO_AUTH_TOKEN");
+        FROM_NUMBER = System.getenv("TWILIO_PHONE_NUMBER");
 
-                if (!ACCOUNT_SID.isEmpty() && !ACCOUNT_SID.equals("YOUR_ACCOUNT_SID_HERE")
-                        && !AUTH_TOKEN.isEmpty() && !AUTH_TOKEN.equals("YOUR_AUTH_TOKEN_HERE")) {
-                    Twilio.init(ACCOUNT_SID, AUTH_TOKEN);
-                    initialized = true;
-                    System.out.println("SMSService: Twilio initialized successfully.");
-                } else {
-                    System.out.println("SMSService: Twilio credentials not configured. SMS sending is disabled.");
+        if (ACCOUNT_SID == null || AUTH_TOKEN == null || FROM_NUMBER == null) {
+            try (InputStream input = SMSService.class.getClassLoader()
+                    .getResourceAsStream("config.properties")) {
+                if (input != null) {
+                    Properties prop = new Properties();
+                    prop.load(input);
+                    if (ACCOUNT_SID == null || ACCOUNT_SID.isBlank()) {
+                        ACCOUNT_SID = prop.getProperty("TWILIO_ACCOUNT_SID", "").trim();
+                    }
+                    if (AUTH_TOKEN == null || AUTH_TOKEN.isBlank()) {
+                        AUTH_TOKEN = prop.getProperty("TWILIO_AUTH_TOKEN", "").trim();
+                    }
+                    if (FROM_NUMBER == null || FROM_NUMBER.isBlank()) {
+                        FROM_NUMBER = prop.getProperty("TWILIO_PHONE_NUMBER", "").trim();
+                    }
                 }
+            } catch (Exception e) {
+                System.err.println("SMSService: Failed to load config.properties - " + e.getMessage());
             }
-        } catch (Exception e) {
-            System.err.println("SMSService: Failed to load config.properties - " + e.getMessage());
+        }
+
+        ACCOUNT_SID = ACCOUNT_SID != null ? ACCOUNT_SID.trim() : "";
+        AUTH_TOKEN = AUTH_TOKEN != null ? AUTH_TOKEN.trim() : "";
+        FROM_NUMBER = FROM_NUMBER != null ? FROM_NUMBER.trim() : "";
+
+        if (!ACCOUNT_SID.isEmpty() && !ACCOUNT_SID.contains("your_") && !ACCOUNT_SID.equals("YOUR_ACCOUNT_SID_HERE")
+                && !AUTH_TOKEN.isEmpty() && !AUTH_TOKEN.contains("your_") && !AUTH_TOKEN.equals("YOUR_AUTH_TOKEN_HERE")) {
+            Twilio.init(ACCOUNT_SID, AUTH_TOKEN);
+            initialized = true;
+            System.out.println("SMSService: Twilio initialized successfully.");
+        } else {
+            System.out.println("SMSService: Twilio credentials not configured. SMS sending is disabled.");
         }
     }
 

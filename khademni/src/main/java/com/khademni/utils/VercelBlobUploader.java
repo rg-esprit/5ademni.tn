@@ -12,6 +12,7 @@ import java.net.http.HttpRequest;
 import java.net.http.HttpResponse;
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.util.Properties;
 import java.util.UUID;
 
 /**
@@ -21,8 +22,26 @@ import java.util.UUID;
  */
 public class VercelBlobUploader {
 
-    private static final String BLOB_READ_WRITE_TOKEN =
-            "your_vercel_blob_token_here";
+    private static final String BLOB_READ_WRITE_TOKEN = loadBlobToken();
+
+    private static String loadBlobToken() {
+        String token = System.getenv("VERCEL_BLOB_READ_WRITE_TOKEN");
+        if (token != null && !token.isBlank()) {
+            return token.trim();
+        }
+        try (InputStream input = VercelBlobUploader.class.getClassLoader().getResourceAsStream("config.properties")) {
+            if (input != null) {
+                Properties prop = new Properties();
+                prop.load(input);
+                String val = prop.getProperty("VERCEL_BLOB_READ_WRITE_TOKEN", "").trim();
+                if (!val.isEmpty() && !val.contains("your_")) {
+                    return val;
+                }
+            }
+        } catch (Exception ignored) {
+        }
+        return "";
+    }
 
     private static final String BLOB_API_URL = "https://vercel.com/api/blob";
 

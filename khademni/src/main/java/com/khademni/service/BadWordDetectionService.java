@@ -3,6 +3,7 @@ package com.khademni.service;
 import com.khademni.model.BadWordResult;
 
 import java.io.BufferedReader;
+import java.io.InputStream;
 import java.io.InputStreamReader;
 import java.io.OutputStream;
 import java.net.HttpURLConnection;
@@ -10,6 +11,7 @@ import java.net.URL;
 import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Properties;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
@@ -33,7 +35,26 @@ public class BadWordDetectionService {
 
     private static final String DEEPSEEK_API_URL = "https://api.deepseek.com/v1/chat/completions";
     private static final String DEEPSEEK_MODEL   = "deepseek-chat";
-    private static final String API_KEY          = "your_deepseek_api_key_here";
+    private static final String API_KEY          = loadApiKey();
+
+    private static String loadApiKey() {
+        String key = System.getenv("DEEPSEEK_API_KEY");
+        if (key != null && !key.isBlank()) {
+            return key.trim();
+        }
+        try (InputStream input = BadWordDetectionService.class.getClassLoader().getResourceAsStream("config.properties")) {
+            if (input != null) {
+                Properties prop = new Properties();
+                prop.load(input);
+                String val = prop.getProperty("DEEPSEEK_API_KEY", "").trim();
+                if (!val.isEmpty() && !val.contains("your_")) {
+                    return val;
+                }
+            }
+        } catch (Exception ignored) {
+        }
+        return "";
+    }
 
     /** Connection timeout (ms) — fail fast so the UI stays responsive */
     private static final int CONNECT_TIMEOUT = 8000;
@@ -157,6 +178,9 @@ public class BadWordDetectionService {
     }
 
     private String callDeepSeekAPI(String requestJson) throws Exception {
+        if (API_KEY == null || API_KEY.isBlank()) {
+            throw new IllegalStateException("DeepSeek API key is not configured.");
+        }
         URL url = new URL(DEEPSEEK_API_URL);
         HttpURLConnection conn = (HttpURLConnection) url.openConnection();
 

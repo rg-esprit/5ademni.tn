@@ -14,7 +14,26 @@ import java.util.Scanner;
 // tu es  beau et intelligent
 public class ContentModeration {
 
-    private static final String API_KEY = "your_huggingface_api_key_here"; // ⚠️ Mets ton token ici
+    private static final String API_KEY = loadApiKey();
+
+    private static String loadApiKey() {
+        String key = System.getenv("HUGGINGFACE_API_KEY");
+        if (key != null && !key.isBlank()) {
+            return key.trim();
+        }
+        try (InputStream input = ContentModeration.class.getClassLoader().getResourceAsStream("config.properties")) {
+            if (input != null) {
+                java.util.Properties prop = new java.util.Properties();
+                prop.load(input);
+                String val = prop.getProperty("HUGGINGFACE_API_KEY", "").trim();
+                if (!val.isEmpty() && !val.contains("your_")) {
+                    return val;
+                }
+            }
+        } catch (Exception ignored) {
+        }
+        return "";
+    }
 
     private static final String MODEL_URL = "https://router.huggingface.co/hf-inference/models/unitary/toxic-bert";
 
@@ -24,6 +43,10 @@ public class ContentModeration {
 
 public static boolean isCommentAcceptable(String commentaire) {
     System.out.println("Debug: Entered isCommentAcceptable method with comment: " + commentaire);
+    if (API_KEY == null || API_KEY.isBlank()) {
+        System.out.println("ContentModeration: HuggingFace API key not configured, skipping remote check.");
+        return true;
+    }
     try {
         URL url = new URL(MODEL_URL);
         HttpURLConnection conn = (HttpURLConnection) url.openConnection();

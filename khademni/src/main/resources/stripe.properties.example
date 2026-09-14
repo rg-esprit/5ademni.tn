@@ -1,0 +1,2 @@
+stripe.secret_key=your_stripe_secret_key_here
+stripe.default_currency=eur

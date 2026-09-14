@@ -15,7 +15,26 @@ public class FreeAIService {
 
     // API Hugging Face GRATUITE - pas besoin de carte bancaire
     private static final String HUGGING_FACE_API = "https://api-inference.huggingface.co/models/mistralai/Mistral-7B-Instruct-v0.2";
-    private static final String API_KEY = "hf_xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx"; // Token gratuit
+    private static final String API_KEY = loadApiKey();
+
+    private static String loadApiKey() {
+        String key = System.getenv("HUGGINGFACE_API_KEY");
+        if (key != null && !key.isBlank()) {
+            return key.trim();
+        }
+        try (java.io.InputStream input = FreeAIService.class.getClassLoader().getResourceAsStream("config.properties")) {
+            if (input != null) {
+                java.util.Properties prop = new java.util.Properties();
+                prop.load(input);
+                String val = prop.getProperty("HUGGINGFACE_API_KEY", "").trim();
+                if (!val.isEmpty() && !val.contains("your_") && !val.contains("xxxx")) {
+                    return val;
+                }
+            }
+        } catch (Exception ignored) {
+        }
+        return "";
+    }
 
     /**
      * Génère une description pour une catégorie

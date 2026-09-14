@@ -22,11 +22,17 @@ face_backend/.venv*/
 # HTML
 html files
 
-# Symfony app
+# Environment files
+.env
+.env.*
+!.env.example
 !khademni-web/.env
+!khademni-web/.env.example
 khademni-web/.env.local
 khademni-web/.env.local.php
 khademni-web/.env.*.local
+*.local.properties
+tmpclaude*
 khademni-web/config/secrets/prod/prod.decrypt.private.php
 khademni-web/config/google-calendar-service-account.json
 khademni-web/public/bundles/

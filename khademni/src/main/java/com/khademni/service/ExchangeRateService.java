@@ -3,12 +3,14 @@ package com.khademni.service;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 
+import java.io.InputStream;
 import java.net.URI;
 import java.net.http.HttpClient;
 import java.net.http.HttpRequest;
 import java.net.http.HttpResponse;
 import java.time.Duration;
 import java.util.Map;
+import java.util.Properties;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.prefs.Preferences;
 
@@ -22,8 +24,30 @@ import java.util.prefs.Preferences;
  */
 public class ExchangeRateService {
 
-    private static final String API_KEY = "your_exchangerate_api_key_here";
+    private static final String API_KEY = loadApiKey();
     private static final String API_URL = "https://v6.exchangerate-api.com/v6/" + API_KEY + "/latest/TND";
+
+    private static String loadApiKey() {
+        String key = System.getenv("EXCHANGERATE_API_KEY");
+        if (key == null || key.isBlank()) {
+            key = System.getenv("EXCHANGE_RATE_API_KEY");
+        }
+        if (key != null && !key.isBlank()) {
+            return key.trim();
+        }
+        try (InputStream input = ExchangeRateService.class.getClassLoader().getResourceAsStream("config.properties")) {
+            if (input != null) {
+                Properties prop = new Properties();
+                prop.load(input);
+                String val = prop.getProperty("EXCHANGERATE_API_KEY", "").trim();
+                if (!val.isEmpty() && !val.contains("your_")) {
+                    return val;
+                }
+            }
+        } catch (Exception ignored) {
+        }
+        return "";
+    }
     private static final long CACHE_TTL_MS = 24 * 60 * 60 * 1000L; // 24 hours
     private static final String PREF_KEY_RATES = "exchange_rates_json";
     private static final String PREF_KEY_TIMESTAMP = "exchange_rates_timestamp";
@@ -123,6 +147,10 @@ public class ExchangeRateService {
     // ---------- API Fetch ----------
 
     private void refreshRatesAsync() {
+        if (API_KEY == null || API_KEY.isBlank()) {
+            System.out.println("[ExchangeRate] API key not configured. Skipping live fetch.");
+            return;
+        }
         Thread thread = new Thread(() -> {
             try {
                 HttpClient client = HttpClient.newBuilder()
